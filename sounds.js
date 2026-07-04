@@ -24,7 +24,7 @@
   function allowed(cat) { return !muted && prefs[cat] !== false; }
 
   // Selectable tone styles for the most audible sounds (hub Sound Panel)
-  var DEFAULT_TONES = { click: 'classic', toast: 'chime', pop: 'pop', success: 'arpeggio', explosion: 'realistic' };
+  var DEFAULT_TONES = { click: 'classic', toast: 'chime', pop: 'pop', success: 'arpeggio', explosion: 'realistic', notify: 'doorbell', fanfare: 'classic', thunder: 'rumble' };
   var toneChoice;
   try { toneChoice = JSON.parse(localStorage.getItem('aog-sound-tones')) || {}; } catch (e) { toneChoice = {}; }
   for (var tk in DEFAULT_TONES) if (!toneChoice[tk]) toneChoice[tk] = DEFAULT_TONES[tk];
@@ -313,7 +313,16 @@
     click: {
       classic:    function () { tone({ type: 'sine', from: 880, to: 660, dur: 0.06, vol: 0.10 }); },
       typewriter: function () { noiseBurst({ dur: 0.025, vol: 0.12, filter: 'bandpass', from: 2200, q: 1.5, curve: 3 }); },
-      bubble:     function () { tone({ type: 'sine', from: 320, to: 950, dur: 0.07, vol: 0.10 }); }
+      bubble:     function () { tone({ type: 'sine', from: 320, to: 950, dur: 0.07, vol: 0.10 }); },
+      laser:      function () { tone({ type: 'square', from: 1800, to: 220, dur: 0.11, vol: 0.05 }); },
+      knock:      function () { noiseBurst({ dur: 0.03, vol: 0.14, filter: 'lowpass', from: 650, curve: 3 });
+                                tone({ type: 'sine', from: 190, to: 120, dur: 0.05, vol: 0.09 }); },
+      waterdrop:  function () { tone({ type: 'sine', from: 950, to: 400, dur: 0.05, vol: 0.09 });
+                                tone({ type: 'sine', from: 480, to: 1000, dur: 0.07, vol: 0.08, delay: 0.05 }); },
+      retro:      function () { tone({ type: 'square', from: 660, dur: 0.04, vol: 0.05 });
+                                tone({ type: 'square', from: 880, dur: 0.05, vol: 0.05, delay: 0.05 }); },
+      thock:      function () { noiseBurst({ dur: 0.02, vol: 0.11, filter: 'lowpass', from: 900, curve: 3 });
+                                tone({ type: 'sine', from: 250, dur: 0.04, vol: 0.08 }); }
     },
     toast: {
       chime:    function () { tone({ type: 'sine', from: 660, to: 990, dur: 0.14, vol: 0.12 });
@@ -321,12 +330,26 @@
       doorbell: function () { tone({ type: 'sine', from: 830, dur: 0.2, vol: 0.11 });
                               tone({ type: 'sine', from: 623, dur: 0.32, vol: 0.11, delay: 0.18 }); },
       marimba:  function () { [523, 659, 784].forEach(function (f, i) {
-                                tone({ type: 'triangle', from: f, dur: 0.18, vol: 0.10, delay: i * 0.08 }); }); }
+                                tone({ type: 'triangle', from: f, dur: 0.18, vol: 0.10, delay: i * 0.08 }); }); },
+      glass:    function () { tone({ type: 'sine', from: 2093, dur: 0.3, vol: 0.07 });
+                              tone({ type: 'sine', from: 2637, dur: 0.26, vol: 0.05, delay: 0.05 }); },
+      harp:     function () { [659, 784, 988, 1319, 1568].forEach(function (f, i) {
+                                tone({ type: 'triangle', from: f, dur: 0.35, vol: 0.045, delay: i * 0.06 }); }); },
+      digital:  function () { tone({ type: 'square', from: 990, dur: 0.06, vol: 0.045 });
+                              tone({ type: 'square', from: 1320, dur: 0.07, vol: 0.045, delay: 0.09 }); },
+      belltree: function () { for (var i = 0; i < 6; i++) {
+                                tone({ type: 'triangle', from: 1400 + i * 300, dur: 0.15, vol: 0.04, delay: i * 0.05 }); } }
     },
     pop: {
       pop:  function () { tone({ type: 'sine', from: 440, to: 880, dur: 0.05, vol: 0.09 }); },
       tick: function () { noiseBurst({ dur: 0.02, vol: 0.13, filter: 'lowpass', from: 1400, curve: 3 }); },
-      blip: function () { tone({ type: 'square', from: 990, dur: 0.045, vol: 0.05 }); }
+      blip: function () { tone({ type: 'square', from: 990, dur: 0.045, vol: 0.05 }); },
+      cork: function () { noiseBurst({ dur: 0.025, vol: 0.1, filter: 'bandpass', from: 800, q: 2, curve: 3 });
+                          tone({ type: 'sine', from: 320, to: 160, dur: 0.06, vol: 0.08 }); },
+      marble: function () { tone({ type: 'sine', from: 1250, to: 950, dur: 0.035, vol: 0.09 });
+                            noiseBurst({ dur: 0.012, vol: 0.07, filter: 'highpass', from: 3000, curve: 2 }); },
+      ding: function () { tone({ type: 'triangle', from: 1568, dur: 0.28, vol: 0.06 }); },
+      snap: function () { noiseBurst({ dur: 0.018, vol: 0.13, filter: 'highpass', from: 2800, curve: 2 }); }
     },
     success: {
       arpeggio: function () { tone({ type: 'triangle', from: 523, dur: 0.1, vol: 0.12 });
@@ -336,10 +359,44 @@
                               tone({ type: 'triangle', from: 880, dur: 0.4, vol: 0.12, delay: 0.12 });
                               tone({ type: 'sine', from: 440, dur: 0.4, vol: 0.06, delay: 0.12 }); },
       gentle:   function () { tone({ type: 'sine', from: 660, dur: 0.2, vol: 0.08 });
-                              tone({ type: 'sine', from: 880, dur: 0.3, vol: 0.07, delay: 0.15 }); }
+                              tone({ type: 'sine', from: 880, dur: 0.3, vol: 0.07, delay: 0.15 }); },
+      levelup:  function () { [392, 523, 659, 784, 1046].forEach(function (f, i) {
+                                tone({ type: 'square', from: f, dur: 0.07, vol: 0.045, delay: i * 0.07 }); }); },
+      cash:     function () { noiseBurst({ dur: 0.05, vol: 0.08, filter: 'highpass', from: 2000, curve: 2 });
+                              tone({ type: 'triangle', from: 1760, dur: 0.25, vol: 0.09, delay: 0.07 });
+                              tone({ type: 'triangle', from: 2093, dur: 0.3, vol: 0.07, delay: 0.14 }); },
+      choir:    function () { [523, 659, 784].forEach(function (f) {
+                                tone({ type: 'sine', from: f, dur: 0.7, vol: 0.045 }); });
+                              tone({ type: 'sine', from: 1046, dur: 0.7, vol: 0.03, delay: 0.1 }); },
+      chord:    function () { [262, 330, 392, 523].forEach(function (f) {
+                                tone({ type: 'sawtooth', from: f, dur: 0.45, vol: 0.03 }); }); }
     },
     explosion: {
       realistic: function () { boom(); },
+      distant:   function () { // far-off shell, all muffled rumble
+                   noiseBurst({ dur: 0.9, vol: 0.12, from: 500, to: 60, curve: 2 });
+                   tone({ type: 'sine', from: 70, to: 28, dur: 0.8, vol: 0.12, delay: 0.05 });
+                   noiseBurst({ dur: 1.2, vol: 0.06, from: 250, to: 45, curve: 1.5, delay: 0.4 }); },
+      willow:    function () { // golden willow: soft burst, long falling sparkle trails
+                   noiseBurst({ dur: 0.08, vol: 0.16, filter: 'highpass', from: 600, curve: 1.5 });
+                   tone({ type: 'sine', from: 100, to: 40, dur: 0.4, vol: 0.12 });
+                   for (var i = 0; i < 8; i++) {
+                     tone({ type: 'sine', from: 1100 + Math.random() * 500, to: 250 + Math.random() * 150,
+                            dur: 0.9 + Math.random() * 0.6, vol: 0.02, delay: 0.15 + i * 0.1 });
+                   }
+                   for (var j = 0; j < 25; j++) {
+                     var w = 0.2 + Math.pow(Math.random(), 0.5) * 1.8;
+                     noiseBurst({ dur: 0.015, vol: 0.05 * (1 - w / 2.1), filter: 'highpass',
+                                  from: 3000 + Math.random() * 3000, curve: 1, delay: w });
+                   } },
+      finale:    function () { // triple burst
+                   boom(0.2);
+                   setTimeout(function () { boom(0.22); }, 220 + Math.random() * 120);
+                   setTimeout(function () { boom(0.26); }, 500 + Math.random() * 150); },
+      artillery: function () { // single vicious CRACK + slap-back echo
+                   noiseBurst({ dur: 0.045, vol: 0.32, filter: 'highpass', from: 400, curve: 1 });
+                   tone({ type: 'sine', from: 140, to: 30, dur: 0.45, vol: 0.24, delay: 0.005 });
+                   noiseBurst({ dur: 0.3, vol: 0.1, from: 900, to: 100, curve: 2, delay: 0.42 }); },
       deep:      function () { // heavier sub, minimal crackle — the "mortar shell"
                    noiseBurst({ dur: 0.05, vol: 0.28, filter: 'lowpass', from: 800, curve: 1.5 });
                    tone({ type: 'sine', from: 100, to: 22, dur: 0.9, vol: 0.3, delay: 0.01 });
@@ -352,6 +409,40 @@
                      var when = 0.1 + Math.pow(Math.random(), 0.6) * 1.6;
                      noiseBurst({ dur: 0.012 + Math.random() * 0.02, vol: 0.09 * (1 - when / 1.9),
                                   filter: 'highpass', from: 2500 + Math.random() * 4500, curve: 1, delay: when }); } }
+    }
+    ,
+    notify: {
+      doorbell: function () { tone({ type: 'sine', from: 830, dur: 0.18, vol: 0.09 });
+                              tone({ type: 'sine', from: 623, dur: 0.28, vol: 0.09, delay: 0.16 }); },
+      pager:    function () { tone({ type: 'square', from: 1046, dur: 0.09, vol: 0.05 });
+                              tone({ type: 'square', from: 1046, dur: 0.09, vol: 0.05, delay: 0.15 }); },
+      sonar:    function () { tone({ type: 'sine', from: 1150, to: 1100, dur: 0.55, vol: 0.06 }); },
+      tritone:  function () { [523, 659, 880].forEach(function (f, i) {
+                                tone({ type: 'sine', from: f, dur: 0.12, vol: 0.08, delay: i * 0.1 }); }); }
+    },
+    fanfare: {
+      classic:  function () { var seq = [523, 659, 784, 1046, 1318];
+                              seq.forEach(function (f, i) {
+                                tone({ type: 'triangle', from: f, dur: i === seq.length - 1 ? 0.5 : 0.14, vol: 0.1, delay: i * 0.13 });
+                                tone({ type: 'sine', from: f / 2, dur: 0.14, vol: 0.05, delay: i * 0.13 }); }); },
+      victory:  function () { [659, 659, 659, 784, 659, 784, 1046].forEach(function (f, i) {
+                                tone({ type: 'square', from: f, dur: i === 6 ? 0.45 : 0.09, vol: 0.05, delay: i * 0.11 }); }); },
+      horn:     function () { tone({ type: 'sawtooth', from: 349, to: 523, dur: 0.5, vol: 0.05 });
+                              [523, 659, 784].forEach(function (f) {
+                                tone({ type: 'sawtooth', from: f, dur: 0.6, vol: 0.035, delay: 0.4 }); }); },
+      sparkle:  function () { for (var i = 0; i < 9; i++) {
+                                tone({ type: 'triangle', from: 800 + i * 180, dur: 0.12, vol: 0.05, delay: i * 0.055 }); }
+                              tone({ type: 'triangle', from: 2400, dur: 0.5, vol: 0.06, delay: 0.55 }); }
+    },
+    thunder: {
+      rumble: function () { thunder(); },
+      crack:  function () { // storm directly overhead: instant violent crack
+                noiseBurst({ dur: 0.07, vol: 0.24, filter: 'highpass', from: 350, curve: 1 });
+                tone({ type: 'sine', from: 130, to: 30, dur: 0.6, vol: 0.16, delay: 0.01 });
+                noiseBurst({ dur: 1.4, vol: 0.09, from: 400, to: 55, curve: 1.8, delay: 0.08 }); },
+      roll:   function () { // long distant rolling thunder
+                thunder(0.07);
+                setTimeout(function () { thunder(0.05); }, 600 + Math.random() * 400); }
     }
   };
   function pick(name) { return (VARIANTS[name][toneChoice[name]] || VARIANTS[name][DEFAULT_TONES[name]])(); }
@@ -370,10 +461,10 @@
     pulse:   function () { tone({ type: 'sine', from: 200, to: 60, dur: 0.4, vol: 0.06 }); },
     explosion: function () { pick('explosion'); },
     launch:  launchWhistle,
-    thunder: function () { thunder(); },
+    thunder: function () { pick('thunder'); },
     boltStrike: function () { // homepage lightning: crack now, rumble after
       zap(true);
-      setTimeout(function () { thunder(0.09); }, 250 + Math.random() * 500);
+      setTimeout(function () { if (allowed('animations')) pick('thunder'); }, 250 + Math.random() * 500);
     },
     zap:     function () { zap(false); },
     zapBig:  function () { zap(true); },
@@ -386,12 +477,11 @@
     wind:    windGust,
     shutter: shutter,
     pop:     function () { pick('pop'); },
-    fanfare: fanfare,
+    fanfare: function () { pick('fanfare'); },
     tick:    tick,
     result:  function () { tone({ type: 'sine', from: 660, to: 880, dur: 0.09, vol: 0.07 });
                            tone({ type: 'sine', from: 880, dur: 0.1, vol: 0.06, delay: 0.08 }); },
-    notify:  function () { tone({ type: 'sine', from: 830, dur: 0.18, vol: 0.09 });
-                           tone({ type: 'sine', from: 623, dur: 0.28, vol: 0.09, delay: 0.16 }); },
+    notify:  function () { pick('notify'); },
     online:  function () { tone({ type: 'sine', from: 440, to: 660, dur: 0.12, vol: 0.08 });
                            tone({ type: 'sine', from: 660, to: 880, dur: 0.12, vol: 0.08, delay: 0.11 }); },
     ignite: ignite,
