@@ -30,14 +30,35 @@
   getCtx();
   function ready() { return !muted && ctx && ctx.state === 'running'; }
 
-  // Browsers block audio until first user gesture; unlock then start ambience
-  function unlock() {
-    var c = getCtx();
-    if (!c) return;
-    if (c.state === 'running') applyScene();
-    else if (c.resume) c.resume().then(applyScene).catch(function(){});
+  // ── Zero-tap audio strategy ─────────────────────────────────
+  // Browsers block audio until the FIRST user gesture on a fresh visit
+  // (a hard platform rule). But permission carries across same-origin
+  // navigation and is granted outright to frequently-used sites, so:
+  //   1. Try to start audio IMMEDIATELY on load
+  //   2. Keep retrying for 15s — the instant the browser allows it, go
+  //   3. React to onstatechange so ambience starts the same millisecond
+  //   4. Catch every gesture type as the fallback unlock
+  var sceneStarted = false;
+  function goLive() {
+    if (sceneStarted || muted) return;
+    sceneStarted = true;
+    applyScene();
   }
-  ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) {
+  function tryStart() {
+    var c = getCtx(); // getCtx() also calls resume()
+    if (!c) return;
+    c.onstatechange = function () { if (c.state === 'running') goLive(); };
+    if (c.state === 'running') goLive();
+    else if (c.resume) c.resume().then(goLive).catch(function () {});
+  }
+  tryStart(); // attempt zero-tap start right now
+  var retries = 0;
+  var retryTimer = setInterval(function () {
+    if (sceneStarted || ++retries > 30) { clearInterval(retryTimer); return; }
+    tryStart();
+  }, 500);
+  function unlock() { tryStart(); }
+  ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'mousedown', 'keydown'].forEach(function (ev) {
     document.addEventListener(ev, unlock, { once: true, passive: true });
   });
 
@@ -469,7 +490,7 @@
   // Pause ambience in background tabs
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) stopAmbient();
-    else if (ready()) applyScene();
+    else { sceneStarted = false; tryStart(); }
   });
 
   /* ================= AUTO EVENT HOOKS ================= */
@@ -527,12 +548,12 @@
 
   window.AOGSound = {
     play: function (name) { if (S[name]) S[name](); },
-    scene: function (name) { amb.scene = name; if (ready()) applyScene(); },
+    scene: function (name) { amb.scene = name; sceneStarted = false; tryStart(); },
     toggleMute: function () {
       muted = !muted;
       localStorage.setItem('aog-sound-muted', muted ? '1' : '0');
       if (muted) stopAmbient();
-      else { var c = getCtx(); if (c && c.state === 'running') applyScene(); else if (c && c.resume) c.resume().then(applyScene).catch(function(){}); }
+      else { sceneStarted = false; tryStart(); }
       return muted;
     },
     isMuted: function () { return muted; },
