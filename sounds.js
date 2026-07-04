@@ -21,6 +21,9 @@
   var prefs;
   try { prefs = JSON.parse(localStorage.getItem('aog-sound-prefs')) || {}; } catch (e) { prefs = {}; }
   for (var pk in DEFAULT_PREFS) if (typeof prefs[pk] !== 'boolean') prefs[pk] = DEFAULT_PREFS[pk];
+  // Output mode: 'sound' | 'vibrate' | 'both'
+  var mode = localStorage.getItem('aog-sound-mode') || 'sound';
+  if (mode !== 'sound' && mode !== 'vibrate' && mode !== 'both') mode = 'sound';
   function allowed(cat) { return !muted && prefs[cat] !== false; }
 
   // Selectable tone styles for the most audible sounds (hub Sound Panel)
@@ -645,9 +648,32 @@
                            tone({ type: 'sine', from: 440, to: 280, dur: 0.15, vol: 0.08, delay: 0.11 }); }
   };
 
+  // Haptic patterns (ms on/off). Android Chrome supports navigator.vibrate;
+  // iPhones do not expose it to web apps, so iOS stays sound-only.
+  var VIB = {
+    click: 8, hover: 0, tick: 5, pop: 12, result: 15, copied: [10, 40, 10],
+    toast: [20, 60, 20], notify: [30, 60, 30], online: [15, 50, 15], offline: [40, 60, 40],
+    success: [20, 50, 20, 50, 40], error: [60, 40, 60], fanfare: [30, 60, 30, 60, 30, 60, 80],
+    explosion: [10, 20, 120], launch: 20, boltStrike: [15, 30, 90], thunder: 120,
+    zap: 10, zapBig: 35, trip: [30, 30, 50], trash: [15, 40, 30], sweep: 25,
+    shutter: [12, 30, 12], clunk: 30, tink: 10, welcome: [15, 40, 25],
+    arcflash: [20, 20, 80], grb: [20, 30, 200], powerDown: [80, 60, 40], surge: 40,
+    ignite: 15, ping: 12, pulse: 30
+  };
+  function buzz(k) {
+    if (!navigator.vibrate) return;
+    var p = VIB[k];
+    if (p === undefined) p = 10;
+    if (p) { try { navigator.vibrate(p); } catch (e) {} }
+  }
+
   var S = {};
   Object.keys(RAW).forEach(function (k) {
-    S[k] = function () { if (allowed(CATS[k] || 'taps')) RAW[k](); };
+    S[k] = function () {
+      if (!allowed(CATS[k] || 'taps')) return;
+      if (mode !== 'vibrate') RAW[k]();
+      if (mode !== 'sound') buzz(k);
+    };
   });
 
   /* ================= AMBIENT LOOPS ================= */
@@ -789,7 +815,7 @@
     }
     if (!profile) return;
     var cat = (amb.scene && SCENES[amb.scene]) ? 'animations' : 'seasonal';
-    if (!allowed(cat)) return;
+    if (!allowed(cat) || mode === 'vibrate') return;
     if (profile.loop && LOOPS[profile.loop]) LOOPS[profile.loop]();
     if (profile.once && S[profile.once]) S[profile.once]();
     if (profile.occ) profile.occ.forEach(function (o) { scheduleOccasional(o[0], o[1], o[2]); });
@@ -825,9 +851,9 @@
     if (!el) return;
     S.click();
     var sig = (el.id + ' ' + el.className + ' ' + (el.textContent || '').slice(0, 60)).toLowerCase();
-    if (/delete|remove|trash|\ud83d\uddd1/.test(sig)) S.trash();
+    if (/\bclear\b|\breset\b|start over/.test(sig)) { /* wait for confirm OK */ }
+    else if (/delete|remove|trash|\ud83d\uddd1/.test(sig)) S.trash();
     else if (/copy|clipboard/.test(sig)) S.copied();
-    else if (/\bclear\b|\breset\b|start over/.test(sig)) S.sweep();
     else if (/pdf|export|download|save|print|submit|send/.test(sig)) S.result();
   }, { passive: true });
 
@@ -898,6 +924,14 @@
       return muted;
     },
     isMuted: function () { return muted; },
+    getMode: function () { return mode; },
+    setMode: function (m) {
+      if (m !== 'sound' && m !== 'vibrate' && m !== 'both') return;
+      mode = m;
+      localStorage.setItem('aog-sound-mode', mode);
+      stopAmbient(); sceneStarted = false; tryStart();
+    },
+    canVibrate: function () { return !!navigator.vibrate; },
     getTones: function () { var o = {}; for (var k in toneChoice) o[k] = toneChoice[k]; return o; },
     setTone: function (name, variant) {
       if (VARIANTS[name] && VARIANTS[name][variant]) {
