@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<!--
+© 2026 Brandon Keilholz — All rights reserved.
+Created by Brandon Keilholz. Licensed for use by Always On Generators.
+This form, its code, layout, and content are proprietary.
+Unauthorized copying, reproduction, or distribution is prohibited and
+may result in liability for statutory damages of up to $150,000 per work
+for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>AOG Conduit Fill Calculator — NEC Chapter 9</title>
+<script src="../sounds.js" defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="../manifest.json">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="theme-color" content="#FBBF24">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AOG Forms">
+
+<style>
+:root {
+  --bg: #f8f9fa;
+  --bg2: #ffffff;
+  --bg3: #f1f3f5;
+  --border: #dee2e6;
+  --text: #1F2937;
+  --text2: #4b5563;
+  --accent: #D97706;
+  --accent2: #B45309;
+  --cyan: #0891b2;
+  --success: #059669;
+  --danger: #DC2626;
+  --warn: #d97706;
+  --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --radius: 12px;
+  --header-bg: #1a1a2e;
+  --header-text: #D97706;
+}
+.dark {
+  --bg: #0A0E27;
+  --bg2: #0f1535;
+  --bg3: #141a3a;
+  --border: #1e2a4a;
+  --text: #E0F7FF;
+  --text2: #94a3b8;
+  --accent: #00FFC8;
+  --accent2: #06B6D4;
+  --cyan: #00FFC8;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warn: #f59e0b;
+  --shadow: 0 2px 8px rgba(0,255,200,0.06);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Exo 2', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* HEADER — spec-viewer style: pulsing logo left of company name + scanline flashes */
+.header {
+  text-align: center;
+  padding: 26px 16px 20px;
+  margin-bottom: 8px;
+  position: relative;
+}
+.header::before,.header::after{content:'';position:absolute;height:2px;width:80%;left:10%;background:linear-gradient(90deg,transparent,#FBBF24,#F97316,#00D4FF,transparent);}
+.header::before{top:0;animation:scanline 4s linear infinite;}
+.header::after{bottom:0;animation:scanline 4s linear infinite reverse;}
+@keyframes scanline{0%,100%{opacity:0;transform:scaleX(0)}50%{opacity:1;transform:scaleX(1)}}
+.logo-wrap{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:nowrap;margin-bottom:10px;}
+.logo-img{width:70px;height:70px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 0 12px rgba(251,191,36,.6));animation:logoPulse 3s ease-in-out infinite;}
+@media(min-width:480px){.logo-img{width:90px;height:90px}}
+@keyframes logoPulse{0%,100%{filter:drop-shadow(0 0 12px rgba(251,191,36,.6))}50%{filter:drop-shadow(0 0 22px rgba(251,191,36,.9)) drop-shadow(0 0 36px rgba(249,115,22,.6))}}
+.title-block{text-align:left;min-width:0;}
+.company-name{font-family:'Orbitron',monospace;font-size:clamp(1.05rem,4.5vw,1.4rem);font-weight:900;letter-spacing:2px;line-height:1.1;background:linear-gradient(135deg,#FBBF24 0%,#F97316 50%,#EA580C 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;}
+@media(min-width:480px){.company-name{font-size:1.8rem;letter-spacing:3px}}
+.tagline{font-family:'Share Tech Mono',monospace;font-size:.65rem;letter-spacing:4px;color:var(--cyan);text-transform:uppercase;}
+.tool-title{font-family:'Orbitron',monospace;font-size:.7rem;letter-spacing:5px;color:var(--text2);margin-top:8px;text-transform:uppercase;}
+.tool-title span{color:#F97316;}
+.header .nec-badge{margin-top:8px;display:inline-block;}
+.home-btn {
+  background: none; border: 1px solid #D97706;
+  color: #D97706; border-radius: 8px;
+  padding: 6px 10px; font-size: 11px;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.2s;
+  text-decoration: none; display: inline-flex;
+  align-items: center; gap: 4px;
+}
+.home-btn:hover { background: #D97706; color: #000; }
+.theme-btn {
+  background: none; border: 1px solid #D97706;
+  color: #D97706; border-radius: 8px;
+  padding: 6px 10px; font-size: 14px; cursor: pointer;
+  transition: all 0.2s;
+}
+.theme-btn:hover { background: #D97706; color: #000; }
+.nec-badge {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8px; background: #D97706;
+  color: #000; padding: 3px 7px;
+  border-radius: 4px; font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* MAIN */
+.main { padding: 16px; max-width: 900px; margin: 0 auto; }
+
+/* SECTION CARDS */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+  transition: background 0.3s, border 0.3s;
+}
+.card-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px; font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title::before {
+  content: ''; display: inline-block;
+  width: 3px; height: 14px;
+  background: var(--accent); border-radius: 2px;
+}
+
+/* FORM ELEMENTS */
+label {
+  font-size: 11px; font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  display: block; margin-bottom: 5px;
+}
+select, input[type="number"], input[type="text"] {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: 'Exo 2', sans-serif;
+  outline: none;
+  transition: border 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none;
+}
+select:focus, input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(217,119,6,0.2);
+}
+.dark select:focus, .dark input:focus {
+  box-shadow: 0 0 0 2px rgba(0,255,200,0.15);
+}
+
+/* GRID LAYOUTS */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+@media(max-width:520px) {
+  .grid-2 { grid-template-columns: 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+}
+
+/* WIRE ROWS */
+.wire-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+  padding: 10px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  transition: background 0.3s;
+}
+.wire-row:hover { border-color: var(--accent); }
+.remove-btn {
+  background: var(--danger);
+  color: white; border: none;
+  border-radius: 6px; width: 32px; height: 32px;
+  font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: opacity 0.2s;
+  align-self: flex-end; margin-bottom: 0;
+}
+.remove-btn:hover { opacity: 0.8; }
+.add-btn {
+  background: var(--accent);
+  color: #000; border: none;
+  border-radius: 8px; padding: 10px 16px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  transition: opacity 0.2s, transform 0.1s;
+  width: 100%; justify-content: center;
+  margin-top: 8px;
+}
+.add-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+.add-btn:active { transform: translateY(0); }
+
+/* CALCULATE BUTTON */
+.calc-btn {
+  width: 100%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000; border: none;
+  border-radius: 10px; padding: 14px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 2px; cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(217,119,6,0.3);
+  margin-top: 4px;
+}
+.calc-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(217,119,6,0.4);
+}
+.calc-btn:active { transform: translateY(0); }
+.dark .calc-btn {
+  background: linear-gradient(135deg, #00FFC8, #06B6D4);
+  box-shadow: 0 4px 15px rgba(0,255,200,0.25);
+}
+
+/* RESULTS */
+.result-card {
+  background: var(--bg2);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 0 20px rgba(217,119,6,0.1);
+}
+.dark .result-card {
+  box-shadow: 0 0 20px rgba(0,255,200,0.08);
+}
+.result-header {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px; color: var(--accent);
+  letter-spacing: 1.5px; margin-bottom: 14px;
+  text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* CONDUIT TABLE */
+.conduit-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 12px; font-family: 'Share Tech Mono', monospace;
+}
+.conduit-table th {
+  background: var(--bg3);
+  color: var(--accent);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px; letter-spacing: 1px;
+  padding: 8px 10px; text-align: left;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+.conduit-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+.conduit-table tr:last-child td { border-bottom: none; }
+.conduit-table tr:hover td { background: var(--bg3); }
+
+/* STATUS PILLS */
+.status-pass {
+  background: var(--success);
+  color: white; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+.status-fail {
+  background: var(--danger);
+  color: white; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+.status-warn {
+  background: var(--warn);
+  color: #000; padding: 3px 8px;
+uit  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+.status-best {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+
+/* FILL BAR */
+.fill-bar-wrap {
+  background: var(--bg3);
+  border-radius: 6px; height: 10px;
+  overflow: hidden; min-width: 60px;
+}
+.fill-bar {
+  height: 100%; border-radius: 6px;
+  transition: width 0.6s ease;
+}
+.fill-green { background: var(--success); }
+.fill-yellow { background: var(--warn); }
+.fill-red { background: var(--danger); }
+
+/* JAM SECTION */
+.jam-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+}
+.jam-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px; color: var(--accent);
+  letter-spacing: 1px; margin-bottom: 8px;
+}
+.jam-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.jam-item {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px;
+  text-align: center;
+}
+.jam-size {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px; font-weight: 700;
+  color: var(--text);
+}
+.jam-ratio {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--text2);
+  margin: 2px 0;
+}
+.jam-status {
+  font-size: 10px; font-weight: 700;
+  margin-top: 4px;
+}
+.jam-ok  { color: var(--success); }
+.jam-risk { color: var(--warn); }
+.jam-high { color: var(--danger); }
+
+/* WIRE SUMMARY */
+.wire-summary {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-bottom: 12px;
+}
+.wire-chip {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--text);
+}
+
+/* RECOMMENDATION */
+.rec-box {
+  background: linear-gradient(135deg, rgba(217,119,6,0.1), rgba(180,83,9,0.05));
+  border: 1px solid var(--accent);
+  border-radius: 8px; padding: 12px;
+  margin-top: 12px;
+}
+.dark .rec-box {
+  background: linear-gradient(135deg, rgba(0,255,200,0.05), rgba(6,182,212,0.03));
+  border-color: var(--accent);
+}
+.rec-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px; color: var(--accent);
+  letter-spacing: 1.5px; margin-bottom: 6px;
+}
+.rec-size {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px; font-weight: 900;
+  color: var(--accent);
+}
+.rec-detail {
+  font-size: 12px; color: var(--text2);
+  margin-top: 4px; font-family: 'Share Tech Mono', monospace;
+}
+
+/* STATS ROW */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px; margin-bottom: 12px;
+}
+.stat-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px;
+  text-align: center;
+}
+.stat-val {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px; font-weight: 700;
+  color: var(--accent);
+}
+.stat-lbl {
+  font-size: 9px; color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.8px; margin-top: 2px;
+}
+
+/* NIPPLE/RACEWAY TOGGLE */
+.toggle-row {
+  display: flex; gap: 8px;
+  margin-bottom: 14px;
+}
+.toggle-opt {
+  flex: 1; padding: 10px;
+  border: 2px solid var(--border);
+  border-radius: 8px; text-align: center;
+  cursor: pointer; font-family: 'Orbitron', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; color: var(--text2);
+  transition: all 0.2s;
+}
+.toggle-opt.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(217,119,6,0.08);
+}
+.dark .toggle-opt.active {
+  background: rgba(0,255,200,0.07);
+}
+
+/* OVERFLOW TABLE */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center; padding: 40px 20px;
+  color: var(--text2);
+}
+.empty-icon { font-size: 48px; margin-bottom: 8px; }
+.empty-text {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px; letter-spacing: 1px;
+}
+
+/* DIVIDER */
+.divider {
+  border: none; border-top: 1px solid var(--border);
+  margin: 12px 0;
+}
+
+/* INFO ROW */
+.info-row {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text2);
+  margin-top: 6px;
+  font-family: 'Share Tech Mono', monospace;
+}
+.info-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%; background: var(--accent);
+  flex-shrink: 0;
+}
+
+/* PRINT */
+@media print {
+  .header, .add-btn, .remove-btn, .calc-btn,
+  .theme-btn, .home-btn, .toggle-row { display: none !important; }
+  body { background: white; color: black; }
+  .card, .result-card { box-shadow: none; border: 1px solid #ccc; }
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+
+/* FOOTER */
+.footer {
+  text-align: center; padding: 20px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--text2);
+  letter-spacing: 1px;
+}
+
+
+/* ===== FIXED ACTION BAR ===== */
+.action-bar {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  z-index: 99999;
+  width: 100%;
+  background: var(--header-bg, #1e293b);
+  padding: 4px 8px;
+  padding-top: max(4px, env(safe-area-inset-top, 4px));
+  display: flex; justify-content: flex-start; gap: 4px; flex-wrap: nowrap; align-items: center;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none
+  
+  box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+  border-bottom: 1px solid rgba(217,119,6,0.3);
+  box-sizing: border-box;
+}
+/* Center the buttons when they fit; auto-margins collapse safely when the
+   bar overflows and scrolls, so nothing gets clipped off the left edge. */
+.action-bar > :first-child { margin-left: auto; }
+.action-bar > :last-child { margin-right: auto; }
+.action-bar .ab-btn {
+  padding: 6px 8px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.07);
+  border-radius: 0; cursor: pointer; color: #D97706; text-transform: uppercase;
+  font-family: Arial, sans-serif; white-space: nowrap; flex: 1; min-width: 0;
+  text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+  clip-path: polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  overflow: hidden; text-overflow: ellipsis; transition: all 0.15s ease;
+}
+.action-bar .ab-btn:hover { border-color: #D97706; box-shadow: 0 0 8px rgba(217,119,6,0.3); }
+.action-bar .theme-toggle-ab {
+  width: 36px; height: 36px; padding: 6px; flex-shrink: 0;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.07);
+  border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: #D97706; font-size: 16px; transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.action-bar .theme-toggle-ab:hover { border-color: #D97706; box-shadow: 0 0 8px rgba(217,119,6,0.3); }
+@media (max-width: 480px) {
+  .action-bar { padding: 4px 4px; padding-top: max(4px, env(safe-area-inset-top, 4px)); gap: 3px; }
+}
+</style>
+<script src="../update-banner.js"></script>
+</head>
+<body>
+<div class="action-bar" id="action-bar">
+  <a class="ab-btn" href="../">🏠 HOME</a>
+  <button class="theme-toggle-ab" id="themeBtn" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo-wrap">
+    <img src="../logo.png" alt="Always On Generators Logo" class="logo-img" onerror="this.style.display='none'">
+    <div class="title-block">
+      <div class="company-name">Always On<br>Generators</div>
+      <div class="tagline">// Power When You Need It //</div>
+    </div>
+  </div>
+  <div class="tool-title">Conduit <span>Fill</span> Calculator &mdash; NEC Ch. 9, Tables 1, 4 &amp; 5</div>
+  <span class="nec-badge">NEC 2023</span>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="main">
+
+  <!-- CONDUIT TYPE -->
+  <div class="card">
+    <div class="card-title">Raceway Type</div>
+
+    <div class="toggle-row">
+      <div class="toggle-opt active" id="tog-raceway" onclick="setFillMode('raceway')">
+        📐 RACEWAY<br><span style="font-size:8px;font-weight:400;letter-spacing:0">40% Fill</span>
+      </div>
+      <div class="toggle-opt" id="tog-nipple" onclick="setFillMode('nipple')">
+        🔩 NIPPLE<br><span style="font-size:8px;font-weight:400;letter-spacing:0">60% Fill</span>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div>
+        <label>Conduit / Raceway Type</label>
+        <select id="conduitType" onchange="updateConduitInfo()">
+          <optgroup label="Rigid Metal Conduit">
+            <option value="RMC">RMC — Rigid Metal Conduit</option>
+          </optgroup>
+          <optgroup label="Intermediate Metal Conduit">
+            <option value="IMC">IMC — Intermediate Metal Conduit</option>
+          </optgroup>
+          <optgroup label="Electrical Metallic Tubing">
+            <option value="EMT">EMT — Electrical Metallic Tubing</option>
+          </optgroup>
+          <optgroup label="Flexible Metal Conduit">
+            <option value="FMC">FMC — Flexible Metal Conduit</option>
+          </optgroup>
+          <optgroup label="Liquidtight Flexible Metal">
+            <option value="LFMC">LFMC — Liquidtight Flex Metal</option>
+          </optgroup>
+          <optgroup label="Liquidtight Flexible Nonmetallic">
+            <option value="LFNC-A">LFNC-A — Liquidtight Flex NM (A)</option>
+            <option value="LFNC-B">LFNC-B — Liquidtight Flex NM (B)</option>
+          </optgroup>
+          <optgroup label="Rigid PVC Conduit">
+            <option value="PVC-40">PVC Schedule 40</option>
+            <option value="PVC-80">PVC Schedule 80</option>
+          </optgroup>
+          <optgroup label="High Density Polyethylene">
+            <option value="HDPE">HDPE Conduit</option>
+          </optgroup>
+          <optgroup label="Electrical Nonmetallic Tubing">
+            <option value="ENT">ENT — Electrical Nonmetallic Tubing</option>
+          </optgroup>
+        </select>
+      </div>
+      <div>
+        <label>Trade Size</label>
+        <select id="tradeSize" onchange="updateConduitInfo()">
+          <option value="">— Select Size —</option>
+          <option value="3/8">3/8"</option>
+          <option value="1/2">1/2"</option>
+          <option value="3/4">3/4"</option>
+          <option value="1">1"</option>
+          <option value="1-1/4">1-1/4"</option>
+          <option value="1-1/2">1-1/2"</option>
+          <option value="2">2"</option>
+          <option value="2-1/2">2-1/2"</option>
+          <option value="3">3"</option>
+          <option value="3-1/2">3-1/2"</option>
+          <option value="4">4"</option>
+          <option value="5">5"</option>
+          <option value="6">6"</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="conduitInfoBox" style="margin-top:10px;display:none;">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
+        <div class="stat-box" style="flex:1;min-width:120px;">
+          <div class="stat-val" id="ci-id">—</div>
+          <div class="stat-lbl">Internal Diameter</div>
+        </div>
+        <div class="stat-box" style="flex:1;min-width:120px;">
+          <div class="stat-val" id="ci-total">—</div>
+          <div class="stat-lbl">Total Area (in²)</div>
+        </div>
+        <div class="stat-box" style="flex:1;min-width:120px;">
+          <div class="stat-val" id="ci-allowed">—</div>
+          <div class="stat-lbl" id="ci-allowed-lbl">Allowed Fill (in²)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WIRE ENTRIES -->
+  <div class="card">
+    <div class="card-title">Conductors</div>
+    <div id="wireList"></div>
+    <button class="add-btn" onclick="addWire()">＋ ADD CONDUCTOR</button>
+  </div>
+
+  <!-- CALCULATE -->
+  <button class="calc-btn" onclick="calculate()">⚡ CALCULATE CONDUIT FILL</button>
+
+  <!-- RESULTS -->
+  <div id="results" style="display:none;margin-top:14px;">
+
+    <!-- SUMMARY STATS -->
+    <div class="result-card">
+      <div class="result-header">📊 Fill Summary</div>
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-val" id="r-total-area">—</div>
+          <div class="stat-lbl">Total Wire Area (in²)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="r-fill-pct">—</div>
+          <div class="stat-lbl">Fill %</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="r-allowed">—</div>
+          <div class="stat-lbl">Allowed Area (in²)</div>
+        </div>
+      </div>
+
+      <div id="r-wire-summary" class="wire-summary"></div>
+
+      <div id="r-status-bar" style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-size:11px;color:var(--text2);font-family:'Share Tech Mono',monospace;">FILL UTILIZATION</span>
+          <span id="r-fill-label" style="font-size:11px;font-weight:700;font-family:'Share Tech Mono',monospace;"></span>
+        </div>
+        <div class="fill-bar-wrap" style="height:14px;">
+          <div id="r-fill-bar" class="fill-bar" style="width:0%;"></div>
+        </div>
+      </div>
+
+      <div id="r-recommendation" class="rec-box">
+        <div class="rec-label">◆ RECOMMENDATION</div>
+        <div class="rec-size" id="r-rec-size">—</div>
+        <div class="rec-detail" id="r-rec-detail">—</div>
+      </div>
+    </div>
+
+    <!-- ALL CONDUIT SIZES TABLE -->
+    <div class="result-card">
+      <div class="result-header">
+        📋 All Conduit Sizes —
+        <span id="r-type-label" style="color:var(--text2);font-size:10px;"></span>
+      </div>
+      <div class="table-wrap">
+        <table class="conduit-table" id="allSizesTable">
+          <thead>
+            <tr>
+              <th>SIZE</th>
+              <th>TOTAL AREA</th>
+              <th>ALLOWED</th>
+              <th>WIRE AREA</th>
+              <th>FILL %</th>
+              <th>VISUAL</th>
+              <th>STATUS</th>
+            </tr>
+          </thead>
+          <tbody id="allSizesTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- JAM PREDICTION -->
+    <div class="result-card">
+      <div class="result-header">⚠️ Jam Ratio Prediction</div>
+      <div class="info-row" style="margin-bottom:10px;">
+        <div class="info-dot"></div>
+        <span>Per NEC informational note: jam ratio = conduit ID ÷ largest wire OD.
+              Risk zone: 2.8–3.2</span>
+      </div>
+      <div class="jam-grid" id="jamGrid"></div>
+    </div>
+
+  </div>
+
+  <!-- REFERENCE CARD -->
+  <div class="card">
+    <div class="card-title">NEC Chapter 9 Reference</div>
+    <div style="display:grid;gap:6px;">
+      <div class="info-row"><div class="info-dot"></div>Table 1 — Percent Conduit Fill Rules</div>
+      <div class="info-row"><div class="info-dot"></div>1 Conductor: 53% max fill</div>
+      <div class="info-row"><div class="info-dot"></div>2 Conductors: 31% max fill</div>
+      <div class="info-row"><div class="info-dot"></div>3+ Conductors: 40% max fill</div>
+      <div class="info-row"><div class="info-dot"></div>Nipples (≤24"): 60% fill allowed</div>
+      <div class="info-row"><div class="info-dot"></div>Table 4 — Conduit internal dimensions &amp; areas</div>
+      <div class="info-row"><div class="info-dot"></div>Table 5 — Conductor cross-sectional areas by type/size</div>
+      <div class="info-row"><div class="info-dot"></div>Table 9 — AC resistance &amp; reactance (informational)</div>
+      <div class="info-row"><div class="info-dot"></div>Jam ratio formula: ID ÷ OD of conductor</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  AOG FIELD OPERATIONS HUB — CONDUIT FILL CALCULATOR<br>
+  NEC 2023 CHAPTER 9 — TABLES 1, 4 &amp; 5 — BUILT BY BRANDON @BrandonAOG
+</div>
+
+<script>
+// ============================================================
+// NEC CHAPTER 9 — TABLE 4 — CONDUIT INTERNAL DIMENSIONS
+// ============================================================
+const CONDUIT_DATA = {
+  RMC: {
+    "3/8":  { id: 0.493, total: 0.191 },
+    "1/2":  { id: 0.632, total: 0.314 },
+    "3/4":  { id: 0.836, total: 0.549 },
+    "1":    { id: 1.063, total: 0.887 },
+    "1-1/4":{ id: 1.394, total: 1.526 },
+    "1-1/2":{ id: 1.624, total: 2.071 },
+    "2":    { id: 2.083, total: 3.408 },
+    "2-1/2":{ id: 2.489, total: 4.866 },
+    "3":    { id: 3.090, total: 7.499 },
+    "3-1/2":{ id: 3.570, total: 10.010 },
+    "4":    { id: 4.050, total: 12.882 },
+    "5":    { id: 5.073, total: 20.212 },
+    "6":    { id: 6.093, total: 29.158 }
+  },
+  IMC: {
+    "1/2":  { id: 0.660, total: 0.342 },
+    "3/4":  { id: 0.864, total: 0.586 },
+    "1":    { id: 1.105, total: 0.959 },
+    "1-1/4":{ id: 1.448, total: 1.647 },
+    "1-1/2":{ id: 1.683, total: 2.225 },
+    "2":    { id: 2.150, total: 3.630 },
+    "2-1/2":{ id: 2.557, total: 5.135 },
+    "3":    { id: 3.176, total: 7.922 },
+    "3-1/2":{ id: 3.671, total: 10.584 },
+    "4":    { id: 4.166, total: 13.631 }
+  },
+  EMT: {
+    "1/2":  { id: 0.622, total: 0.304 },
+    "3/4":  { id: 0.824, total: 0.533 },
+    "1":    { id: 1.049, total: 0.864 },
+    "1-1/4":{ id: 1.380, total: 1.496 },
+    "1-1/2":{ id: 1.610, total: 2.036 },
+    "2":    { id: 2.067, total: 3.356 },
+    "2-1/2":{ id: 2.731, total: 5.858 },
+    "3":    { id: 3.356, total: 8.846 },
+    "3-1/2":{ id: 3.834, total: 11.545 },
+    "4":    { id: 4.334, total: 14.753 }
+  },
+  FMC: {
+    "3/8":  { id: 0.384, total: 0.116 },
+    "1/2":  { id: 0.635, total: 0.317 },
+    "3/4":  { id: 0.824, total: 0.533 },
+    "1":    { id: 1.020, total: 0.817 },
+    "1-1/4":{ id: 1.275, total: 1.277 },
+    "1-1/2":{ id: 1.538, total: 1.858 },
+    "2":    { id: 2.040, total: 3.269 },
+    "2-1/2":{ id: 2.500, total: 4.909 },
+    "3":    { id: 3.000, total: 7.069 },
+    "3-1/2":{ id: 3.500, total: 9.621 },
+    "4":    { id: 4.000, total: 12.566 }
+  },
+  LFMC: {
+    "3/8":  { id: 0.494, total: 0.192 },
+    "1/2":  { id: 0.632, total: 0.314 },
+    "3/4":  { id: 0.830, total: 0.541 },
+    "1":    { id: 1.054, total: 0.873 },
+    "1-1/4":{ id: 1.395, total: 1.528 },
+    "1-1/2":{ id: 1.588, total: 1.981 },
+    "2":    { id: 2.033, total: 3.246 },
+    "2-1/2":{ id: 2.493, total: 4.881 },
+    "3":    { id: 3.085, total: 7.475 },
+    "3-1/2":{ id: 3.520, total: 9.731 },
+    "4":    { id: 4.020, total: 12.692 }
+  },
+  "LFNC-A": {
+    "3/8":  { id: 0.495, total: 0.192 },
+    "1/2":  { id: 0.630, total: 0.312 },
+    "3/4":  { id: 0.825, total: 0.535 },
+    "1":    { id: 1.043, total: 0.854 },
+    "1-1/4":{ id: 1.383, total: 1.502 },
+    "1-1/2":{ id: 1.603, total: 2.018 },
+    "2":    { id: 2.063, total: 3.343 }
+  },
+  "LFNC-B": {
+    "3/8":  { id: 0.494, total: 0.192 },
+    "1/2":  { id: 0.632, total: 0.314 },
+    "3/4":  { id: 0.830, total: 0.541 },
+    "1":    { id: 1.054, total: 0.873 },
+    "1-1/4":{ id: 1.395, total: 1.528 },
+    "1-1/2":{ id: 1.588, total: 1.981 },
+    "2":    { id: 2.033, total: 3.246 }
+  },
+  "PVC-40": {
+    "1/2":  { id: 0.602, total: 0.285 },
+    "3/4":  { id: 0.804, total: 0.508 },
+    "1":    { id: 1.029, total: 0.832 },
+    "1-1/4":{ id: 1.360, total: 1.453 },
+    "1-1/2":{ id: 1.590, total: 1.986 },
+    "2":    { id: 2.047, total: 3.291 },
+    "2-1/2":{ id: 2.445, total: 4.695 },
+    "3":    { id: 3.042, total: 7.268 },
+    "3-1/2":{ id: 3.521, total: 9.737 },
+    "4":    { id: 3.998, total: 12.554 },
+    "5":    { id: 5.016, total: 19.761 },
+    "6":    { id: 6.031, total: 28.567 }
+  },
+  "PVC-80": {
+    "1/2":  { id: 0.526, total: 0.217 },
+    "3/4":  { id: 0.722, total: 0.409 },
+    "1":    { id: 0.936, total: 0.688 },
+    "1-1/4":{ id: 1.255, total: 1.237 },
+    "1-1/2":{ id: 1.476, total: 1.711 },
+    "2":    { id: 1.913, total: 2.874 },
+    "2-1/2":{ id: 2.290, total: 4.119 },
+    "3":    { id: 2.864, total: 6.442 },
+    "3-1/2":{ id: 3.326, total: 8.688 },
+    "4":    { id: 3.786, total: 11.258 },
+    "5":    { id: 4.768, total: 17.855 },
+    "6":    { id: 5.709, total: 25.598 }
+  },
+  HDPE: {
+    "1/2":  { id: 0.622, total: 0.304 },
+    "3/4":  { id: 0.824, total: 0.533 },
+    "1":    { id: 1.049, total: 0.864 },
+    "1-1/4":{ id: 1.380, total: 1.496 },
+    "1-1/2":{ id: 1.610, total: 2.036 },
+    "2":    { id: 2.067, total: 3.356 },
+    "2-1/2":{ id: 2.469, total: 4.788 },
+    "3":    { id: 3.068, total: 7.393 },
+    "3-1/2":{ id: 3.548, total: 9.893 },
+    "4":    { id: 4.026, total: 12.730 }
+  },
+  ENT: {
+    "1/2":  { id: 0.602, total: 0.285 },
+    "3/4":  { id: 0.804, total: 0.508 },
+    "1":    { id: 1.029, total: 0.832 },
+    "1-1/4":{ id: 1.360, total: 1.453 },
+    "1-1/2":{ id: 1.590, total: 1.986 },
+    "2":    { id: 2.047, total: 3.291 }
+  }
+};
+
+// ============================================================
+// NEC CHAPTER 9 — TABLE 5 — CONDUCTOR AREAS (in²)
+// ============================================================
+const WIRE_DATA = {
+  "THHN/THWN-2": {
+    "18 AWG":    { area: 0.0097,  od: 0.111 },
+    "16 AWG":    { area: 0.0117,  od: 0.122 },
+    "14 AWG":    { area: 0.0139,  od: 0.133 },
+    "12 AWG":    { area: 0.0181,  od: 0.152 },
+    "10 AWG":    { area: 0.0243,  od: 0.176 },
+    "8 AWG":     { area: 0.0437,  od: 0.236 },
+    "6 AWG":     { area: 0.0590,  od: 0.274 },
+    "4 AWG":     { area: 0.0814,  od: 0.322 },
+    "3 AWG":     { area: 0.0962,  od: 0.350 },
+    "2 AWG":     { area: 0.1146,  od: 0.382 },
+    "1 AWG":     { area: 0.1534,  od: 0.442 },
+    "1/0 AWG":   { area: 0.1825,  od: 0.482 },
+    "2/0 AWG":   { area: 0.2190,  od: 0.528 },
+    "3/0 AWG":   { area: 0.2640,  od: 0.580 },
+    "4/0 AWG":   { area: 0.3237,  od: 0.642 },
+    "250 kcmil": { area: 0.3970,  od: 0.711 },
+    "300 kcmil": { area: 0.4608,  od: 0.766 },
+    "350 kcmil": { area: 0.5281,  od: 0.820 },
+    "400 kcmil": { area: 0.5958,  od: 0.871 },
+    "500 kcmil": { area: 0.7073,  od: 0.949 },
+    "600 kcmil": { area: 0.8676,  od: 1.051 },
+    "700 kcmil": { area: 0.9887,  od: 1.122 },
+    "750 kcmil": { area: 1.0496,  od: 1.156 },
+    "1000 kcmil":{ area: 1.3478,  od: 1.310 }
+  },
+  "TW/THW/THW-2": {
+    "14 AWG":    { area: 0.0293,  od: 0.193 },
+    "12 AWG":    { area: 0.0353,  od: 0.212 },
+    "10 AWG":    { area: 0.0507,  od: 0.254 },
+    "8 AWG":     { area: 0.0836,  od: 0.326 },
+    "6 AWG":     { area: 0.1041,  od: 0.364 },
+    "4 AWG":     { area: 0.1333,  od: 0.412 },
+    "3 AWG":     { area: 0.1521,  od: 0.440 },
+    "2 AWG":     { area: 0.1750,  od: 0.472 },
+    "1 AWG":     { area: 0.2660,  od: 0.582 },
+    "1/0 AWG":   { area: 0.3039,  od: 0.622 },
+    "2/0 AWG":   { area: 0.3505,  od: 0.668 },
+    "3/0 AWG":   { area: 0.4072,  od: 0.720 },
+    "4/0 AWG":   { area: 0.4754,  od: 0.778 },
+    "250 kcmil": { area: 0.6291,  od: 0.895 },
+    "300 kcmil": { area: 0.7088,  od: 0.950 },
+    "350 kcmil": { area: 0.7870,  od: 1.001 },
+    "400 kcmil": { area: 0.8626,  od: 1.048 },
+    "500 kcmil": { area: 1.0082,  od: 1.133 },
+    "600 kcmil": { area: 1.1882,  od: 1.229 },
+    "700 kcmil": { area: 1.3561,  od: 1.313 },
+    "750 kcmil": { area: 1.4272,  od: 1.348 },
+    "1000 kcmil":{ area: 1.8242,  od: 1.524 }
+  },
+  "XHHW/XHHW-2": {
+    "14 AWG":    { area: 0.0139,  od: 0.133 },
+    "12 AWG":    { area: 0.0181,  od: 0.152 },
+    "10 AWG":    { area: 0.0243,  od: 0.176 },
+    "8 AWG":     { area: 0.0437,  od: 0.236 },
+    "6 AWG":     { area: 0.0590,  od: 0.274 },
+    "4 AWG":     { area: 0.0814,  od: 0.322 },
+    "3 AWG":     { area: 0.0962,  od: 0.350 },
+    "2 AWG":     { area: 0.1146,  od: 0.382 },
+    "1 AWG":     { area: 0.1534,  od: 0.442 },
+    "1/0 AWG":   { area: 0.1825,  od: 0.482 },
+    "2/0 AWG":   { area: 0.2190,  od: 0.528 },
+    "3/0 AWG":   { area: 0.2640,  od: 0.580 },
+    "4/0 AWG":   { area: 0.3237,  od: 0.642 },
+    "250 kcmil": { area: 0.3970,  od: 0.711 },
+    "300 kcmil": { area: 0.4608,  od: 0.766 },
+    "350 kcmil": { area: 0.5281,  od: 0.820 },
+    "400 kcmil": { area: 0.5958,  od: 0.871 },
+    "500 kcmil": { area: 0.7073,  od: 0.949 },
+    "600 kcmil": { area: 0.8676,  od: 1.051 },
+    "700 kcmil": { area: 0.9887,  od: 1.122 },
+    "750 kcmil": { area: 1.0496,  od: 1.156 },
+    "1000 kcmil":{ area: 1.3478,  od: 1.310 }
+  },
+  "RHH/RHW/RHW-2": {
+    "14 AWG":    { area: 0.0209,  od: 0.163 },
+    "12 AWG":    { area: 0.0260,  od: 0.182 },
+    "10 AWG":    { area: 0.0333,  od: 0.206 },
+    "8 AWG":     { area: 0.0556,  od: 0.266 },
+    "6 AWG":     { area: 0.0726,  od: 0.304 },
+    "4 AWG":     { area: 0.0973,  od: 0.352 },
+    "3 AWG":     { area: 0.1134,  od: 0.380 },
+    "2 AWG":     { area: 0.1333,  od: 0.412 },
+    "1 AWG":     { area: 0.1901,  od: 0.492 },
+    "1/0 AWG":   { area: 0.2223,  od: 0.532 },
+    "2/0 AWG":   { area: 0.2624,  od: 0.578 },
+    "3/0 AWG":   { area: 0.3117,  od: 0.630 },
+    "4/0 AWG":   { area: 0.3718,  od: 0.688 },
+    "250 kcmil": { area: 0.4596,  od: 0.765 },
+    "300 kcmil": { area: 0.5281,  od: 0.820 },
+    "350 kcmil": { area: 0.5958,  od: 0.871 },
+    "400 kcmil": { area: 0.6648,  od: 0.920 },
+    "500 kcmil": { area: 0.7854,  od: 1.000 },
+    "600 kcmil": { area: 0.9503,  od: 1.100 },
+    "700 kcmil": { area: 1.0755,  od: 1.170 },
+    "750 kcmil": { area: 1.1410,  od: 1.205 },
+    "1000 kcmil":{ area: 1.4784,  od: 1.372 }
+  },
+  "USE-2": {
+    "14 AWG":    { area: 0.0139,  od: 0.133 },
+    "12 AWG":    { area: 0.0181,  od: 0.152 },
+    "10 AWG":    { area: 0.0243,  od: 0.176 },
+    "8 AWG":     { area: 0.0437,  od: 0.236 },
+    "6 AWG":     { area: 0.0590,  od: 0.274 },
+    "4 AWG":     { area: 0.0814,  od: 0.322 },
+    "3 AWG":     { area: 0.0962,  od: 0.350 },
+    "2 AWG":     { area: 0.1146,  od: 0.382 },
+    "1 AWG":     { area: 0.1534,  od: 0.442 },
+    "1/0 AWG":   { area: 0.1825,  od: 0.482 },
+    "2/0 AWG":   { area: 0.2190,  od: 0.528 },
+    "3/0 AWG":   { area: 0.2640,  od: 0.580 },
+    "4/0 AWG":   { area: 0.3237,  od: 0.642 },
+    "250 kcmil": { area: 0.3970,  od: 0.711 },
+    "300 kcmil": { area: 0.4608,  od: 0.766 },
+    "500 kcmil": { area: 0.7073,  od: 0.949 }
+  },
+  "THHW": {
+    "14 AWG":    { area: 0.0139,  od: 0.133 },
+    "12 AWG":    { area: 0.0181,  od: 0.152 },
+    "10 AWG":    { area: 0.0243,  od: 0.176 },
+    "8 AWG":     { area: 0.0437,  od: 0.236 },
+    "6 AWG":     { area: 0.0590,  od: 0.274 },
+    "4 AWG":     { area: 0.0814,  od: 0.322 },
+    "2 AWG":     { area: 0.1146,  od: 0.382 },
+    "1/0 AWG":   { area: 0.1825,  od: 0.482 },
+    "2/0 AWG":   { area: 0.2190,  od: 0.528 },
+    "4/0 AWG":   { area: 0.3237,  od: 0.642 },
+    "250 kcmil": { area: 0.3970,  od: 0.711 },
+    "500 kcmil": { area: 0.7073,  od: 0.949 }
+  },
+  "MTW": {
+    "22 AWG":    { area: 0.0031,  od: 0.063 },
+    "20 AWG":    { area: 0.0040,  od: 0.071 },
+    "18 AWG":    { area: 0.0055,  od: 0.084 },
+    "16 AWG":    { area: 0.0070,  od: 0.094 },
+    "14 AWG":    { area: 0.0097,  od: 0.111 },
+    "12 AWG":    { area: 0.0133,  od: 0.130 },
+    "10 AWG":    { area: 0.0184,  od: 0.153 },
+    "8 AWG":     { area: 0.0366,  od: 0.216 },
+    "6 AWG":     { area: 0.0507,  od: 0.254 },
+    "4 AWG":     { area: 0.0669,  od: 0.292 },
+    "2 AWG":     { area: 0.0973,  od: 0.352 },
+    "1 AWG":     { area: 0.1333,  od: 0.412 },
+    "1/0 AWG":   { area: 0.1590,  od: 0.450 },
+    "2/0 AWG":   { area: 0.1901,  od: 0.492 }
+  },
+  "PFA/PFAH": {
+    "18 AWG":    { area: 0.0060,  od: 0.087 },
+    "16 AWG":    { area: 0.0075,  od: 0.098 },
+    "14 AWG":    { area: 0.0100,  od: 0.113 },
+    "12 AWG":    { area: 0.0133,  od: 0.130 },
+    "10 AWG":    { area: 0.0172,  od: 0.148 },
+    "8 AWG":     { area: 0.0333,  od: 0.206 },
+    "6 AWG":     { area: 0.0468,  od: 0.244 },
+    "4 AWG":     { area: 0.0660,  od: 0.290 },
+    "2 AWG":     { area: 0.0973,  od: 0.352 },
+    "1/0 AWG":   { area: 0.1590,  od: 0.450 }
+  },
+  "TFN/TFFN": {
+    "18 AWG":    { area: 0.0055,  od: 0.084 },
+    "16 AWG":    { area: 0.0072,  od: 0.096 }
+  },
+  "ZW/ZW-2": {
+    "18 AWG":    { area: 0.0045,  od: 0.076 },
+    "16 AWG":    { area: 0.0059,  od: 0.087 },
+    "14 AWG":    { area: 0.0075,  od: 0.098 },
+    "12 AWG":    { area: 0.0100,  od: 0.113 },
+    "10 AWG":    { area: 0.0142,  od: 0.135 }
+  },
+  "Bare Conductor (Solid)": {
+    "14 AWG":    { area: 0.0030,  od: 0.064 },
+    "12 AWG":    { area: 0.0040,  od: 0.072 },
+    "10 AWG":    { area: 0.0066,  od: 0.092 },
+    "8 AWG":     { area: 0.0104,  od: 0.115 },
+    "6 AWG":     { area: 0.0166,  od: 0.145 },
+    "4 AWG":     { area: 0.0264,  od: 0.183 },
+    "2 AWG":     { area: 0.0421,  od: 0.232 },
+    "1 AWG":     { area: 0.0530,  od: 0.260 },
+    "1/0 AWG":   { area: 0.0670,  od: 0.292 },
+    "2/0 AWG":   { area: 0.0843,  od: 0.328 },
+    "3/0 AWG":   { area: 0.1063,  od: 0.368 },
+    "4/0 AWG":   { area: 0.1134,  od: 0.380 },
+    "250 kcmil": { area: 0.1963,  od: 0.500 },
+    "350 kcmil": { area: 0.2749,  od: 0.592 },
+    "500 kcmil": { area: 0.3927,  od: 0.707 }
+  },
+  "Bare Conductor (Stranded)": {
+    "14 AWG":    { area: 0.0030,  od: 0.064 },
+    "12 AWG":    { area: 0.0040,  od: 0.072 },
+    "10 AWG":    { area: 0.0066,  od: 0.092 },
+    "8 AWG":     { area: 0.0109,  od: 0.118 },
+    "6 AWG":     { area: 0.0173,  od: 0.149 },
+    "4 AWG":     { area: 0.0275,  od: 0.187 },
+    "2 AWG":     { area: 0.0437,  od: 0.236 },
+    "1 AWG":     { area: 0.0552,  od: 0.265 },
+    "1/0 AWG":   { area: 0.0695,  od: 0.298 },
+    "2/0 AWG":   { area: 0.0877,  od: 0.334 },
+    "3/0 AWG":   { area: 0.1104,  od: 0.375 },
+    "4/0 AWG":   { area: 0.1393,  od: 0.421 },
+    "250 kcmil": { area: 0.2042,  od: 0.510 },
+    "350 kcmil": { area: 0.2856,  od: 0.603 },
+    "500 kcmil": { area: 0.4071,  od: 0.720 }
+  }
+};
+
+const TRADE_SIZES_ORDER = [
+  "3/8","1/2","3/4","1","1-1/4","1-1/2",
+  "2","2-1/2","3","3-1/2","4","5","6"
+];
+
+// State
+let fillMode    = 'raceway';
+let wireCounter = 0;
+let darkMode    = false;
+
+// ── THEME ──────────────────────────────────────────────────
+function toggleTheme() {
+  darkMode = !darkMode;
+  document.body.classList.toggle('dark', darkMode);
+  document.getElementById('themeBtn').textContent = darkMode ? '☀️' : '🌙';
+  localStorage.setItem('aog-theme', darkMode ? 'dark' : 'light');
+}
+(function initTheme() {
+  const saved  = localStorage.getItem('aog-theme');
+  const prefer = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (saved === 'dark' || (!saved && prefer)) {
+    darkMode = true;
+    document.body.classList.add('dark');
+    document.getElementById('themeBtn').textContent = '☀️';
+  }
+})();
+
+// ── FILL MODE ──────────────────────────────────────────────
+function setFillMode(mode) {
+  fillMode = mode;
+  document.getElementById('tog-raceway').classList.toggle('active', mode === 'raceway');
+  document.getElementById('tog-nipple').classList.toggle('active', mode === 'nipple');
+  updateConduitInfo();
+  // Auto-recalculate with the new fill % if results are already on screen,
+  // so switching Raceway <-> Nipple updates the answer instantly.
+  var res = document.getElementById('results');
+  if (res && res.style.display === 'block') calculate(true);
+}
+
+// ── NEC TABLE 1 — fill % ───────────────────────────────────
+function getAllowedFillPct(numConductors) {
+  if (fillMode === 'nipple') return 0.60;
+  if (numConductors === 1)  return 0.53;
+  if (numConductors === 2)  return 0.31;
+  return 0.40;
+}
+
+// ── CONDUIT INFO ───────────────────────────────────────────
+function updateConduitInfo() {
+  const type = document.getElementById('conduitType').value;
+  const size = document.getElementById('tradeSize').value;
+  const box  = document.getElementById('conduitInfoBox');
+
+  if (!size || !CONDUIT_DATA[type] || !CONDUIT_DATA[type][size]) {
+    box.style.display = 'none';
+    return;
+  }
+  const d       = CONDUIT_DATA[type][size];
+  const numWires = document.querySelectorAll('.wire-row').length || 3;
+  const pct     = getAllowedFillPct(numWires);
+  const allowed = (d.total * pct).toFixed(4);
+
+  document.getElementById('ci-id').textContent      = d.id.toFixed(3) + '"';
+  document.getElementById('ci-total').textContent   = d.total.toFixed(4);
+  document.getElementById('ci-allowed').textContent = allowed;
+  document.getElementById('ci-allowed-lbl').textContent =
+    'Allowed Fill (in\u00b2) @ ' + Math.round(pct * 100) + '%';
+  box.style.display = 'block';
+}
+
+// ── WIRE MANAGEMENT ────────────────────────────────────────
+function buildSizeOptions(wireType) {
+  if (!WIRE_DATA[wireType]) return '';
+  return Object.keys(WIRE_DATA[wireType])
+    .map(s => '<option value="' + s + '">' + s + '</option>')
+    .join('');
+}
+
+function updateWireSizes(rowId) {
+  const row        = document.getElementById(rowId);
+  const typeSelect = row.querySelector('select');
+  const sizeSelect = document.getElementById('size_' + rowId);
+  sizeSelect.innerHTML = buildSizeOptions(typeSelect.value);
+}
+
+function removeWire(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+  updateConduitInfo();
+}
+
+function addWire() {
+  wireCounter++;
+  const id  = 'wire_' + wireCounter;
+  const div = document.createElement('div');
+  div.className = 'wire-row';
+  div.id = id;
+
+  const defaultType = 'THHN/THWN-2';
+
+  div.innerHTML =
+    '<div>' +
+      '<label>Wire Type</label>' +
+      '<select onchange="updateWireSizes(\'' + id + '\')">' +
+        Object.keys(WIRE_DATA).map(function(t) {
+          return '<option value="' + t + '"' +
+            (t === defaultType ? ' selected' : '') + '>' + t + '</option>';
+        }).join('') +
+      '</select>' +
+    '</div>' +
+    '<div>' +
+      '<label>Size</label>' +
+      '<select id="size_' + id + '">' +
+        buildSizeOptions(defaultType) +
+      '</select>' +
+    '</div>' +
+    '<div style="display:flex;flex-direction:column;gap:4px;">' +
+      '<label>Qty</label>' +
+      '<input type="number" id="qty_' + id + '" value="1" min="1" max="999"' +
+        ' style="width:60px;padding:9px 8px;text-align:center;">' +
+    '</div>' +
+    '<button class="remove-btn" onclick="removeWire(\'' + id + '\')">✕</button>';
+
+  document.getElementById('wireList').appendChild(div);
+
+  // Pre-select 12 AWG
+  const sizeSelect = document.getElementById('size_' + id);
+  var opts = Array.from(sizeSelect.options);
+  var twelveOpt = opts.find(function(o) { return o.value === '12 AWG'; });
+  if (twelveOpt) twelveOpt.selected = true;
+
+  updateConduitInfo();
+}
+
+window.addEventListener('load', function() { addWire(); });
+
+// ── CALCULATE ──────────────────────────────────────────────
+function calculate(auto) {
+  const conduitType = document.getElementById('conduitType').value;
+  const selectedSize = document.getElementById('tradeSize').value;
+  const rows = document.querySelectorAll('.wire-row');
+
+  if (rows.length === 0) {
+    if (!auto) alert('Please add at least one conductor.');
+    return;
+  }
+
+  var conductors   = [];
+  var totalWireArea = 0;
+  var largestOD    = 0;
+
+  rows.forEach(function(row) {
+    var rowId    = row.id;
+    var type     = row.querySelector('select').value;
+    var size     = document.getElementById('size_' + rowId).value;
+    var qty      = parseInt(document.getElementById('qty_' + rowId).value) || 1;
+    var wireInfo = WIRE_DATA[type] && WIRE_DATA[type][size];
+
+    if (wireInfo) {
+      var rowArea = wireInfo.area * qty;
+      totalWireArea += rowArea;
+      if (wireInfo.od > largestOD) largestOD = wireInfo.od;
+      conductors.push({
+        type: type, size: size, qty: qty,
+        area: wireInfo.area, od: wireInfo.od, rowArea: rowArea
+      });
+    }
+  });
+
+  totalWireArea = parseFloat(totalWireArea.toFixed(4));
+  var numConductors = conductors.reduce(function(s, c) { return s + c.qty; }, 0);
+  var allowedPct    = getAllowedFillPct(numConductors);
+
+  const conduitSizes = CONDUIT_DATA[conduitType];
+  if (!conduitSizes) { alert('No data for selected conduit type.'); return; }
+
+  const conduitTypeName =
+    document.getElementById('conduitType').options[
+      document.getElementById('conduitType').selectedIndex
+    ].text;
+
+  // Wire summary chips
+  document.getElementById('r-wire-summary').innerHTML =
+    conductors.map(function(c) {
+      return '<div class="wire-chip">' +
+        c.qty + '\u00d7 ' + c.type + ' ' + c.size +
+        ' (' + c.rowArea.toFixed(4) + ' in\u00b2)</div>';
+    }).join('');
+
+  // Stats
+  var selectedAllowed  = null;
+  var selectedFillPct  = null;
+  if (selectedSize && conduitSizes[selectedSize]) {
+    var sd = conduitSizes[selectedSize];
+    selectedAllowed = sd.total * allowedPct;
+    selectedFillPct = (totalWireArea / sd.total) * 100;
+  }
+
+  document.getElementById('r-total-area').textContent =
+    totalWireArea.toFixed(4) + ' in\u00b2';
+  document.getElementById('r-fill-pct').textContent =
+    selectedFillPct !== null ? selectedFillPct.toFixed(1) + '%' : '\u2014';
+  document.getElementById('r-allowed').textContent =
+    selectedAllowed !== null ? selectedAllowed.toFixed(4) + ' in\u00b2' : '\u2014';
+  document.getElementById('r-type-label').textContent = conduitTypeName;
+
+  // Fill bar
+  if (selectedFillPct !== null) {
+    var bar      = document.getElementById('r-fill-bar');
+    var pctCapped = Math.min(selectedFillPct, 100);
+    var maxPct   = allowedPct * 100;
+    bar.style.width = pctCapped + '%';
+
+    if (selectedFillPct <= maxPct * 0.8) {
+      bar.className = 'fill-bar fill-green';
+      document.getElementById('r-fill-label').textContent =
+        selectedFillPct.toFixed(1) + '% (GOOD)';
+      document.getElementById('r-fill-label').style.color = 'var(--success)';
+    } else if (selectedFillPct <= maxPct) {
+      bar.className = 'fill-bar fill-yellow';
+      document.getElementById('r-fill-label').textContent =
+        selectedFillPct.toFixed(1) + '% (NEAR LIMIT)';
+      document.getElementById('r-fill-label').style.color = 'var(--warn)';
+    } else {
+      bar.className = 'fill-bar fill-red';
+      document.getElementById('r-fill-label').textContent =
+        selectedFillPct.toFixed(1) + '% (OVER LIMIT!)';
+      document.getElementById('r-fill-label').style.color = 'var(--danger)';
+    }
+  }
+
+  // All sizes table
+  var tbody   = document.getElementById('allSizesTbody');
+  tbody.innerHTML = '';
+  var bestSize = null;
+
+  TRADE_SIZES_ORDER.forEach(function(size) {
+    if (!conduitSizes[size]) return;
+    var d       = conduitSizes[size];
+    var allowed = d.total * allowedPct;
+    var fillPct = (totalWireArea / d.total) * 100;
+    var passes  = totalWireArea <= allowed;
+
+    if (passes && bestSize === null) bestSize = size;
+
+    var barWidth  = Math.min(fillPct, 100);
+    var barClass  = fillPct <= allowedPct * 100 * 0.8 ? 'fill-green'
+                  : fillPct <= allowedPct * 100       ? 'fill-yellow'
+                  : 'fill-red';
+
+    var statusHtml = passes
+      ? '<span class="status-pass">\u2713 PASS</span>'
+      : '<span class="status-fail">\u2717 FAIL</span>';
+    if (passes && size === bestSize)
+      statusHtml = '<span class="status-best">\u2B50 BEST FIT</span>';
+    if (passes && size === selectedSize)
+      statusHtml += ' <span class="status-warn">SELECTED</span>';
+
+    var tr = document.createElement('tr');
+    if (size === selectedSize) tr.style.background = 'rgba(217,119,6,0.07)';
+    tr.innerHTML =
+      '<td style="font-weight:700;color:var(--accent)">' + size + '"</td>' +
+      '<td>' + d.total.toFixed(4) + '</td>' +
+      '<td>' + allowed.toFixed(4) + '</td>' +
+      '<td>' + totalWireArea.toFixed(4) + '</td>' +
+      '<td style="font-weight:700">' + fillPct.toFixed(1) + '%</td>' +
+      '<td style="min-width:80px;">' +
+        '<div class="fill-bar-wrap">' +
+          '<div class="fill-bar ' + barClass + '" style="width:' + barWidth + '%"></div>' +
+        '</div></td>' +
+      '<td>' + statusHtml + '</td>';
+    tbody.appendChild(tr);
+  });
+
+  // Recommendation
+  if (bestSize) {
+    var bd       = conduitSizes[bestSize];
+    var bAllowed = bd.total * allowedPct;
+    var bFill    = (totalWireArea / bd.total * 100).toFixed(1);
+    var bHead    = (bAllowed - totalWireArea).toFixed(4);
+    document.getElementById('r-rec-size').textContent =
+      bestSize + '" ' + conduitType;
+    document.getElementById('r-rec-detail').textContent =
+      'Fill: ' + bFill + '% | Headroom: ' + bHead + ' in\u00b2 | ' +
+      Math.round(allowedPct * 100) + '% rule | ' +
+      numConductors + ' conductor' + (numConductors !== 1 ? 's' : '');
+  } else {
+    document.getElementById('r-rec-size').textContent  = 'NO STANDARD SIZE';
+    document.getElementById('r-rec-detail').textContent =
+      'Wire area exceeds all standard trade sizes for this conduit type.';
+  }
+
+  // Jam ratios
+  renderJamRatios(conduitType, largestOD, numConductors);
+
+  document.getElementById('results').style.display = 'block';
+  // Only scroll on a manual button press; silent refresh when auto-recalculating.
+  if (!auto) document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── JAM RATIO ──────────────────────────────────────────────
+function renderJamRatios(conduitType, largestOD, numConductors) {
+  var grid = document.getElementById('jamGrid');
+  grid.innerHTML = '';
+
+  if (largestOD === 0 || numConductors < 3) {
+    grid.innerHTML =
+      '<div style="color:var(--text2);font-size:12px;' +
+      'font-family:\'Share Tech Mono\',monospace;padding:8px;">' +
+      'Jam ratio applies to 3+ conductors of the same size. ' +
+      'Add 3+ conductors to see jam prediction.</div>';
+    return;
+  }
+
+  var conduitSizes = CONDUIT_DATA[conduitType];
+  TRADE_SIZES_ORDER.forEach(function(size) {
+    if (!conduitSizes || !conduitSizes[size]) return;
+    var d     = conduitSizes[size];
+    var ratio = d.id / largestOD;
+
+    var statusClass  = 'jam-ok';
+    var statusText   = '\u2713 LOW RISK';
+    var statusLabel  = 'Good geometry for pulling';
+
+    if (ratio >= 2.8 && ratio <= 3.2) {
+      statusClass = 'jam-high';
+      statusText  = '\u26a0 HIGH JAM RISK';
+      statusLabel = 'Avoid \u2014 conductor ODs create jam geometry';
+    } else if (ratio > 3.2 && ratio <= 3.8) {
+      statusClass = 'jam-risk';
+      statusText  = '\u26a1 MOD. RISK';
+      statusLabel = 'Use caution when pulling';
+    } else if (ratio < 2.8 && ratio > 0) {
+      statusClass = 'jam-ok';
+      statusText  = '\u2713 CLEAR';
+      statusLabel = 'Conduit ID too small for jam';
+    }
+
+    var item = document.createElement('div');
+    item.className = 'jam-item';
+    item.innerHTML =
+      '<div class="jam-size">' + size + '"</div>' +
+      '<div class="jam-ratio">ID: ' + d.id.toFixed(3) +
+        '" | OD: ' + largestOD.toFixed(3) + '"</div>' +
+      '<div class="jam-ratio">Ratio: <strong>' + ratio.toFixed(2) + '</strong></div>' +
+      '<div class="jam-status ' + statusClass + '">' + statusText + '</div>' +
+      (statusLabel
+        ? '<div style="font-size:9px;color:var(--text2);margin-top:2px;">' +
+          statusLabel + '</div>'
+        : '');
+    grid.appendChild(item);
+  });
+}
+</script>
+
+<!-- SERVICE WORKER — single registration pointing to ../sw.js -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('../sw.js', { scope: '../' })
+      .then(function(reg) {
+        console.log('[SW] Registered, scope:', reg.scope);
+        reg.addEventListener('updatefound', function() {
+          var nw = reg.installing;
+          nw.addEventListener('statechange', function() {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('[AOG SW] Update available — reload to apply.');
+            }
+          });
+        });
+      })
+      .catch(function(err) {
+        console.warn('[SW] Registration failed:', err);
+      });
+  });
+}
+</script>
+
+<script>
+function adjustTopPadding() {
+  var bar = document.getElementById('action-bar');
+  var header = document.querySelector('.header');
+  var main = document.getElementById('main');
+  if (bar && header) header.style.marginTop = bar.offsetHeight + 'px';
+}
+window.addEventListener('resize', adjustTopPadding);
+window.addEventListener('load', adjustTopPadding);
+setTimeout(adjustTopPadding, 100);
+</script>
+</body>
+</html>

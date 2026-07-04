@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<!--
+© 2026 Brandon Keilholz — All rights reserved.
+Created by Brandon Keilholz. Licensed for use by Always On Generators.
+This form, its code, layout, and content are proprietary.
+Unauthorized copying, reproduction, or distribution is prohibited and
+may result in liability for statutory damages of up to $150,000 per work
+for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Service Work</title>
+<script src="../sounds.js" defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="../manifest.json">
+<script src="../update-banner.js"></script>
+<meta name="theme-color" content="#FBBF24">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AOG Forms">
+
+<script>
+(function() {
+  var saved = '';
+  try { saved = localStorage.getItem('aog_theme_preference') || ''; } catch(e) {}
+  var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  var isDark = saved === 'dark' || (!saved && prefersDark);
+  if (isDark) document.documentElement.classList.add('dark-mode-pending');
+})();
+</script>
+
+<script>
+(function() {
+  var ua = navigator.userAgent;
+  var isCriOS    = /CriOS/.test(ua);
+  var isIOS      = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua) && !isCriOS;
+  var isIPad     = /iPad/.test(ua) || (/Macintosh/.test(ua) && /Safari/.test(ua) && !(/Chrome/.test(ua)) && navigator.maxTouchPoints > 1);
+  var isMacOS    = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua) && navigator.maxTouchPoints === 0;
+  var isWindows  = /Windows/.test(ua);
+  var isAndroid  = /Android/.test(ua);
+  var isMobileChrome = isCriOS || (isAndroid && /Chrome/.test(ua) && !/Edg/.test(ua));
+  function addClasses(el, list) { list.forEach(function(c){ if(c) el.classList.add(c); }); }
+  var html = document.documentElement;
+  if (isIOS || isIPad) addClasses(html, ['ios','mobile-safari']);
+  if (isIPad)          html.classList.add('ipad-safari');
+  if (isMacOS)         html.classList.add('macos');
+  if (isWindows)       html.classList.add('windows');
+  if (isAndroid)       html.classList.add('android');
+  if (isMobileChrome)  html.classList.add('mobile-chrome');
+  function applyToBody() {
+    var b = document.body;
+    if (isIOS || isIPad) addClasses(b, ['ios','mobile-safari']);
+    if (isIPad)          b.classList.add('ipad-safari');
+    if (isMacOS)         b.classList.add('macos');
+    if (isWindows)       b.classList.add('windows');
+    if (isAndroid)       b.classList.add('android');
+    if (isMobileChrome)  b.classList.add('mobile-chrome');
+  }
+  if (document.body) applyToBody();
+  else document.addEventListener('DOMContentLoaded', applyToBody);
+})();
+</script>
+
+<style>
+:root {
+  color-scheme: light;
+  --cyan:          #D97706;
+  --amber:         #D97706;
+  --bg:            #FFFFFF;
+  --bg3:           #F8F8F8;
+  --panel:         #FFFFFF;
+  --border:        rgba(217,119,6,0.25);
+  --border-bright: rgba(217,119,6,0.5);
+  --text:          #1F2937;
+  --text-muted:    #6B7280;
+  --text-dim:      #9CA3AF;
+  --font-display:  'Orbitron', monospace;
+  --font-mono:     'Share Tech Mono', monospace;
+  --font-body:     'Exo 2', sans-serif;
+
+  /* ╔══════════════════════════════════════════════╗
+     ║  SECTION 1 — FONT SIZES                     ║
+     ║  Phone = base. iPhone/iPad/Desktop override  ║
+     ║  in their media query blocks below.          ║
+     ╚══════════════════════════════════════════════╝ */
+
+  /* ── 1a. Screen — Phone (base) ── */
+  --fs-phone-company:       0.95rem;  /* "Always On Generators" text in header           */
+  --fs-phone-title:         1.1rem;  /* "Service Work" title in header                  */
+  --fs-phone-info-label:    0.60rem;  /* Tech / Date / Customer Name / Address labels    */
+  --fs-phone-info-input:    0.80rem;  /* text typed into all input fields                */
+  --fs-phone-field-label:   0.68rem;  /* Issue Reported / Found / Fixed / Materials labels */
+  --fs-phone-field-input:   0.78rem;  /* text in Issue Reported / Found / Fixed / Materials areas */
+  --fs-phone-emergency:     0.72rem;  /* Emergency / After Hours checkbox label          */
+  --fs-phone-footer:        0.50rem;  /* "Service Work · Always On Generators · Confidential" */
+  --fs-phone-pagenum:       0.50rem;  /* "Page 1 of 1"                                   */
+
+  /* ── 1b. Screen — iPad ── */
+  --fs-ipad-company:        0.95rem;
+  --fs-ipad-title:          1.1rem;
+  --fs-ipad-info-label:     0.60rem;
+  --fs-ipad-info-input:     0.80rem;
+  --fs-ipad-field-label:    0.68rem;
+  --fs-ipad-field-input:    0.78rem;
+  --fs-ipad-emergency:      0.72rem;
+  --fs-ipad-footer:         0.50rem;
+  --fs-ipad-pagenum:        0.50rem;
+
+  /* ── 1b2. Screen — iPhone ── */
+  --fs-iphone-company:      0.95rem;
+  --fs-iphone-title:        1.1rem;
+  --fs-iphone-info-label:   0.60rem;
+  --fs-iphone-info-input:   0.80rem;
+  --fs-iphone-field-label:  0.68rem;
+  --fs-iphone-field-input:  0.78rem;
+  --fs-iphone-emergency:    0.72rem;
+  --fs-iphone-footer:       0.50rem;
+  --fs-iphone-pagenum:      0.50rem;
+
+  /* ── 1c. Screen — Desktop ── */
+  --fs-desktop-company:     0.95rem;
+  --fs-desktop-title:       1rem;
+  --fs-desktop-info-label:  0.65rem;
+  --fs-desktop-info-input:  0.85rem;
+  --fs-desktop-field-label: 0.70rem;
+  --fs-desktop-field-input: 0.85rem;
+  --fs-desktop-emergency:   0.78rem;
+  --fs-desktop-footer:      0.55rem;
+  --fs-desktop-pagenum:     0.55rem;
+
+  /* ── 1d. PDF — Phone ── */
+  --fs-print-phone-company:    0.91rem;
+  --fs-print-phone-title:      0.95rem;
+  --fs-print-phone-info-label: 0.63rem;
+  --fs-print-phone-info-input: 0.78rem;
+  --fs-print-phone-field-label:0.68rem;
+  --fs-print-phone-field-input:0.78rem;
+  --fs-print-phone-emergency:  0.73rem;
+  --fs-print-phone-footer:     0.55rem;
+
+  /* ── 1e. PDF — iPad ── */
+  --fs-print-ipad-company:    0.91rem;
+  --fs-print-ipad-title:      0.95rem;
+  --fs-print-ipad-info-label: 0.63rem;
+  --fs-print-ipad-info-input: 0.78rem;
+  --fs-print-ipad-field-label:0.68rem;
+  --fs-print-ipad-field-input:0.78rem;
+  --fs-print-ipad-emergency:  0.73rem;
+  --fs-print-ipad-footer:     0.55rem;
+
+  /* ── 1f. PDF — macOS ── */
+  --fs-print-macos-company:    0.78rem;
+  --fs-print-macos-title:      0.82rem;
+  --fs-print-macos-info-label: 0.50rem;
+  --fs-print-macos-info-input: 0.65rem;
+  --fs-print-macos-field-label:0.55rem;
+  --fs-print-macos-field-input:0.65rem;
+  --fs-print-macos-emergency:  0.60rem;
+  --fs-print-macos-footer:     0.42rem;
+  --fs-print-macos-base:       18px;
+
+  /* ── 1g. PDF — Desktop Chrome ── */
+  --fs-print-desktop-company:    0.78rem;
+  --fs-print-desktop-title:      0.82rem;
+  --fs-print-desktop-info-label: 0.50rem;
+  --fs-print-desktop-info-input: 0.75rem;
+  --fs-print-desktop-field-label:0.60rem;
+  --fs-print-desktop-field-input:0.72rem;
+  --fs-print-desktop-emergency:  0.65rem;
+  --fs-print-desktop-footer:     0.42rem;
+  --fs-print-desktop-base:       16px;
+
+  /* ╔══════════════════════════════════════════════╗
+     ║  SECTION 2 — PADDING                        ║
+     ╚══════════════════════════════════════════════╝ */
+
+  /* ── 2a. Screen — Phone ── */
+  --pd-phone-page:         10px 14px;
+  --pd-phone-header:       6px 12px;
+  --pd-phone-info-input:   0 2px;
+  --pd-phone-field:        4px 6px;
+  --pd-phone-footer:       4px 0;
+
+  /* ── 2b. Screen — iPad ── */
+  --pd-ipad-page:          10px 14px;
+  --pd-ipad-header:        6px 12px;
+  --pd-ipad-info-input:    0 2px;
+  --pd-ipad-field:         4px 6px;
+  --pd-ipad-footer:        4px 0;
+
+  /* ── 2b2. Screen — iPhone ── */
+  --pd-iphone-page:        10px 14px;
+  --pd-iphone-header:      6px 12px;
+  --pd-iphone-info-input:  0 2px;
+  --pd-iphone-field:       4px 6px;
+  --pd-iphone-footer:      4px 0;
+
+  /* ── 2c. Screen — Desktop ── */
+  --pd-desktop-page:       10px 14px;
+  --pd-desktop-header:     6px 12px;
+  --pd-desktop-info-input: 0 2px;
+  --pd-desktop-field:      6px 8px;
+  --pd-desktop-footer:     4px 0;
+
+  /* ── 2d. PDF — Phone ── */
+  --pd-print-phone-page:        8px 12px;
+  --pd-print-phone-header:      4px 10px;
+  --pd-print-phone-info-input:  0 2px 0.5px 2px;
+  --pd-print-phone-field:       3px 6px;
+  --pd-print-phone-footer:      0.5px 0;
+
+  /* ── 2e. PDF — iPad ── */
+  --pd-print-ipad-page:         8px 12px;
+  --pd-print-ipad-header:       4px 10px;
+  --pd-print-ipad-info-input:   0 2px 0.5px 2px;
+  --pd-print-ipad-field:        3px 6px;
+  --pd-print-ipad-footer:       0.5px 0;
+
+  /* ── 2f. PDF — macOS ── */
+  --pd-print-macos-page:        8px 12px;
+  --pd-print-macos-header:      4px 10px;
+  --pd-print-macos-info-input:  0 2px 0.5px 2px;
+  --pd-print-macos-field:       3px 6px;
+  --pd-print-macos-footer:      0.5px 0;
+
+  /* ── 2g. PDF — Desktop ── */
+  --pd-print-desktop-page:       8px 12px;
+  --pd-print-desktop-header:     4px 10px;
+  --pd-print-desktop-info-input: 0 2px 0 2px;
+  --pd-print-desktop-field:      4px 6px;
+  --pd-print-desktop-footer:     0.5px 0;
+
+  /* ╔══════════════════════════════════════════════╗
+     ║  SECTION 3 — ELEMENT HEIGHTS                ║
+     ╚══════════════════════════════════════════════╝ */
+
+  /* ── 3a. Screen ── */
+  --h-phone-info-input:    26px;   /* Tech / Date / Customer Name… field height — phone   */
+  --h-ipad-info-input:     26px;   /* Tech / Date / Customer Name… field height — iPad    */
+  --h-iphone-info-input:   26px;   /* Tech / Date / Customer Name… field height — iPhone  */
+  --h-desktop-info-input:  28px;   /* Tech / Date / Customer Name… field height — desktop */
+  --h-phone-field:         70px;   /* Issue Reported / Found / Fixed / Materials textarea height — phone */
+  --h-ipad-field:          70px;   /* textarea height — iPad   */
+  --h-iphone-field:        70px;   /* textarea height — iPhone */
+  --h-desktop-field:       70px;   /* textarea height — desktop */
+  --h-phone-emergency:     20px;   /* Emergency checkbox size — phone   */
+  --h-ipad-emergency:      20px;   /* Emergency checkbox size — iPad    */
+  --h-iphone-emergency:    20px;   /* Emergency checkbox size — iPhone  */
+  --h-desktop-emergency:   20px;   /* Emergency checkbox size — desktop */
+
+  /* ── 3b. PDF — Phone ── */
+  --h-print-phone-info-input: 18px;   /* field height in PDF — reduce if font size increased to prevent extra pages */
+  --h-print-phone-field:      52px;   /* textarea height in PDF — reduce if font size increased to prevent extra pages */
+  --h-print-phone-emergency:  14px;
+
+  /* ── 3c. PDF — iPad ── */
+  --h-print-ipad-info-input:  18px;   /* field height in iPad PDF — reduce if font size increased to prevent extra pages */
+  --h-print-ipad-field:       52px;   /* textarea height in iPad PDF — reduce if font size increased to prevent extra pages */
+  --h-print-ipad-emergency:   14px;
+
+  /* ── 3d. PDF — macOS ── */
+  --h-print-macos-info-input: 18px;   /* field height in macOS PDF — reduce if font size increased to prevent extra pages */
+  --h-print-macos-field:      52px;   /* textarea height in macOS PDF — reduce if font size increased to prevent extra pages */
+  --h-print-macos-emergency:  14px;
+
+  /* ── 3e. PDF — Desktop ── */
+  --h-print-desktop-info-input: 20px;  /* field height in desktop PDF — reduce if font size increased to prevent extra pages */
+  --h-print-desktop-field:      60px;  /* textarea height in desktop PDF — reduce if font size increased to prevent extra pages */
+  --h-print-desktop-emergency:  16px;
+}
+</style>
+<style id="dark-mode-style">
+@media screen {
+body.dark-mode, html.dark-mode-pending body {
+  --bg: #0A0E27; --bg3: #1A2847; --panel: #0F1535;
+  --border: rgba(0,255,200,0.08); --border-bright: rgba(0,255,200,0.25);
+  --text: #E0F7FF; --text-muted: #7DD3FC; --text-dim: #38BDF8;
+  --cyan: #00FFC8; --amber: #D97706;
+}
+}
+body.dark-mode, html.dark-mode-pending body {
+  background: linear-gradient(135deg, #0A0E27 0%, #0F1535 25%, #0A1628 50%, #0F1535 75%, #0A0E27 100%) !important;
+  background-attachment: fixed;
+}
+body.dark-mode .page {
+  background: linear-gradient(135deg, rgba(15,21,53,0.95) 0%, rgba(10,14,39,0.98) 100%) !important;
+  border-color: #00FFC8 !important;
+  box-shadow: 0 0 1px rgba(0,255,200,0.3), 0 0 20px rgba(0,255,200,0.15) !important;
+}
+body.dark-mode .page-header { border-bottom-color: #00FFC8 !important; }
+body.dark-mode .company-name { color: #00FFC8 !important; }
+body.dark-mode .doc-title { color: #E0F7FF !important; }
+body.dark-mode .info-label { color: #7DD3FC !important; }
+body.dark-mode .info-input { color: #E0F7FF !important; border-bottom-color: rgba(0,255,200,0.3) !important; background: transparent !important; }
+body.dark-mode .field-label { color: #7DD3FC !important; }
+body.dark-mode .field-textarea { color: #E0F7FF !important; border-color: rgba(0,255,200,0.25) !important; background: transparent !important; }
+body.dark-mode .field-textarea::placeholder { color: rgba(125,211,252,0.4) !important; }
+body.dark-mode .emergency-row { color: #E0F7FF !important; border-color: rgba(0,255,200,0.2) !important; }
+body.dark-mode .emergency-cb { accent-color: #00FFC8 !important; border-color: rgba(0,255,200,0.4) !important; }
+body.dark-mode .page-footer { border-top-color: rgba(0,255,200,0.25) !important; }
+body.dark-mode .footer-text { color: #38BDF8 !important; }
+body.dark-mode .page-num { color: #38BDF8 !important; }
+body.dark-mode .action-bar { background: linear-gradient(90deg, rgba(15,21,53,0.9), rgba(26,40,71,0.8), rgba(15,21,53,0.9)) !important; border-bottom-color: rgba(0,255,200,0.25) !important; }
+body.dark-mode .ab-btn { color: #00FFC8 !important; border-color: rgba(0,255,200,0.25) !important; background: rgba(0,255,200,0.05) !important; }
+.theme-toggle-btn {
+  position: relative; width: 36px; height: 36px; padding: 5px;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.05);
+  border-radius: 4px; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; color: var(--cyan); transition: all 0.3s ease;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; flex-shrink: 0;
+}
+body.dark-mode .theme-toggle-btn { background: rgba(0,255,200,0.08) !important; border-color: rgba(0,255,200,0.2) !important; color: #00FFC8 !important; }
+.theme-icon { width: 16px; height: 16px; transition: all 0.3s ease; position: absolute; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke: var(--cyan); }
+.theme-icon.theme-icon-moon { opacity: 0; }
+body.dark-mode .theme-icon { opacity: 0; transform: rotate(-180deg); }
+body.dark-mode .theme-icon.theme-icon-moon { opacity: 1; transform: rotate(0deg); }
+@media print {
+  html.dark-mode-pending body, body.dark-mode {
+    background: #ffffff !important; color: #1F2937 !important;
+    color-scheme: light !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+  }
+  body.dark-mode *, html.dark-mode-pending body * {
+    background: #ffffff !important; color: #1F2937 !important;
+    border-color: rgba(217,119,6,0.4) !important; box-shadow: none !important; text-shadow: none !important;
+  }
+  body.dark-mode .company-name, html.dark-mode-pending .company-name { color: #D97706 !important; }
+  body.dark-mode .footer-text, body.dark-mode .page-num,
+  html.dark-mode-pending .footer-text, html.dark-mode-pending .page-num { color: #9CA3AF !important; }
+}
+</style>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-body); background: var(--bg3); color: var(--text); min-height: 100vh; -webkit-text-size-adjust: 100%; }
+
+/* ── ACTION BAR ── */
+.action-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+  background: #fff; border-bottom: 1px solid var(--border-bright);
+  padding: 4px 8px; padding-top: max(4px, env(safe-area-inset-top, 4px));
+  display: flex; gap: 4px; align-items: center; flex-wrap: nowrap;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+/* Center the buttons when they fit; auto-margins collapse safely when the
+   bar overflows and scrolls, so nothing gets clipped off the left edge. */
+.action-bar > :first-child { margin-left: auto; }
+.action-bar > :last-child { margin-right: auto; }
+.ab-btn {
+  padding: 6px 8px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.05);
+  cursor: pointer; color: var(--cyan); text-transform: uppercase;
+  font-family: var(--font-display); white-space: nowrap; flex: 1;
+  text-align: center; text-decoration: none; display: inline-flex;
+  align-items: center; justify-content: center;
+  clip-path: polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+  -webkit-tap-highlight-color: transparent;
+}
+.ab-btn:hover { border-color: var(--cyan); }
+
+body.offline { padding-top: 0; }
+
+/* ── WRAPPER ── */
+.wrapper { padding-top: 54px; padding-bottom: 20px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+
+/* ── PAGE ── */
+.page { width: 100%; max-width: 820px; background: #fff; border: 1.5px solid var(--cyan); box-shadow: 0 2px 12px rgba(217,119,6,0.1); padding: var(--pd-phone-page); position: relative; }
+
+/* ── HEADER ── */
+.page-header { display: flex; align-items: flex-start; gap: 12px; border-bottom: 1.5px solid var(--cyan); padding: var(--pd-phone-header); margin-bottom: 10px; }
+.logo-img { width: 52px; height: 52px; object-fit: contain; flex-shrink: 0; }
+.header-right { flex: 1; }
+.company-name { font-family: var(--font-display); font-size: var(--fs-phone-company); color: var(--cyan); letter-spacing: 2px; font-weight: 700; line-height: 1.2; word-break: break-word; }
+.doc-title { font-family: var(--font-display); font-size: var(--fs-phone-title); color: var(--text); letter-spacing: 1px; font-weight: 500; margin-top: 2px; }
+
+/* ── EMERGENCY ROW ── */
+.emergency-row {
+  display: flex; align-items: center; gap: 8px;
+  border: 1.5px solid var(--border-bright); padding: 6px 10px;
+  margin-bottom: 10px; border-radius: 2px;
+}
+.emergency-cb {
+  width: var(--h-phone-emergency); height: var(--h-phone-emergency);
+  min-width: var(--h-phone-emergency); min-height: var(--h-phone-emergency);
+  accent-color: var(--cyan); cursor: pointer; flex-shrink: 0;
+}
+.emergency-label {
+  font-family: var(--font-display); font-size: var(--fs-phone-emergency);
+  color: var(--text); letter-spacing: 1px; font-weight: 600; text-transform: uppercase;
+}
+.control-wrap { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-shrink: 0; min-width: 0; }
+.control-label { font-family: var(--font-display); font-size: var(--fs-phone-info-label); color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
+.control-input { border: none; border-bottom: 1.5px solid rgba(217,119,6,0.4); font-family: var(--font-mono); font-size: var(--fs-phone-info-input); color: var(--text); background: transparent; outline: none; min-height: var(--h-phone-info-input); padding: var(--pd-phone-info-input); width: 120px; }
+
+/* ── INFO GRID ── */
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin-bottom: 10px; }
+.info-row { display: flex; align-items: flex-end; gap: 4px; }
+.info-row.full { grid-column: 1 / -1; }
+.info-label { font-family: var(--font-display); font-size: var(--fs-phone-info-label); color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; flex-shrink: 0; }
+.info-input { flex: 1; min-width: 0; border: none; border-bottom: 1.5px solid rgba(217,119,6,0.4); font-family: var(--font-mono); font-size: var(--fs-phone-info-input); color: var(--text); background: transparent; outline: none; min-height: var(--h-phone-info-input); padding: var(--pd-phone-info-input); }
+.info-input.short { max-width: 80px; flex: none; }
+
+/* ── FIELD BLOCKS (Issue / Found / Fixed / Materials) ── */
+.field-block { margin-bottom: 8px; }
+.field-label {
+  font-family: var(--font-display); font-size: var(--fs-phone-field-label);
+  color: var(--cyan); letter-spacing: 2px; font-weight: 700;
+  text-transform: uppercase; padding: 2px 0; margin-bottom: 3px;
+  border-left: 3px solid var(--cyan); padding-left: 8px;
+}
+.field-textarea {
+  width: 100%; height: var(--h-phone-field); min-height: var(--h-phone-field); max-height: var(--h-phone-field);
+  border: none; border-bottom: 1.5px solid rgba(217,119,6,0.3);
+  background: transparent; font-family: var(--font-body);
+  font-size: var(--fs-phone-field-input); color: var(--text);
+  padding: var(--pd-phone-field); outline: none; resize: none;
+  overflow-y: auto; line-height: 1.6; box-sizing: border-box;
+}
+.field-textarea::placeholder { color: var(--text-dim); font-size: 0.85em; }
+
+/* ── SMALL SCREEN RESPONSIVE ── */
+@media screen and (max-width: 500px) {
+  .info-grid { grid-template-columns: 1fr; }
+  .info-row { grid-column: 1 / -1; }
+  .control-wrap { margin-left: 0; margin-top: 6px; }
+  .emergency-row { flex-wrap: wrap; }
+  .bottom-row { flex-direction: column; gap: 8px; }
+  .info-input.short { max-width: none; width: 100%; }
+}
+@media screen and (max-width: 380px) {
+  .page { padding: 8px 8px; }
+  .emergency-row { padding: 4px 6px; }
+}
+
+/* ── BOTTOM ROW (Time Out / Run Hours / Firmware) ── */
+.bottom-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--border); }
+.bottom-item { display: flex; align-items: flex-end; gap: 4px; }
+
+/* ── PAGE FOOTER ── */
+.page-footer { margin-top: 8px; border-top: 1px solid var(--border-bright); padding: var(--pd-phone-footer); display: flex; justify-content: space-between; align-items: center; }
+.footer-text { font-family: var(--font-display); font-size: var(--fs-phone-footer); color: var(--text-dim); letter-spacing: 1.5px; }
+.page-num { font-family: var(--font-mono); font-size: var(--fs-phone-pagenum); color: var(--text-dim); }
+
+/* ══════════════════════════════════════
+   iPAD SCREEN overrides
+   ══════════════════════════════════════ */
+@media screen and (min-width: 768px) {
+  body.mobile-safari.ipad-safari .company-name  { font-size: var(--fs-ipad-company) !important; }
+  body.mobile-safari.ipad-safari .doc-title     { font-size: var(--fs-ipad-title) !important; }
+  body.mobile-safari.ipad-safari .info-label    { font-size: var(--fs-ipad-info-label) !important; }
+  body.mobile-safari.ipad-safari .info-input    { font-size: var(--fs-ipad-info-input) !important; min-height: var(--h-ipad-info-input) !important; padding: var(--pd-ipad-info-input) !important; }
+  body.mobile-safari.ipad-safari .control-input { font-size: var(--fs-ipad-info-input) !important; min-height: var(--h-ipad-info-input) !important; }
+  body.mobile-safari.ipad-safari .field-label   { font-size: var(--fs-ipad-field-label) !important; }
+  body.mobile-safari.ipad-safari .field-textarea{ font-size: var(--fs-ipad-field-input) !important; min-height: var(--h-ipad-field) !important; padding: var(--pd-ipad-field) !important; }
+  body.mobile-safari.ipad-safari .emergency-label { font-size: var(--fs-ipad-emergency) !important; }
+  body.mobile-safari.ipad-safari .emergency-cb  { width: var(--h-ipad-emergency) !important; height: var(--h-ipad-emergency) !important; }
+  body.mobile-safari.ipad-safari .footer-text   { font-size: var(--fs-ipad-footer) !important; }
+  body.mobile-safari.ipad-safari .page          { padding: var(--pd-ipad-page) !important; }
+  body.mobile-safari.ipad-safari .page-header   { padding: var(--pd-ipad-header) !important; }
+  body.mobile-safari.ipad-safari .page-footer   { padding: var(--pd-ipad-footer) !important; }
+
+  /* ── iPhone Safari screen ── */
+  body.mobile-safari:not(.ipad-safari) .company-name  { font-size: var(--fs-iphone-company) !important; }
+  body.mobile-safari:not(.ipad-safari) .doc-title     { font-size: var(--fs-iphone-title) !important; }
+  body.mobile-safari:not(.ipad-safari) .info-label    { font-size: var(--fs-iphone-info-label) !important; }
+  body.mobile-safari:not(.ipad-safari) .info-input    { font-size: var(--fs-iphone-info-input) !important; min-height: var(--h-iphone-info-input) !important; padding: var(--pd-iphone-info-input) !important; }
+  body.mobile-safari:not(.ipad-safari) .control-input { font-size: var(--fs-iphone-info-input) !important; }
+  body.mobile-safari:not(.ipad-safari) .field-label   { font-size: var(--fs-iphone-field-label) !important; }
+  body.mobile-safari:not(.ipad-safari) .field-textarea{ font-size: var(--fs-iphone-field-input) !important; min-height: var(--h-iphone-field) !important; padding: var(--pd-iphone-field) !important; }
+  body.mobile-safari:not(.ipad-safari) .emergency-label { font-size: var(--fs-iphone-emergency) !important; }
+  body.mobile-safari:not(.ipad-safari) .emergency-cb  { width: var(--h-iphone-emergency) !important; height: var(--h-iphone-emergency) !important; }
+  body.mobile-safari:not(.ipad-safari) .footer-text   { font-size: var(--fs-iphone-footer) !important; }
+  body.mobile-safari:not(.ipad-safari) .page          { padding: var(--pd-iphone-page) !important; }
+  body.mobile-safari:not(.ipad-safari) .page-header   { padding: var(--pd-iphone-header) !important; }
+  body.mobile-safari:not(.ipad-safari) .page-footer   { padding: var(--pd-iphone-footer) !important; }
+}
+/* CSS fallback for iPad */
+@media screen and (pointer: coarse) and (hover: none) and (min-width: 768px) {
+  .company-name  { font-size: var(--fs-ipad-company) !important; }
+  .doc-title     { font-size: var(--fs-ipad-title) !important; }
+  .info-label    { font-size: var(--fs-ipad-info-label) !important; }
+  .info-input    { font-size: var(--fs-ipad-info-input) !important; }
+  .field-label   { font-size: var(--fs-ipad-field-label) !important; }
+  .field-textarea{ font-size: var(--fs-ipad-field-input) !important; min-height: var(--h-ipad-field) !important; }
+  .footer-text   { font-size: var(--fs-ipad-footer) !important; }
+  .page          { padding: var(--pd-ipad-page) !important; }
+}
+
+/* ══════════════════════════════════════
+   DESKTOP SCREEN overrides
+   ══════════════════════════════════════ */
+@media screen and (min-width: 1025px) and (pointer: fine) {
+  .company-name   { font-size: var(--fs-desktop-company) !important; }
+  .doc-title      { font-size: var(--fs-desktop-title) !important; }
+  .info-label     { font-size: var(--fs-desktop-info-label) !important; }
+  .info-input     { font-size: var(--fs-desktop-info-input) !important; min-height: var(--h-desktop-info-input) !important; padding: var(--pd-desktop-info-input) !important; }
+  .control-input  { font-size: var(--fs-desktop-info-input) !important; min-height: var(--h-desktop-info-input) !important; }
+  .field-label    { font-size: var(--fs-desktop-field-label) !important; }
+  .field-textarea { font-size: var(--fs-desktop-field-input) !important; min-height: var(--h-desktop-field) !important; padding: var(--pd-desktop-field) !important; }
+  .emergency-label { font-size: var(--fs-desktop-emergency) !important; }
+  .emergency-cb   { width: var(--h-desktop-emergency) !important; height: var(--h-desktop-emergency) !important; }
+  .footer-text    { font-size: var(--fs-desktop-footer) !important; }
+  .page           { padding: var(--pd-desktop-page) !important; }
+  .page-header    { padding: var(--pd-desktop-header) !important; }
+  .page-footer    { padding: var(--pd-desktop-footer) !important; }
+}
+
+/* ══════════════════════════════════════
+   BASE PRINT — all devices
+   ══════════════════════════════════════ */
+@media print {
+  @page { size: 8.5in 11in; margin: 0.18in 0.18in 0.12in 0.18in; }
+  @page:blank { display: none; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; animation: none !important; transition: none !important; }
+  body { background: #fff !important; }
+  .action-bar, #save-status, #offline-banner { display: none !important; }
+  html, body { height: auto !important; overflow: visible !important; }
+  .wrapper { padding-top: 0 !important; gap: 0 !important; background: #fff !important; display: block !important; height: auto !important; }
+  .page { width: 100% !important; max-width: none !important; border: 1.5pt solid #D97706 !important; box-shadow: none !important; padding: var(--pd-print-phone-page) !important; }
+  .page:last-child { page-break-after: auto !important; break-after: auto !important; }
+  .page-header  { padding: var(--pd-print-phone-header) !important; padding-bottom: 3px !important; margin-bottom: 4px !important; }
+  .logo-img     { width: 38px !important; height: 38px !important; }
+  .company-name { font-size: var(--fs-print-phone-company) !important; color: #D97706 !important; }
+  .doc-title    { font-size: var(--fs-print-phone-title) !important; color: #1F2937 !important; }
+  .info-label   { font-size: var(--fs-print-phone-info-label) !important; }
+  .info-input   { font-size: var(--fs-print-phone-info-input) !important; min-height: var(--h-print-phone-info-input) !important; padding: var(--pd-print-phone-info-input) !important; }
+  .control-input{ font-size: var(--fs-print-phone-info-input) !important; min-height: var(--h-print-phone-info-input) !important; }
+  .field-label  { font-size: var(--fs-print-phone-field-label) !important; color: #D97706 !important; }
+  .field-textarea { font-size: var(--fs-print-phone-field-input) !important; min-height: var(--h-print-phone-field) !important; padding: var(--pd-print-phone-field) !important; background: white !important; color: #1F2937 !important; }
+  .field-textarea::placeholder { color: transparent !important; opacity: 0 !important; }
+  .emergency-label { font-size: var(--fs-print-phone-emergency) !important; }
+  .emergency-cb { width: var(--h-print-phone-emergency) !important; height: var(--h-print-phone-emergency) !important; }
+  .footer-text  { font-size: var(--fs-print-phone-footer) !important; color: #9CA3AF !important; }
+  .page-num     { font-size: var(--fs-print-phone-footer) !important; color: #9CA3AF !important; }
+  .page-footer  { padding: var(--pd-print-phone-footer) !important; }
+}
+
+/* ══ iPad print ══ */
+@media print and (min-width: 768px) {
+  .company-name   { font-size: var(--fs-print-ipad-company) !important; }
+  .doc-title      { font-size: var(--fs-print-ipad-title) !important; }
+  .info-label     { font-size: var(--fs-print-ipad-info-label) !important; }
+  .info-input     { font-size: var(--fs-print-ipad-info-input) !important; min-height: var(--h-print-ipad-info-input) !important; padding: var(--pd-print-ipad-info-input) !important; }
+  .control-input  { font-size: var(--fs-print-ipad-info-input) !important; }
+  .field-label    { font-size: var(--fs-print-ipad-field-label) !important; }
+  .field-textarea { font-size: var(--fs-print-ipad-field-input) !important; min-height: var(--h-print-ipad-field) !important; padding: var(--pd-print-ipad-field) !important; }
+  .emergency-label { font-size: var(--fs-print-ipad-emergency) !important; }
+  .emergency-cb  { width: var(--h-print-ipad-emergency) !important; height: var(--h-print-ipad-emergency) !important; }
+  .footer-text   { font-size: var(--fs-print-ipad-footer) !important; }
+  .page          { padding: var(--pd-print-ipad-page) !important; }
+  .page-header   { padding: var(--pd-print-ipad-header) !important; }
+  .page-footer   { padding: var(--pd-print-ipad-footer) !important; }
+}
+
+/* ══ macOS Safari print ══ */
+@media print {
+  html.macos { font-size: var(--fs-print-macos-base) !important; }
+  html.macos .company-name   { font-size: var(--fs-print-macos-company) !important; }
+  html.macos .doc-title      { font-size: var(--fs-print-macos-title) !important; }
+  html.macos .info-label     { font-size: var(--fs-print-macos-info-label) !important; }
+  html.macos .info-input     { font-size: var(--fs-print-macos-info-input) !important; min-height: var(--h-print-macos-info-input) !important; padding: var(--pd-print-macos-info-input) !important; }
+  html.macos .control-input  { font-size: var(--fs-print-macos-info-input) !important; }
+  html.macos .field-label    { font-size: var(--fs-print-macos-field-label) !important; }
+  html.macos .field-textarea { font-size: var(--fs-print-macos-field-input) !important; min-height: var(--h-print-macos-field) !important; padding: var(--pd-print-macos-field) !important; }
+  html.macos .emergency-label { font-size: var(--fs-print-macos-emergency) !important; }
+  html.macos .emergency-cb   { width: var(--h-print-macos-emergency) !important; height: var(--h-print-macos-emergency) !important; }
+  html.macos .footer-text    { font-size: var(--fs-print-macos-footer) !important; }
+  html.macos .page           { padding: var(--pd-print-macos-page) !important; }
+  html.macos .page-header    { padding: var(--pd-print-macos-header) !important; }
+  html.macos .page-footer    { padding: var(--pd-print-macos-footer) !important; }
+}
+
+/* ══ Desktop Chrome print ══ */
+@media print and (min-width: 900px) {
+  html { font-size: var(--fs-print-desktop-base) !important; }
+  .company-name   { font-size: var(--fs-print-desktop-company) !important; }
+  .doc-title      { font-size: var(--fs-print-desktop-title) !important; }
+  .info-label     { font-size: var(--fs-print-desktop-info-label) !important; }
+  .info-input     { font-size: var(--fs-print-desktop-info-input) !important; min-height: var(--h-print-desktop-info-input) !important; padding: var(--pd-print-desktop-info-input) !important; }
+  .control-input  { font-size: var(--fs-print-desktop-info-input) !important; }
+  .field-label    { font-size: var(--fs-print-desktop-field-label) !important; }
+  .field-textarea { font-size: var(--fs-print-desktop-field-input) !important; min-height: var(--h-print-desktop-field) !important; padding: var(--pd-print-desktop-field) !important; }
+  .emergency-label { font-size: var(--fs-print-desktop-emergency) !important; }
+  .page           { padding: var(--pd-print-desktop-page) !important; }
+  .page-footer    { padding: var(--pd-print-desktop-footer) !important; }
+}
+body.mobile-safari { -webkit-print-color-adjust: exact; }
+</style>
+</head>
+<body>
+
+<div class="action-bar">
+  <a class="ab-btn" href="../">🏠 HOME</a>
+  <a class="ab-btn" onclick="printForm()" style="cursor:pointer;">📄 PDF</a>
+  <a class="ab-btn" onclick="clearForm()" style="cursor:pointer;">🗑 CLEAR</a>
+  <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode" onclick="toggleTheme()">
+    <svg class="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+    <svg class="theme-icon theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  </button>
+</div>
+
+
+<div id="save-status" style="position:fixed;top:46px;left:0;right:0;z-index:9998;text-align:center;font-size:10px;color:var(--text-muted);background:#fff;padding:2px 8px;display:none;" aria-live="polite"></div>
+
+<div class="wrapper">
+  <div class="page" id="page1">
+
+    <!-- HEADER -->
+    <div class="page-header">
+      <img src="../logo.png" alt="AOG Logo" class="logo-img" onerror="this.style.display='none'">
+      <div class="header-right">
+        <div class="company-name">Always On Generators</div>
+        <div class="doc-title">Service Work</div>
+      </div>
+    </div>
+
+    <!-- EMERGENCY / CONTROL # -->
+    <div class="emergency-row">
+      <input type="checkbox" class="emergency-cb" id="emergency" name="emergency" value="yes">
+      <label class="emergency-label" for="emergency">Emergency / After Hours</label>
+      <div class="control-wrap">
+        <span class="control-label">Control #</span>
+        <input class="control-input" type="text" id="control_num" name="control_num" autocomplete="off">
+      </div>
+    </div>
+
+    <!-- INFO GRID -->
+    <div class="info-grid">
+      <div class="info-row full">
+        <span class="info-label">Tech:</span>
+        <input class="info-input" type="text" id="tech_name" name="tech_name" autocomplete="off">
+      </div>
+      <div class="info-row">
+        <span class="info-label">Date:</span>
+        <input class="info-input" type="date" id="svc_date" name="svc_date">
+      </div>
+      <div class="info-row">
+        <span class="info-label">Time In:</span>
+        <input class="info-input" type="time" id="time_in" name="time_in" autocomplete="off">
+      </div>
+      <div class="info-row full">
+        <span class="info-label">Customer Name:</span>
+        <input class="info-input" type="text" id="cust_name" name="cust_name" autocomplete="off">
+      </div>
+      <div class="info-row full">
+        <span class="info-label">Address:</span>
+        <input class="info-input" type="text" id="cust_addr" name="cust_addr" autocomplete="off">
+      </div>
+      <div class="info-row">
+        <span class="info-label">Generator Model:</span>
+        <input class="info-input" type="text" id="gen_model" name="gen_model" autocomplete="off">
+      </div>
+      <div class="info-row">
+        <span class="info-label">Serial #:</span>
+        <input class="info-input" type="text" id="gen_serial" name="gen_serial" autocomplete="off">
+      </div>
+      <div class="info-row full">
+        <span class="info-label">Warranty Details:</span>
+        <input class="info-input" type="text" id="warranty" name="warranty" autocomplete="off">
+      </div>
+    </div>
+
+    <!-- ISSUE REPORTED -->
+    <div class="field-block">
+      <div class="field-label">Issue Reported</div>
+      <textarea class="field-textarea" id="issue_reported" name="issue_reported" placeholder="Describe the issue as reported by the customer…"></textarea>
+    </div>
+
+    <!-- FOUND -->
+    <div class="field-block">
+      <div class="field-label">Found</div>
+      <textarea class="field-textarea" id="found" name="found" placeholder="What was found upon inspection…"></textarea>
+    </div>
+
+    <!-- FIXED -->
+    <div class="field-block">
+      <div class="field-label">Fixed</div>
+      <textarea class="field-textarea" id="fixed" name="fixed" placeholder="What was done to resolve the issue…"></textarea>
+    </div>
+
+    <!-- MATERIALS USED -->
+    <div class="field-block">
+      <div class="field-label">Materials Used</div>
+      <textarea class="field-textarea" id="materials" name="materials" placeholder="List all parts and materials used…"></textarea>
+    </div>
+
+    <!-- BOTTOM ROW -->
+    <div class="bottom-row">
+      <div class="bottom-item">
+        <span class="info-label">Time Out:</span>
+        <input class="info-input" type="time" id="time_out" name="time_out" autocomplete="off" style="width:90px;">
+      </div>
+      <div class="bottom-item">
+        <span class="info-label">Run Hours:</span>
+        <input class="info-input" type="text" id="run_hours" name="run_hours" autocomplete="off" style="width:60px;">
+      </div>
+      <div class="bottom-item">
+        <span class="info-label">Firmware:</span>
+        <input class="info-input" type="text" id="firmware" name="firmware" autocomplete="off" style="width:90px;">
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span class="footer-text">SERVICE WORK · ALWAYS ON GENERATORS · CONFIDENTIAL</span>
+      <span class="page-num">Page 1 of 1</span>
+    </div>
+
+  </div><!-- /page1 -->
+</div><!-- /wrapper -->
+
+<script>
+// ── AUTO-SAVE DRAFT ──
+var DRAFT_KEY = 'aog_service_work_draft';
+function saveDraft() {
+  var data = {};
+  document.querySelectorAll('input').forEach(function(el) {
+    var key = el.id || el.name;
+    if (!key) return;
+    if (el.type === 'checkbox') {
+      data[key] = el.checked;
+    } else {
+      if (data[key] === undefined) data[key] = el.value;
+    }
+  });
+  document.querySelectorAll('textarea').forEach(function(el) {
+    var key = el.id || el.name;
+    if (key) data[key] = el.value;
+  });
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(data)); } catch(e) {}
+}
+function restoreDraft() {
+  var saved = '';
+  try { saved = localStorage.getItem(DRAFT_KEY) || ''; } catch(e) {}
+  if (!saved) return;
+  try {
+    var data = JSON.parse(saved);
+    document.querySelectorAll('input').forEach(function(el) {
+      var key = el.id || el.name;
+      if (!key || data[key] === undefined) return;
+      if (el.type === 'checkbox') { el.checked = !!data[key]; }
+      else { el.value = data[key]; }
+    });
+    document.querySelectorAll('textarea').forEach(function(el) {
+      var key = el.id || el.name;
+      if (key && data[key] !== undefined) el.value = data[key];
+    });
+  } catch(e) {}
+}
+setInterval(saveDraft, 30000);
+document.addEventListener('change', saveDraft);
+document.addEventListener('input', saveDraft);
+
+// ── CLEAR ──
+function clearForm() {
+  if (!confirm('Clear all fields?')) return;
+  document.querySelectorAll('input[type="text"],input[type="time"]').forEach(function(el){ el.value=''; });
+  document.querySelectorAll('input[type="checkbox"]').forEach(function(el){ el.checked=false; });
+  document.querySelectorAll('textarea').forEach(function(el){ el.value=''; });
+  var today = new Date().toISOString().split('T')[0];
+  document.getElementById('svc_date').value = today;
+  try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+}
+
+// ── BEFORE/AFTER PRINT ──
+window.addEventListener('beforeprint', function() {
+  document.body.classList.remove('dark-mode');
+  document.documentElement.classList.remove('dark-mode-pending');
+  document.documentElement.style.colorScheme = 'light';
+  document.body.style.colorScheme = 'light';
+  var ds = document.getElementById('dark-mode-style');
+  if (ds) ds.disabled = true;
+});
+window.addEventListener('afterprint', function() {
+  document.documentElement.style.colorScheme = '';
+  document.body.style.colorScheme = '';
+  var ds = document.getElementById('dark-mode-style');
+  if (ds) ds.disabled = false;
+});
+
+// ── PRINT ──
+function printForm() {
+  var isMobileSafari = document.body.classList.contains('mobile-safari');
+  var wasDark        = document.body.classList.contains('dark-mode');
+
+  var prevTitle = document.title;
+  var cName = (document.getElementById('cust_name').value||'').trim();
+  document.title = (cName ? cName + ' - ' : '') + 'Service Work';
+
+  document.body.classList.remove('dark-mode');
+  document.documentElement.classList.remove('dark-mode-pending');
+  document.documentElement.style.colorScheme = 'light';
+  document.body.style.colorScheme = 'light';
+  var _darkStyleEl = document.getElementById('dark-mode-style');
+  if (_darkStyleEl) _darkStyleEl.disabled = true;
+
+  var compName  = document.querySelector('.company-name');
+  var docTitle  = document.querySelector('.doc-title');
+  var footerEls = document.querySelectorAll('.footer-text');
+  if (compName) compName.setAttribute('style', 'color:#D97706!important;text-shadow:none!important;');
+  if (docTitle) docTitle.setAttribute('style', 'color:#1F2937!important;text-shadow:none!important;');
+  footerEls.forEach(function(el){ el.setAttribute('style','color:#9CA3AF!important;text-shadow:none!important;'); });
+
+  if (wasDark) {
+    var printStyle = document.createElement('style');
+    printStyle.id  = 'force-print-light';
+    printStyle.textContent = [
+      ':root, html, body { color-scheme: light !important; }',
+      'body { --cyan:#D97706!important; --bg:#FFFFFF!important; --text:#1F2937!important; --text-muted:#6B7280!important; }',
+      '@media print {',
+      '  *, *::before, *::after { background:white!important;color:#1F2937!important;box-shadow:none!important;text-shadow:none!important;border-color:rgba(217,119,6,0.4)!important; }',
+      '  .company-name { color:#D97706!important; }',
+      '  .field-label  { color:#D97706!important; }',
+      '  .footer-text,.page-num { color:#9CA3AF!important; }',
+      '  .page { border:1.5pt solid #D97706!important; }',
+      '}'
+    ].join('\n');
+    document.head.appendChild(printStyle);
+  }
+
+  var vp = document.querySelector('meta[name="viewport"]');
+
+  function restore() {
+    document.title = prevTitle;
+    var f  = document.getElementById('safari-print-fix');  if(f)  f.remove();
+    var pl = document.getElementById('force-print-light'); if(pl) pl.remove();
+    document.documentElement.style.colorScheme = '';
+    document.body.style.colorScheme = '';
+    if (_darkStyleEl) _darkStyleEl.disabled = false;
+    if (wasDark) { document.body.classList.add('dark-mode'); document.documentElement.setAttribute('data-theme','dark'); }
+    else { document.body.classList.remove('dark-mode'); document.documentElement.setAttribute('data-theme','light'); }
+    if (compName) compName.removeAttribute('style');
+    if (docTitle) docTitle.removeAttribute('style');
+    footerEls.forEach(function(el){ el.removeAttribute('style'); });
+  }
+
+  if (isMobileSafari && vp) {
+    var fix = document.createElement('style');
+    fix.id = 'safari-print-fix';
+    fix.textContent = [
+      '@page { size:8.5in 11in; margin:0.15in; }',
+      '@page:blank { display:none; }',
+      '@media print {',
+      '  * { animation:none!important; transition:none!important; }',
+      '  html, body { height:auto!important; overflow:visible!important; }',
+      '  .wrapper { height:auto!important; }',
+      '  #page1 { page-break-after:auto!important; break-after:auto!important; }',
+      '  html { width:820px!important; }',
+      '  body { width:820px!important; transform-origin:top left!important; }',
+      '  .wrapper { display:block!important; padding:0!important; gap:0!important; }',
+      '  .page { display:block!important; width:100%!important; max-width:none!important;',
+
+      '    padding:var(--pd-print-ipad-page)!important;',
+      '    border:1.5pt solid #D97706!important; box-shadow:none!important;',
+      '    margin:0!important; position:static!important; overflow:visible!important; }',
+
+      '  .company-name    { font-size:var(--fs-print-ipad-company)!important; color:#D97706!important; }',
+      '  .doc-title       { font-size:var(--fs-print-ipad-title)!important; color:#1F2937!important; }',
+      '  .info-label      { font-size:var(--fs-print-ipad-info-label)!important; }',
+      '  .info-input      { font-size:var(--fs-print-ipad-info-input)!important; min-height:var(--h-print-ipad-info-input)!important; padding:var(--pd-print-ipad-info-input)!important; }',
+      '  .control-input   { font-size:var(--fs-print-ipad-info-input)!important; }',
+      '  .field-label     { font-size:var(--fs-print-ipad-field-label)!important; color:#D97706!important; }',
+      '  .field-textarea  { font-size:var(--fs-print-ipad-field-input)!important; min-height:var(--h-print-ipad-field)!important; padding:var(--pd-print-ipad-field)!important; }',
+      '  .field-textarea::placeholder { color:transparent!important; opacity:0!important; }',
+      '  .emergency-label { font-size:var(--fs-print-ipad-emergency)!important; }',
+      '  .footer-text     { font-size:var(--fs-print-ipad-footer)!important; color:#9CA3AF!important; }',
+      '  .page-footer     { padding:var(--pd-print-ipad-footer)!important; }',
+      '  .action-bar,#save-status,#offline-banner { display:none!important; }',
+      '}'
+    ].join('\n');
+
+    void document.getElementById('page1').getBoundingClientRect();
+    document.head.appendChild(fix);
+
+    requestAnimationFrame(function() {
+      window.print();
+    });
+
+    var _restored = false;
+    function _tryRestore() {
+      if (_restored) return;
+      _restored = true;
+      document.removeEventListener('visibilitychange', _visHandler);
+      window.removeEventListener('focus', _focusHandler);
+      restore();
+    }
+    function _visHandler() {
+      if (document.hidden) { _wentHidden = true; }
+      else if (_wentHidden) { _tryRestore(); }
+    }
+    var _wentHidden = false;
+    document.addEventListener('visibilitychange', _visHandler);
+    function _focusHandler() { if (_wentHidden) _tryRestore(); }
+    window.addEventListener('focus', _focusHandler);
+    window.addEventListener('pageshow', function _psHandler() {
+      window.removeEventListener('pageshow', _psHandler);
+      setTimeout(function() { _tryRestore(); }, 300);
+    });
+    setTimeout(function() { _tryRestore(); }, 2000);
+
+  } else {
+    window.addEventListener('afterprint', restore);
+    window.print();
+  }
+}
+
+// ── OFFLINE ──
+window.addEventListener('online',  function() { document.body.classList.remove('offline'); });
+window.addEventListener('offline', function() { document.body.classList.add('offline'); });
+
+// ── THEME ──
+var THEME_KEY = 'aog_theme_preference';
+function applyTheme(theme) {
+  var isDark = theme === 'dark';
+  if (isDark) { document.body.classList.add('dark-mode'); document.documentElement.setAttribute('data-theme','dark'); }
+  else { document.body.classList.remove('dark-mode'); document.documentElement.setAttribute('data-theme','light'); }
+  document.documentElement.classList.remove('dark-mode-pending');
+  try { localStorage.setItem(THEME_KEY, theme); } catch(e) {}
+}
+function toggleTheme() { applyTheme(document.body.classList.contains('dark-mode') ? 'light' : 'dark'); }
+function getInitialTheme() {
+  var saved = ''; try { saved = localStorage.getItem(THEME_KEY) || ''; } catch(e) {}
+  if (saved) return saved;
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', function() {
+  var today = new Date().toISOString().split('T')[0];
+  if (!navigator.onLine) { document.body.classList.add('offline'); }
+  applyTheme(getInitialTheme());
+  if (document.documentElement.classList.contains('dark-mode-pending')) { document.body.classList.add('dark-mode'); }
+  restoreDraft();
+  if (!document.getElementById('svc_date').value) document.getElementById('svc_date').value = today;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<!--
+© 2026 Brandon Keilholz — All rights reserved.
+Created by Brandon Keilholz. Licensed for use by Always On Generators.
+This form, its code, layout, and content are proprietary.
+Unauthorized copying, reproduction, or distribution is prohibited and
+may result in liability for statutory damages of up to $150,000 per work
+for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
+-->
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Breaker &amp; Conductor Sizing — Always On Generators</title>
+<script src="../sounds.js" defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="../manifest.json">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="theme-color" content="#FBBF24">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AOG Forms">
+<style>
+:root {
+  --yellow: #FCD34D;
+  --yellow-bright: #FBBF24;
+  --orange: #F97316;
+  --orange-bright: #FB923C;
+  --orange-deep: #EA580C;
+  --blue-electric: #00D4FF;
+  --blue-bright: #3B82F6;
+  --font-display: 'Orbitron', monospace;
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-body: 'Exo 2', sans-serif;
+  --radius: 4px;
+  --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+}
+[data-theme="dark"] {
+  --bg: #0A0E27; --bg-mid: #0F1535;
+  --bg-card: rgba(15,21,53,0.92); --bg-input: rgba(10,14,39,0.8);
+  --border: rgba(251,191,36,0.25); --border-input: rgba(251,191,36,0.35);
+  --text: #F1F5F9; --text-dim: #94A3B8; --text-muted: #64748B;
+  --label-color: #FBBF24; --result-bg: rgba(15,21,53,0.95);
+  --result-border: rgba(251,191,36,0.3); --note-bg: rgba(26,40,71,0.6);
+  --note-border: rgba(0,212,255,0.2);
+  --tag-ok-bg: rgba(16,185,129,0.15);   --tag-ok-text: #34D399;
+  --tag-warn-bg: rgba(249,115,22,0.15); --tag-warn-text: #FB923C;
+  --tag-info-bg: rgba(0,212,255,0.12);  --tag-info-text: #00D4FF;
+  --tag-err-bg: rgba(239,68,68,0.15);   --tag-err-text: #F87171;
+  --divider: rgba(251,191,36,0.15);
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23FBBF24' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  --grid-line: rgba(251,191,36,0.04); --grid-line2: rgba(59,130,246,0.04);
+  --glow1: rgba(251,191,36,0.08); --glow2: rgba(249,115,22,0.08); --glow3: rgba(59,130,246,0.06);
+  --header-border: rgba(251,191,36,0.2);
+}
+[data-theme="light"] {
+  --bg: #F8F5EE; --bg-mid: #FFFDF7;
+  --bg-card: rgba(255,253,247,0.97); --bg-input: rgba(255,253,247,0.9);
+  --border: rgba(180,130,20,0.3); --border-input: rgba(180,130,20,0.45);
+  --text: #1A1209; --text-dim: #5C4A1E; --text-muted: #8A7040;
+  --label-color: #B45309; --result-bg: rgba(255,253,247,0.98);
+  --result-border: rgba(180,130,20,0.35); --note-bg: rgba(254,243,199,0.5);
+  --note-border: rgba(180,130,20,0.25);
+  --tag-ok-bg: rgba(5,150,105,0.12);   --tag-ok-text: #065F46;
+  --tag-warn-bg: rgba(180,83,9,0.12);  --tag-warn-text: #92400E;
+  --tag-info-bg: rgba(2,132,199,0.1);  --tag-info-text: #0369A1;
+  --tag-err-bg: rgba(185,28,28,0.1);   --tag-err-text: #991B1B;
+  --divider: rgba(180,130,20,0.2);
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23B45309' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  --grid-line: rgba(180,130,20,0.06); --grid-line2: rgba(59,130,246,0.04);
+  --glow1: rgba(251,191,36,0.1); --glow2: rgba(249,115,22,0.07); --glow3: rgba(59,130,246,0.05);
+  --header-border: rgba(180,130,20,0.25);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:var(--font-body);background-color:var(--bg);color:var(--text);min-height:100vh;transition:background-color .3s,color .3s;overflow-x:hidden;position:relative;}
+[data-theme="dark"] body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line2) 1px,transparent 1px);background-size:50px 50px;pointer-events:none;z-index:0;animation:gridMove 40s linear infinite;}
+@keyframes gridMove{from{background-position:0 0;}to{background-position:50px 50px;}}
+[data-theme="dark"] body::after{content:'';position:fixed;inset:0;background:radial-gradient(circle at 20% 30%,var(--glow1) 0%,transparent 40%),radial-gradient(circle at 80% 70%,var(--glow2) 0%,transparent 40%),radial-gradient(circle at 50% 50%,var(--glow3) 0%,transparent 50%);pointer-events:none;z-index:0;}
+[data-theme="light"] body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line2) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;opacity:.5;}
+.page{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:24px 16px 48px;}
+.theme-toggle-wrap{display:flex;justify-content:flex-end;margin-bottom:16px;}
+.theme-btn{font-family:var(--font-mono);font-size:.65rem;letter-spacing:2px;text-transform:uppercase;background:var(--bg-card);color:var(--label-color);border:1px solid var(--border);border-radius:var(--radius);padding:6px 14px;cursor:pointer;display:flex;align-items:center;gap:7px;transition:var(--transition);}
+.theme-btn:hover{border-color:var(--orange);color:var(--orange-bright);}
+.theme-icon{font-size:14px;}
+.header{text-align:center;padding:28px 16px 24px;margin-bottom:28px;position:relative;}
+.header::before,.header::after{content:'';position:absolute;height:2px;width:80%;left:10%;background:linear-gradient(90deg,transparent,var(--yellow-bright),var(--orange),var(--blue-electric),transparent);}
+.header::before{top:0;animation:scanline 4s linear infinite;}
+.header::after{bottom:0;animation:scanline 4s linear infinite reverse;}
+@keyframes scanline{0%,100%{opacity:0;transform:scaleX(0)}50%{opacity:1;transform:scaleX(1)}}
+.logo-wrap{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:nowrap;margin-bottom:14px;}
+@media(min-width:480px){.logo-wrap{gap:20px}}
+.logo-img{width:70px;height:70px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 0 12px rgba(251,191,36,.6));animation:logoPulse 3s ease-in-out infinite;}
+@media(min-width:480px){.logo-img{width:90px;height:90px}}
+@keyframes logoPulse{0%,100%{filter:drop-shadow(0 0 12px rgba(251,191,36,.6))}50%{filter:drop-shadow(0 0 22px rgba(251,191,36,.9)) drop-shadow(0 0 36px rgba(249,115,22,.6))}}
+[data-theme="light"] .logo-img{filter:drop-shadow(0 0 6px rgba(180,130,20,.4));}
+.title-block{text-align:left;min-width:0;}
+.company-name{font-family:var(--font-display);font-size:clamp(1.05rem,4.5vw,1.4rem);font-weight:900;letter-spacing:2px;line-height:1.1;background:linear-gradient(135deg,var(--yellow-bright) 0%,var(--orange) 60%,var(--orange-deep) 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:5px;}
+@media(min-width:480px){.company-name{font-size:1.8rem;letter-spacing:3px}}
+.tagline{font-family:var(--font-mono);font-size:.72rem;letter-spacing:4px;color:var(--blue-electric);text-shadow:0 0 8px rgba(0,212,255,.35);}
+[data-theme="light"] .tagline{color:#0284C7;text-shadow:none;}
+.tool-title{font-family:var(--font-display);font-size:clamp(.75rem,2vw,.9rem);letter-spacing:5px;color:var(--text-dim);text-transform:uppercase;margin-top:10px;font-weight:400;}
+.tool-title span{color:var(--orange-bright);}
+.panel{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 18px;margin-bottom:20px;position:relative;overflow:hidden;transition:background .3s,border-color .3s;}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--yellow-bright),var(--orange),transparent);opacity:.5;}
+.panel-label{font-family:var(--font-display);font-size:.62rem;letter-spacing:5px;color:var(--label-color);text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.panel-label::after{content:'';flex:1;height:1px;background:var(--divider);}
+.selects-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
+.field{display:flex;flex-direction:column;gap:6px;}
+.field label{font-family:var(--font-mono);font-size:.62rem;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);}
+select{font-family:var(--font-mono);font-size:.8rem;background:var(--bg-input);color:var(--text);border:1px solid var(--border-input);border-radius:var(--radius);padding:9px 34px 9px 10px;width:100%;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:var(--select-arrow);background-repeat:no-repeat;background-position:right 10px center;transition:border-color var(--transition),background-color var(--transition);}
+select:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 2px rgba(249,115,22,.15);}
+.result-panel{background:var(--result-bg);border:1px solid var(--result-border);border-radius:var(--radius);padding:20px 18px;position:relative;overflow:hidden;}
+.result-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--blue-electric),var(--orange),transparent);opacity:.6;}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:16px;}
+.metric{background:var(--note-bg);border:1px solid var(--divider);border-radius:var(--radius);padding:12px 14px;}
+.metric-label{font-family:var(--font-mono);font-size:.58rem;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;}
+.metric-value{font-family:var(--font-display);font-size:clamp(1.3rem,3vw,1.8rem);font-weight:700;color:var(--yellow-bright);line-height:1;}
+[data-theme="light"] .metric-value{color:#92400E;}
+.metric-sub{font-family:var(--font-mono);font-size:.62rem;letter-spacing:1px;color:var(--text-dim);margin-top:4px;}
+.see-notes{display:inline-block;margin-top:8px;font-family:var(--font-mono);font-size:.6rem;letter-spacing:1px;text-transform:uppercase;color:var(--orange);cursor:pointer;border:1px solid rgba(255,159,67,0.4);border-radius:4px;padding:4px 8px;transition:background .2s,border-color .2s;}
+.see-notes:hover{background:rgba(255,159,67,0.12);border-color:var(--orange);}
+.tag{display:inline-block;font-family:var(--font-mono);font-size:.6rem;letter-spacing:1.5px;padding:3px 8px;border-radius:2px;text-transform:uppercase;margin-top:6px;}
+.tag-ok  {background:var(--tag-ok-bg);  color:var(--tag-ok-text);}
+.tag-warn{background:var(--tag-warn-bg);color:var(--tag-warn-text);}
+.tag-info{background:var(--tag-info-bg);color:var(--tag-info-text);}
+.tag-err {background:var(--tag-err-bg); color:var(--tag-err-text);}
+.hr{border:none;border-top:1px solid var(--divider);margin:14px 0;}
+.note-block{background:var(--note-bg);border-left:2px solid var(--blue-electric);border-radius:0 var(--radius) var(--radius) 0;padding:10px 14px;margin-bottom:10px;font-family:var(--font-mono);font-size:.72rem;line-height:1.65;color:var(--text-dim);}
+[data-theme="light"] .note-block{border-left-color:#0284C7;}
+.note-block strong{font-weight:500;color:var(--text);display:block;margin-bottom:3px;font-size:.65rem;letter-spacing:1.5px;text-transform:uppercase;}
+.note-block.warn{border-left-color:var(--orange);}
+.note-block.err {border-left-color:#F87171;}
+.derate-flag{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--radius);margin-bottom:10px;font-family:var(--font-mono);font-size:.72rem;}
+.derate-flag.active  {background:rgba(249,115,22,.1); border:1px solid rgba(249,115,22,.3); color:var(--orange-bright);}
+.derate-flag.inactive{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2); color:#34D399;}
+[data-theme="light"] .derate-flag.active  {background:rgba(180,83,9,.08); border-color:rgba(180,83,9,.25); color:#92400E;}
+[data-theme="light"] .derate-flag.inactive{background:rgba(5,150,105,.08);border-color:rgba(5,150,105,.2); color:#065F46;}
+.derate-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.derate-flag.active   .derate-dot{background:var(--orange);box-shadow:0 0 6px var(--orange);}
+.derate-flag.inactive .derate-dot{background:#10B981;    box-shadow:0 0 6px #10B981;}
+.footer{text-align:center;padding-top:24px;border-top:1px solid var(--divider);margin-top:10px;}
+.footer-text{font-family:var(--font-display);font-size:.6rem;letter-spacing:4px;color:var(--text-muted);text-transform:uppercase;}
+.footer-version{font-family:var(--font-mono);font-size:.6rem;letter-spacing:2px;color:var(--orange-bright);opacity:.7;margin-top:4px;}
+.footer-version span{color:var(--blue-electric);}
+@media(max-width:480px){.selects-grid{grid-template-columns:1fr 1fr;}.metrics{grid-template-columns:1fr 1fr;}.metric-value{font-size:1.3rem;}}
+@media(max-width:340px){.selects-grid{grid-template-columns:1fr;}.metrics{grid-template-columns:1fr;}}
+
+/* ===== FIXED ACTION BAR ===== */
+.action-bar {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  z-index: 99999;
+  width: 100%;
+  background: var(--bg-card, #0F1535);
+  padding: 4px 8px;
+  padding-top: max(4px, env(safe-area-inset-top, 4px));
+  display: flex; justify-content: flex-start; gap: 4px; flex-wrap: nowrap; align-items: center;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none
+  
+  box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+  border-bottom: 1px solid var(--border, rgba(251,191,36,0.25));
+  box-sizing: border-box;
+}
+/* Center the buttons when they fit; auto-margins collapse safely when the
+   bar overflows and scrolls, so nothing gets clipped off the left edge. */
+.action-bar > :first-child { margin-left: auto; }
+.action-bar > :last-child { margin-right: auto; }
+[data-theme="light"] .action-bar {
+  background: #fff;
+  border-bottom-color: rgba(217,119,6,0.3);
+}
+.action-bar .ab-btn {
+  padding: 6px 8px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;
+  border: 1px solid rgba(251,191,36,0.4); background: rgba(251,191,36,0.07);
+  border-radius: 0; cursor: pointer; color: var(--orange, #FBBF24); text-transform: uppercase;
+  font-family: Arial, sans-serif; white-space: nowrap; flex: 1; min-width: 0;
+  text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+  clip-path: polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  overflow: hidden; text-overflow: ellipsis; transition: all 0.15s ease;
+}
+[data-theme="light"] .action-bar .ab-btn { color: #D97706; border-color: rgba(217,119,6,0.4); background: rgba(217,119,6,0.05); }
+.action-bar .ab-btn:hover { border-color: var(--orange-bright, #FBBF24); box-shadow: 0 0 8px rgba(251,191,36,0.3); }
+.action-bar .theme-toggle-ab {
+  width: 36px; height: 36px; padding: 6px; flex-shrink: 0;
+  border: 1px solid rgba(251,191,36,0.4); background: rgba(251,191,36,0.07);
+  border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: var(--orange, #FBBF24); font-size: 16px; transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+[data-theme="light"] .action-bar .theme-toggle-ab { color: #D97706; border-color: rgba(217,119,6,0.4); }
+.action-bar .theme-toggle-ab:hover { border-color: var(--orange-bright, #FBBF24); box-shadow: 0 0 8px rgba(251,191,36,0.3); }
+@media (max-width: 480px) {
+  .action-bar { padding: 4px 4px; padding-top: max(4px, env(safe-area-inset-top, 4px)); gap: 3px; }
+}
+</style>
+<script src="../update-banner.js"></script>
+</head>
+<body>
+<div class="action-bar" id="action-bar">
+  <a class="ab-btn" href="../">🏠 HOME</a>
+  <button class="theme-toggle-ab" id="themeBtn" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
+</div>
+<div class="page" id="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo-wrap">
+      <img src="../logo.png" alt="Always On Generators Logo" class="logo-img">
+      <div class="title-block">
+        <div class="company-name">Always On<br>Generators</div>
+        <div class="tagline">// Power When You Need It //</div>
+      </div>
+    </div>
+    <div class="tool-title">Breaker &amp; Conductor <span>Sizing Tool</span></div>
+  </div>
+
+  <!-- INPUTS -->
+  <div class="panel">
+    <div class="panel-label">Circuit Parameters</div>
+    <div class="selects-grid">
+
+      <div class="field">
+        <label>Breaker Size (240.6)</label>
+        <select id="breaker">
+          <option value="15">15 A</option><option value="20">20 A</option>
+          <option value="25">25 A</option><option value="30">30 A</option>
+          <option value="35">35 A</option><option value="40">40 A</option>
+          <option value="45">45 A</option><option value="50">50 A</option>
+          <option value="60">60 A</option><option value="70">70 A</option>
+          <option value="80">80 A</option><option value="90">90 A</option>
+          <option value="100">100 A</option><option value="110">110 A</option>
+          <option value="125">125 A</option><option value="150">150 A</option>
+          <option value="175">175 A</option><option value="200">200 A</option>
+          <option value="225">225 A</option><option value="250">250 A</option>
+          <option value="300">300 A</option><option value="350">350 A</option>
+          <option value="400">400 A</option><option value="450">450 A</option>
+          <option value="500">500 A</option><option value="600">600 A</option>
+          <option value="700">700 A</option><option value="800">800 A</option>
+          <option value="1000">1000 A</option><option value="1200">1200 A</option>
+          <option value="1600">1600 A</option><option value="2000">2000 A</option>
+          <option value="2500">2500 A</option><option value="3000">3000 A</option>
+          <option value="4000">4000 A</option><option value="5000">5000 A</option>
+          <option value="6000">6000 A</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Conductor Material</label>
+        <select id="material">
+          <option value="copper">Copper</option>
+          <option value="aluminum">Aluminum / CU-clad AL</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Application</label>
+        <select id="application">
+          <option value="general">General (310.16 75&deg;C)</option>
+          <option value="dwelling">1&amp;2 Family Dwelling Svc/Feeder (310.12)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Parallel Sets</label>
+        <select id="sets">
+          <option value="1">1 Set (single)</option>
+          <option value="2">2 Sets</option><option value="3">3 Sets</option>
+          <option value="4">4 Sets</option><option value="5">5 Sets</option>
+          <option value="6">6 Sets</option><option value="7">7 Sets</option>
+          <option value="8">8 Sets</option><option value="9">9 Sets</option>
+          <option value="10">10 Sets</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Conductor Temp Rating</label>
+        <select id="tempCol">
+          <option value="75">75&deg;C (standard)</option>
+          <option value="60">60&deg;C</option>
+          <option value="90">90&deg;C (derate from 90&deg;, cap at 75&deg;)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Ambient Temperature (310.15(B)(1))</label>
+        <select id="ambient">
+          <option value="10">10&deg;C or less / 50&deg;F or less</option>
+          <option value="15">11&ndash;15&deg;C / 51&ndash;59&deg;F</option>
+          <option value="20">16&ndash;20&deg;C / 60&ndash;68&deg;F</option>
+          <option value="25">21&ndash;25&deg;C / 69&ndash;77&deg;F</option>
+          <option value="30" selected>26&ndash;30&deg;C / 78&ndash;86&deg;F (standard)</option>
+          <option value="35">31&ndash;35&deg;C / 87&ndash;95&deg;F</option>
+          <option value="40">36&ndash;40&deg;C / 96&ndash;104&deg;F</option>
+          <option value="45">41&ndash;45&deg;C / 105&ndash;113&deg;F</option>
+          <option value="50">46&ndash;50&deg;C / 114&ndash;122&deg;F</option>
+          <option value="55">51&ndash;55&deg;C / 123&ndash;131&deg;F</option>
+          <option value="60">56&ndash;60&deg;C / 132&ndash;140&deg;F</option>
+          <option value="65">61&ndash;65&deg;C / 141&ndash;149&deg;F</option>
+          <option value="70">66&ndash;70&deg;C / 150&ndash;158&deg;F</option>
+          <option value="75">71&ndash;75&deg;C / 159&ndash;167&deg;F</option>
+          <option value="80">76&ndash;80&deg;C / 168&ndash;176&deg;F</option>
+          <option value="85">81&ndash;85&deg;C / 177&ndash;185&deg;F</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Current-Carrying Conductors in Raceway</label>
+        <select id="ccc">
+          <option value="3">1&#x2013;3 (no derating)</option>
+          <option value="4">4&#x2013;6 conductors (80%)</option>
+          <option value="7">7&#x2013;9 conductors (70%)</option>
+          <option value="10">10&#x2013;20 conductors (50%)</option>
+          <option value="21">21&#x2013;30 conductors (45%)</option>
+          <option value="31">31&#x2013;40 conductors (40%)</option>
+          <option value="41">41+ conductors (35%)</option>
+        </select>
+      </div>
+
+    </div>
+
+    <!-- Neutral note — shown only when >3 CCC selected -->
+    <div id="neutralNote" style="display:none;margin-top:14px;padding:10px 14px;background:var(--note-bg);border-left:2px solid var(--blue-electric);border-radius:0 var(--radius) var(--radius) 0;font-family:var(--font-mono);font-size:0.68rem;line-height:1.65;color:var(--text-dim);">
+      <strong style="display:block;font-size:0.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--text);margin-bottom:3px;">&#9432; Neutral Conductors &mdash; 310.15(E)</strong>
+      A neutral that carries only the unbalanced load from other conductors in the same circuit is <em>not</em> counted as a current-carrying conductor for derating purposes. A neutral supplying predominantly non-linear loads (e.g. electric discharge lighting, harmonics-producing equipment) <em>is</em> counted per 310.15(E).
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="result-panel" id="result"></div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-text">Always On Generators &middot; Field Operations Portal</div>
+    <div class="footer-version">NEC <span>2023</span> &middot; 240.6 &middot; 240.4 &middot; 310.16 &middot; 310.12 &middot; 310.15(B)(1) &middot; 310.15(C)(1) &middot; 250.122</div>
+  </div>
+
+</div>
+<script>
+/* ════════════════════════════════════════════════════
+   NEC TABLE 310.16 — 60 / 75 / 90 °C columns
+   ════════════════════════════════════════════════════ */
+var cuTable=[
+  {size:'14 AWG',    a60:15, a75:20, a90:25},
+  {size:'12 AWG',    a60:20, a75:25, a90:30},
+  {size:'10 AWG',    a60:30, a75:35, a90:40},
+  {size:'8 AWG',     a60:40, a75:50, a90:55},
+  {size:'6 AWG',     a60:55, a75:65, a90:75},
+  {size:'4 AWG',     a60:70, a75:85, a90:95},
+  {size:'3 AWG',     a60:85, a75:100,a90:110},
+  {size:'2 AWG',     a60:95, a75:115,a90:130},
+  {size:'1 AWG',     a60:110,a75:130,a90:150},
+  {size:'1/0 AWG',   a60:125,a75:150,a90:170},
+  {size:'2/0 AWG',   a60:145,a75:175,a90:195},
+  {size:'3/0 AWG',   a60:165,a75:200,a90:225},
+  {size:'4/0 AWG',   a60:195,a75:230,a90:260},
+  {size:'250 kcmil', a60:215,a75:255,a90:290},
+  {size:'300 kcmil', a60:240,a75:285,a90:320},
+  {size:'350 kcmil', a60:260,a75:310,a90:350},
+  {size:'400 kcmil', a60:280,a75:335,a90:380},
+  {size:'500 kcmil', a60:320,a75:380,a90:430},
+  {size:'600 kcmil', a60:350,a75:420,a90:475},
+  {size:'700 kcmil', a60:385,a75:460,a90:520},
+  {size:'750 kcmil', a60:400,a75:475,a90:535},
+  {size:'800 kcmil', a60:410,a75:490,a90:555},
+  {size:'900 kcmil', a60:435,a75:520,a90:585},
+  {size:'1000 kcmil',a60:455,a75:545,a90:615},
+  {size:'1250 kcmil',a60:495,a75:590,a90:665},
+  {size:'1500 kcmil',a60:525,a75:625,a90:705},
+  {size:'1750 kcmil',a60:545,a75:650,a90:735},
+  {size:'2000 kcmil',a60:555,a75:665,a90:750}
+];
+var alTable=[
+  {size:'12 AWG',    a60:15, a75:20, a90:25},
+  {size:'10 AWG',    a60:25, a75:30, a90:35},
+  {size:'8 AWG',     a60:30, a75:40, a90:45},
+  {size:'6 AWG',     a60:40, a75:50, a90:55},
+  {size:'4 AWG',     a60:55, a75:65, a90:75},
+  {size:'3 AWG',     a60:65, a75:75, a90:85},
+  {size:'2 AWG',     a60:75, a75:90, a90:100},
+  {size:'1 AWG',     a60:85, a75:100,a90:115},
+  {size:'1/0 AWG',   a60:100,a75:120,a90:135},
+  {size:'2/0 AWG',   a60:115,a75:135,a90:150},
+  {size:'3/0 AWG',   a60:130,a75:155,a90:175},
+  {size:'4/0 AWG',   a60:150,a75:180,a90:205},
+  {size:'250 kcmil', a60:170,a75:205,a90:230},
+  {size:'300 kcmil', a60:190,a75:230,a90:255},
+  {size:'350 kcmil', a60:210,a75:250,a90:280},
+  {size:'400 kcmil', a60:225,a75:270,a90:305},
+  {size:'500 kcmil', a60:260,a75:310,a90:350},
+  {size:'600 kcmil', a60:285,a75:340,a90:385},
+  {size:'700 kcmil', a60:315,a75:375,a90:420},
+  {size:'750 kcmil', a60:320,a75:385,a90:435},
+  {size:'800 kcmil', a60:330,a75:395,a90:450},
+  {size:'900 kcmil', a60:355,a75:425,a90:480},
+  {size:'1000 kcmil',a60:375,a75:445,a90:500},
+  {size:'1250 kcmil',a60:405,a75:485,a90:545},
+  {size:'1500 kcmil',a60:435,a75:520,a90:585},
+  {size:'1750 kcmil',a60:455,a75:545,a90:615},
+  {size:'2000 kcmil',a60:470,a75:560,a90:630}
+];
+
+/* Flat 75°C arrays for 310.12 lookup */
+var cu75=cuTable.map(function(r){return{size:r.size,amps:r.a75};});
+var al75=alTable.map(function(r){return{size:r.size,amps:r.a75};});
+
+/* NEC Table 250.122 */
+var egcTable=[
+  {ocpd:15,  cu:'14 AWG',    al:'12 AWG'},
+  {ocpd:20,  cu:'12 AWG',    al:'10 AWG'},
+  {ocpd:60,  cu:'10 AWG',    al:'8 AWG'},
+  {ocpd:100, cu:'8 AWG',     al:'6 AWG'},
+  {ocpd:200, cu:'6 AWG',     al:'4 AWG'},
+  {ocpd:300, cu:'4 AWG',     al:'2 AWG'},
+  {ocpd:400, cu:'3 AWG',     al:'1 AWG'},
+  {ocpd:450, cu:'3 AWG',     al:'1 AWG'},
+  {ocpd:500, cu:'2 AWG',     al:'1/0 AWG'},
+  {ocpd:600, cu:'1 AWG',     al:'2/0 AWG'},
+  {ocpd:700, cu:'1 AWG',     al:'2/0 AWG'},
+  {ocpd:800, cu:'1/0 AWG',   al:'3/0 AWG'},
+  {ocpd:1000,cu:'2/0 AWG',   al:'4/0 AWG'},
+  {ocpd:1200,cu:'3/0 AWG',   al:'250 kcmil'},
+  {ocpd:1600,cu:'4/0 AWG',   al:'350 kcmil'},
+  {ocpd:2000,cu:'250 kcmil', al:'400 kcmil'},
+  {ocpd:2500,cu:'350 kcmil', al:'600 kcmil'},
+  {ocpd:3000,cu:'400 kcmil', al:'600 kcmil'},
+  {ocpd:4000,cu:'500 kcmil', al:'750 kcmil'},
+  {ocpd:5000,cu:'700 kcmil', al:'1250 kcmil'},
+  {ocpd:6000,cu:'800 kcmil', al:'1250 kcmil'}
+];
+
+/* ════════════════════════════════════════════════════
+   HELPERS
+   ════════════════════════════════════════════════════ */
+function getAmpacity(row,tc){
+  return tc===60?row.a60:tc===90?row.a90:row.a75;
+}
+
+/* NEC Table 310.15(B)(1) — Ambient temperature correction factors
+   Based on 30°C reference. Returns factor for given ambient and conductor temp rating. */
+function ambientFactor(ambientC, tc){
+  if(ambientC===30) return 1.00; /* reference temp, no correction */
+  /* Table 310.15(B)(1) values */
+  var table={
+    /* ambient: [f60, f75, f90] */
+    10: [1.29, 1.20, 1.15],
+    15: [1.22, 1.15, 1.12],
+    20: [1.15, 1.11, 1.08],
+    25: [1.08, 1.05, 1.04],
+    30: [1.00, 1.00, 1.00],
+    35: [0.91, 0.94, 0.96],
+    40: [0.82, 0.88, 0.91],
+    45: [0.71, 0.82, 0.87],
+    50: [0.58, 0.75, 0.82],
+    55: [0.41, 0.67, 0.76],
+    60: [0.00, 0.58, 0.71],
+    65: [0.00, 0.47, 0.65],
+    70: [0.00, 0.33, 0.58],
+    75: [0.00, 0.00, 0.50],
+    80: [0.00, 0.00, 0.41],
+    85: [0.00, 0.00, 0.29]
+  };
+  var row=table[ambientC];
+  if(!row) return 1.00;
+  var idx=tc===60?0:tc===90?2:1;
+  return row[idx];
+}
+function derateFactor(v){
+  v=parseInt(v);
+  if(v<=3) return{factor:1.00,label:'No derating',    pct:'100%'};
+  if(v<=6) return{factor:0.80,label:'4\u20136 CCC',   pct:'80%'};
+  if(v<=9) return{factor:0.70,label:'7\u20139 CCC',   pct:'70%'};
+  if(v<=20)return{factor:0.50,label:'10\u201320 CCC', pct:'50%'};
+  if(v<=30)return{factor:0.45,label:'21\u201330 CCC', pct:'45%'};
+  if(v<=40)return{factor:0.40,label:'31\u201340 CCC', pct:'40%'};
+  return   {factor:0.35,label:'41+ CCC',              pct:'35%'};
+}
+function pickConductor75(tbl,min){
+  for(var i=0;i<tbl.length;i++){if(tbl[i].amps>=min)return tbl[i];}
+  return null;
+}
+/* Find smallest conductor where:
+   ampacity(tempCol) × ambientFactor × cccFactor >= required
+   Final usable value capped at 75°C column per 110.14(C)          */
+function pickDerated(base,tc,combinedFactor,required){
+  for(var i=0;i<base.length;i++){
+    if(Math.floor(getAmpacity(base[i],tc)*combinedFactor)>=required)return base[i];
+  }
+  return null;
+}
+function pickEGC(ocpd,mat){
+  var row=null;
+  for(var i=0;i<egcTable.length;i++){if(egcTable[i].ocpd>=ocpd){row=egcTable[i];break;}}
+  if(!row)row=egcTable[egcTable.length-1];
+  return mat==='copper'?row.cu:row.al;
+}
+
+/* ════════════════════════════════════════════════════
+   CALC
+   ════════════════════════════════════════════════════ */
+function calc(){
+  var breaker = parseInt(document.getElementById('breaker').value);
+  var mat     = document.getElementById('material').value;
+  var app     = document.getElementById('application').value;
+  var sets    = parseInt(document.getElementById('sets').value);
+  var tc      = parseInt(document.getElementById('tempCol').value);
+  var ambC    = parseInt(document.getElementById('ambient').value);
+  var cccVal  = document.getElementById('ccc').value;
+
+  var isDwelling   = app==='dwelling';
+  var baseTable    = mat==='copper'?cuTable:alTable;
+  var table75      = mat==='copper'?cu75:al75;
+  var df           = derateFactor(cccVal);
+  var af           = ambientFactor(ambC, tc);
+  var isDerating   = df.factor<1.0;
+  var isTempCorr   = ambC!==30;
+  /* Both factors stack — multiply together */
+  var combinedFactor = parseFloat((df.factor * af).toFixed(4));
+  var matLabel     = mat==='copper'?'Copper':'Aluminum / CU-clad AL';
+  var tcLabel      = tc===60?'60\u00b0C':tc===90?'90\u00b0C':'75\u00b0C';
+  var ambLabels={
+    10:'10\u00b0C or less / 50\u00b0F or less',
+    15:'11\u201315\u00b0C / 51\u201359\u00b0F',
+    20:'16\u201320\u00b0C / 60\u201368\u00b0F',
+    25:'21\u201325\u00b0C / 69\u201377\u00b0F',
+    30:'26\u201330\u00b0C / 78\u201386\u00b0F',
+    35:'31\u201335\u00b0C / 87\u201395\u00b0F',
+    40:'36\u201340\u00b0C / 96\u2013104\u00b0F',
+    45:'41\u201345\u00b0C / 105\u2013113\u00b0F',
+    50:'46\u201350\u00b0C / 114\u2013122\u00b0F',
+    55:'51\u201355\u00b0C / 123\u2013131\u00b0F',
+    60:'56\u201360\u00b0C / 132\u2013140\u00b0F',
+    65:'61\u201365\u00b0C / 141\u2013149\u00b0F',
+    70:'66\u201370\u00b0C / 150\u2013158\u00b0F',
+    75:'71\u201375\u00b0C / 159\u2013167\u00b0F',
+    80:'76\u201380\u00b0C / 168\u2013176\u00b0F',
+    85:'81\u201385\u00b0C / 177\u2013185\u00b0F'
+  };
+  var ambLabel = ambLabels[ambC]||ambC+'\u00b0C';
+  var ampPerSet    = Math.ceil(breaker/sets);
+
+  var dwellingRange    = isDwelling&&(breaker<100||breaker>400);
+  var dwellingParallel = isDwelling&&sets>1;
+
+  var conductor=null,method='',ruleNote='',tableUsed='',exceeded=false;
+
+  if(!dwellingRange&&!dwellingParallel){
+    if(isDwelling){
+      /* 310.12 — 83% rule, always 75°C column, no derating */
+      var req83=breaker*0.83;
+      var entry=pickConductor75(table75,Math.ceil(req83/sets));
+      conductor=entry?entry.size:null;
+      if(!conductor)exceeded=true;
+      method   ='310.12 Dwelling (83% rule)';
+      tableUsed='Table 310.16, 75\u00b0C col. (via 310.12)';
+      ruleNote ='83% rule: '+breaker+'A \u00d7 83% = '+Math.round(req83)+'A minimum ampacity. '+
+                'Conductor selected from Table 310.16, 75\u00b0C column. '+
+                'Applies only when conductors supply the entire load of a 1 or 2 family dwelling.';
+    } else {
+      /* General — temp column × ambient correction × CCC derating, capped at 75°C */
+      var row2=pickDerated(baseTable,tc,combinedFactor,ampPerSet);
+      if(!row2){exceeded=true;}else{conductor=row2.size;}
+      var tcNote=tc===90
+        ?' Starting from 90\u00b0C column, capped at 75\u00b0C per 110.14(C).'
+        :tc===60?' Using 60\u00b0C column ampacity as starting point.':'';
+      var ambNote=isTempCorr
+        ?' Ambient correction factor: '+af.toFixed(2)+' ('+ambLabel+').':'';
+      if(breaker<=800){
+        method   ='240.4(B) \u2014 Next standard size \u2264 800A';
+        tableUsed='Table 310.16, '+tcLabel+' col.';
+        ruleNote ='Breaker '+breaker+'A'+(sets>1?' \u00f7 '+sets+' sets = '+ampPerSet+'A/set':'')+
+                  ((isDerating||isTempCorr)
+                    ?' \u2192 combined factor '+combinedFactor.toFixed(2)+
+                      (isDerating?' (CCC: '+df.pct+')':'')+
+                      (isTempCorr?' (ambient: '+af.toFixed(2)+')':'')+
+                      ' \u2265 '+ampPerSet+'A/set required.':'.')+
+                  tcNote+ambNote+' Next standard size up permitted per 240.4(B).';
+      }else{
+        method   ='240.4(C) \u2014 Exact ampacity required > 800A';
+        tableUsed='Table 310.16, '+tcLabel+' col.';
+        ruleNote ='Over 800A \u2014 derated ampacity must equal or exceed '+ampPerSet+'A/set.'+
+                  tcNote+ambNote+' Next standard size NOT allowed per 240.4(C).';
+      }
+    }
+  }
+
+  /* derated ampacity of selected conductor */
+  var deratedAmpacity=null,baseAmpacity=null;
+  if(!exceeded&&conductor&&!isDwelling){
+    for(var j=0;j<baseTable.length;j++){
+      if(baseTable[j].size===conductor){
+        baseAmpacity=getAmpacity(baseTable[j],tc);
+        var raw=Math.floor(baseAmpacity*combinedFactor);
+        deratedAmpacity=Math.min(raw,baseTable[j].a75); /* cap at 75°C per 110.14(C) */
+        break;
+      }
+    }
+  }
+
+  /* parallel size violation */
+  var lt1_0=['14 AWG','12 AWG','10 AWG','8 AWG','6 AWG','4 AWG','3 AWG','2 AWG','1 AWG'];
+  var parallelViol=sets>1&&!exceeded&&conductor&&lt1_0.indexOf(conductor)!==-1;
+
+  /* 90°C column misuse — the 90°C column is only a starting point for ambient
+     temperature correction and conductor-bundle adjustment. When CCC is 1–3
+     (no derating) AND ambient is standard (no temp correction), there is nothing
+     to apply, so it must be used at the 75°C column. */
+  var ninetyMisuse = tc===90 && df.factor===1.00 && !isTempCorr && !isDwelling && !exceeded;
+
+  /* whether any actionable note (warning/violation/derating) will render below */
+  var hasNotes = (af<=0) || (df.factor<1.0) || (ambC!==30) ||
+                 (sets>1) || dwellingRange || dwellingParallel ||
+                 parallelViol || ninetyMisuse || (tc===90) || exceeded;
+
+  var egcSize=pickEGC(breaker,mat);
+  var egcCu=pickEGC(breaker,'copper');
+  var egcAl=pickEGC(breaker,'aluminum');
+
+  /* ════ BUILD HTML ════ */
+  var h='';
+
+  /* invalid ambient check — factor of 0 means ambient >= conductor rating */
+  var invalidAmbient = af<=0;
+
+  /* derating / temp banner */
+  var anyDerating = isDerating||isTempCorr;
+  h+='<div class="derate-flag '+(anyDerating?'active':'inactive')+'">' +
+     '<span class="derate-dot"></span><span>';
+  if(invalidAmbient){
+    h+='INVALID \u2014 ambient temperature meets or exceeds conductor temp rating. Select a higher-rated conductor.';
+  }else if(anyDerating){
+    h+='Derating active \u2014 combined factor: '+combinedFactor.toFixed(2);
+    if(isDerating) h+=' | CCC: '+df.pct+' ('+df.label+')';
+    if(isTempCorr) h+=' | Ambient: '+af.toFixed(2)+' ('+ambLabel+', '+tcLabel+' rated)';
+    h+=' | Table 310.15(B)(1)+(C)(1)';
+  }else{
+    h+='No derating \u2014 1\u20133 CCC, 30\u00b0C standard ambient. '+tcLabel+' column.';
+  }
+  h+='</span></div>';
+
+  h+='<div class="metrics">';
+
+  /* conductor card */
+  if(dwellingRange){
+    var rsn=breaker<100?(breaker+'A is below the 100A minimum for 310.12'):(breaker+'A exceeds the 400A maximum for 310.12');
+    h+='<div class="metric" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.5);grid-column:span 2;">'+
+       '<div class="metric-label" style="color:#F87171;">Conductor / Set \u2014 Not Applicable</div>'+
+       '<div class="metric-value" style="color:#F87171;font-size:clamp(1rem,3vw,1.5rem);">Not Allowed</div>'+
+       '<div class="metric-sub" style="color:#FCA5A5;margin-top:6px;">'+rsn+'</div>'+
+       '<div class="metric-sub" style="color:#FCA5A5;">310.12 only applies to 100A\u2013400A single-phase dwelling services and feeders</div>'+
+       '<span class="tag tag-err" style="margin-top:8px;">310.12 \u2014 select General (310.16) or change breaker size</span></div>';
+  }else if(dwellingParallel){
+    h+='<div class="metric" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.5);grid-column:span 2;">'+
+       '<div class="metric-label" style="color:#F87171;">Conductor / Set \u2014 Not Applicable</div>'+
+       '<div class="metric-value" style="color:#F87171;font-size:clamp(1rem,3vw,1.5rem);">Not Allowed</div>'+
+       '<div class="metric-sub" style="color:#FCA5A5;margin-top:6px;">310.12 does not permit parallel conductor sets</div>'+
+       '<div class="metric-sub" style="color:#FCA5A5;">Set parallel sets to 1, or switch to General (310.16)</div>'+
+       '<span class="tag tag-err" style="margin-top:8px;">310.12 \u2014 paralleling not permitted under this section</span></div>';
+  }else if(parallelViol){
+    h+='<div class="metric" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.5);grid-column:span 2;">'+
+       '<div class="metric-label" style="color:#F87171;">Conductor / Set \u2014 Violation</div>'+
+       '<div class="metric-value" style="color:#F87171;font-size:clamp(1rem,3vw,1.5rem);">Not Allowed</div>'+
+       '<div class="metric-sub" style="color:#FCA5A5;margin-top:6px;">Selected conductor ('+conductor+') is smaller than 1/0 AWG</div>'+
+       '<div class="metric-sub" style="color:#FCA5A5;">Paralleling prohibited \u2014 check 310.10(H)</div>'+
+       '<span class="tag tag-err" style="margin-top:8px;">310.10(H) Violation \u2014 increase sets or use larger breaker</span></div>';
+  }else if(ninetyMisuse){
+    h+='<div class="metric" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.5);grid-column:span 2;">'+
+       '<div class="metric-label" style="color:#F87171;">Conductor / Set \u2014 Violation</div>'+
+       '<div class="metric-value" style="color:#F87171;font-size:clamp(1rem,3vw,1.5rem);">Not Allowed</div>'+
+       '<div class="metric-sub" style="color:#FCA5A5;margin-top:6px;">The 90\u00b0C column is only for corrections and adjustments based on conductors that are rated 90\u00b0C and applied at the 75\u00b0C column.</div>'+
+       '<div class="metric-sub" style="color:#FCA5A5;">With 1\u20133 current-carrying conductors (no derating) and standard ambient temperature, there is no correction or adjustment to apply \u2014 use the 75\u00b0C column.</div>'+
+       '<span class="tag tag-err" style="margin-top:8px;">NEC 110.14(C) \u2014 add temperature correction / 4+ CCC derating or select 75\u00b0C column</span></div>';
+  }else{
+    h+='<div class="metric">'+
+       '<div class="metric-label">Conductor / Set</div>'+
+       '<div class="metric-value">'+(exceeded?'\u2014':conductor)+'</div>'+
+       '<div class="metric-sub">'+matLabel+'</div>'+
+       '<div class="metric-sub">'+tableUsed+'</div>'+
+       '<span class="tag '+(isDwelling?'tag-info':breaker>800?'tag-warn':'tag-ok')+'">'+method+'</span>'+
+       (hasNotes?'<div class="see-notes" onclick="document.getElementById(\'noteBlocks\').scrollIntoView({behavior:\'smooth\'});">\u26A0 See notes below \u2193</div>':'')+
+       '</div>';
+  }
+
+  /* OCPD card */
+  h+='<div class="metric">'+
+    '<div class="metric-label">OCPD Rating</div>'+
+    '<div class="metric-value">'+breaker+'A</div>'+
+    '<div class="metric-sub">'+(sets>1?ampPerSet+'A min per set ('+sets+' sets)':'Single conductor set')+'</div>'+
+    (isTempCorr&&!isDwelling?'<div class="metric-sub">Ambient factor: '+af.toFixed(2)+' ('+ambLabel+')</div>':'')+
+    (isDerating&&!isDwelling?'<div class="metric-sub">CCC factor: '+df.pct+'</div>':'')+
+    ((isTempCorr||isDerating)&&!isDwelling?'<div class="metric-sub">Combined: \u00d7'+combinedFactor.toFixed(2)+'</div>':'')+
+    '</div>';
+
+  /* derated ampacity card */
+  if(!isDwelling&&!exceeded&&deratedAmpacity!==null){
+    var ok=deratedAmpacity>=ampPerSet;
+    var mathStr=baseAmpacity+'A ('+tcLabel+')';
+    if(isTempCorr) mathStr+=' \u00d7 '+af.toFixed(2)+' (ambient)';
+    if(isDerating) mathStr+=' \u00d7 '+df.pct+' (CCC)';
+    mathStr+=' = '+Math.floor(baseAmpacity*combinedFactor)+'A';
+    if(tc===90||isTempCorr) mathStr+=', capped at 75\u00b0C';
+    h+='<div class="metric">'+
+       '<div class="metric-label">Derated Ampacity</div>'+
+       '<div class="metric-value">'+deratedAmpacity+'A</div>'+
+       '<div class="metric-sub">'+mathStr+'</div>'+
+       '<span class="tag '+(ok?'tag-ok':'tag-err')+'">'+(ok?'Adequate':'Insufficient')+'</span></div>';
+  }
+
+  /* EGC card */
+  h+='<div class="metric">'+
+     '<div class="metric-label">Min EGC Size</div>'+
+     '<div class="metric-value" style="font-size:clamp(1rem,3vw,1.4rem)">'+egcCu+'</div>'+
+     '<div class="metric-sub">Copper</div>'+
+     '<div class="metric-value" style="font-size:clamp(1rem,3vw,1.4rem);margin-top:.35rem">'+egcAl+'</div>'+
+     '<div class="metric-sub">Aluminum / CU-clad AL</div>'+
+     '<span class="tag tag-info">250.122</span></div>';
+
+  h+='</div><div class="hr"></div>';
+
+  /* note blocks */
+  h+='<div id="noteBlocks">';
+  if(!dwellingRange&&!dwellingParallel&&!parallelViol){
+    h+='<div class="note-block"><strong>Code basis \u2014 conductor sizing</strong>'+ruleNote+'</div>';
+  }
+  if(invalidAmbient){
+    h+='<div class="note-block err"><strong>Invalid \u2014 Ambient Temperature Exceeds Conductor Rating</strong>'+
+       'The selected ambient temperature ('+ambLabel+') meets or exceeds the '+tcLabel+' conductor temperature rating. '+
+       'The correction factor is 0. Select a conductor with a higher temperature rating (e.g. 90\u00b0C) or reduce the ambient temperature classification.</div>';
+  } else if(anyDerating){
+    h+='<div class="note-block warn"><strong>Derating \u2014 Table 310.15(B)(1) + (C)(1)</strong>'+
+       'Both correction factors are applied and multiplied together per 310.15: ';
+    if(isTempCorr) h+='Ambient correction: '+af.toFixed(2)+' ('+ambLabel+' at '+tcLabel+' rating). ';
+    if(isDerating) h+='CCC adjustment: '+df.pct+' ('+df.label+'). ';
+    h+='Combined factor: '+combinedFactor.toFixed(2)+'.';
+    if(tc===90) h+=' Per 110.14(C), the final usable ampacity is capped at the 75\u00b0C column value.';
+    h+='</div>';
+  }
+  if(sets>1){
+    if(dwellingParallel){
+      h+='<div class="note-block err"><strong>310.12 \u2014 Paralleling not permitted</strong>'+
+         'NEC 310.12 applies to single conductors supplying the entire load of a dwelling. '+
+         'Parallel sets are not recognized under this section. Set parallel sets to 1, '+
+         'or switch to the General (310.16 75\u00b0C) application.</div>';
+    }else if(parallelViol){
+      h+='<div class="note-block err"><strong>310.10(H) \u2014 Parallel conductor violation</strong>'+
+         'Conductors smaller than 1/0 AWG cannot be paralleled. The selected '+conductor+
+         ' per set does not meet the minimum size requirement. Increase the number of parallel sets, '+
+         'select a larger breaker, or verify the load requires paralleling.</div>';
+    }else if(!exceeded){
+      h+='<div class="note-block"><strong>Paralleling \u2014 310.10(H)</strong>'+
+         'Each of the '+sets+' sets must use '+conductor+' conductors. '+
+         'All conductors in each parallel set must be the same size, insulation type, and length. '+
+         'Minimum parallel size is 1/0 AWG.</div>';
+      h+='<div class="note-block warn"><strong>75\u00b0C Column \u2014 Multiple Sets / Raceways</strong>'+
+         'With more than one set installed in more than one raceway, the conductor ampacity '+
+         'must be taken from the 75\u00b0C column. The 90\u00b0C column may only be used as a starting '+
+         'point for ambient temperature correction and conductor-bundle adjustment; the final '+
+         'usable ampacity is limited to the 75\u00b0C value per NEC 110.14(C).</div>';
+    }
+  }
+  if(dwellingRange){
+    h+='<div class="note-block err"><strong>310.12 \u2014 Out of range</strong>'+
+       'NEC 310.12 and its 83% rule apply only to single-phase 120/240V services and feeders '+
+       'rated 100A through 400A supplying the entire load of a one- or two-family dwelling. '+
+       'For this breaker size, switch to the General (310.16 75\u00b0C) application '+
+       'or adjust the breaker rating.</div>';
+  }
+  h+='<div class="note-block"><strong>Equipment grounding conductor \u2014 250.122</strong>'+
+     'Minimum '+egcCu+' (Copper) or '+egcAl+' (Aluminum / CU-clad AL) based on '+breaker+'A OCPD. '+
+     'If circuit conductors are upsized for any reason, the EGC must be proportionally '+
+     'increased per 250.122(B).</div>';
+  if(exceeded){
+    h+='<div class="note-block err"><strong>Table exceeded</strong>'+
+       'The required ampacity per set exceeds the largest conductor in NEC 310.16. '+
+       'Consider increasing the number of parallel sets.</div>';
+  }
+  h+='</div>'; /* end #noteBlocks */
+
+  document.getElementById('result').innerHTML=h;
+}
+
+/* ════ THEME ════ */
+function toggleTheme(){
+  var el=document.documentElement;
+  var dark=el.getAttribute('data-theme')==='dark';
+  el.setAttribute('data-theme',dark?'light':'dark');
+  var btn=document.getElementById('themeBtn');
+  if(btn) btn.textContent=dark?'🌙':'☀️';
+  try{localStorage.setItem('aog_breaker_theme',dark?'light':'dark');}catch(e){}
+  document.getElementById('themeIcon').textContent =dark?'\ud83c\udf19':'\u2600\ufe0f';
+  document.getElementById('themeLabel').textContent=dark?'Dark Mode':'Light Mode';
+}
+
+/* ════ INIT ════ */
+function updateNeutralNote(){
+  var ccc=parseInt(document.getElementById('ccc').value);
+  document.getElementById('neutralNote').style.display=ccc>3?'block':'none';
+}
+
+['breaker','material','application','sets','tempCol','ambient','ccc'].forEach(function(id){
+  document.getElementById(id).addEventListener('change',calc);
+});
+document.getElementById('ccc').addEventListener('change',updateNeutralNote);
+calc();
+updateNeutralNote();
+</script>
+
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('../sw.js',{scope:'../'})
+      .then(function(reg){
+        console.log('[SW] Registered, scope:',reg.scope);
+        reg.addEventListener('updatefound',function(){
+          var nw=reg.installing;
+          nw.addEventListener('statechange',function(){
+            if(nw.state==='installed'&&navigator.serviceWorker.controller){
+              console.log('[AOG SW] Update available \u2014 reload to apply.');
+            }
+          });
+        });
+      })
+      .catch(function(err){console.warn('[AOG SW] Registration failed:',err);});
+  });
+}
+</script>
+<script>
+(function(){
+  try{
+    var t=localStorage.getItem('aog_breaker_theme');
+    if(t) document.documentElement.setAttribute('data-theme',t);
+    var btn=document.getElementById('themeBtn');
+    if(btn) btn.textContent=(document.documentElement.getAttribute('data-theme')==='dark')?'🌙':'☀️';
+  }catch(e){}
+})();
+function adjustTopPadding(){
+  var bar=document.getElementById('action-bar');
+  var page=document.getElementById('page');
+  if(bar&&page) page.style.marginTop=bar.offsetHeight+'px';
+}
+window.addEventListener('resize',adjustTopPadding);
+window.addEventListener('load',adjustTopPadding);
+setTimeout(adjustTopPadding,100);
+</script>
+</body>
+</html>

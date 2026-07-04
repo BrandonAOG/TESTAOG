@@ -1,0 +1,215 @@
+{
+  "name": "Always On Generators – Field Hub",
+  "short_name": "AOG Hub",
+  "description": "Field operations forms portal for Always On Generators",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0A0E27",
+  "theme_color": "#FBBF24",
+  "categories": [
+    "utilities",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Pre-Install Checklist",
+      "url": "./pre-checklist/",
+      "description": "Pre-installation parts & materials checklist",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Estimate Form",
+      "url": "./estimate/",
+      "description": "Quote & pricing forms for new estimates",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Maintenance Report",
+      "url": "./maintenance/",
+      "description": "Service logs, PMs & repair documentation",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Site Visit",
+      "url": "./site-visit/",
+      "description": "On-site inspection & permitting info",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Electrical Install",
+      "url": "./elect-install/",
+      "description": "New generator installation paperwork & checklists",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Gas Installation",
+      "url": "./gas-install/",
+      "description": "Gas line hookup, connection & installation paperwork",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "QC Checklist",
+      "url": "./qc-checklist/",
+      "description": "Quality control inspection checklist for completed installations",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Gas Calculator",
+      "url": "./gas-calc/",
+      "description": "BTU sizing, pipe sizing & Generac model selection · 10–150kW",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Load Calculation",
+      "url": "./load-calcs/",
+      "description": "Advanced power load analysis & sizing — NEC 2020",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Breaker & Conductor",
+      "url": "./breaker-conductor/",
+      "description": "NEC conductor sizing, derating, EGC & parallel sets",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Conduit Fill",
+      "url": "./conduit-fill/",
+      "description": "NEC Chapter 9 conduit sizing & fill calculations",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Property Lookup",
+      "url": "./property-lookup/",
+      "description": "Owner, parcel, FEMA flood zone & jurisdiction from official FL GIS",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Spec Viewer",
+      "short_name": "Spec Viewer",
+      "url": "./spec-viewer/",
+      "description": "Generac generator & transfer switch full specifications · 10–150kW · All ATS",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Service Work",
+      "url": "./service-work/",
+      "description": "Service call documentation & repair forms",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Site Plan / Annotator",
+      "url": "./site-annotator/",
+      "description": "Draw, annotate & mark up site plans & diagrams",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

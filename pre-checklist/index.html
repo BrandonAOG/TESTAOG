@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<!--
+© 2026 Brandon Keilholz — All rights reserved.
+Created by Brandon Keilholz. Licensed for use by Always On Generators.
+This form, its code, layout, and content are proprietary.
+Unauthorized copying, reproduction, or distribution is prohibited.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#D35E13">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AOG Pre-Install">
+<title>Always On Generators – Pre-Install Checklist</title>
+<script src="../sounds.js" defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --cyan: #D35E13;
+  --cyan-dim: #D35E13;
+  --cyan-dark: #D35E13;
+  --amber: #D35E13;
+  --amber-dim: #D35E13;
+  --green: #059669;
+  --red: #DC2626;
+  --bg: #FFFFFF;
+  --bg2: #FFFFFF;
+  --bg3: #F8F8F8;
+  --bg4: #F0F0F0;
+  --panel: #FFFFFF;
+  --panel2: #FAFAFA;
+  --border: rgba(211,94,19,0.25);
+  --border-bright: rgba(211,94,19,0.5);
+  --text: #1F2937;
+  --text-muted: #6B7280;
+  --text-dim: #9CA3AF;
+  --glow: 0 0 8px rgba(211,94,19,0.3), 0 0 20px rgba(211,94,19,0.1);
+  --glow-amber: 0 0 8px rgba(211,94,19,0.3), 0 0 20px rgba(211,94,19,0.1);
+  --font-display: 'Orbitron', monospace;
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-body: 'Exo 2', sans-serif;
+  --icon-color-primary: #D35E13;
+}
+
+body.dark-mode {
+  --bg: #0A0E27;
+  --bg2: #0F1535;
+  --bg3: #1A2847;
+  --bg4: #243458;
+  --panel: #0F1535;
+  --panel2: #1A2847;
+  --border: rgba(0, 255, 200, 0.08);
+  --border-bright: rgba(0, 255, 200, 0.25);
+  --text: #E0F7FF;
+  --text-muted: #7DD3FC;
+  --text-dim: #38BDF8;
+  --glow: 0 0 8px rgba(0, 255, 200, 0.3), 0 0 16px rgba(0, 255, 200, 0.15), inset 0 0 20px rgba(0, 255, 200, 0.02);
+  --glow-amber: 0 0 8px rgba(211, 94, 19, 0.4), 0 0 24px rgba(211, 94, 19, 0.1);
+  --cyan: #00FFC8;
+  --cyan-dim: #06B6D4;
+  --cyan-dark: #0891B2;
+  --green: #10B981;
+  --red: #F43F5E;
+  --icon-color-primary: #00FFC8;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { width: 100%; height: 100%; overflow-x: clip; }
+
+body {
+  font-family: Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  width: 100%;
+  max-width: 1050px;
+  margin: 0 auto;
+  padding: 0;
+  padding-bottom: env(safe-area-inset-bottom, 24px);
+  -webkit-text-size-adjust: 100%;
+  overflow-x: clip;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  min-height: 100vh;
+}
+
+@media screen {
+body.dark-mode {
+  background: linear-gradient(135deg, #0A0E27 0%, #0F1535 25%, #0A1628 50%, #0F1535 75%, #0A0E27 100%);
+  background-size: 400% 400%;
+}}
+
+/* ===== ACTION BAR ===== */
+.action-bar {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  z-index: 99999;
+  width: 100%;
+  background: var(--panel);
+  padding: 4px 8px;
+  padding-top: calc(4px + env(safe-area-inset-top, 0px));
+  display: flex; justify-content: flex-start; gap: 4px; flex-wrap: nowrap; align-items: center;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.3);
+  border-bottom: 1px solid var(--border-bright);
+  transition: background-color 0.3s ease;
+}
+/* Center the buttons when they fit; auto-margins collapse safely when the
+   bar overflows and scrolls, so nothing gets clipped off the left edge. */
+.action-bar > :first-child { margin-left: auto; }
+.action-bar > :last-child { margin-right: auto; }
+.action-bar .btn { padding: 6px 8px; font-size: 10px; flex: 0 0 auto; min-width: 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 480px) { .action-bar { padding: 4px 4px; padding-top: calc(4px + env(safe-area-inset-top, 0px)); gap: 3px; } }
+@media screen { body.dark-mode .action-bar { background: linear-gradient(90deg, rgba(15,21,53,0.9) 0%, rgba(26,40,71,0.8) 50%, rgba(15,21,53,0.9) 100%); border-bottom-color: rgba(0,255,200,0.25); box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 20px rgba(0,255,200,0.08); }}
+
+.btn {
+  padding: 9px 18px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;
+  border: 1px solid rgba(211,94,19,0.4); background: rgba(211,94,19,0.05);
+  border-radius: 0; cursor: pointer; transition: all 0.15s ease;
+  font-family: Arial, sans-serif; color: var(--cyan); text-transform: uppercase;
+  clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  white-space: nowrap; flex-shrink: 0;
+}
+@media (max-width: 640px) { .btn { padding: 8px 14px; font-size: 9px; } }
+body.dark-mode .btn { background: rgba(0,255,200,0.08); border-color: rgba(0,255,200,0.25); color: #00FFC8; text-shadow: 0 0 4px rgba(0,255,200,0.3); }
+.btn:hover { border-color: var(--cyan); color: var(--cyan); box-shadow: var(--glow); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+
+.theme-toggle-btn {
+  position: relative; width: 36px; height: 36px; padding: 6px;
+  border: 1px solid rgba(211,94,19,0.4); background: rgba(211,94,19,0.05);
+  border-radius: 4px; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; color: var(--cyan); transition: all 0.3s ease;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; flex-shrink: 0;
+}
+body.dark-mode .theme-toggle-btn { background: rgba(0,255,200,0.08); border-color: rgba(0,255,200,0.2); color: #00FFC8; }
+.theme-toggle-btn:hover { border-color: var(--cyan); box-shadow: var(--glow); transform: scale(1.08); }
+.theme-icon { width: 18px; height: 18px; transition: all 0.3s ease; position: absolute; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke: var(--icon-color-primary) !important; }
+.theme-icon.theme-icon-moon { opacity: 0; }
+body.dark-mode .theme-icon { opacity: 0; transform: rotate(-180deg); }
+body.dark-mode .theme-icon.theme-icon-moon { opacity: 1; transform: rotate(0deg); }
+
+#save-status { color: var(--text-muted); font-size: 10px; min-height: 16px; text-align: center; transition: color 0.3s ease; width: 100%; font-family: Arial, sans-serif; }
+
+.page-wrapper { width: 100%; max-width: 1050px; margin: 0 auto; display: flex; flex-direction: column; gap: 0; padding: 0; padding-top: calc(44px + env(safe-area-inset-top, 0px)); }
+
+.form-page {
+  width: 100%; max-width: 1050px; background: var(--panel);
+  padding: 24px; box-sizing: border-box; transition: all 0.3s ease;
+  font-family: Arial, sans-serif; display: flex; flex-direction: column;
+  position: relative;
+  border: 2px solid #D35E13; border-radius: 4px;
+}
+@media (max-width: 768px) { .form-page { padding: 16px; } }
+@media (max-width: 480px) { .form-page { padding: 12px; } }
+@media screen { body.dark-mode .form-page { background: linear-gradient(135deg, rgba(15,21,53,0.95) 0%, rgba(10,14,39,0.98) 100%); box-shadow: 0 0 1px rgba(0,255,200,0.3), 0 0 20px rgba(0,255,200,0.15); border-color: #00FFC8; }
+}
+
+/* ===== HEADER ===== */
+.page1-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid #D35E13; position: relative; z-index: 1; }
+body.dark-mode .page1-header { border-bottom-color: #00FFC8; }
+.logo-area { display: flex; align-items: center; gap: 8px; }
+.logo-area img {
+  filter:
+    drop-shadow(0 0 8px rgba(211,94,19,0.6))
+    drop-shadow(0 0 18px rgba(211,94,19,0.35))
+    brightness(1.1);
+  animation: logoPulse 3s ease-in-out infinite;
+}
+@keyframes logoPulse {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(211,94,19,0.6)) drop-shadow(0 0 18px rgba(211,94,19,0.35)) brightness(1.1); }
+  50%      { filter: drop-shadow(0 0 14px rgba(211,94,19,0.9)) drop-shadow(0 0 28px rgba(211,94,19,0.55)) brightness(1.2); }
+}
+body.dark-mode .logo-area img {
+  filter:
+    drop-shadow(0 0 8px rgba(0,255,200,0.6))
+    drop-shadow(0 0 18px rgba(0,255,200,0.35))
+    brightness(1.1);
+  animation: logoPulseDark 3s ease-in-out infinite;
+}
+@keyframes logoPulseDark {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(0,255,200,0.6)) drop-shadow(0 0 18px rgba(0,255,200,0.35)) brightness(1.1); }
+  50%      { filter: drop-shadow(0 0 14px rgba(0,255,200,0.9)) drop-shadow(0 0 28px rgba(0,255,200,0.55)) brightness(1.2); }
+}
+.logo-text { font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; line-height: 1.2; }
+.logo-always { color: #1F2937; }
+body.dark-mode .logo-always { color: #E0F7FF; }
+.logo-on { color: #D35E13; }
+body.dark-mode .logo-on { color: #00FFC8; }
+.logo-generators { color: #1F2937; }
+body.dark-mode .logo-generators { color: #E0F7FF; }
+.checklist-title { font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-align: center; color: #D35E13; text-transform: uppercase; letter-spacing: 1px; flex: 1; }
+body.dark-mode .checklist-title { color: #00FFC8; }
+
+/* ===== TOP FIELDS ===== */
+.top-fields { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-bottom: 14px; position: relative; z-index: 1; }
+.field-row { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.field-row label { font-size: 11px; font-weight: bold; color: var(--text); white-space: nowrap; }
+.field-row input[type="text"], .field-row input[type="date"] {
+  font-family: Arial, sans-serif; font-size: 11px; color: var(--text);
+  background: var(--panel); border: none; border-bottom: 1px solid rgba(211,94,19,0.4);
+  padding: 2px 4px; outline: none; width: 140px; transition: all 0.2s;
+}
+.field-row input[type="date"] { width: 120px; }
+.field-row input[type="text"]:focus, .field-row input[type="date"]:focus { border-bottom-color: var(--cyan); background: rgba(211,94,19,0.04); }
+body.dark-mode .field-row input { background: rgba(10,14,39,0.6); border-bottom-color: rgba(0,255,200,0.2); color: #E0F7FF; }
+body.dark-mode .field-row input:focus { border-bottom-color: #00FFC8; background: rgba(26,40,71,0.8); }
+
+/* ===== MATERIAL TABLE ===== */
+.mat-section { position: relative; z-index: 1; margin-top: 8px; }
+.mat-title { font-size: 12px; font-weight: bold; text-transform: uppercase; color: #D35E13; letter-spacing: 0.5px; margin-bottom: 6px; font-family: Arial, sans-serif; }
+body.dark-mode .mat-title { color: #00FFC8; }
+
+table.checklist-table { width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 11px; }
+table.checklist-table thead tr th {
+  background: #D35E13; color: #fff; font-weight: bold; font-size: 11px;
+  padding: 5px 8px; text-align: center; letter-spacing: 0.5px;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+table.checklist-table thead tr th:first-child { text-align: left; }
+table.checklist-table tbody tr:nth-child(even) { background: rgba(211,94,19,0.04); }
+body.dark-mode table.checklist-table tbody tr:nth-child(even) { background: rgba(0,255,200,0.04); }
+table.checklist-table tbody td {
+  border: 1px solid rgba(211,94,19,0.2); padding: 5px 8px;
+  vertical-align: middle; color: var(--text);
+}
+body.dark-mode table.checklist-table tbody td { border-color: rgba(0,255,200,0.12); }
+table.checklist-table tbody td.row-label { font-weight: bold; font-size: 11px; background: rgba(211,94,19,0.08); white-space: nowrap; min-width: 180px; }
+body.dark-mode table.checklist-table tbody td.row-label { background: rgba(0,255,200,0.06); }
+table.checklist-table tbody td.check-col { text-align: center; width: 80px; }
+table.checklist-table tbody td input[type="text"] {
+  width: 100%; border: none; border-bottom: 1px solid rgba(211,94,19,0.3);
+  background: transparent; color: var(--text); font-family: Arial, sans-serif;
+  font-size: 11px; padding: 1px 3px; outline: none;
+}
+body.dark-mode table.checklist-table tbody td input[type="text"] { border-bottom-color: rgba(0,255,200,0.2); color: #E0F7FF; }
+table.checklist-table tbody td input[type="text"]:focus { border-bottom-color: var(--cyan); }
+
+/* ===== CHECKBOXES ===== */
+input[type="checkbox"] {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; min-width: 14px;
+  border: 2px solid #D35E13; border-radius: 2px;
+  background: #fff; cursor: pointer;
+  vertical-align: middle; margin: 2px 4px 2px 0;
+  flex-shrink: 0; position: relative; display: inline-block;
+  transition: background 0.15s, border-color 0.15s;
+}
+input[type="checkbox"]:checked { background: #D35E13; border-color: #D35E13; }
+input[type="checkbox"]:checked::after {
+  content: ''; display: block; position: absolute;
+  left: 2px; top: -1px; width: 5px; height: 9px;
+  border: 2px solid #000; border-top: none; border-left: none;
+  transform: rotate(45deg);
+}
+@media (max-width: 480px) { input[type="checkbox"] { width: 18px; height: 18px; margin: 1px 5px 1px 0; } }
+body.dark-mode input[type="checkbox"] { border-color: #00FFC8; background: rgba(10,14,39,0.6); }
+body.dark-mode input[type="checkbox"]:checked { background: #00FFC8; border-color: #00FFC8; }
+body.dark-mode input[type="checkbox"]:checked::after { border-color: #000; }
+
+/* ===== GENERATOR INFO ROW ===== */
+.gen-info-row { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; margin-bottom: 10px; font-size: 11px; font-family: Arial, sans-serif; position: relative; z-index: 1; }
+.gen-info-row label { font-weight: bold; color: var(--text); }
+.gen-info-row input[type="text"] {
+  font-family: Arial, sans-serif; font-size: 11px; color: var(--text);
+  background: var(--panel); border: none; border-bottom: 1px solid rgba(211,94,19,0.4);
+  padding: 2px 4px; outline: none; width: 100px; transition: all 0.2s;
+}
+body.dark-mode .gen-info-row input[type="text"] { background: rgba(10,14,39,0.6); border-bottom-color: rgba(0,255,200,0.2); color: #E0F7FF; }
+.gen-info-row input[type="text"]:focus { border-bottom-color: var(--cyan); }
+
+.gen-check-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 11px; }
+.gen-check-group label { font-weight: bold; color: var(--text); }
+.gen-check-group .check-item { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+
+/* ===== NOTES TEXTAREA ===== */
+.notes-section { margin-top: 14px; position: relative; z-index: 1; }
+.notes-label { font-size: 11px; font-weight: bold; color: var(--text); margin-bottom: 4px; }
+textarea.notes-field {
+  width: 100%; resize: none; border: 1px solid rgba(211,94,19,0.25);
+  padding: 6px 8px; font-family: Arial, sans-serif; font-size: 11px;
+  color: var(--text); background: var(--panel); min-height: 70px; outline: none;
+  transition: border-color 0.2s; box-sizing: border-box;
+  overflow: hidden; height: 70px; scrollbar-width: none;
+}
+textarea.notes-field::-webkit-scrollbar { display: none; }
+textarea.notes-field { -ms-overflow-style: none; }
+textarea.notes-field:focus { border-color: var(--cyan); box-shadow: 0 0 8px rgba(211,94,19,0.1); }
+body.dark-mode textarea.notes-field { background: rgba(10,14,39,0.6); border-color: rgba(0,255,200,0.15); color: #E0F7FF; }
+body.dark-mode textarea.notes-field:focus { border-color: #00FFC8; }
+input::placeholder, textarea::placeholder { color: #C9CDD3 !important; opacity: 1; }
+body.dark-mode input::placeholder, body.dark-mode textarea::placeholder { color: rgba(125,211,252,0.4) !important; }
+@media (max-width: 480px) { input[type="text"], textarea { font-size: 16px !important; } }
+
+/* ===== TRANSFER SWITCH OPTIONS ===== */
+.ts-options { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 11px; margin: 6px 0; font-family: Arial, sans-serif; }
+.ts-options label { font-weight: bold; color: var(--text); }
+.ts-options .check-item { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media screen and (max-width: 767px) {
+  .top-fields { flex-direction: column; gap: 10px; }
+  .field-row { flex-direction: column; align-items: stretch; gap: 4px; white-space: normal; }
+  .field-row label { font-size: 13px; font-weight: 600; }
+  .field-row input[type="text"], .field-row input[type="date"] {
+    width: 100% !important; height: 40px; border: 1px solid var(--border-bright) !important;
+    border-radius: 6px; padding: 2px 10px; background: var(--bg) !important; font-size: 16px;
+  }
+  .gen-info-row { flex-direction: column; align-items: stretch; }
+  .gen-info-row input[type="text"] { width: 100% !important; height: 40px; border: 1px solid var(--border-bright) !important; border-radius: 6px; font-size: 16px; }
+  .gen-check-group { gap: 8px 14px; }
+  table.checklist-table { font-size: 12px; table-layout: fixed; width: 100%; }
+  table.checklist-table tbody td.row-label { min-width: 0; font-size: 12px; white-space: normal; word-break: break-word; overflow-wrap: anywhere; }
+  table.checklist-table thead tr th { font-size: 11px; padding: 5px 4px; }
+  table.checklist-table tbody td { padding: 6px 4px; }
+  table.checklist-table tbody td.check-col { width: 44px; }
+  table.checklist-table tbody td input[type="text"] { font-size: 14px; max-width: 100%; }
+}
+
+/* ===== SMALL PHONES ===== */
+@media screen and (max-width: 480px) {
+  table.checklist-table tbody td.check-col { width: 38px; }
+  table.checklist-table tbody td input[type="text"] { width: auto; max-width: 70px; }
+}
+
+/* ===== PRINT STYLES ===== */
+@media print {
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+  @page { size: 8.5in 11in; margin: 0.25in; }
+
+  /* Reset ALL CSS variables to light values, even when dark-mode class is active */
+  html, body, body.dark-mode, :root {
+    --bg: #FFFFFF !important; --bg2: #FFFFFF !important; --bg3: #F8F8F8 !important; --bg4: #F0F0F0 !important;
+    --panel: #FFFFFF !important; --panel2: #FAFAFA !important;
+    --text: #1F2937 !important; --text-muted: #6B7280 !important; --text-dim: #9CA3AF !important;
+    --border: rgba(211,94,19,0.25) !important; --border-bright: rgba(211,94,19,0.5) !important;
+    --cyan: #D35E13 !important; --cyan-dim: #D35E13 !important; --cyan-dark: #D35E13 !important;
+    --green: #059669 !important; --red: #DC2626 !important;
+    --glow: none !important; --glow-amber: none !important;
+    --icon-color-primary: #D35E13 !important;
+    color-scheme: light !important;
+    background: #ffffff !important; background-image: none !important;
+    color: #1F2937 !important;
+  }
+
+  html, body, body.dark-mode { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+
+  .action-bar { display: none !important; }
+
+  .page-wrapper { display: block !important; padding-top: 0 !important; margin: 0 !important; background: #ffffff !important; }
+
+  .form-page, body.dark-mode .form-page {
+    display: block !important; width: 100% !important;
+    background: #ffffff !important; background-image: none !important;
+    color: #1F2937 !important; box-shadow: none !important; padding: 12px !important; margin: 0 !important;
+  }
+
+  .form-page::before, body.dark-mode .form-page::before { border: 2px solid #D35E13 !important; border-radius: 4px !important; }
+
+  /* Every descendant: transparent bg (inherits white), dark text, no glow */
+  /* Exclude textarea so it can override with white and not be clipped */
+  .form-page *:not(textarea), body.dark-mode .form-page *:not(textarea) {
+    background-color: transparent !important;
+    color: #1F2937 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Restore intentional background tints */
+  table.checklist-table thead tr th { background-color: #D35E13 !important; color: #ffffff !important; }
+  table.checklist-table tbody td.row-label { background-color: rgba(211,94,19,0.08) !important; }
+  table.checklist-table tbody tr:nth-child(even) td { background-color: rgba(211,94,19,0.03) !important; }
+  table.checklist-table tbody td { border-color: rgba(211,94,19,0.2) !important; color: #1F2937 !important; }
+
+  /* Inputs: force white fill */
+  input[type="text"], input[type="date"] {
+    background-color: #ffffff !important;
+    color: #1F2937 !important;
+    -webkit-text-fill-color: #1F2937 !important;
+    border-color: transparent !important;
+    border-bottom-color: #555 !important;
+    -webkit-box-shadow: inset 0 0 0 1000px #ffffff !important;
+    box-shadow: inset 0 0 0 1000px #ffffff !important;
+  }
+
+  /* Notes textarea: fully expand — no clipping, no scrollbar */
+  textarea.notes-field {
+    background-color: #ffffff !important;
+    color: #1F2937 !important;
+    -webkit-text-fill-color: #1F2937 !important;
+    overflow: hidden !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    resize: none !important;
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
+    display: block !important;
+    border: 1px solid rgba(211,94,19,0.25) !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+  textarea.notes-field::-webkit-scrollbar { display: none !important; }
+
+  /* Checkboxes */
+  input[type="checkbox"] { background-color: #ffffff !important; border-color: #D35E13 !important; box-shadow: none !important; }
+  input[type="checkbox"]:checked { background-color: #D35E13 !important; border-color: #D35E13 !important; }
+  input[type="checkbox"]:checked::after { border-color: #000 !important; }
+
+  /* Named color overrides */
+  .checklist-title, body.dark-mode .checklist-title { color: #D35E13 !important; }
+  .mat-title, body.dark-mode .mat-title { color: #D35E13 !important; }
+  .logo-always, body.dark-mode .logo-always { color: #1F2937 !important; }
+  .logo-on, body.dark-mode .logo-on { color: #D35E13 !important; }
+  .logo-generators, body.dark-mode .logo-generators { color: #1F2937 !important; }
+  .page1-header, body.dark-mode .page1-header { border-bottom-color: #D35E13 !important; }
+
+  /* Replace fixed-inset ::before border with outline so it always wraps full content */
+  .form-page::before, body.dark-mode .form-page::before { display: none !important; }
+  .form-page, body.dark-mode .form-page { outline: 2px solid #D35E13 !important; outline-offset: -5px !important; }
+}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js" defer></script>
+<script src="../update-banner.js"></script>
+</head>
+<body>
+
+<!-- ACTION BAR -->
+<div class="action-bar">
+  <button class="btn" onclick="window.location.href='../'">🏠 HOME</button>
+  <button class="btn" onclick="window.print()" style="display:none">📄 PDF</button>
+  <button class="btn" onclick="saveEditablePdf()">📝 PDF✎</button>
+  <button class="btn" onclick="saveSmart()">📸 CAPTURE</button>
+  <button class="btn" onclick="document.getElementById('import-data-input').click()">📂 IMPORT</button>
+  <input type="file" id="import-data-input" accept=".pdf,application/pdf,.json,application/json" style="display:none" onchange="importFormData(this)">
+  <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
+  <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" onclick="toggleTheme()">
+    <svg class="theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="5"/>
+      <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+    <svg class="theme-icon theme-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  </button>
+</div>
+<div id="save-status" style="position:fixed;top:calc(40px + env(safe-area-inset-top, 0px));left:0;right:0;z-index:99998;text-align:center;font-size:11px;color:#6B7280;background:#fff;padding:2px 8px;display:none;font-family:Arial,sans-serif;border-bottom:1px solid rgba(211,94,19,0.3);"></div>
+
+<div class="page-wrapper">
+<div class="form-page" id="page1">
+
+  <!-- HEADER -->
+  <div class="page1-header">
+    <div class="logo-area">
+      <img src="../logo.png" onerror="this.onerror=null;this.style.display='none';" alt="Always On Generators Logo" style="width:42px;height:42px;display:block;object-fit:contain;flex-shrink:0;">
+      <div class="logo-text">
+        <span class="logo-always">ALWAYS</span><span class="logo-on">ON</span><br>
+        <span class="logo-generators" style="font-size:10px;letter-spacing:1px;">GENERATORS</span>
+      </div>
+    </div>
+    <div class="checklist-title">Pre-Install Checklist</div>
+  </div>
+
+  <!-- TOP FIELDS -->
+  <div class="top-fields">
+    <div class="field-row"><label>Customer's Name:</label><input type="text" autocapitalize="words" autocomplete="name" placeholder=""></div>
+    <div class="field-row"><label>Date:</label><input type="date"></div>
+    <div class="field-row"><label>Address:</label><input type="text" autocapitalize="words" autocomplete="street-address" style="width:200px;"></div>
+    <div class="field-row"><label>Install Truck:</label><input type="text"></div>
+    <div class="field-row"><label>Job:</label><input type="text" style="width:200px;"></div>
+    <div class="field-row"><label>Lead:</label><input type="text"></div>
+  </div>
+
+  <!-- GENERATOR INFO ROW -->
+  <div class="gen-info-row">
+    <div class="gen-check-group">
+      <label>Transfer Switch Quantity:</label>
+      <input type="text" style="width:60px;" inputmode="numeric">
+    </div>
+    <div class="gen-check-group">
+      <label>Generator Size:</label>
+      <input type="text" style="width:80px;">
+    </div>
+    <div class="gen-check-group">
+      <label>Transfer Switch Type:</label>
+      <div class="check-item"><input type="checkbox"> <span style="font-size:11px;">SE</span></div>
+      <div class="check-item"><input type="checkbox"> <span style="font-size:11px;">NSE</span></div>
+      <div class="check-item"><input type="checkbox"> <span style="font-size:11px;">Existing</span></div>
+    </div>
+    <div class="gen-check-group">
+      <label>Undamaged Generator Packaged:</label>
+      <div class="check-item"><input type="checkbox"></div>
+    </div>
+    <div class="gen-check-group">
+      <label>No Scratches or Dents:</label>
+      <div class="check-item"><input type="checkbox"></div>
+    </div>
+  </div>
+
+  <!-- TRANSFER SWITCH SIZE OPTIONS -->
+  <div class="ts-options" style="margin-bottom:12px;">
+    <label>Transfer Switch Size:</label>
+    <div class="check-item"><input type="checkbox"> <span>100A</span></div>
+    <div class="check-item"><input type="checkbox"> <span>150A</span></div>
+    <div class="check-item"><input type="checkbox"> <span>200A</span></div>
+    <div class="check-item"><input type="checkbox"> <span>300A</span></div>
+    <div class="check-item"><input type="checkbox"> <span>400A</span></div>
+    <div class="check-item"><input type="checkbox"> <span>600A</span></div>
+    <div class="check-item"><input type="checkbox"> <span>800A</span></div>
+    <div class="check-item"><input type="checkbox"> <span>16 Space</span></div>
+    <div class="check-item"><input type="checkbox"> <span>20 Space</span></div>
+  </div>
+
+  <!-- MATERIAL CHECKLIST TABLE -->
+  <div class="mat-section">
+    <table class="checklist-table">
+      <thead>
+        <tr>
+          <th>Material</th>
+          <th>Shop</th>
+          <th>Install Truck</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="row-label">Permit</td>
+          <td class="check-col"><input type="checkbox"></td>
+          <td class="check-col"><input type="checkbox"></td>
+        </tr>
+        <tr>
+          <td class="row-label">Service Change Kit</td>
+          <td class="check-col"><input type="checkbox"></td>
+          <td class="check-col"><input type="checkbox"></td>
+        </tr>
+        <tr>
+          <td class="row-label">
+            PSP Load Shed Modules (60A and/or 100A)<br>
+            <span style="font-weight:normal;font-size:10px;">Qty: </span>
+            <input type="text" style="width:50px;display:inline-block;" inputmode="numeric">
+          </td>
+          <td class="check-col"><input type="checkbox"></td>
+          <td class="check-col"><input type="checkbox"></td>
+        </tr>
+        <tr>
+          <td class="row-label">Emergency Stop Button</td>
+          <td class="check-col"><input type="checkbox"></td>
+          <td class="check-col"><input type="checkbox"></td>
+        </tr>
+        <tr>
+          <td class="row-label">
+            Gen-Pro Cable
+            <input type="text" placeholder="footage" style="width:60px;display:inline-block;">
+            <span style="font-size:10px;font-weight:normal;"> AL </span>
+            <input type="checkbox" style="vertical-align:middle;">
+            <span style="font-size:10px;font-weight:normal;"> Cu </span>
+            <input type="checkbox" style="vertical-align:middle;">
+          </td>
+          <td class="check-col"><input type="checkbox"></td>
+          <td class="check-col"><input type="checkbox"></td>
+        </tr>
+         <tr>
+          <td class="row-label">
+            OMNI Cable
+            <input type="text" placeholder="footage" style="width:60px;display:inline-block;">
+          </td>
+          <td class="check-col"><input type="checkbox"></td>
+          <td class="check-col"><input type="checkbox"></td>
+        </tr>
+
+        <tr>
+          <td class="row-label">THWN Wire</td>
+          <td class="check-col"><input type="checkbox"></td>
+          <td class="check-col"><input type="checkbox"></td>
+        </tr>
+     
+        <tr>
+          <td class="row-label">
+            <span style="font-size:10px;font-weight:normal;">AL </span><input type="checkbox" style="vertical-align:middle;">
+            <span style="font-size:10px;font-weight:normal;"> Cu </span><input type="checkbox" style="vertical-align:middle;">
+            <span style="font-size:10px;font-weight:normal;"> Wire &nbsp;&nbsp;Footage: </span>
+            <input type="text" placeholder="ft" style="width:50px;display:inline-block;">
+            <span style="font-size:10px;font-weight:normal;"> / Size: </span>
+            <input type="text" placeholder="size" style="width:50px;display:inline-block;">
+          </td>
+          <td class="check-col"><input type="checkbox"></td>
+          <td class="check-col"><input type="checkbox"></td>
+        </tr>
+        <tr>
+          <td class="row-label">
+            Battery
+            <input type="text" placeholder="size" style="width:80px;display:inline-block;">
+          </td>
+          <td class="check-col"><input type="checkbox"></td>
+          <td class="check-col"><input type="checkbox"></td>
+        </tr>
+        <tr>
+          <td class="row-label">
+            Conduit
+            <input type="text" placeholder="footage" style="width:55px;display:inline-block;">
+            /
+            <input type="text" placeholder="size" style="width:55px;display:inline-block;">
+          </td>
+          <td class="check-col"><input type="checkbox"></td>
+          <td class="check-col"><input type="checkbox"></td>
+        </tr>
+        <tr>
+          <td class="row-label">Fittings (Males, Females, Couplings, etc.)</td>
+          <td class="check-col"><input type="checkbox"></td>
+          <td class="check-col"><input type="checkbox"></td>
+        </tr>
+        <tr>
+          <td class="row-label">Mounting Hardware (2-hole, Minis, Strut Clamp)</td>
+          <td class="check-col"><input type="checkbox"></td>
+          <td class="check-col"><input type="checkbox"></td>
+        </tr>
+        <tr>
+          <td class="row-label">Seal Tight Car-Flex</td>
+          <td class="check-col"><input type="checkbox"></td>
+          <td class="check-col"><input type="checkbox"></td>
+        </tr>
+        <tr>
+          <td class="row-label">
+            <span style="font-size:10px;font-weight:normal;">Pad </span><input type="checkbox" style="vertical-align:middle;">
+            <span style="font-size:10px;font-weight:normal;"> Stand </span><input type="checkbox" style="vertical-align:middle;">
+            <span style="font-size:10px;font-weight:normal;"> Existing </span><input type="checkbox" style="vertical-align:middle;">
+            <span style="font-size:10px;font-weight:normal;"> Correct Hardware for Mounting </span><input type="checkbox" style="vertical-align:middle;">
+          </td>
+          <td class="check-col"><input type="checkbox"></td>
+          <td class="check-col"><input type="checkbox"></td>
+        </tr>
+        <tr>
+          <td class="row-label">Rock</td>
+          <td class="check-col"><input type="checkbox"></td>
+          <td class="check-col"><input type="checkbox"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- NOTES -->
+  <div class="notes-section">
+    <div class="notes-label">Notes:</div>
+    <textarea class="notes-field" rows="4" placeholder=""></textarea>
+  </div>
+
+</div><!-- /form-page -->
+</div><!-- /page-wrapper -->
+
+<script>
+// ===== THEME TOGGLE =====
+(function() {
+  var saved = localStorage.getItem('aog-theme');
+  if (saved === 'dark') document.body.classList.add('dark-mode');
+})();
+function toggleTheme() {
+  document.body.classList.toggle('dark-mode');
+  localStorage.setItem('aog-theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+}
+
+// ===== CLEAR FORM =====
+function clearForm() {
+  if (!confirm('Clear all fields?')) return;
+  document.querySelectorAll('input[type="text"], input[type="date"], textarea').forEach(function(el) { el.value = ''; });
+  document.querySelectorAll('input[type="checkbox"]').forEach(function(el) { el.checked = false; });
+  try { localStorage.removeItem('aog-autosave'); } catch (e) {}
+}
+
+// ===== FIELD DATA (embedded in the EDIT PDF, read back on IMPORT) =====
+// Values are keyed by each field's position in document order (the form markup
+// is fixed, so indexes stay stable). The data is attached inside the PDF that
+// EDIT PDF produces, so that one file is both the document and the reloadable
+// source. Importing reads the attachment back and refills every field.
+var DATA_FILENAME = 'aog-checklist-data.json';
+function _allFields() {
+  return document.querySelectorAll('.form-page input, .form-page textarea');
+}
+function _collectFieldData() {
+  var data = { _type: 'aog-preinstall-checklist', _version: 1, fields: [] };
+  _allFields().forEach(function (el) {
+    if (el.type === 'checkbox') data.fields.push(!!el.checked);
+    else data.fields.push(el.value || '');
+  });
+  return data;
+}
+function _applyFieldData(data) {
+  if (!data || !Array.isArray(data.fields)) return false;
+  var fields = _allFields();
+  for (var i = 0; i < fields.length && i < data.fields.length; i++) {
+    var el = fields[i], v = data.fields[i];
+    if (el.type === 'checkbox') {
+      el.checked = !!v;
+    } else {
+      // Only ever put strings into text fields. This prevents a stray numeric
+      // 0/1 (e.g. from an older save with a different field layout) from
+      // showing up as "0" instead of leaving the placeholder visible.
+      el.value = (typeof v === 'string') ? v : '';
+    }
+  }
+  return true;
+}
+
+// ===== AUTOSAVE (localStorage; silent restore; cleared only via CLEAR) =====
+var AUTOSAVE_KEY = 'aog-autosave';
+function _autosaveNow() {
+  try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(_collectFieldData())); } catch (e) {}
+}
+// ===== TEXTAREA AUTO-GROW =====
+function autoGrowTextarea(ta) {
+  ta.style.height = 'auto';
+  ta.style.height = Math.max(70, ta.scrollHeight) + 'px';
+}
+(function initAutoGrow() {
+  function start() {
+    document.querySelectorAll('textarea.notes-field').forEach(function(ta) {
+      ta.addEventListener('input', function() { autoGrowTextarea(ta); });
+      autoGrowTextarea(ta); // size correctly on load/restore
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+
+// ===== PRINT HEIGHT EXPANSION =====
+(function initPrintHeights() {
+  var textareas = [];
+  var savedHeights = [];
+  
+  function updateTextareas() {
+    textareas = Array.from(document.querySelectorAll('textarea.notes-field'));
+  }
+  
+  updateTextareas();
+  
+  window.addEventListener('beforeprint', function() {
+    updateTextareas();
+    textareas.forEach(function(ta, idx) {
+      savedHeights[idx] = ta.style.height;
+      var newHeight = Math.max(70, ta.scrollHeight) + 'px';
+      ta.style.height = newHeight;
+    });
+  });
+  
+  window.addEventListener('afterprint', function() {
+    textareas.forEach(function(ta, idx) {
+      ta.style.height = savedHeights[idx] || '';
+    });
+  });
+})();
+
+(function initAutosave() {
+  function start() {
+    // Silently restore the last draft, if any.
+    try {
+      var raw = localStorage.getItem(AUTOSAVE_KEY);
+      if (raw) {
+        _applyFieldData(JSON.parse(raw));
+        // Re-size textareas after restoring saved content
+        document.querySelectorAll('textarea.notes-field').forEach(function(ta) { autoGrowTextarea(ta); });
+      }
+    } catch (e) {}
+    // Save on every change/keystroke (debounced).
+    var t;
+    function schedule() { clearTimeout(t); t = setTimeout(_autosaveNow, 300); }
+    _allFields().forEach(function (el) {
+      el.addEventListener('input', schedule);
+      el.addEventListener('change', schedule);
+    });
+    // Final flush when leaving the page.
+    window.addEventListener('beforeunload', _autosaveNow);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+function importFormData(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var isPdf = /pdf$/i.test(file.name) || file.type === 'application/pdf';
+  var reader = new FileReader();
+  reader.onload = function () {
+    if (isPdf) _importFromPdf(reader.result, input);
+    else _importFromJsonText(reader.result, input);
+  };
+  if (isPdf) reader.readAsArrayBuffer(file);
+  else reader.readAsText(file);
+}
+function _importFromJsonText(text, input) {
+  var data;
+  try { data = JSON.parse(text); } catch (e) { return _importFail(input); }
+  if (_applyFieldData(data)) _importOk(input);
+  else _importFail(input);
+}
+async function _importFromPdf(arrayBuffer, input) {
+  if (typeof PDFLib === 'undefined') {
+    setStatus('PDF library not loaded — refresh and try again.');
+    setTimeout(function(){ setStatus(''); }, 5000); input.value = ''; return;
+  }
+  try {
+    var pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+    var jsonText = _extractAttachmentText(pdfDoc, DATA_FILENAME);
+    if (!jsonText) {
+      setStatus('No saved data found in this PDF — was it made with EDIT PDF?');
+      setTimeout(function(){ setStatus(''); }, 6000); input.value = ''; return;
+    }
+    var data = JSON.parse(jsonText);
+    if (_applyFieldData(data)) _importOk(input); else _importFail(input);
+  } catch (e) { _importFail(input); }
+}
+// Pull an embedded attachment's bytes out of the PDF's name tree and decode to text.
+function _extractAttachmentText(pdfDoc, wantName) {
+  try {
+    var ctx = pdfDoc.context;
+    var names = pdfDoc.catalog.lookup(PDFLib.PDFName.of('Names'));
+    if (!names) return null;
+    var ef = names.lookup(PDFLib.PDFName.of('EmbeddedFiles'));
+    if (!ef) return null;
+    var arr = ef.lookup(PDFLib.PDFName.of('Names'));
+    if (!arr || !arr.array) return null;
+    var items = arr.array;
+    for (var i = 0; i + 1 < items.length; i += 2) {
+      var nm = ctx.lookup(items[i]);
+      var label = nm && nm.decodeText ? nm.decodeText() : (nm && nm.value ? nm.value() : '');
+      var fileSpec = ctx.lookup(items[i + 1]);
+      var efDict = fileSpec.lookup(PDFLib.PDFName.of('EF'));
+      var stream = efDict.lookup(PDFLib.PDFName.of('F'));
+      var bytes = PDFLib.decodePDFRawStream
+        ? PDFLib.decodePDFRawStream(stream).decode()
+        : stream.contents;
+      var text = new TextDecoder('utf-8').decode(bytes);
+      if (!wantName || label === wantName || /aog-checklist/i.test(label)) return text;
+    }
+  } catch (e) {}
+  return null;
+}
+function _importOk(input)  { setStatus('Checklist loaded.'); setTimeout(function(){ setStatus(''); }, 4000); input.value = ''; }
+function _importFail(input){ setStatus('Could not read saved data from that file.'); setTimeout(function(){ setStatus(''); }, 6000); input.value = ''; }
+
+// ============================================================================
+var CAPTURE_W = 1050;            // pin to the form's letter-layout width
+var CAPTURE_EL_ID = 'page1';     // the .form-page we render
+
+function setStatus(msg) {
+  var el = document.getElementById('save-status');
+  if (el) { el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
+}
+function isIOSDevice() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+function canShareFiles() {
+  try {
+    var probe = new File([new Blob(['x'], { type: 'text/plain' })], 'x.txt', { type: 'text/plain' });
+    return !!(navigator.canShare && navigator.canShare({ files: [probe] }));
+  } catch (e) { return false; }
+}
+function _downloadBlob(blob, filename) {
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+function _fileBase() {
+  function clean(v){ return (v || '').trim().replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').slice(0, 50); }
+  var name = '', addr = '';
+  var nin = document.querySelector('.top-fields input[type="text"]');
+  if (nin) name = clean(nin.value);
+  var ain = document.querySelector('.top-fields input[autocomplete="street-address"]');
+  if (ain) addr = clean(ain.value);
+  var parts = [];
+  if (name) parts.push(name);
+  if (addr) parts.push(addr);
+  parts.push('Checklist');
+  return parts.join(' - ');
+}
+
+// CSS injected into the html2canvas clone so the capture always uses the clean
+// light "print" look at letter width, regardless of dark mode / screen size.
+function _captureCSS() {
+  return [
+    '.action-bar, #save-status { display:none !important; }',
+    'html, body { background:#ffffff !important; max-width:' + CAPTURE_W + 'px !important; width:' + CAPTURE_W + 'px !important; margin:0 !important; }',
+    ':root, body, body.dark-mode {',
+    '  --bg:#FFFFFF !important; --bg2:#FFFFFF !important; --bg3:#F8F8F8 !important; --panel:#FFFFFF !important; --panel2:#FAFAFA !important;',
+    '  --text:#1F2937 !important; --text-muted:#6B7280 !important; --text-dim:#9CA3AF !important;',
+    '  --border:rgba(211,94,19,0.25) !important; --border-bright:rgba(211,94,19,0.5) !important;',
+    '  --cyan:#D35E13 !important; --amber:#D35E13 !important; --green:#059669 !important; --red:#DC2626 !important;',
+    '  --glow:none !important; --glow-amber:none !important; --icon-color-primary:#D35E13 !important; }',
+    'body.dark-mode { background:#ffffff !important; }',
+    '.page-wrapper { padding-top:0 !important; margin:0 !important; max-width:' + CAPTURE_W + 'px !important; background:#fff !important; }',
+    '.form-page, body.dark-mode .form-page { width:' + CAPTURE_W + 'px !important; max-width:' + CAPTURE_W + 'px !important; background:#ffffff !important; box-shadow:none !important; color:#1F2937 !important; }',
+    '.form-page *, body.dark-mode .form-page * { box-shadow:none !important; text-shadow:none !important; }',
+    // kill any decorative gradient pseudo-lines (createPattern 0-size guard)
+    '*::before, *::after { background-image:none !important; }',
+    // Replace the position:absolute ::before border (fixed insets, won't grow with content)
+    // with a box-shadow that always wraps the full page height and grows with content
+    '.form-page::before, body.dark-mode .form-page::before { display:none !important; border:none !important; }',
+    '.form-page, body.dark-mode .form-page { box-shadow: inset 0 0 0 2px #D35E13 !important; }',
+    // restore intentional tints
+    'table.checklist-table thead tr th { background:#D35E13 !important; color:#ffffff !important; }',
+    'table.checklist-table tbody td.row-label { background:rgba(211,94,19,0.08) !important; }',
+    'table.checklist-table tbody tr:nth-child(even) { background:rgba(211,94,19,0.04) !important; }',
+    'table.checklist-table tbody td { border-color:rgba(211,94,19,0.2) !important; color:#1F2937 !important; }',
+    'input[type="text"], input[type="date"] { background:#ffffff !important; color:#1F2937 !important; -webkit-text-fill-color:#1F2937 !important; height:20px !important; min-height:20px !important; line-height:20px !important; padding-top:0 !important; padding-bottom:2px !important; vertical-align:middle !important; box-sizing:border-box !important; overflow:visible !important; }',
+    'textarea { background:#ffffff !important; color:#1F2937 !important; -webkit-text-fill-color:#1F2937 !important; line-height:1.5 !important; }',
+    '.checklist-title, .mat-title, .logo-on { color:#D35E13 !important; }',
+    '.logo-always, .logo-generators { color:#1F2937 !important; }',
+    '.page1-header { border-bottom-color:#D35E13 !important; }',
+    '.notes-section { margin-bottom:20px !important; }',
+    'textarea.notes-field { white-space:pre-wrap !important; word-wrap:break-word !important; overflow-wrap:break-word !important; word-break:break-word !important; overflow:visible !important; box-sizing:border-box !important; }',
+    '.form-page { padding-bottom:28px !important; }'
+  ].join('\n');
+}
+
+function capturePageToCanvas() {
+  var page = document.getElementById(CAPTURE_EL_ID);
+
+  // html2canvas measures the element's height BEFORE onclone() runs. Our
+  // onclone swaps the fixed-height notes <textarea> for a tall auto-growing
+  // <div>, but that happens too late -- the canvas size is already locked in
+  // based on the original (short) textarea, so long notes get cropped at
+  // that boundary, clipping right through the page border.
+  //
+  // Fix: temporarily grow the LIVE textarea(s) to their full content height
+  // before measuring/capturing, so html2canvas locks in the correct, full
+  // page height up front. Restore the original height afterward.
+  var notesFields = document.querySelectorAll('.form-page textarea.notes-field, .form-page textarea');
+  var restoreList = [];
+  notesFields.forEach(function (ta) {
+    restoreList.push({ el: ta, height: ta.style.height, overflow: ta.style.overflow });
+    ta.style.overflow = 'hidden';
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  });
+
+  function restoreNotes() {
+    restoreList.forEach(function (r) {
+      r.el.style.height = r.height;
+      r.el.style.overflow = r.overflow;
+    });
+  }
+
+  var capH = Math.max(page.scrollHeight, page.offsetHeight,
+                      document.documentElement.scrollHeight, 1600) + 400;
+
+  return html2canvas(page, {
+    scale: 2,
+    useCORS: true,
+    allowTaint: false,          // keep canvas exportable (no tainted-canvas SecurityError)
+    backgroundColor: '#ffffff',
+    logging: false,
+    imageTimeout: 15000,
+    width: CAPTURE_W,
+    windowWidth: CAPTURE_W,     // force the letter (desktop) layout, not mobile stacking
+    windowHeight: capH,         // tall enough so the bottom of the form isn't cut off
+    scrollX: 0,
+    scrollY: 0,
+    onclone: function (clonedDoc) {
+      try { clonedDoc.body.classList.remove('dark-mode'); } catch (e) {}
+      try { var st = clonedDoc.createElement('style'); st.textContent = _captureCSS(); clonedDoc.head.appendChild(st); } catch (e) {}
+
+      // Drop broken images so html2canvas never calls createPattern() on a 0x0 image.
+      try {
+        var li = document.images, ci = clonedDoc.images;
+        for (var i = 0; i < ci.length; i++) {
+          var im = li[i];
+          if ((!im || !im.complete || im.naturalWidth === 0 || im.naturalHeight === 0) && ci[i] && ci[i].parentNode)
+            ci[i].parentNode.removeChild(ci[i]);
+        }
+      } catch (e) {}
+
+      // Strip gradient/image backgrounds on any zero-area element (same guard).
+      try {
+        var le = document.querySelectorAll('*'), ce = clonedDoc.querySelectorAll('*');
+        for (var j = 0; j < le.length && j < ce.length; j++) {
+          var bg = '';
+          try { bg = window.getComputedStyle(le[j]).backgroundImage; } catch (e) {}
+          if (bg && bg !== 'none' && (le[j].offsetWidth === 0 || le[j].offsetHeight === 0)) {
+            try { ce[j].style.setProperty('background-image', 'none', 'important'); } catch (e) {}
+          }
+        }
+      } catch (e) {}
+
+      // Mirror live field values into the clone, and draw checked checkboxes as
+      // solid boxes with a ✓ (html2canvas can't render the appearance:none
+      // ::after checkmark reliably).
+      try {
+        var liveF  = document.querySelectorAll('input, textarea');
+        var cloneF = clonedDoc.querySelectorAll('input, textarea');
+        for (var k = 0; k < liveF.length && k < cloneF.length; k++) {
+          var L = liveF[k], C = cloneF[k];
+          if (!C) continue;
+          try { C.removeAttribute('placeholder'); } catch (e) {}
+          if (L.tagName === 'TEXTAREA') {
+            // Swap the textarea for a wrapping, auto-height div so long notes wrap
+            // onto multiple lines and the box grows instead of clipping its border.
+            var note = clonedDoc.createElement('div');
+            note.textContent = L.value;
+            // Create temporary element to calculate height
+            var tempDiv = clonedDoc.createElement('div');
+            tempDiv.textContent = L.value;
+            tempDiv.style.cssText = 'position:absolute;visibility:hidden;width:' + L.offsetWidth + 'px;box-sizing:border-box;' +
+              'padding:6px 8px;font-family:Arial, sans-serif;font-size:11px;line-height:1.5;' +
+              'white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;word-break:break-word;';
+            clonedDoc.body.appendChild(tempDiv);
+            var calculatedHeight = Math.max(70, tempDiv.offsetHeight);
+            clonedDoc.body.removeChild(tempDiv);
+            note.style.cssText = 'width:100%;height:' + calculatedHeight + 'px;box-sizing:border-box;' +
+              'border:1px solid rgba(211,94,19,0.25);background:#ffffff;color:#1F2937;' +
+              'padding:6px 8px;font-family:Arial, sans-serif;font-size:11px;line-height:1.5;' +
+              'white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;word-break:break-word;overflow:hidden;';
+            if (C.parentNode) C.parentNode.replaceChild(note, C);
+          } else if (L.type === 'checkbox') {
+            var on = L.checked;
+            var box = clonedDoc.createElement('span');
+            box.textContent = on ? '✓' : '';
+            box.style.cssText = 'display:inline-block;width:14px;height:14px;min-width:14px;border:2px solid #D35E13;' +
+              'border-radius:2px;background:' + (on ? '#D35E13' : '#ffffff') + ';color:#000;font-size:11px;line-height:11px;' +
+              'text-align:center;vertical-align:middle;font-weight:bold;box-sizing:border-box;margin:2px 4px 2px 0;';
+            if (C.parentNode) C.parentNode.replaceChild(box, C);
+          } else {
+            try { C.setAttribute('value', L.value); C.value = L.value; } catch (e) {}
+          }
+        }
+      } catch (e) {}
+    }
+  }).then(function (canvas) {
+    restoreNotes();
+    return _wrapInPaper(canvas);
+  }, function (err) {
+    restoreNotes();
+    throw err;
+  });
+}
+
+// ── PAPER WRAPPER — places the captured form on an 8.5×11 canvas ────────────
+// 192 DPI (2× screen) → 1632 × 2112 px. 0.15″ margins → 29 px per side.
+// The form is scaled to fill the width and pinned to the top margin.
+// This also makes the PDF export land on a perfect US Letter page.
+function _wrapInPaper(formCanvas) {
+  var DPI    = 192;
+  var MRG_IN = 0.15;
+  var pw = Math.round(8.5 * DPI);      // 1632 px  — letter width
+  var ph = Math.round(11  * DPI);      // 2112 px  — letter height
+  var mg = Math.round(MRG_IN * DPI);   //   29 px  — margin each side
+
+  var cw = pw - mg * 2;   // 1574 px  — usable width
+  var ch = ph - mg * 2;   // 2054 px  — usable height
+
+  // Scale form to fit width; if it's also taller than the content area,
+  // scale to fit height instead (keeps everything visible).
+  var scale = Math.min(cw / formCanvas.width, ch / formCanvas.height);
+  var dw = Math.round(formCanvas.width  * scale);
+  var dh = Math.round(formCanvas.height * scale);
+
+  // Centre horizontally, pin to top margin.
+  var ox = mg + Math.round((cw - dw) / 2);
+  var oy = mg;
+
+  var paper = document.createElement('canvas');
+  paper.width  = pw;
+  paper.height = ph;
+  var ctx = paper.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, pw, ph);
+  ctx.drawImage(formCanvas, ox, oy, dw, dh);
+  return paper;
+}
+
+// ── CAPTURE (image) ─────────────────────────────────────────────────────────
+function saveSmart() {
+  if (typeof html2canvas === 'undefined') { setStatus('Capture library not loaded — refresh and try again.'); setTimeout(function(){ setStatus(''); }, 5000); return; }
+  var mobile = isIOSDevice() || /Android/i.test(navigator.userAgent || '');
+  if (mobile && canShareFiles()) captureAndShare();
+  else if (isIOSDevice())        saveForIPhone();
+  else                           saveForAndroid();
+}
+
+function _toJpegBlob(canvas) {
+  return new Promise(function (resolve) { canvas.toBlob(function (b) { resolve(b); }, 'image/jpeg', 0.92); });
+}
+
+function saveForAndroid() {   // desktop + Android-without-share → direct download
+  setStatus('Building image…');
+  capturePageToCanvas().then(function (canvas) {
+    return _toJpegBlob(canvas);
+  }).then(function (blob) {
+    if (!blob) { setStatus('Could not create image.'); setTimeout(function(){ setStatus(''); }, 5000); return; }
+    _downloadBlob(blob, _fileBase() + '.jpg');
+    setStatus('Saved to Downloads folder.');
+    setTimeout(function(){ setStatus(''); }, 4000);
+  }).catch(function (err) {
+    setStatus('Render failed: ' + (err && err.message ? err.message : err));
+    setTimeout(function(){ setStatus(''); }, 6000);
+  });
+}
+
+function captureAndShare() {  // mobile with Web Share (Save to Photos/Files, Messages…)
+  setStatus('Building image…');
+  capturePageToCanvas().then(function (canvas) {
+    return _toJpegBlob(canvas);
+  }).then(function (blob) {
+    if (!blob) throw new Error('empty image');
+    var file = new File([blob], _fileBase() + '.jpg', { type: 'image/jpeg' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      setStatus('Opening share sheet…');
+      return navigator.share({ files: [file] }).then(function () { setStatus(''); }, function (e) {
+        if (e && e.name === 'AbortError') { setStatus(''); }
+        else { _downloadBlob(blob, _fileBase() + '.jpg'); setStatus('Saved.'); setTimeout(function(){ setStatus(''); }, 4000); }
+      });
+    }
+    _downloadBlob(blob, _fileBase() + '.jpg');
+    setStatus('Saved.'); setTimeout(function(){ setStatus(''); }, 4000);
+  }).catch(function (err) {
+    setStatus('Render failed: ' + (err && err.message ? err.message : err));
+    setTimeout(function(){ setStatus(''); }, 6000);
+  });
+}
+
+function saveForIPhone() {    // older iOS without Web Share → long-press overlay
+  setStatus('Building image…');
+  capturePageToCanvas().then(function (canvas) {
+    var url = canvas.toDataURL('image/jpeg', 0.92);
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.9);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow:auto;padding:16px;';
+    var tip = document.createElement('div');
+    tip.textContent = 'Press and hold the image, then tap "Save Image". Tap here to close.';
+    tip.style.cssText = 'color:#fff;font:13px Arial;margin-bottom:10px;text-align:center;';
+    var img = document.createElement('img');
+    img.src = url; img.style.cssText = 'max-width:100%;height:auto;border:1px solid #fff;';
+    ov.appendChild(tip); ov.appendChild(img);
+    ov.addEventListener('click', function (e) { if (e.target !== img) document.body.removeChild(ov); });
+    document.body.appendChild(ov);
+    setStatus('');
+  }).catch(function (err) {
+    setStatus('Render failed: ' + (err && err.message ? err.message : err));
+    setTimeout(function(){ setStatus(''); }, 6000);
+  });
+}
+
+// ── EDIT PDF (US-Letter PDF of the styled form) ─────────────────────────────
+async function saveEditablePdf() {
+  if (typeof PDFLib === 'undefined')     { setStatus('PDF library not loaded — refresh and try again.'); setTimeout(function(){ setStatus(''); }, 5000); return; }
+  if (typeof html2canvas === 'undefined'){ setStatus('Capture library not loaded — refresh and try again.'); setTimeout(function(){ setStatus(''); }, 5000); return; }
+  setStatus('Building PDF…');
+  try {
+    var canvas = await capturePageToCanvas();
+    var pdfDoc = await PDFLib.PDFDocument.create();
+    var imgData = canvas.toDataURL('image/png');
+    var pngBytes = Uint8Array.from(atob(imgData.split(',')[1]), function (c) { return c.charCodeAt(0); });
+    var png = await pdfDoc.embedPng(pngBytes);
+    var PAGE_W = 612;                     // US Letter width  (pt)
+    var PAGE_H = 792;                     // US Letter height (pt)
+    var page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+    page.drawImage(png, { x: 0, y: 0, width: PAGE_W, height: PAGE_H });
+    pdfDoc.setTitle('Always On Generators — Pre-Install Checklist');
+    // Embed the field values so this PDF can be re-loaded with IMPORT.
+    try {
+      var jsonStr = JSON.stringify(_collectFieldData());
+      var jsonBytes = new TextEncoder().encode(jsonStr);
+      await pdfDoc.attach(jsonBytes, DATA_FILENAME, {
+        mimeType: 'application/json',
+        description: 'AOG checklist field data'
+      });
+    } catch (e) {}
+    var bytes = await pdfDoc.save();
+    var fname = _fileBase() + '.pdf';
+    var blob = new Blob([bytes], { type: 'application/pdf' });
+
+    var didShare = false;
+    var mobile = isIOSDevice() || /Android/i.test(navigator.userAgent || '');
+    if (mobile && canShareFiles()) {
+      try {
+        var f = new File([blob], fname, { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [f] })) {
+          didShare = true;
+          setStatus('Opening share sheet…');
+          try { await navigator.share({ files: [f] }); setStatus(''); }
+          catch (e) { if (e && e.name === 'AbortError') setStatus(''); else { _downloadBlob(blob, fname); setStatus('PDF saved: ' + fname); setTimeout(function(){ setStatus(''); }, 4000); } }
+        }
+      } catch (e) { didShare = false; }
+    }
+    if (!didShare) { _downloadBlob(blob, fname); setStatus('PDF saved: ' + fname); setTimeout(function(){ setStatus(''); }, 4000); }
+  } catch (err) {
+    setStatus('Could not build PDF: ' + (err && err.message ? err.message : err));
+    setTimeout(function(){ setStatus(''); }, 6000);
+  }
+}
+</script>
+
+</body>
+</html>

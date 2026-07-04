@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<!--
+© 2026 Brandon Keilholz — All rights reserved.
+Created by Brandon Keilholz. Licensed for use by Always On Generators.
+This form, its code, layout, and content are proprietary.
+Unauthorized copying, reproduction, or distribution is prohibited and
+may result in liability for statutory damages of up to $150,000 per work
+for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Always On Generators – Gas Calculator</title>
+<script src="../sounds.js" defer></script>
+<link rel="manifest" href="../manifest.json">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="theme-color" content="#FBBF24">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AOG Gas Calc">
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --yellow:#FCD34D;--yellow-bright:#FBBF24;--orange:#F97316;--orange-bright:#FB923C;--orange-deep:#EA580C;
+  --blue:#1E40AF;--blue-bright:#3B82F6;--blue-electric:#00D4FF;--green:#10B981;--red:#EF4444;
+  --bg-dark:#0A0E27;--bg-mid:#0F1535;--bg-light:#1A2847;--text:#F1F5F9;--text-dim:#94A3B8;
+  --font-display:'Orbitron',monospace;--font-mono:'Share Tech Mono',monospace;--font-body:'Exo 2',sans-serif
+}
+*{margin:0;padding:0;box-sizing:border-box}html,body{overflow-x:hidden}
+body{font-family:var(--font-body);background:linear-gradient(135deg,#0A0E27 0%,#0F1535 25%,#1A2847 50%,#0F1535 75%,#0A0E27 100%);background-size:400% 400%;color:var(--text);min-height:100vh;animation:bgShift 20s ease infinite}
+@keyframes bgShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background-image:linear-gradient(rgba(251,191,36,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(59,130,246,.04) 1px,transparent 1px);background-size:50px 50px;pointer-events:none;z-index:1;animation:gridMove 40s linear infinite}
+@keyframes gridMove{0%{background-position:0 0}100%{background-position:50px 50px}}
+body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(circle at 20% 30%,rgba(251,191,36,.07) 0%,transparent 40%),radial-gradient(circle at 80% 70%,rgba(249,115,22,.07) 0%,transparent 40%);pointer-events:none;z-index:1}
+.container{position:relative;z-index:10;max-width:1100px;margin:0 auto;padding:40px 24px 60px;padding-top:60px}
+
+/* HEADER */
+.header{text-align:center;margin-bottom:28px;padding:24px 16px 20px;position:relative}
+.header::before,.header::after{content:'';position:absolute;height:2px;width:80%;left:10%;background:linear-gradient(90deg,transparent,var(--yellow-bright),var(--orange),var(--blue-electric),transparent)}
+.header::before{top:0;animation:scanline 4s linear infinite}
+.header::after{bottom:0;animation:scanline 4s linear infinite reverse}
+@keyframes scanline{0%,100%{opacity:0;transform:scaleX(0)}50%{opacity:1;transform:scaleX(1)}}
+.logo-wrap{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:nowrap;margin-bottom:10px}
+@media(min-width:480px){.logo-wrap{gap:14px}}
+.logo-img{width:70px;height:70px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 0 12px rgba(251,191,36,.6));animation:logoPulse 3s ease-in-out infinite}
+@media(min-width:480px){.logo-img{width:90px;height:90px}}
+@keyframes logoPulse{0%,100%{filter:drop-shadow(0 0 12px rgba(251,191,36,.6))}50%{filter:drop-shadow(0 0 22px rgba(251,191,36,.9)) drop-shadow(0 0 36px rgba(249,115,22,.6))}}
+.title-block{text-align:left;min-width:0}
+.company-name{font-family:var(--font-display);font-size:clamp(1.05rem,4.5vw,1.4rem);font-weight:900;letter-spacing:2px;line-height:1.1;background:linear-gradient(135deg,var(--yellow-bright) 0%,var(--orange) 50%,var(--orange-deep) 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+@media(min-width:480px){.company-name{font-size:1.8rem;letter-spacing:3px}}
+.tagline{font-family:var(--font-mono);font-size:.65rem;letter-spacing:4px;color:var(--blue-electric);text-transform:uppercase}
+.subtitle{font-family:var(--font-display);font-size:.7rem;letter-spacing:5px;color:var(--text-dim);margin-top:8px;text-transform:uppercase;font-weight:400}
+.subtitle span{color:var(--orange-bright);text-shadow:0 0 8px rgba(249,115,22,.5)}
+.section-label{font-family:var(--font-display);font-size:.7rem;letter-spacing:6px;color:var(--yellow-bright);text-align:center;margin-bottom:22px;text-transform:uppercase;text-shadow:0 0 10px rgba(251,191,36,.4)}
+.section-label::before,.section-label::after{content:'◆';color:var(--orange);margin:0 12px;font-size:.58rem;vertical-align:middle}
+
+/* PANEL */
+.panel{background:linear-gradient(135deg,rgba(15,21,53,.92) 0%,rgba(26,40,71,.75) 100%);border:2px solid rgba(251,191,36,.25);border-radius:4px;overflow:hidden;margin-bottom:24px;clip-path:polygon(12px 0%,100% 0%,100% calc(100% - 12px),calc(100% - 12px) 100%,0% 100%,0% 12px);position:relative}
+.panel::before{content:'';position:absolute;top:0;left:0;width:20px;height:20px;border-top:2px solid var(--yellow-bright);border-left:2px solid var(--yellow-bright);z-index:2}
+.panel::after{content:'';position:absolute;bottom:0;right:0;width:20px;height:20px;border-bottom:2px solid var(--blue-electric);border-right:2px solid var(--blue-electric);z-index:2}
+.panel-header{padding:16px 26px;border-bottom:1px solid rgba(251,191,36,.15);display:flex;align-items:center;gap:14px;background:rgba(251,191,36,.04)}
+.panel-num{font-family:var(--font-display);font-size:1.3rem;font-weight:900;color:var(--yellow-bright);text-shadow:0 0 12px rgba(251,191,36,.5);min-width:30px}
+.panel-title{font-family:var(--font-display);font-size:.82rem;font-weight:700;letter-spacing:4px;color:var(--yellow-bright);text-transform:uppercase}
+.panel-desc{font-family:var(--font-mono);font-size:.68rem;color:var(--text-dim);letter-spacing:1px;margin-top:2px}
+.panel-body{padding:24px 26px}
+
+/* COOLING SELECTOR */
+.cooling-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
+@media(max-width:500px){.cooling-grid{grid-template-columns:1fr}}
+.cool-btn{position:relative;padding:20px 16px;background:linear-gradient(135deg,rgba(15,21,53,.9),rgba(26,40,71,.7));border:2px solid rgba(251,191,36,.2);border-radius:4px;cursor:pointer;transition:all .3s;text-align:center;clip-path:polygon(10px 0%,100% 0%,100% calc(100% - 10px),calc(100% - 10px) 100%,0% 100%,0% 10px)}
+.cool-btn:hover{border-color:var(--orange);transform:translateY(-2px);box-shadow:0 0 20px rgba(251,191,36,.15)}
+.cool-btn.active{border-color:var(--yellow-bright);background:linear-gradient(135deg,rgba(251,191,36,.12),rgba(249,115,22,.08));box-shadow:0 0 22px rgba(251,191,36,.25)}
+.cool-btn svg{width:44px;height:44px;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin:0 auto 10px;display:block;transition:stroke .3s;stroke:var(--text-dim)}
+.cool-btn.active svg{stroke:var(--yellow-bright)}
+.cool-btn-label{font-family:var(--font-display);font-size:.82rem;font-weight:700;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;transition:color .3s;margin-bottom:3px}
+.cool-btn.active .cool-btn-label{color:var(--yellow-bright);text-shadow:0 0 8px rgba(251,191,36,.4)}
+.cool-btn-sub{font-family:var(--font-mono);font-size:.62rem;color:var(--text-dim);letter-spacing:1px}
+.cool-check{position:absolute;top:9px;right:11px;font-size:.68rem;color:var(--green);opacity:0;transition:opacity .2s;font-family:var(--font-mono)}
+.cool-btn.active .cool-check{opacity:1}
+
+/* FUEL MINI SELECTOR */
+.fuel-row{display:flex;gap:10px;margin-bottom:22px}
+.fuel-mini{flex:1;padding:11px 12px;background:rgba(10,14,39,.7);border:1px solid rgba(251,191,36,.2);border-radius:3px;cursor:pointer;transition:all .25s;text-align:center;font-family:var(--font-display);font-size:.7rem;font-weight:700;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase}
+.fuel-mini:hover{border-color:var(--orange);color:var(--orange-bright)}
+.fuel-mini.active{border-color:var(--yellow-bright);background:rgba(251,191,36,.1);color:var(--yellow-bright);text-shadow:0 0 8px rgba(251,191,36,.4)}
+
+/* CONFIG GRID */
+.config-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:22px}
+@media(max-width:700px){.config-row{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.config-row{grid-template-columns:1fr}}
+.field-wrap{display:flex;flex-direction:column;gap:5px}
+.field-label{font-family:var(--font-mono);font-size:.65rem;letter-spacing:2px;color:var(--blue-electric);text-transform:uppercase}
+.field-input,.field-select{width:100%;padding:10px 13px;background:rgba(10,14,39,.8);border:1px solid rgba(251,191,36,.25);border-radius:3px;color:var(--text);font-family:var(--font-mono);font-size:.83rem;letter-spacing:1px;transition:all .2s;appearance:none;-webkit-appearance:none}
+.field-input:focus,.field-select:focus{outline:none;border-color:var(--yellow-bright);box-shadow:0 0 10px rgba(251,191,36,.2);background:rgba(15,21,53,.9)}
+.field-select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23FBBF24' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;padding-right:30px}
+.field-select option{background:#0F1535;color:var(--text);font-size:.82rem}
+.field-select optgroup{color:var(--orange-bright);font-style:normal;font-size:.78rem}
+.field-hint{font-family:var(--font-mono);font-size:.6rem;color:var(--text-dim);letter-spacing:1px}
+
+/* GENERATE BUTTON */
+.gen-btn{width:100%;padding:15px;background:linear-gradient(135deg,var(--yellow-bright),var(--orange));border:none;border-radius:3px;font-family:var(--font-display);font-size:.78rem;font-weight:900;letter-spacing:5px;color:var(--bg-dark);cursor:pointer;text-transform:uppercase;transition:all .25s;clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);margin-top:6px}
+.gen-btn:hover{box-shadow:0 0 24px rgba(251,191,36,.6);transform:scale(1.01)}
+.gen-btn:active{transform:scale(.99)}
+
+/* BTU RESULTS - hero section */
+.btu-hero{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+@media(max-width:650px){.btu-hero{grid-template-columns:1fr 1fr}}
+@media(max-width:420px){.btu-hero{grid-template-columns:1fr}}
+.btu-card{padding:20px 18px;border-radius:3px;position:relative;clip-path:polygon(8px 0%,100% 0%,100% calc(100% - 8px),calc(100% - 8px) 100%,0% 100%,0% 8px)}
+.btu-card::before{content:'';position:absolute;top:0;left:0;width:12px;height:12px}
+.btu-card.full{background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.35)}
+.btu-card.full::before{border-top:1px solid var(--blue-electric);border-left:1px solid var(--blue-electric)}
+.btu-card.half{background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.3)}
+.btu-card.half::before{border-top:1px solid var(--blue-bright);border-left:1px solid var(--blue-bright)}
+.btu-card.flow{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3)}
+.btu-card.flow::before{border-top:1px solid var(--yellow-bright);border-left:1px solid var(--yellow-bright)}
+.btu-card-label{font-family:var(--font-mono);font-size:.6rem;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px}
+.btu-card.full .btu-card-label{color:var(--blue-electric)}
+.btu-card.half .btu-card-label{color:var(--blue-bright)}
+.btu-card.flow .btu-card-label{color:var(--yellow-bright)}
+.btu-card-value{font-family:var(--font-display);font-weight:900;line-height:1;margin-bottom:5px}
+.btu-card.full .btu-card-value{font-size:1.7rem;color:var(--blue-electric);text-shadow:0 0 16px rgba(0,212,255,.5)}
+.btu-card.half .btu-card-value{font-size:1.7rem;color:var(--blue-bright);text-shadow:0 0 14px rgba(59,130,246,.4)}
+.btu-card.flow .btu-card-value{font-size:1.7rem;color:var(--yellow-bright);text-shadow:0 0 16px rgba(251,191,36,.5)}
+.btu-card-unit{font-family:var(--font-mono);font-size:.65rem;color:var(--text-dim);letter-spacing:2px}
+.btu-card-sub{font-family:var(--font-mono);font-size:.6rem;color:var(--text-dim);letter-spacing:1px;margin-top:4px}
+
+/* MODEL INFO CARD */
+.model-info{padding:18px 22px;background:linear-gradient(135deg,rgba(251,191,36,.07),rgba(249,115,22,.04));border:2px solid rgba(251,191,36,.3);border-radius:4px;margin-bottom:18px;position:relative;overflow:hidden;clip-path:polygon(10px 0%,100% 0%,100% calc(100% - 10px),calc(100% - 10px) 100%,0% 100%,0% 10px)}
+.mi-glow{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--yellow-bright),var(--orange),transparent);animation:stripScan 2.5s linear infinite}
+@keyframes stripScan{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.mi-label{font-family:var(--font-mono);font-size:.62rem;letter-spacing:4px;color:var(--blue-electric);text-transform:uppercase;margin-bottom:3px}
+.mi-model{font-family:var(--font-display);font-size:1.3rem;font-weight:900;letter-spacing:3px;color:var(--yellow-bright);text-shadow:0 0 14px rgba(251,191,36,.5);margin-bottom:2px}
+.mi-num{font-family:var(--font-mono);font-size:.68rem;color:var(--orange-bright);letter-spacing:2px;margin-bottom:4px}
+.mi-desc{font-family:var(--font-mono);font-size:.68rem;color:var(--text-dim);letter-spacing:1px;margin-bottom:14px}
+.mi-badges{display:flex;flex-wrap:wrap;gap:7px}
+.badge{padding:4px 10px;border-radius:2px;font-family:var(--font-mono);font-size:.6rem;letter-spacing:2px;text-transform:uppercase}
+.badge-green{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:#10B981}
+.badge-blue{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.4);color:var(--blue-bright)}
+.badge-yellow{background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.4);color:var(--yellow-bright)}
+.badge-orange{background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.4);color:var(--orange-bright)}
+.badge-red{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);color:var(--red)}
+.badge-cyan{background:rgba(0,212,255,.09);border:1px solid rgba(0,212,255,.3);color:var(--blue-electric)}
+
+/* SPEC GRID */
+/* FUEL ROW CARDS — NG on top, LP on bottom */
+.fuel-rows-wrap{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+.fuel-row-card{border-radius:3px;overflow:hidden;display:flex;align-items:stretch}
+.fuel-row-card.ng-row{border:1px solid rgba(0,212,255,.35);background:rgba(0,212,255,.04)}
+.fuel-row-card.lp-row{border:1px solid rgba(251,191,36,.35);background:rgba(251,191,36,.04)}
+.fuel-tag{display:flex;align-items:center;justify-content:center;min-width:52px;padding:0 10px;font-family:var(--font-display);font-size:.72rem;font-weight:900;letter-spacing:3px;text-transform:uppercase;flex-shrink:0}
+.ng-row .fuel-tag{background:rgba(0,212,255,.12);color:var(--blue-electric);border-right:1px solid rgba(0,212,255,.25)}
+.lp-row .fuel-tag{background:rgba(251,191,36,.1);color:var(--yellow-bright);border-right:1px solid rgba(251,191,36,.2)}
+.fuel-cells{display:grid;grid-template-columns:repeat(7,1fr);flex:1}
+@media(max-width:780px){.fuel-cells{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:480px){.fuel-cells{grid-template-columns:repeat(2,1fr)}}
+.fuel-cell{padding:10px 12px;border-right:1px solid rgba(255,255,255,.05)}
+.fuel-cell:last-child{border-right:none}
+.fc-label{font-family:var(--font-mono);font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:5px}
+.ng-row .fc-label{color:rgba(0,212,255,.7)}
+.lp-row .fc-label{color:rgba(251,191,36,.7)}
+.fc-val{font-family:var(--font-mono);font-size:1.0rem;font-weight:700;line-height:1.25}
+.ng-row .fc-val{color:var(--blue-electric)}
+.lp-row .fc-val{color:var(--yellow-bright)}
+.fc-val.est{opacity:.75}
+.fc-val.dim{color:var(--text-dim);font-weight:400}
+/* Info row below fuel cards */
+.info-row-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0;margin-bottom:18px;border:1px solid rgba(255,255,255,.07);border-radius:3px;overflow:hidden}
+.info-cell{padding:10px 13px;border-right:1px solid rgba(255,255,255,.05);border-bottom:1px solid rgba(255,255,255,.04);background:rgba(10,14,39,.5)}
+.info-cell:last-child{border-right:none}
+.ic-label{font-family:var(--font-mono);font-size:.57rem;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px}
+.ic-val{font-family:var(--font-mono);font-size:.76rem;color:var(--orange-bright);font-weight:600}
+
+/* PIPE TABLE */
+.pipe-section{margin-top:4px}
+.pipe-section-title{font-family:var(--font-mono);font-size:.66rem;letter-spacing:3px;color:var(--orange-bright);text-transform:uppercase;margin-bottom:12px}
+.pipe-table{width:100%;border-collapse:collapse}
+.pipe-table th{font-family:var(--font-mono);font-size:.58rem;letter-spacing:2px;color:var(--blue-electric);text-transform:uppercase;padding:8px 12px;background:rgba(0,212,255,.05);border-bottom:1px solid rgba(0,212,255,.15);text-align:left}
+.pipe-table td{font-family:var(--font-mono);font-size:.74rem;color:var(--text-dim);padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04)}
+.pipe-table tr:last-child td{border-bottom:none}
+.pipe-table tr.recommended{background:rgba(251,191,36,.07)}
+.pipe-table tr.recommended td{color:var(--text)}
+.pipe-table tr.recommended td:first-child{color:var(--yellow-bright);font-weight:700}
+.pipe-rec-tag{font-size:.53rem;background:rgba(16,185,129,.2);border:1px solid rgba(16,185,129,.4);color:#10B981;padding:2px 6px;border-radius:2px;margin-left:6px;vertical-align:middle}
+.pipe-warn-tag{font-size:.53rem;background:rgba(249,115,22,.15);border:1px solid rgba(249,115,22,.4);color:var(--orange-bright);padding:2px 6px;border-radius:2px;margin-left:6px;vertical-align:middle}
+
+/* DERATE NOTICE */
+.derate-notice{padding:10px 14px;background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.25);border-radius:3px;font-family:var(--font-mono);font-size:.67rem;letter-spacing:1px;color:var(--orange-bright);margin-bottom:16px;display:none}
+.derate-notice.show{display:block}
+
+/* DIVIDER */
+.mode-divider{text-align:center;margin:28px 0 20px;position:relative}
+.mode-divider::before{content:'';position:absolute;top:50%;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(251,191,36,.3),rgba(249,115,22,.3),transparent)}
+.mode-divider-inner{position:relative;display:inline-block;padding:0 18px;font-family:var(--font-display);font-size:.68rem;letter-spacing:5px;color:var(--text-dim);text-transform:uppercase;background:var(--bg-dark)}
+
+/* LOAD BUILDER (secondary) */
+.appliance-picker-title{font-family:var(--font-mono);font-size:.68rem;letter-spacing:3px;color:var(--orange-bright);text-transform:uppercase;margin-bottom:12px}
+.appliance-cats{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.cat-btn{padding:4px 11px;background:rgba(15,21,53,.8);border:1px solid rgba(251,191,36,.2);border-radius:2px;color:var(--text-dim);font-family:var(--font-mono);font-size:.63rem;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .2s}
+.cat-btn:hover,.cat-btn.active{border-color:var(--yellow-bright);color:var(--yellow-bright);background:rgba(251,191,36,.08)}
+.appliance-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:7px;max-height:250px;overflow-y:auto;padding-right:4px}
+.appliance-list::-webkit-scrollbar{width:4px}.appliance-list::-webkit-scrollbar-track{background:rgba(15,21,53,.5)}.appliance-list::-webkit-scrollbar-thumb{background:rgba(251,191,36,.3);border-radius:2px}
+.appliance-item{padding:9px 11px;background:rgba(10,14,39,.7);border:1px solid rgba(59,130,246,.2);border-radius:3px;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;gap:2px}
+.appliance-item:hover{border-color:var(--orange);background:rgba(249,115,22,.07);transform:translateY(-1px)}
+.appliance-item-name{font-family:var(--font-body);font-size:.78rem;font-weight:500;color:var(--text)}
+.appliance-item-watts{font-family:var(--font-mono);font-size:.63rem;color:var(--text-dim);letter-spacing:1px}
+.custom-add-row{display:grid;grid-template-columns:1fr 95px 95px auto;gap:7px;margin-top:12px;align-items:end}
+@media(max-width:600px){.custom-add-row{grid-template-columns:1fr 1fr}.add-btn{grid-column:1/-1}}
+.add-btn{padding:10px 18px;background:linear-gradient(135deg,var(--yellow-bright),var(--orange));border:none;border-radius:3px;font-family:var(--font-display);font-size:.63rem;font-weight:700;letter-spacing:3px;color:var(--bg-dark);cursor:pointer;text-transform:uppercase;transition:all .2s;clip-path:polygon(5px 0%,100% 0%,calc(100% - 5px) 100%,0% 100%);white-space:nowrap}
+.add-btn:hover{box-shadow:0 0 14px rgba(251,191,36,.5);transform:scale(1.02)}.add-btn:active{transform:scale(.98)}
+.load-table-wrap{margin-top:16px;border:1px solid rgba(251,191,36,.15);border-radius:3px;overflow:hidden}
+.load-table-header{display:grid;grid-template-columns:1fr 85px 85px 85px 34px;background:rgba(251,191,36,.05);border-bottom:1px solid rgba(251,191,36,.15);padding:7px 13px}
+.th{font-family:var(--font-mono);font-size:.58rem;letter-spacing:2px;color:var(--blue-electric);text-transform:uppercase}
+@media(max-width:580px){.load-table-header{grid-template-columns:1fr 68px 68px 32px}.th-start{display:none}}
+.load-rows{max-height:280px;overflow-y:auto}.load-rows::-webkit-scrollbar{width:4px}.load-rows::-webkit-scrollbar-thumb{background:rgba(251,191,36,.3);border-radius:2px}
+.load-row{display:grid;grid-template-columns:1fr 85px 85px 85px 34px;padding:9px 13px;border-bottom:1px solid rgba(255,255,255,.04);align-items:center;animation:rowIn .3s ease}
+@keyframes rowIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:translateX(0)}}
+@media(max-width:580px){.load-row{grid-template-columns:1fr 68px 68px 32px}.td-start{display:none}}
+.td-name{font-family:var(--font-body);font-size:.8rem;color:var(--text)}
+.td-qty{display:flex;align-items:center;gap:5px}
+.qty-btn{width:18px;height:18px;background:rgba(15,21,53,.9);border:1px solid rgba(251,191,36,.3);border-radius:2px;color:var(--yellow-bright);font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.qty-btn:hover{background:rgba(251,191,36,.15)}
+.qty-val{font-family:var(--font-mono);font-size:.78rem;color:var(--text);min-width:18px;text-align:center}
+.td-watts,.td-start{font-family:var(--font-mono);font-size:.76rem;color:var(--text-dim)}.td-start{color:rgba(249,115,22,.7)}
+.td-total{font-family:var(--font-mono);font-size:.8rem;color:var(--yellow-bright);font-weight:600}
+.del-btn{width:22px;height:22px;background:none;border:1px solid rgba(239,68,68,.3);border-radius:2px;color:rgba(239,68,68,.6);font-size:.78rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.del-btn:hover{background:rgba(239,68,68,.1);border-color:var(--red);color:var(--red)}
+.load-totals-row{display:grid;grid-template-columns:1fr 85px 85px 85px 34px;padding:11px 13px;background:rgba(251,191,36,.05);border-top:2px solid rgba(251,191,36,.2);align-items:center}
+@media(max-width:580px){.load-totals-row{grid-template-columns:1fr 68px 68px 32px}.tot-start{display:none}}
+.tot-label{font-family:var(--font-display);font-size:.63rem;letter-spacing:3px;color:var(--yellow-bright);text-transform:uppercase}
+.tot-val{font-family:var(--font-mono);font-size:.83rem;font-weight:700;color:var(--yellow-bright);text-shadow:0 0 8px rgba(251,191,36,.4)}
+.tot-start-val{font-family:var(--font-mono);font-size:.83rem;color:var(--orange-bright)}
+.empty-loads{padding:28px 13px;text-align:center;font-family:var(--font-mono);font-size:.72rem;letter-spacing:2px;color:var(--text-dim)}
+
+/* SIZING RESULT */
+.sizing-result{margin-top:18px;padding:16px 20px;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.25);border-radius:3px;display:none}
+.sizing-result.show{display:block}
+.sizing-result-title{font-family:var(--font-mono);font-size:.64rem;letter-spacing:3px;color:#10B981;text-transform:uppercase;margin-bottom:10px}
+.sizing-result-body{font-family:var(--font-mono);font-size:.76rem;color:var(--text);letter-spacing:1px;line-height:2}
+.sizing-highlight{color:var(--yellow-bright);font-weight:700}
+.sizing-btn{margin-top:12px;padding:9px 20px;background:linear-gradient(135deg,#10B981,#059669);border:none;border-radius:3px;font-family:var(--font-display);font-size:.62rem;font-weight:700;letter-spacing:3px;color:#fff;cursor:pointer;text-transform:uppercase;transition:all .2s}
+.sizing-btn:hover{box-shadow:0 0 14px rgba(16,185,129,.5);transform:scale(1.02)}
+
+/* NO RESULT */
+.no-result{text-align:center;padding:40px 20px;font-family:var(--font-mono);font-size:.74rem;letter-spacing:2px;color:var(--text-dim)}
+.no-result-icon{font-size:2.4rem;margin-bottom:12px;opacity:.35}
+
+/* DISCLAIMER */
+.disclaimer{padding:11px 15px;background:rgba(10,14,39,.5);border:1px solid rgba(255,255,255,.06);border-radius:3px;font-family:var(--font-mono);font-size:.58rem;color:var(--text-dim);letter-spacing:1px;line-height:1.7;margin-top:14px}
+
+/* PIPE STAGE SECTIONS */
+.pipe-stage{margin-bottom:20px}
+.pipe-stage-hdr{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:3px 3px 0 0;border:1px solid;border-bottom:none}
+.pipe-stage-hdr.first{background:rgba(0,212,255,.07);border-color:rgba(0,212,255,.3)}
+.pipe-stage-hdr.second{background:rgba(251,191,36,.06);border-color:rgba(251,191,36,.3)}
+.pipe-stage-num{font-family:var(--font-display);font-size:1rem;font-weight:900}
+.first .pipe-stage-num{color:var(--blue-electric)}
+.second .pipe-stage-num{color:var(--yellow-bright)}
+.pipe-stage-title-txt{font-family:var(--font-display);font-size:.72rem;font-weight:700;letter-spacing:3px;text-transform:uppercase}
+.first .pipe-stage-title-txt{color:var(--blue-electric)}
+.second .pipe-stage-title-txt{color:var(--yellow-bright)}
+.pipe-stage-meta{font-family:var(--font-mono);font-size:.65rem;color:var(--text-dim);letter-spacing:1px;margin-left:auto}
+.pipe-stage .pipe-table{border:1px solid rgba(255,255,255,.07);border-top:none;border-radius:0 0 3px 3px}
+/* Two-stage pipe config inputs */
+.pipe-stages-wrap{display:flex;flex-direction:column;gap:14px;margin-top:10px}
+.stage-group{display:flex;flex-direction:column;gap:8px;padding:14px;border:1px solid rgba(255,255,255,.06);border-radius:4px;background:rgba(10,14,39,.25)}
+.stage-add-btn{font-size:.62rem;letter-spacing:3px;padding:9px 14px}
+.pipe-stage-config{border-radius:3px;padding:16px 18px;border:1px solid}
+.pipe-stage-config.ng1{border-color:rgba(0,212,255,.3);background:rgba(0,212,255,.04)}
+.pipe-stage-config.ng2{border-color:rgba(59,130,246,.3);background:rgba(59,130,246,.04)}
+.pipe-stage-config.lp1{border-color:rgba(249,115,22,.3);background:rgba(249,115,22,.04)}
+.pipe-stage-config.lp2{border-color:rgba(251,191,36,.3);background:rgba(251,191,36,.04)}
+.psc-title{font-family:var(--font-display);font-size:.68rem;font-weight:700;letter-spacing:4px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:10px;justify-content:space-between}
+.psc-title-left{display:flex;align-items:center;gap:10px}
+/* Add run button */
+.add-run-btn{display:flex;align-items:center;gap:8px;width:100%;padding:11px 18px;background:rgba(10,14,39,.4);border:1px dashed rgba(251,191,36,.3);border-radius:3px;color:var(--yellow-bright);font-family:var(--font-display);font-size:.65rem;font-weight:700;letter-spacing:4px;text-transform:uppercase;cursor:pointer;transition:all .25s;justify-content:center}
+.add-run-btn:hover{background:rgba(251,191,36,.08);border-color:var(--yellow-bright);box-shadow:0 0 12px rgba(251,191,36,.15)}
+.add-run-btn::before{content:'＋';font-size:1rem;font-weight:400}
+/* Remove run button */
+.remove-run-btn{padding:3px 10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:2px;color:rgba(239,68,68,.8);font-family:var(--font-mono);font-size:.62rem;letter-spacing:2px;cursor:pointer;transition:all .2s;text-transform:uppercase;flex-shrink:0}
+.remove-run-btn:hover{background:rgba(239,68,68,.2);border-color:var(--red);color:var(--red)}
+/* Extra run card styles */
+.extra-run-ng{border-color:rgba(59,130,246,.3);background:rgba(59,130,246,.04)}
+.extra-run-ng .psc-title-left{color:var(--blue-bright)}
+.extra-run-ng .psc-num{background:rgba(59,130,246,.15);color:var(--blue-bright)}
+.extra-run-lp{border-color:rgba(251,191,36,.3);background:rgba(251,191,36,.04)}
+.extra-run-lp .psc-title-left{color:var(--yellow-bright)}
+.extra-run-lp .psc-num{background:rgba(251,191,36,.12);color:var(--yellow-bright)}
+/* Extra pipe result stages */
+.pipe-stage-hdr.extra{background:rgba(59,130,246,.05);border-color:rgba(59,130,246,.25)}
+.extra .pipe-stage-num{color:var(--blue-bright)}
+.extra .pipe-stage-title-txt{color:var(--blue-bright)}
+.psc-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:.7rem;font-weight:900;flex-shrink:0}
+.ng1 .psc-title{color:var(--blue-electric)}.ng1 .psc-num{background:rgba(0,212,255,.15);color:var(--blue-electric)}
+.ng2 .psc-title{color:var(--blue-bright)}.ng2 .psc-num{background:rgba(59,130,246,.15);color:var(--blue-bright)}
+.lp1 .psc-title{color:var(--orange-bright)}.lp1 .psc-num{background:rgba(249,115,22,.15);color:var(--orange-bright)}
+.lp2 .psc-title{color:var(--yellow-bright)}.lp2 .psc-num{background:rgba(251,191,36,.12);color:var(--yellow-bright)}
+.psc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:480px){.psc-grid{grid-template-columns:1fr}}
+/* FOOTER */
+.footer{margin-top:36px;padding-top:20px;text-align:center;border-top:1px solid rgba(251,191,36,.15);position:relative}
+.footer::before{content:'';position:absolute;top:-1px;left:50%;transform:translateX(-50%);width:55%;height:1px;background:linear-gradient(90deg,transparent,var(--orange),transparent)}
+.footer-text{font-family:var(--font-display);font-size:.62rem;letter-spacing:4px;color:var(--text-dim);text-transform:uppercase;margin-bottom:5px}
+.footer-version{font-family:var(--font-mono);font-size:.58rem;color:var(--orange-bright);letter-spacing:2px;opacity:.7}
+.footer-version span{color:var(--blue-electric)}
+
+/* ── Home button ── */
+
+/* Offline banner — matches hub style */
+#offline-banner{display:none;position:fixed;top:0;left:0;right:0;z-index:9998;padding:10px 20px;background:linear-gradient(90deg,rgba(10,14,39,.97),rgba(15,21,53,.97));border-bottom:2px solid var(--orange);text-align:center;font-family:var(--font-mono);font-size:.72rem;letter-spacing:3px;color:var(--orange-bright);text-transform:uppercase;text-shadow:0 0 8px rgba(249,115,22,.5);animation:bannerPulse 2s ease-in-out infinite}
+#offline-banner.visible{display:block}
+@keyframes bannerPulse{0%,100%{opacity:1}50%{opacity:.75}}
+#offline-banner::before{content:'⚠ ';color:var(--yellow-bright)}
+#offline-banner::after{content:' ⚠';color:var(--yellow-bright)}
+@media(max-width:600px){.container{padding:18px 13px 40px}.company-name{font-size:1.5rem}.panel-body{padding:18px 16px}.btu-card-value{font-size:1.35rem}}
+
+/* ===== ACTION BAR ===== */
+.action-bar {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  z-index: 99999;
+  width: 100%;
+  background: rgba(10,14,39,0.97);
+  padding: 4px 8px;
+  padding-top: max(4px, env(safe-area-inset-top, 4px));
+  display: flex; justify-content: flex-start; gap: 4px; flex-wrap: nowrap; align-items: center;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none
+  
+  box-shadow: 0 4px 18px rgba(0,0,0,0.5);
+  border-bottom: 1px solid rgba(251,191,36,0.35);
+  box-sizing: border-box;
+}
+/* Center the buttons when they fit; auto-margins collapse safely when the
+   bar overflows and scrolls, so nothing gets clipped off the left edge. */
+.action-bar > :first-child { margin-left: auto; }
+.action-bar > :last-child { margin-right: auto; }
+.action-bar .ab-btn {
+  padding: 6px 8px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;
+  border: 1px solid rgba(251,191,36,0.4); background: rgba(251,191,36,0.07);
+  border-radius: 0; cursor: pointer; color: #FBBF24; text-transform: uppercase;
+  font-family: Arial, sans-serif; white-space: nowrap; flex: 1; min-width: 0;
+  text-align: center; text-decoration: none; display: inline-flex; align-items: center;
+  justify-content: center; gap: 4px;
+  clip-path: polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  overflow: hidden; text-overflow: ellipsis;
+  transition: all 0.15s ease;
+}
+.action-bar .ab-btn:hover { border-color: #FBBF24; box-shadow: 0 0 8px rgba(251,191,36,0.3); }
+.action-bar .ab-btn:active { transform: translateY(1px); }
+
+.theme-toggle-btn {
+  position: relative; width: 36px; height: 36px; padding: 6px;
+  border: 1px solid rgba(251,191,36,0.4); background: rgba(251,191,36,0.07);
+  border-radius: 4px; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; color: #FBBF24; transition: all 0.3s ease;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; flex-shrink: 0;
+}
+.theme-toggle-btn:hover { border-color: #FBBF24; box-shadow: 0 0 12px rgba(251,191,36,0.3); }
+.theme-icon {
+  width: 18px; height: 18px; transition: all 0.3s ease; position: absolute;
+  fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  stroke: #FBBF24;
+}
+.theme-icon.theme-icon-moon { opacity: 0; }
+body.light-mode .theme-icon { opacity: 0; transform: rotate(-180deg); }
+body.light-mode .theme-icon.theme-icon-moon { opacity: 1; transform: rotate(0deg); }
+
+/* Light mode overrides */
+body.light-mode {
+  background: #FFFFFF !important;
+  animation: none !important;
+  color: #1F2937 !important;
+}
+body.light-mode::before, body.light-mode::after { opacity: 0 !important; }
+body.light-mode .action-bar { background: #FFFFFF; border-bottom-color: rgba(217,119,6,0.35); }
+body.light-mode .action-bar .ab-btn { color: #D97706; border-color: rgba(217,119,6,0.4); background: rgba(217,119,6,0.05); }
+body.light-mode .theme-toggle-btn { color: #D97706; border-color: rgba(217,119,6,0.4); background: rgba(217,119,6,0.05); }
+body.light-mode .theme-icon { stroke: #D97706; }
+body.light-mode .panel { background: #FAFAFA; border-color: rgba(217,119,6,0.25); color: #1F2937; }
+body.light-mode .container { color: #1F2937; }
+
+@media (max-width: 480px) {
+  .action-bar { padding: 4px 4px; padding-top: max(4px, env(safe-area-inset-top, 4px)); gap: 3px; }
+}
+</style>
+<script src="../update-banner.js"></script>
+</head>
+<body>
+<div class="action-bar" id="action-bar">
+  <a class="ab-btn" href="../">🏠 HOME</a>
+  <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle light/dark mode" aria-label="Toggle light/dark mode">
+    <svg class="theme-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+<div class="container">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo-wrap">
+    <img src="../logo.png" alt="Always On Generators Logo" class="logo-img">
+    <div class="title-block">
+      <div class="company-name">Always On<br>Generators</div>
+      <div class="tagline">// Power When You Need It //</div>
+    </div>
+  </div>
+  <div class="subtitle">Generac <span>Gas</span> Calculator</div>
+</div>
+
+<div class="section-label">Model Lookup · BTU Analysis · Pipe Sizing · 7–150kW</div>
+
+<!-- STEP 1 -->
+<div class="panel">
+  <div class="panel-header"><div class="panel-num">01</div><div><div class="panel-title">Cooling Type &amp; Fuel</div><div class="panel-desc">Select generator cooling method and fuel source</div></div></div>
+  <div class="panel-body">
+
+    <div class="cooling-grid">
+      <button class="cool-btn active" id="btn-air" onclick="setCooling('air')">
+        <div class="cool-check">✓ SELECTED</div>
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+          <path d="M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/>
+        </svg>
+        <div class="cool-btn-label">Air Cooled</div>
+        <div class="cool-btn-sub">Guardian NextGen Series &amp; Legacy · 7–28kW</div>
+      </button>
+      <button class="cool-btn" id="btn-liq" onclick="setCooling('liq')">
+        <div class="cool-check">✓ SELECTED</div>
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2C8 6 6 10 8 14c1 2 3 3 4 3s3-1 4-3c2-4 0-8-4-12z"/>
+          <path d="M5 20h14M8 17v3M12 17v3M16 17v3"/>
+          <rect x="3" y="16" width="18" height="2" rx="1"/>
+        </svg>
+        <div class="cool-btn-label">Liquid Cooled</div>
+        <div class="cool-btn-sub">Protector QS / RG / XG · 22–150kW</div>
+      </button>
+    </div>
+
+    <div class="fuel-row">
+      <button class="fuel-mini active" id="btn-ng" onclick="setFuel('ng')">⚡ Natural Gas</button>
+      <button class="fuel-mini" id="btn-lp" onclick="setFuel('lp')">🔥 LP Propane</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- STEP 2 -->
+<div class="panel">
+  <div class="panel-header"><div class="panel-num">02</div><div><div class="panel-title">Model &amp; Site Configuration</div><div class="panel-desc">Select model · elevation · two-stage pipe run setup</div></div></div>
+  <div class="panel-body">
+
+    <div class="config-row" style="margin-bottom:20px">
+      <div class="field-wrap" style="grid-column:1/-1">
+        <label class="field-label" for="model-select">Generator Model &amp; kW Rating</label>
+        <select class="field-select" id="model-select" onchange="onModelChange()"></select>
+        <div class="field-hint" id="model-hint">Select cooling type in Step 1 to filter models</div>
+      </div>
+      <div class="field-wrap">
+        <label class="field-label" for="elev">Site Elevation (ft ASL)</label>
+        <input class="field-input" type="number" id="elev" value="0" min="0" max="12000">
+        <div class="field-hint">Guardian: −3.5%/1,000 ft · Protector: −3%/1,000 ft</div>
+      </div>
+      <div class="field-wrap" style="display:flex;flex-direction:column;justify-content:flex-end;grid-column:span 2">
+      </div>
+    </div>
+
+    <!-- NATURAL GAS pipe stages -->
+    <div id="ng-pipe-config" class="pipe-stages-wrap">
+      <!-- NG Stage 1 -->
+      <div class="stage-group">
+        <div class="pipe-stage-config ng1">
+          <div class="psc-title"><span class="psc-title-left"><span class="psc-num">1</span>NG First Run — Gas Meter to Second Stage Regulator</span></div>
+          <div class="psc-grid">
+            <div class="field-wrap">
+              <label class="field-label" for="ng1-len">Pipe Run Length (ft)</label>
+              <input class="field-input" type="number" id="ng1-len" value="50" min="5" max="500">
+              <div class="field-hint">From utility gas meter to second stage regulator</div>
+            </div>
+            <div class="field-wrap">
+              <label class="field-label" for="ng1-press">Supply Pressure from Meter</label>
+              <select class="field-select" id="ng1-press">
+                <optgroup label="── Low / Near-Atmospheric ──">
+                  <option value="0.25psi">¼ PSI (7" WC) — Low medium, some residential</option>
+                  <option value="0.5psi">½ PSI (14" WC) — Lower medium pressure</option>
+                  <option value="1psi">1 PSI (28" WC) — Medium-low pressure</option>
+                </optgroup>
+                <optgroup label="── Medium Pressure (Residential / Light Commercial) ──">
+                  <option value="2psi" selected>2 PSI — Medium pressure (most common residential)</option>
+                  <option value="5psi">5 PSI — Higher medium pressure</option>
+                </optgroup>
+                <optgroup label="── High Pressure (Commercial / Industrial) ──">
+                  <option value="10psi">10 PSI — High medium pressure (commercial)</option>
+                  <option value="15psi">15 PSI — High pressure service</option>
+                  <option value="30psi">30 PSI — High pressure main</option>
+                  <option value="60psi">60 PSI — High pressure distribution main</option>
+                </optgroup>
+              </select>
+              <div class="field-hint">Utility delivery pressure at the meter outlet</div>
+            </div>
+            <div class="field-wrap" style="grid-column:1/-1">
+              <label class="field-label" for="ng1-mat">Pipe Material</label>
+              <select class="field-select" id="ng1-mat">
+                <option value="steel" selected>Black Steel / Rigid / Galvanized (Sch 40)</option>
+                <option value="pe">PE Underground (IPS SDR-11)</option>
+                <option value="csst">CSST — Gastite / Wardflex</option>
+                <option value="tracpipe">TracPipe CounterStrike (OmegaFlex)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <button class="add-run-btn stage-add-btn" onclick="addPipeRun('ng',1,this)">Add Run — Gas Meter to Second Stage Regulator</button>
+      </div>
+      <!-- NG Stage 2 -->
+      <div class="stage-group">
+        <div class="pipe-stage-config ng2">
+          <div class="psc-title"><span class="psc-title-left"><span class="psc-num">2</span>NG Second Run — Second Stage Regulator to Generator</span></div>
+          <div class="psc-grid">
+            <div class="field-wrap">
+              <label class="field-label" for="ng2-len">Pipe Run Length (ft)</label>
+              <input class="field-input" type="number" id="ng2-len" value="30" min="5" max="500">
+              <div class="field-hint">From second stage regulator to generator inlet</div>
+            </div>
+            <div class="field-wrap">
+              <label class="field-label" for="ng2-press">Regulator Outlet / Line Pressure</label>
+              <select class="field-select" id="ng2-press">
+                <optgroup label="── Standard Low Pressure (Residential) ──">
+                  <option value="3.5wc">3.5" WC — Minimum Guardian inlet pressure</option>
+                  <option value="5wc">5" WC — Low end Protector inlet</option>
+                  <option value="7wc" selected>7" WC — Standard low pressure (0.25 PSI)</option>
+                  <option value="8wc">8" WC — Slightly elevated low pressure</option>
+                  <option value="10wc">10" WC — Mid low pressure</option>
+                  <option value="11wc">11" WC — Higher low pressure (0.40 PSI)</option>
+                </optgroup>
+                <optgroup label="── Higher Low Pressure ──">
+                  <option value="14wc">14" WC — 0.5 PSI delivery</option>
+                  <option value="0.5psi">0.5 PSI (14" WC) — Higher low pressure</option>
+                  <option value="1psi">1 PSI (28" WC)</option>
+                  <option value="2psi">2 PSI — High low-pressure delivery</option>
+                </optgroup>
+              </select>
+              <div class="field-hint">Generac Guardian requires 3.5–7" WC at inlet · Protector requires 5–14" WC</div>
+            </div>
+            <div class="field-wrap" style="grid-column:1/-1">
+              <label class="field-label" for="ng2-mat">Pipe Material</label>
+              <select class="field-select" id="ng2-mat">
+                <option value="steel" selected>Black Steel / Rigid / Galvanized (Sch 40)</option>
+                <option value="pe">PE Underground (IPS SDR-11)</option>
+                <option value="csst">CSST — Gastite / Wardflex</option>
+                <option value="tracpipe">TracPipe CounterStrike (OmegaFlex)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <button class="add-run-btn stage-add-btn" onclick="addPipeRun('ng',2,this)">Add Run — Second Stage Regulator to Generator</button>
+      </div>
+    </div>
+
+    <!-- LP PROPANE pipe stages -->
+    <div id="lp-pipe-config" class="pipe-stages-wrap" style="display:none">
+      <!-- LP Stage 1 -->
+      <div class="stage-group">
+        <div class="pipe-stage-config lp1">
+          <div class="psc-title"><span class="psc-title-left"><span class="psc-num">1</span>LP First Stage — First Stage Regulator to Second Stage Regulator</span></div>
+          <div class="psc-grid">
+            <div class="field-wrap">
+              <label class="field-label" for="lp1-len">Pipe Run Length (ft)</label>
+              <input class="field-input" type="number" id="lp1-len" value="30" min="5" max="500">
+              <div class="field-hint">From first stage regulator to second stage regulator</div>
+            </div>
+            <div class="field-wrap">
+              <label class="field-label" for="lp1-press">LP Vapor / First Stage Inlet Pressure</label>
+              <select class="field-select" id="lp1-press">
+                <optgroup label="── Low Vapor (Cold Weather / Nearly Empty Tank) ──">
+                  <option value="5psi">5 PSI — Very low vapor (cold / nearly empty)</option>
+                  <option value="10psi" selected>10 PSI — Low vapor pressure</option>
+                </optgroup>
+                <optgroup label="── Moderate Vapor (Typical Residential) ──">
+                  <option value="15psi">15 PSI — Moderate vapor pressure</option>
+                  <option value="20psi">20 PSI — Higher vapor pressure</option>
+                  <option value="25psi">25 PSI — High vapor pressure</option>
+                </optgroup>
+                <optgroup label="── High Vapor (Large / Full Tank) ──">
+                  <option value="30psi">30 PSI — High vapor / large tank</option>
+                </optgroup>
+                <optgroup label="── Bulk / Commercial Storage ──">
+                  <option value="60psi">60 PSI — Bulk / high-pressure underground supply</option>
+                  <option value="100psi">100 PSI — Bulk / high-pressure storage</option>
+                  <option value="200psi">200 PSI — Bulk storage / transport pressure</option>
+                </optgroup>
+              </select>
+              <div class="field-hint">LP vapor pressure at first stage regulator inlet — varies with temperature and tank level</div>
+            </div>
+            <div class="field-wrap" style="grid-column:1/-1">
+              <label class="field-label" for="lp1-mat">Pipe Material</label>
+              <select class="field-select" id="lp1-mat">
+                <option value="steel" selected>Black Steel / Rigid / Galvanized (Sch 40)</option>
+                <option value="pe">PE Underground (IPS SDR-11)</option>
+                <option value="csst">CSST — Gastite / Wardflex</option>
+                <option value="tracpipe">TracPipe CounterStrike (OmegaFlex)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <button class="add-run-btn stage-add-btn" onclick="addPipeRun('lp',1,this)">Add Run — First Stage Reg. to Second Stage Reg.</button>
+      </div>
+      <!-- LP Stage 2 -->
+      <div class="stage-group">
+        <div class="pipe-stage-config lp2">
+          <div class="psc-title"><span class="psc-title-left"><span class="psc-num">2</span>LP Second Stage — Second Stage Regulator to Generator</span></div>
+          <div class="psc-grid">
+            <div class="field-wrap">
+              <label class="field-label" for="lp2-len">Pipe Run Length (ft)</label>
+              <input class="field-input" type="number" id="lp2-len" value="20" min="5" max="500">
+              <div class="field-hint">From second stage regulator to generator inlet</div>
+            </div>
+            <div class="field-wrap">
+              <label class="field-label" for="lp2-press">Second Stage Outlet / Line Pressure</label>
+              <select class="field-select" id="lp2-press">
+                <optgroup label="── Standard LP Low Pressure ──">
+                  <option value="8wc">8" WC — Low end LP delivery</option>
+                  <option value="10wc">10" WC — Minimum Guardian LP inlet</option>
+                  <option value="11wc" selected>11" WC — Standard LP low pressure (0.40 PSI)</option>
+                  <option value="12wc">12" WC — Maximum Guardian LP inlet</option>
+                </optgroup>
+                <optgroup label="── Higher Low Pressure Delivery ──">
+                  <option value="14wc">14" WC — 0.5 PSI delivery</option>
+                  <option value="0.5psi">0.5 PSI (14" WC) — Higher delivery</option>
+                  <option value="1psi">1 PSI (28" WC)</option>
+                  <option value="2psi">2 PSI — High low-pressure delivery</option>
+                </optgroup>
+              </select>
+              <div class="field-hint">Generac Guardian requires 10–12" WC at inlet · Protector requires 5–14" WC</div>
+            </div>
+            <div class="field-wrap" style="grid-column:1/-1">
+              <label class="field-label" for="lp2-mat">Pipe Material</label>
+              <select class="field-select" id="lp2-mat">
+                <option value="steel" selected>Black Steel / Rigid / Galvanized (Sch 40)</option>
+                <option value="pe">PE Underground (IPS SDR-11)</option>
+                <option value="csst">CSST — Gastite / Wardflex</option>
+                <option value="tracpipe">TracPipe CounterStrike (OmegaFlex)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <button class="add-run-btn stage-add-btn" onclick="addPipeRun('lp',2,this)">Add Run — Second Stage Regulator to Generator</button>
+      </div>
+    </div>
+
+    <div style="margin-top:16px">
+      <button class="gen-btn" onclick="generateResults()">⚡ Generate BTU &amp; Pipe Sizing</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- STEP 3 -->
+<div class="panel">
+  <div class="panel-header"><div class="panel-num">03</div><div><div class="panel-title">BTU &amp; Gas Pipe Results</div><div class="panel-desc">Spec-accurate consumption data · NFPA 54 pipe sizing</div></div></div>
+  <div class="panel-body">
+
+    <div id="results-placeholder" class="no-result">
+      <div class="no-result-icon">⚡</div>
+      Select a model and click "Generate BTU &amp; Pipe Size" above
+    </div>
+
+    <div id="results-output" style="display:none">
+
+      <div class="model-info">
+        <div class="mi-glow"></div>
+        <div class="mi-label">Selected Generator</div>
+        <div class="mi-model" id="mi-model">—</div>
+        <div class="mi-num" id="mi-num">—</div>
+        <div class="mi-desc" id="mi-desc">—</div>
+        <div class="mi-badges" id="mi-badges"></div>
+      </div>
+
+      <div class="derate-notice" id="derate-notice"></div>
+
+      <div class="btu-hero">
+        <div class="btu-card full">
+          <div class="btu-card-label">BTU/hr — Full Load</div>
+          <div class="btu-card-value" id="btu-full-val">—</div>
+          <div class="btu-card-unit">BTU / hr</div>
+          <div class="btu-card-sub" id="btu-full-sub">—</div>
+        </div>
+        <div class="btu-card half">
+          <div class="btu-card-label">BTU/hr — Half Load (50%)</div>
+          <div class="btu-card-value" id="btu-half-val">—</div>
+          <div class="btu-card-unit">BTU / hr</div>
+          <div class="btu-card-sub" id="btu-half-sub">—</div>
+        </div>
+        <div class="btu-card flow">
+          <div class="btu-card-label" id="flow-label">Gas Flow — Full Load</div>
+          <div class="btu-card-value" id="flow-val">—</div>
+          <div class="btu-card-unit" id="flow-unit">—</div>
+          <div class="btu-card-sub" id="flow-sub">—</div>
+        </div>
+      </div>
+
+      <div class="fuel-rows-wrap" id="fuel-rows-wrap"></div>
+      <div class="info-row-cards" id="info-row-cards"></div>
+
+      <div class="pipe-section">
+
+        <div class="pipe-stage">
+          <div class="pipe-stage-hdr first">
+            <span class="pipe-stage-num">⑴</span>
+            <span class="pipe-stage-title-txt" id="pipe1-title">First Run</span>
+            <span class="pipe-stage-meta" id="pipe1-meta">—</span>
+          </div>
+          <table class="pipe-table">
+            <thead><tr>
+              <th>Pipe Size</th><th>Max Capacity (BTU/hr)</th>
+              <th id="th1-unit">CFH / GPH</th><th>Sufficient?</th><th>Notes</th>
+            </tr></thead>
+            <tbody id="pipe1-tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="pipe-stage">
+          <div class="pipe-stage-hdr second">
+            <span class="pipe-stage-num">⑵</span>
+            <span class="pipe-stage-title-txt" id="pipe2-title">Second Run</span>
+            <span class="pipe-stage-meta" id="pipe2-meta">—</span>
+          </div>
+          <table class="pipe-table">
+            <thead><tr>
+              <th>Pipe Size</th><th>Max Capacity (BTU/hr)</th>
+              <th id="th2-unit">CFH / GPH</th><th>Sufficient?</th><th>Notes</th>
+            </tr></thead>
+            <tbody id="pipe2-tbody"></tbody>
+          </table>
+        </div>
+
+        <div id="extra-pipe-results"></div>
+
+        <div class="disclaimer">
+          NFPA 54 / IFGC Schedule 40 black steel pipe. Base table: NFPA 54 Table 402.4(2) — 0.5" W.C. pressure drop, SG = 0.60, 1,020 BTU/ft³ NG. Medium-pressure NG capacities from P₁²−P₂² Spitzglass formula (NFPA 54 Appendix D). NG BTU content per Generac spec: 1,000 BTU/ft³ Guardian · 1,036 BTU/ft³ Protector — comparison normalized to CFH per NFPA 54 §402. LP capacity scaled per NFPA 58 §5.5 / NFPA 54 Appendix D Spitzglass formula: LP_SCALE = (2,516 BTU/ft³ ÷ 1,020 BTU/ft³) × (SG_NG/SG_LP)^0.541 = (2,516/1,020) × (0.60/1.52)^0.541 ≈ 1.492 — accounts for LP propane vapor density (SG = 1.52) and BTU content. LP high-pressure multipliers recalculated per NFPA 58 §5.5 for SG = 1.52. PE SDR-11 per NFPA 54 Table 402.4(19) approx. CSST / TracPipe per manufacturer installation tables — verify with current install guide. Size for full rated load at sea level — derate for elevation per Generac spec. ANSI Z21.75 14" flex connector required at generator. Derate additional capacity for fittings and branch loads. Verify all sizing with a licensed gas fitter and authority having jurisdiction (AHJ).
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- DIVIDER -->
+<div class="mode-divider"><div class="mode-divider-inner">Optional · Generator Sizing Tool</div></div>
+
+<!-- LOAD BUILDER -->
+<div class="panel">
+  <div class="panel-header"><div class="panel-num">✦</div><div><div class="panel-title">Load Calculator</div><div class="panel-desc">Add your loads to determine what generator size you need</div></div></div>
+  <div class="panel-body">
+
+    <div class="appliance-picker-title">▸ Quick-Add Appliances</div>
+    <div class="appliance-cats">
+      <button class="cat-btn active" onclick="filterCat('all',this)">All</button>
+      <button class="cat-btn" onclick="filterCat('hvac',this)">HVAC</button>
+      <button class="cat-btn" onclick="filterCat('kitchen',this)">Kitchen</button>
+      <button class="cat-btn" onclick="filterCat('water',this)">Water</button>
+      <button class="cat-btn" onclick="filterCat('lights',this)">Lights &amp; AV</button>
+      <button class="cat-btn" onclick="filterCat('motors',this)">Pumps &amp; Motors</button>
+      <button class="cat-btn" onclick="filterCat('medical',this)">Medical</button>
+      <button class="cat-btn" onclick="filterCat('other',this)">Other</button>
+    </div>
+    <div class="appliance-list" id="appliance-list"></div>
+
+    <div class="custom-add-row">
+      <div class="field-wrap"><label class="field-label">Custom Load</label><input class="field-input" type="text" id="custom-name" placeholder="Appliance name…"></div>
+      <div class="field-wrap"><label class="field-label">Run W</label><input class="field-input" type="number" id="custom-run" placeholder="1200" min="0"></div>
+      <div class="field-wrap"><label class="field-label">Start W</label><input class="field-input" type="number" id="custom-start" placeholder="1200" min="0"></div>
+      <div class="field-wrap"><label class="field-label">&nbsp;</label><button class="add-btn" onclick="addCustomLoad()">+ Add</button></div>
+    </div>
+
+    <div class="load-table-wrap">
+      <div class="load-table-header"><div class="th">Load / Circuit</div><div class="th">Qty</div><div class="th th-start">Start W</div><div class="th">Run W</div><div class="th"></div></div>
+      <div class="load-rows" id="load-rows"><div class="empty-loads">⚡ No loads added yet</div></div>
+      <div class="load-totals-row"><div class="tot-label">Total</div><div></div><div class="tot-start-val tot-start" id="tot-start-val">0 W</div><div class="tot-val" id="tot-run-val">0 W</div><div></div></div>
+    </div>
+
+    <div class="sizing-result" id="sizing-result">
+      <div class="sizing-result-title">▸ Sizing Recommendation</div>
+      <div class="sizing-result-body" id="sizing-result-body">—</div>
+      <button class="sizing-btn" onclick="applyRecommendedModel()">▶ Load This Model in Lookup</button>
+    </div>
+
+  </div>
+</div>
+
+<div class="footer">
+  <div class="footer-text">Always On Generators · Field Operations Portal</div>
+  <div class="footer-version">GENERAC GAS CALC <span>v1.0</span> · BrandonAOG  · 2026</div>
+</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// ALL GENERAC MODELS — spec-accurate fuel consumption data
+// Sources: A0005151081, A0005151077, A0005999721, A0000373704,
+//          A0002505135, A0005286945, A0000937814, A0002026894
+// ═══════════════════════════════════════════════════════════════════
+const GM = [
+  // ── GUARDIAN AIR-COOLED — NEXTGEN SERIES ───────────────
+  {cooled:"air", kw_ng:9,    kw_lp:10,  label:"10kW NextGen · G007257-0 / G007321-0",  model:"Generac 10kW Guardian NextGen",   num:"G007257-0 / G007321-0",  grp:"Guardian NextGen Series",
+   ng_cfh_f:132,  ng_cfh_h:98,   lp_gph_f:1.60, lp_gph_h:0.94,
+   ng_btu_cf:1000, lp_btu_gal:91500, req_ng:'3.5–7" WC', req_lp:'10–12" WC',
+   snd:"61 / 49 dB(A) normal / Quiet-Test", warr:"5 Year limited", der_pct:3.5, der_above:0, cb:45, weight:"334 lb",
+   desc:"Air-cooled · NextGen Series · G-Force 400 · 1-cyl 459cc · 3,600 RPM · 46.4\"L × 26.3\"W × 30.7\"H"},
+
+  {cooled:"air", kw_ng:14,   kw_lp:14,  label:"14kW NextGen · G007258-0 / G007323-0",  model:"Generac 14kW Guardian NextGen",   num:"G007258-0 / G007323-0",  grp:"Guardian NextGen Series",
+   ng_cfh_f:243,  ng_cfh_h:189,  lp_gph_f:2.92, lp_gph_h:1.76,
+   ng_btu_cf:1000, lp_btu_gal:91500, req_ng:'3.5–7" WC', req_lp:'10–12" WC',
+   snd:"65 / 55 dB(A) normal / Quiet-Test", warr:"5 Year limited", der_pct:3.5, der_above:0, cb:60, weight:"391 lb",
+   desc:"Air-cooled · NextGen Series · G-Force 800 · 2-cyl 817cc · 3,600 RPM · 46.4\"L × 26.3\"W × 30.7\"H"},
+
+  {cooled:"air", kw_ng:17,   kw_lp:18,  label:"18kW NextGen · G007259-0 / G007324-0",  model:"Generac 18kW Guardian NextGen",   num:"G007259-0 / G007324-0",  grp:"Guardian NextGen Series",
+   ng_cfh_f:235,  ng_cfh_h:164,  lp_gph_f:2.87, lp_gph_h:1.65,
+   ng_btu_cf:1000, lp_btu_gal:91500, req_ng:'3.5–7" WC', req_lp:'10–12" WC',
+   snd:"65 / 55 dB(A) normal / Quiet-Test", warr:"5 Year limited", der_pct:3.5, der_above:0, cb:80, weight:"426 lb",
+   desc:"Air-cooled · NextGen Series · G-Force 800 · 2-cyl 817cc · 3,600 RPM · 46.4\"L × 26.3\"W × 30.7\"H"},
+
+  {cooled:"air", kw_ng:21,   kw_lp:22,  label:"22kW NextGen · G007260-0 / G007325-0",  model:"Generac 22kW Guardian NextGen",   num:"G007260-0 / G007325-0",  grp:"Guardian NextGen Series",
+   ng_cfh_f:311,  ng_cfh_h:221,  lp_gph_f:3.71, lp_gph_h:2.45,
+   ng_btu_cf:1000, lp_btu_gal:91500, req_ng:'3.5–7" WC', req_lp:'10–12" WC',
+   snd:"67 / 55 dB(A) normal / Quiet-Test", warr:"5 Year limited", der_pct:3.5, der_above:0, cb:100, weight:"451 lb",
+   desc:"Air-cooled · NextGen Series · G-Force 1000 · 2-cyl 997cc · 3,600 RPM · 46.4\"L × 26.3\"W × 30.7\"H"},
+
+  {cooled:"air", kw_ng:22.5, kw_lp:24,  label:"24kW NextGen · G007261-0 / G007326-0",  model:"Generac 24kW Guardian NextGen",   num:"G007261-0 / G007326-0",  grp:"Guardian NextGen Series",
+   ng_cfh_f:291,  ng_cfh_h:197,  lp_gph_f:3.71, lp_gph_h:2.45,
+   ng_btu_cf:1000, lp_btu_gal:91500, req_ng:'3.5–7" WC', req_lp:'10–12" WC',
+   snd:"67 / 55 dB(A) normal / Quiet-Test", warr:"5 Year limited", der_pct:3.5, der_above:0, cb:110, weight:"461 lb",
+   desc:"Air-cooled · NextGen Series · G-Force 1000 · 2-cyl 997cc · 3,600 RPM · 46.4\"L × 26.3\"W × 30.7\"H"},
+
+  {cooled:"air", kw_ng:24,   kw_lp:26,  label:"26kW NextGen · G007327-0 / G007328-0",  model:"Generac 26kW Guardian NextGen",   num:"G007327-0 / G007328-0",  grp:"Guardian NextGen Series",
+   ng_cfh_f:316,  ng_cfh_h:182,  lp_gph_f:3.95, lp_gph_h:2.05,
+   ng_btu_cf:1000, lp_btu_gal:91500, req_ng:'3.5–7" WC', req_lp:'10–12" WC',
+   snd:"67 / 55 dB(A) normal / Quiet-Test", warr:"5 Year limited", der_pct:3.5, der_above:0, cb:125, weight:"524 lb",
+   desc:"Air-cooled · NextGen Series · G-Force 1000 · 2-cyl 997cc · 3,600 RPM · 46.4\"L × 26.3\"W × 30.7\"H"},
+
+  {cooled:"air", kw_ng:25,   kw_lp:28,  label:"28kW NextGen · G007282-0 / G007329-0",  model:"Generac 28kW Guardian NextGen",   num:"G007282-0 / G007329-0",  grp:"Guardian NextGen Series",
+   ng_cfh_f:297,  ng_cfh_h:182,  lp_gph_f:3.97, lp_gph_h:2.23,
+   ng_btu_cf:1000, lp_btu_gal:91500, req_ng:'3.5–7" WC', req_lp:'10–12" WC',
+   snd:"67 / 55 dB(A) normal / Quiet-Test", warr:"5 Year limited", der_pct:3.5, der_above:0, cb:125, weight:"524 lb",
+   desc:"Air-cooled · NextGen Series · G-Force 1000 · 2-cyl 997cc · 3,600 RPM · 46.4\"L × 26.3\"W × 30.7\"H"},
+
+  // ── GUARDIAN AIR-COOLED — LEGACY SERIES ─────────────────────────
+  {cooled:"air", kw_ng:6,    kw_lp:7,   label:"7kW   · G007043-0 / G007038-0",  model:"Generac 7kW Guardian",    num:"G007043-0 / G007038-0",  grp:"Guardian — Legacy Series",
+   ng_cfh_f:66,   ng_cfh_h:44,   lp_gph_f:1.04, lp_gph_h:0.69,
+   ng_btu_cf:1000, lp_btu_gal:91500, req_ng:'3.5–7" WC', req_lp:'10–12" WC',
+   snd:"64 / 52 dB(A) normal / Quiet-Test", warr:"5 Year limited", der_pct:3.5, der_above:0, cb:35, weight:"283 lb",
+   desc:"Air-cooled · OHVI · 1-cyl 420cc · 3,600 RPM · 48\"L × 25\"W × 29\"H"},
+
+  {cooled:"air", kw_ng:10,   kw_lp:11,  label:"11kW  · G007119-0 / G007119-1",  model:"Generac 11kW Guardian",   num:"G007119-0 / G007119-1",  grp:"Guardian — Legacy Series",
+   ng_cfh_f:115,  ng_cfh_h:77,   lp_gph_f:1.55, lp_gph_h:1.04,
+   ng_btu_cf:1000, lp_btu_gal:91500, req_ng:'3.5–7" WC', req_lp:'10–12" WC',
+   snd:"64 / 53 dB(A) normal / Quiet-Test", warr:"5 Year limited", der_pct:3.5, der_above:0, cb:50, weight:"361 lb",
+   desc:"Air-cooled · OHVI · 2-cyl 530cc · 3,600 RPM · 48\"L × 25\"W × 29\"H"},
+
+  {cooled:"air", kw_ng:12,   kw_lp:13,  label:"13kW  · G007120-0 / G007120-1",  model:"Generac 13kW Guardian",   num:"G007120-0 / G007120-1",  grp:"Guardian — Legacy Series",
+   ng_cfh_f:130,  ng_cfh_h:87,   lp_gph_f:1.69, lp_gph_h:1.13,
+   ng_btu_cf:1000, lp_btu_gal:91500, req_ng:'3.5–7" WC', req_lp:'10–12" WC',
+   snd:"65 / 53 dB(A) normal / Quiet-Test", warr:"5 Year limited", der_pct:3.5, der_above:0, cb:60, weight:"375 lb",
+   desc:"Air-cooled · OHVI · 2-cyl 530cc · 3,600 RPM · 48\"L × 25\"W × 29\"H"},
+
+  {cooled:"air", kw_ng:16,   kw_lp:16,  label:"16kW  · G007121-0 / G007121-1",  model:"Generac 16kW Guardian",   num:"G007121-0 / G007121-1",  grp:"Guardian — Legacy Series",
+   ng_cfh_f:157,  ng_cfh_h:105,  lp_gph_f:2.06, lp_gph_h:1.38,
+   ng_btu_cf:1000, lp_btu_gal:91500, req_ng:'3.5–7" WC', req_lp:'10–12" WC',
+   snd:"66 / 54 dB(A) normal / Quiet-Test", warr:"5 Year limited", der_pct:3.5, der_above:0, cb:70, weight:"419 lb",
+   desc:"Air-cooled · OHVI · 2-cyl 992cc · 3,600 RPM · 48\"L × 25\"W × 29\"H"},
+
+  {cooled:"air", kw_ng:16,   kw_lp:17,  label:"17kW  · G007122-0 / G007122-1",  model:"Generac 17kW Guardian",   num:"G007122-0 / G007122-1",  grp:"Guardian — Legacy Series",
+   ng_cfh_f:175,  ng_cfh_h:117,  lp_gph_f:2.21, lp_gph_h:1.48,
+   ng_btu_cf:1000, lp_btu_gal:91500, req_ng:'3.5–7" WC', req_lp:'10–12" WC',
+   snd:"66 / 54 dB(A) normal / Quiet-Test", warr:"5 Year limited", der_pct:3.5, der_above:0, cb:80, weight:"432 lb",
+   desc:"Air-cooled · OHVI · 2-cyl 992cc · 3,600 RPM · 48\"L × 25\"W × 29\"H"},
+
+  {cooled:"air", kw_ng:18,   kw_lp:20,  label:"20kW  · G007038-1 / G007039-1",  model:"Generac 20kW Guardian",   num:"G007038-1 / G007039-1",  grp:"Guardian — Legacy Series",
+   ng_cfh_f:301,  ng_cfh_h:204,  lp_gph_f:3.56, lp_gph_h:2.37,
+   ng_btu_cf:1000, lp_btu_gal:91500, req_ng:'3.5–7" WC', req_lp:'10–12" WC',
+   snd:"67 / 55 dB(A) normal / Quiet-Test", warr:"5 Year limited", der_pct:3.5, der_above:0, cb:90, weight:"448 lb",
+   desc:"Air-cooled · G-Force 1000 · 2-cyl 999cc · 3,600 RPM · 46.4\"L × 26.3\"W × 30.7\"H"},
+
+  {cooled:"air", kw_ng:19.5, kw_lp:22,  label:"22kW  · G007042-10 / G007043-10", model:"Generac 22kW Guardian (Legacy)", num:"G007042-10 / G007043-10", grp:"Guardian — Legacy Series",
+   ng_cfh_f:327,  ng_cfh_h:228,  lp_gph_f:3.90, lp_gph_h:2.53,
+   ng_btu_cf:1000, lp_btu_gal:91500, req_ng:'3.5–7" WC', req_lp:'10–12" WC',
+   snd:"67 / 57 dB(A) normal / Quiet-Test", warr:"5 Year limited", der_pct:3.5, der_above:0, cb:100, weight:"466 lb",
+   desc:"Air-cooled · G-Force 1000 · 2-cyl 999cc · 3,600 RPM · 48\"L × 25\"W × 29\"H"},
+
+  // ── NEW: 24kW Legacy (G007209-10 / G007210-10) ──────────────────
+  // Source: Generac spec sheet A0000937814 Rev. E — 20/22/24 kW Guardian
+  {cooled:"air", kw_ng:21,   kw_lp:24,  label:"24kW  · G007209-10 / G007210-10", model:"Generac 24kW Guardian (Legacy)", num:"G007209-10 / G007210-10", grp:"Guardian — Legacy Series",
+   ng_cfh_f:287,  ng_cfh_h:164,  lp_gph_f:3.74, lp_gph_h:2.36,
+   ng_btu_cf:1000, lp_btu_gal:91500, req_ng:'3.5–7" WC', req_lp:'10–12" WC',
+   snd:"67 / 57 dB(A) normal / Quiet-Test", warr:"5 Year limited", der_pct:3.5, der_above:0, cb:100, weight:"455 lb",
+   desc:"Air-cooled · G-Force 1000 · 2-cyl 999cc · 3,600 RPM · 48\"L × 25\"W × 29\"H"},
+
+  // ── NEW: 26kW Legacy (G007290-0 / G007291-0) ────────────────────
+  // Source: Generac spec sheet A0002026894 Rev. D — 26 kW Guardian
+  {cooled:"air", kw_ng:22.5, kw_lp:26,  label:"26kW  · G007290-0 / G007291-0",  model:"Generac 26kW Guardian (Legacy)", num:"G007290-0 / G007291-0",  grp:"Guardian — Legacy Series",
+   ng_cfh_f:333,  ng_cfh_h:188,  lp_gph_f:3.63, lp_gph_h:2.06,
+   ng_btu_cf:1000, lp_btu_gal:91500, req_ng:'3.5–7" WC', req_lp:'10–12" WC',
+   snd:"67 / 57 dB(A) normal / Quiet-Test", warr:"5 Year limited", der_pct:3.5, der_above:0, cb:110, weight:"518 lb",
+   desc:"Air-cooled · G-Force 1000 · 2-cyl 999cc · 3,600 RPM · 48\"L × 25\"W × 29\"H"},
+
+  // ── PROTECTOR QS (2.4L Inline-4) ────────────────────────────────
+  {cooled:"liq", kw_ng:22,  kw_lp:22,  label:"22kW Protector QS — RG02224",  model:"22kW Protector QS",       num:"RG02224",               grp:"Protector QS (2.4L I-4)",
+   ng_cfh_f:316,  ng_cfh_h:190,  lp_gph_f:3.4,  lp_gph_h:2.1,
+   ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'5–14" WC', req_lp:'5–14" WC',
+   snd:"70 / 61 dB(A) op / exercise", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:600, cb:100, weight:"—",
+   desc:"Liquid-cooled · 2.4L I-4 NA · 1-Ph or 3-Ph · Evolution controller · Bisque"},
+
+  {cooled:"liq", kw_ng:25,  kw_lp:27,  label:"27kW Protector QS — RG02724",  model:"27kW Protector QS",       num:"RG02724",               grp:"Protector QS (2.4L I-4)",
+   ng_cfh_f:359,  ng_cfh_h:197,  lp_gph_f:3.9,  lp_gph_h:2.1,
+   ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'5–14" WC', req_lp:'5–14" WC',
+   snd:"70 / 61 dB(A) op / exercise", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:600, cb:125, weight:"—",
+   desc:"Liquid-cooled · 2.4L I-4 Turbo · 1-Ph or 3-Ph · Evolution controller · Bisque"},
+
+  {cooled:"liq", kw_ng:32,  kw_lp:32,  label:"32kW Protector QS — RG03224",  model:"32kW Protector QS",       num:"RG03224",               grp:"Protector QS (2.4L I-4)",
+   ng_cfh_f:375,  ng_cfh_h:226,  lp_gph_f:4.6,  lp_gph_h:2.7,
+   ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'5–14" WC', req_lp:'5–14" WC',
+   snd:"64 / 58 dB(A) op / exercise", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:3000, cb:150, weight:"—",
+   desc:"Liquid-cooled · 2.4L I-4 Turbo+AC · 1-Ph or 3-Ph · Evolution controller · Bisque"},
+
+  {cooled:"liq", kw_ng:38,  kw_lp:38,  label:"38kW Protector QS — RG03824",  model:"38kW Protector QS",       num:"RG03824",               grp:"Protector QS (2.4L I-4)",
+   ng_cfh_f:437,  ng_cfh_h:255,  lp_gph_f:5.2,  lp_gph_h:2.9,
+   ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'5–14" WC', req_lp:'5–14" WC',
+   snd:"64 / 58 dB(A) op / exercise", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:3000, cb:175, weight:"—",
+   desc:"Liquid-cooled · 2.4L I-4 Turbo+AC · 1-Ph or 3-Ph · Evolution controller · Bisque"},
+
+  {cooled:"liq", kw_ng:45,  kw_lp:45,  label:"45kW Protector QS — RG04524",  model:"45kW Protector QS",       num:"RG04524",               grp:"Protector QS (2.4L I-4)",
+   ng_cfh_f:730,  ng_cfh_h:380,  lp_gph_f:8.0,  lp_gph_h:4.2,
+   ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'5–14" WC', req_lp:'5–14" WC',
+   snd:"73 / 61 dB(A) op / exercise", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:600, cb:200, weight:"—",
+   desc:"Liquid-cooled · 2.4L I-4 NA · 3,600 RPM · 1-Ph or 3-Ph · Evolution controller · Bisque"},
+
+  {cooled:"liq", kw_ng:60,  kw_lp:60,  label:"60kW Protector QS — RG06024",  model:"60kW Protector QS",       num:"RG06024",               grp:"Protector QS (2.4L I-4)",
+   ng_cfh_f:862,  ng_cfh_h:483,  lp_gph_f:9.0,  lp_gph_h:5.0,
+   ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'5–14" WC', req_lp:'5–14" WC',
+   snd:"73 / 65 dB(A) op / exercise", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:3000, cb:300, weight:"—",
+   desc:"Liquid-cooled · 2.4L I-4 Turbo+AC · 3,600 RPM · 1-Ph or 3-Ph · Evolution controller · Bisque"},
+
+  // ── PROTECTOR RG (4.5L Inline-4, 1,800 RPM) ─────────────────────
+  {cooled:"liq", kw_ng:48,  kw_lp:48,  label:"48kW Protector RG — RG04845",  model:"48kW Protector RG",       num:"RG04845",               grp:"Protector RG (4.5L I-4)",
+   ng_cfh_f:607,  ng_cfh_h:336,  lp_gph_f:6.6,  lp_gph_h:4.2,
+   ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'3.5–14" WC', req_lp:'7–14" WC',
+   snd:"68 dB(A) exercise", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:600, cb:200, weight:"—",
+   desc:"Liquid-cooled · 4.5L I-4 NA · 1,800 RPM · 1-Ph or 3-Ph · Evolution controller"},
+
+  {cooled:"liq", kw_ng:60,  kw_lp:60,  label:"60kW Protector RG — RG06045",  model:"60kW Protector RG",       num:"RG06045",               grp:"Protector RG (4.5L I-4)",
+   ng_cfh_f:808,  ng_cfh_h:432,  lp_gph_f:8.4,  lp_gph_h:4.4,
+   ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'3.5–14" WC', req_lp:'7–14" WC',
+   snd:"68 dB(A) exercise", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:3000, cb:300, weight:"—",
+   desc:"Liquid-cooled · 4.5L I-4 Turbo+AC · 1,800 RPM · 1-Ph or 3-Ph · Evolution controller"},
+
+  {cooled:"liq", kw_ng:80,  kw_lp:75,  label:"80kW Protector RG — RG08045",  model:"80kW Protector RG",       num:"RG08045",               grp:"Protector RG (4.5L I-4)",
+   ng_cfh_f:1063, ng_cfh_h:534,  lp_gph_f:10.8, lp_gph_h:5.7,
+   ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'3.5–14" WC', req_lp:'7–14" WC',
+   snd:"68 dB(A) exercise", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:3000, cb:400, weight:"—",
+   desc:"Liquid-cooled · 4.5L I-4 Turbo+AC · 1,800 RPM · 1-Ph or 3-Ph · Evolution controller"},
+
+  // ── PROTECTOR XG (4.5L, Power Zone 410) ─────────────────────────
+  {cooled:"liq", kw_ng:32,  kw_lp:32,  label:"LP 32kW  /  NG 32kW  ·  XG03245",  model:"32kW Protector XG",  num:"XG03245", grp:"Protector XG (4.5L I-4)",
+   ng_cfh_f:417, ng_cfh_h:258, ng_cfh_75:335, ng_cfh_25:177,
+   lp_gph_f:5.0, lp_gph_h:3.4, lp_gph_75:4.2, lp_gph_25:2.6,
+   ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'3.5–14" WC', req_lp:'7–14" WC',
+   snd:"66 / 59 dB(A) op / exercise", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:600, cb:150, weight:"—",
+   desc:"Liquid-cooled · 4.5L I-4 NA · 1,800 RPM · 1-Ph or 3-Ph · Power Zone 410 · NFPA 110 · Metro Gray"},
+
+  {cooled:"liq", kw_ng:40,  kw_lp:40,  label:"LP 40kW  /  NG 40kW  ·  XG04045",  model:"40kW Protector XG",  num:"XG04045", grp:"Protector XG (4.5L I-4)",
+   ng_cfh_f:494, ng_cfh_h:297, ng_cfh_75:396, ng_cfh_25:198,
+   lp_gph_f:5.8, lp_gph_h:3.8, lp_gph_75:4.8, lp_gph_25:2.8,
+   ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'3.5–14" WC', req_lp:'7–14" WC',
+   snd:"66 / 59 dB(A) op / exercise", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:600, cb:200, weight:"—",
+   desc:"Liquid-cooled · 4.5L I-4 NA · 1,800 RPM · 1-Ph or 3-Ph · Power Zone 410 · NFPA 110 · Metro Gray"},
+
+  {cooled:"liq", kw_ng:48,  kw_lp:48,  label:"LP 48kW  /  NG 48kW  ·  XG04845",  model:"48kW Protector XG",  num:"XG04845", grp:"Protector XG (4.5L I-4)",
+   ng_cfh_f:576, ng_cfh_h:335, ng_cfh_75:456, ng_cfh_25:215,
+   lp_gph_f:6.6, lp_gph_h:4.2, lp_gph_75:5.4, lp_gph_25:3.0,
+   ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'3.5–14" WC', req_lp:'7–14" WC',
+   snd:"58 / 54 dB(A) op / exercise", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:600, cb:200, weight:"—",
+   desc:"Liquid-cooled · 4.5L I-4 NA · 1,800 RPM · 1-Ph or 3-Ph · Power Zone 410 · NFPA 110 · Metro Gray"},
+
+  {cooled:"liq", kw_ng:60,  kw_lp:60,  label:"LP 60kW  /  NG 60kW  ·  XG06045",  model:"60kW Protector XG",  num:"XG06045", grp:"Protector XG (4.5L I-4)",
+   ng_cfh_f:972, ng_cfh_h:571, ng_cfh_75:765, ng_cfh_25:391,
+   lp_gph_f:11.0,lp_gph_h:6.4, lp_gph_75:8.6, lp_gph_25:4.2,
+   ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'3.5–14" WC', req_lp:'7–14" WC',
+   snd:"64 / 55 dB(A) op / exercise", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:3000, cb:300, weight:"—",
+   desc:"Liquid-cooled · 4.5L I-4 Turbo+AC · 1,800 RPM · 1-Ph or 3-Ph · Power Zone 410 · NFPA 110 · Metro Gray"},
+
+  {cooled:"liq", kw_ng:80,  kw_lp:75,  label:"LP 75kW  /  NG 80kW  ·  XG08045",  model:"80kW Protector XG",  num:"XG08045", grp:"Protector XG (4.5L I-4)",
+   ng_cfh_f:1270,ng_cfh_h:698, ng_cfh_75:972, ng_cfh_25:449,
+   lp_gph_f:14.2,lp_gph_h:7.9, lp_gph_75:11.0,lp_gph_25:4.9,
+   ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'3.5–14" WC', req_lp:'7–14" WC',
+   snd:"64 / 55 dB(A) op / exercise", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:3000, cb:400, weight:"—",
+   desc:"Liquid-cooled · 4.5L I-4 Turbo+AC · 1,800 RPM · 1-Ph or 3-Ph · Power Zone 410 · NFPA 110 · Metro Gray"},
+
+  // ── PROTECTOR RG (9.0L V8) ───────────────────────────────────────
+  {cooled:"liq", kw_ng:130, kw_lp:130, label:"130kW Protector RG — RG13090", model:"130kW Protector RG",      num:"RG13090",               grp:"Protector RG (9.0L V8)",
+   ng_cfh_f:1554, ng_cfh_h:858,  lp_gph_f:13.5, lp_gph_h:7.6,
+   ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'7–11" WC', req_lp:'7–11" WC',
+   snd:"72 / 68 dB(A) op / exercise", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:600, cb:600, weight:"—",
+   desc:"Liquid-cooled · 9.0L V-8 Turbo+AC · 1,800 RPM · 1-Ph or 3-Ph · Power Zone 410 · NFPA 110 · Bisque"},
+
+  {cooled:"liq", kw_ng:150, kw_lp:140, label:"150kW Protector RG — RG15090", model:"150kW Protector RG",      num:"RG15090",               grp:"Protector RG (9.0L V8)",
+   ng_cfh_f:1769, ng_cfh_h:964,  lp_gph_f:15.3, lp_gph_h:8.4,
+   ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'7–11" WC', req_lp:'7–11" WC',
+   snd:"77 / 71 dB(A) op / exercise", warr:"5 Year / 2,000 Hr", der_pct:2.1, der_above:600, cb:700, weight:"—",
+   desc:"Liquid-cooled · 9.0L V-8 Turbo+AC · 1,800 RPM · 1-Ph or 3-Ph · Power Zone 410 · NFPA 110 · Bisque"},
+];
+
+// ── PIPE CAPACITY TABLES ─────────────────────────────────────────────
+const PIPE_LENGTHS = [10, 20, 30, 50, 100, 150, 200, 300, 500];
+
+const PIPE_MATERIALS = {
+  steel: {
+    label: 'Black Steel / Rigid / Galvanized (Sch 40)',
+    note:  'NFPA 54 Table 402.4(2)',
+    sizes: ['1/2"','3/4"','1"','1-1/4"','1-1/2"','2"','2-1/2"','3"'],
+    data: {
+      '1/2"':   [275000,  189000, 152000,  116000,  79000,  63000,  53000,  43000,  33000],
+      '3/4"':   [567000,  390000, 315000,  239000, 164000, 131000, 110000,  89000,  68000],
+      '1"':    [1071000,  737000, 595000,  451000, 309000, 247000, 207000, 167000, 128000],
+      '1-1/4"':[2205000, 1518000,1224000,  929000, 637000, 510000, 427000, 344000, 263000],
+      '1-1/2"':[3402000, 2341000,1888000, 1433000, 982000, 786000, 658000, 531000, 406000],
+      '2"':    [6804000, 4683000,3776000,  2866000,1964000,1573000,1316000,1061000, 812000],
+      '2-1/2"':[11340000,7803000,6293000,  4776000,3273000,2621000,2194000,1768000,1353000],
+      '3"':   [22680000,15606000,12587000, 9551000,6546000,5241000,4388000,3537000,2706000],
+    }
+  },
+  pe: {
+    label: 'PE Underground (IPS SDR-11)',
+    note:  'NFPA 54 Table 402.4(19) approx · Underground only',
+    sizes: ['1/2" IPS','3/4" IPS','1" IPS','1-1/4" IPS','1-1/2" IPS','2" IPS'],
+    data: {
+      '1/2" IPS':  [344000,  236000, 190000,  144000,  99000,  79000,  66000,  53000,  41000],
+      '3/4" IPS':  [630000,  433000, 350000,  265000, 182000, 146000, 122000,  99000,  75000],
+      '1" IPS':   [1156000,  795000, 642000,  487000, 333000, 267000, 223000, 180000, 138000],
+      '1-1/4" IPS':[2095000,1442000,1163000,  883000, 605000, 485000, 406000, 327000, 250000],
+      '1-1/2" IPS':[3096000,2130000,1719000, 1304000, 894000, 715000, 599000, 483000, 370000],
+      '2" IPS':   [5783000, 3981000,3210000,  2436000,1669000,1337000,1119000, 902000, 690000],
+    }
+  },
+  csst: {
+    label: 'CSST — Gastite / Wardflex',
+    note:  'Manufacturer tables (approximate) · Verify w/ install guide',
+    sizes: ['3/8"','1/2"','3/4"','1"','1-1/4"','1-1/2"','2"'],
+    data: {
+      '3/8"':   [ 36000,  25000,  20000,  15000,  10000,   8000,   7000,   5500,   4000],
+      '1/2"':   [103000,  71000,  57000,  43000,  29000,  23000,  20000,  15500,  11500],
+      '3/4"':   [248000, 171000, 138000, 104000,  71000,  57000,  49000,  38000,  28500],
+      '1"':     [510000, 351000, 283000, 214000, 146000, 118000, 101000,  78500,  58500],
+      '1-1/4"': [938000, 645000, 521000, 394000, 270000, 218000, 186000, 145000, 108000],
+      '1-1/2"':[1578000,1086000, 877000, 663000, 454000, 367000, 313000, 244000, 182000],
+      '2"':    [3070000,2113000,1707000,1290000, 883000, 715000, 609000, 475000, 355000],
+    }
+  },
+  tracpipe: {
+    label: 'TracPipe CounterStrike (OmegaFlex)',
+    note:  'OmegaFlex published charts · Verify w/ current TracPipe install guide',
+    sizes: ['FGP-3750 (3/8")','FGP-5000 (1/2")','FGP-7500 (3/4")',
+            'FGP-1000 (1")','FGP-1250 (1-1/4")','FGP-1500 (1-1/2")','FGP-2000 (2")'],
+    data: {
+      'FGP-3750 (3/8")':  [ 37000,  26000,  21000,  16000,  11000,   8500,   7300,   5700,   4200],
+      'FGP-5000 (1/2")':  [107000,  73000,  59000,  45000,  31000,  25000,  21000,  16000,  12000],
+      'FGP-7500 (3/4")':  [260000, 179000, 144000, 109000,  75000,  60000,  51000,  40000,  30000],
+      'FGP-1000 (1")':    [535000, 368000, 297000, 224000, 153000, 124000, 106000,  82000,  62000],
+      'FGP-1250 (1-1/4")':[985000, 678000, 547000, 413000, 283000, 229000, 195000, 152000, 114000],
+      'FGP-1500 (1-1/2")':[1658000,1141000, 921000, 696000, 477000, 386000, 329000, 257000, 192000],
+      'FGP-2000 (2")':   [3226000,2219000,1793000,1354000, 928000, 751000, 640000, 499000, 373000],
+    }
+  },
+};
+
+// ── APPLIANCES ───────────────────────────────────────────────────────
+const APPLIANCES=[
+  {name:"Central A/C (2-ton)",    run:2500,start:5500, cat:"hvac"},
+  {name:"Central A/C (3-ton)",    run:3500,start:7500, cat:"hvac"},
+  {name:"Central A/C (4-ton)",    run:4700,start:9500, cat:"hvac"},
+  {name:"Central A/C (5-ton)",    run:5500,start:11500,cat:"hvac"},
+  {name:"Heat Pump (3-ton)",       run:3800,start:8000, cat:"hvac"},
+  {name:"Mini-Split (1-ton)",      run:1100,start:1800, cat:"hvac"},
+  {name:"Mini-Split (2-ton)",      run:2000,start:3200, cat:"hvac"},
+  {name:"Furnace Fan (1/2 HP)",    run:800, start:2400, cat:"hvac"},
+  {name:"Window A/C",              run:1200,start:2400, cat:"hvac"},
+  {name:"Space Heater",            run:1500,start:1500, cat:"hvac"},
+  {name:"Refrigerator",            run:200, start:800,  cat:"kitchen"},
+  {name:"Chest Freezer",           run:200, start:500,  cat:"kitchen"},
+  {name:"Microwave (1,000W)",      run:1000,start:1000, cat:"kitchen"},
+  {name:"Dishwasher",              run:1200,start:1200, cat:"kitchen"},
+  {name:"Range — 1 Burner",        run:1500,start:1500, cat:"kitchen"},
+  {name:"Range — Full Electric",   run:6000,start:6000, cat:"kitchen"},
+  {name:"Elec Water Htr (30 gal)", run:3000,start:3000, cat:"water"},
+  {name:"Elec Water Htr (50 gal)", run:4500,start:4500, cat:"water"},
+  {name:"Gas Water Htr (fan)",     run:300, start:300,  cat:"water"},
+  {name:"Well Pump (1/2 HP)",      run:750, start:2000, cat:"water"},
+  {name:"Well Pump (1 HP)",        run:1500,start:4000, cat:"water"},
+  {name:"Sump Pump (1/3 HP)",      run:400, start:1300, cat:"water"},
+  {name:"Sump Pump (1/2 HP)",      run:800, start:2000, cat:"water"},
+  {name:"Pool Pump (1 HP)",        run:1500,start:3500, cat:"water"},
+  {name:"Pool Pump (2 HP)",        run:2800,start:6000, cat:"water"},
+  {name:"LED Lighting (10 bulbs)", run:100, start:100,  cat:"lights"},
+  {name:"LED Lighting (20 bulbs)", run:200, start:200,  cat:"lights"},
+  {name:"TV + Receiver",           run:450, start:450,  cat:"lights"},
+  {name:"Computer (desktop)",      run:300, start:300,  cat:"lights"},
+  {name:"Security System",         run:200, start:200,  cat:"lights"},
+  {name:"Router / Modem",          run:30,  start:30,   cat:"lights"},
+  {name:"Garage Door Opener",      run:500, start:1000, cat:"motors"},
+  {name:"Air Compressor (1 HP)",   run:1600,start:4800, cat:"motors"},
+  {name:"Washing Machine",         run:1150,start:2300, cat:"motors"},
+  {name:"Electric Dryer",          run:5000,start:5000, cat:"motors"},
+  {name:"Gas Dryer (fan only)",    run:700, start:700,  cat:"motors"},
+  {name:"EV Charger (Level 1)",    run:1440,start:1440, cat:"motors"},
+  {name:"EV Charger (Level 2)",    run:7200,start:7200, cat:"motors"},
+  {name:"CPAP / BiPAP",            run:50,  start:50,   cat:"medical"},
+  {name:"O2 Concentrator",         run:600, start:600,  cat:"medical"},
+  {name:"Home Elevator",           run:1500,start:3000, cat:"medical"},
+  {name:"Stair Lift",              run:300, start:600,  cat:"medical"},
+  {name:"Hot Tub (240V)",          run:3500,start:6000, cat:"other"},
+  {name:"Whole-House Fan",         run:1500,start:2500, cat:"other"},
+];
+
+// ── STATE ────────────────────────────────────────────────────────────
+let cooling='air', fuel='ng', loads=[], suggestedModel=null;
+
+window.addEventListener('DOMContentLoaded',()=>{
+  populateModelDropdown();
+  renderApplianceList('all');
+});
+
+// ── COOLING / FUEL ───────────────────────────────────────────────────
+function setCooling(c){
+  cooling=c;
+  document.getElementById('btn-air').classList.toggle('active',c==='air');
+  document.getElementById('btn-liq').classList.toggle('active',c==='liq');
+  populateModelDropdown();
+  clearResults();
+}
+function setFuel(f){
+  fuel=f;
+  document.getElementById('btn-ng').classList.toggle('active',f==='ng');
+  document.getElementById('btn-lp').classList.toggle('active',f==='lp');
+  document.getElementById('ng-pipe-config').style.display=f==='ng'?'flex':'none';
+  document.getElementById('lp-pipe-config').style.display=f==='lp'?'flex':'none';
+  clearResults();
+}
+function clearResults(){
+  document.getElementById('results-placeholder').style.display='block';
+  document.getElementById('results-output').style.display='none';
+}
+
+// ── MODEL DROPDOWN ───────────────────────────────────────────────────
+function populateModelDropdown(){
+  const sel=document.getElementById('model-select');
+  const filtered=GM.filter(m=>m.cooled===cooling);
+  const groups=[...new Set(filtered.map(m=>m.grp))];
+
+  sel.innerHTML='<option value="">— Select a model —</option>';
+  groups.forEach(g=>{
+    const og=document.createElement('optgroup');
+    og.label=g;
+    filtered.filter(m=>m.grp===g).forEach(m=>{
+      const opt=document.createElement('option');
+      opt.value=m.num;
+      const lpStr = `LP ${m.kw_lp}kW`;
+      const ngStr = `NG ${m.kw_ng}kW`;
+      opt.textContent=`${lpStr}  /  ${ngStr}  ·  ${m.num}`;
+      og.appendChild(opt);
+    });
+    sel.appendChild(og);
+  });
+
+  document.getElementById('model-hint').textContent=
+    cooling==='air'?'Guardian air-cooled · 7–28kW · NextGen & Legacy Series':
+                    'Protector liquid-cooled · 22–150kW · QS / RG / XG series';
+}
+
+function onModelChange(){
+  clearResults();
+}
+
+// ── PRESSURE MULTIPLIER LOOKUP ────────────────────────────────────────
+function getPressMult(pressVal, fuelType) {
+  if (fuelType === 'ng') {
+    const M = {
+      '3.5wc':  0.85, '5wc':    0.90, '7wc':    1.00, '8wc':    1.05,
+      '10wc':   1.15, '11wc':   1.20, '14wc':   1.45,
+      '0.25psi': 0.95,'0.5psi':  1.50,'1psi':    2.20,'2psi':    8.50,
+      '5psi':   14.00,'10psi':  18.00,'15psi':  24.00,'30psi':  38.00,'60psi':  60.00,
+    };
+    return M[pressVal] || 1.0;
+  } else {
+    const M = {
+      '8wc':    0.90, '10wc':   0.97, '11wc':   1.00, '12wc':   1.03,
+      '14wc':   1.45, '0.5psi': 1.50, '1psi':   2.20, '2psi':   4.00,
+      '5psi':   7.00, '10psi': 11.50, '15psi': 16.00, '20psi': 20.00,
+      '25psi': 23.50, '30psi': 28.50, '60psi': 42.00, '100psi':62.00, '200psi':98.00,
+    };
+    return M[pressVal] || 1.0;
+  }
+}
+
+// ── GENERATE RESULTS ─────────────────────────────────────────────────
+function generateResults(){
+  const sel=document.getElementById('model-select');
+  const numVal=sel.value;
+  if(!numVal){sel.focus();return;}
+
+  const m=GM.find(x=>x.num===numVal);
+  if(!m)return;
+
+  const elev=parseInt(document.getElementById('elev').value)||0;
+
+  let derateF=1.0;
+  if(elev>m.der_above){
+    derateF=Math.max(1-((elev-m.der_above)/1000)*(m.der_pct/100),0.55);
+  }
+  const effKW_ng=m.kw_ng*derateF;
+  const effKW_lp=m.kw_lp*derateF;
+
+  const btuFull=fuel==='ng'?m.ng_cfh_f*m.ng_btu_cf:m.lp_gph_f*m.lp_btu_gal;
+  const btuHalf=fuel==='ng'?m.ng_cfh_h*m.ng_btu_cf:m.lp_gph_h*m.lp_btu_gal;
+  const cfhF=m.ng_cfh_f, cfhH=m.ng_cfh_h;
+  const gphF=m.lp_gph_f, gphH=m.lp_gph_h;
+
+  document.getElementById('results-placeholder').style.display='none';
+  document.getElementById('results-output').style.display='block';
+
+  const r=id=>document.getElementById(id);
+  r('mi-model').textContent=m.model;
+  r('mi-num').textContent='▸ '+m.num;
+  r('mi-desc').textContent=m.desc;
+
+  const kwStr=m.kw_ng!==m.kw_lp?`NG: ${m.kw_ng}kW · LP: ${m.kw_lp}kW`:`${m.kw_ng}kW`;
+  r('mi-badges').innerHTML=[
+    `<span class="badge badge-yellow">${kwStr}</span>`,
+    `<span class="badge badge-${m.cooled==='air'?'blue':'orange'}">${m.cooled==='air'?'Air Cooled':'Liquid Cooled'}</span>`,
+    `<span class="badge badge-green">${m.grp}</span>`,
+    `<span class="badge badge-cyan">${fmtBTU(btuFull)} BTU/hr full load</span>`,
+    `<span class="badge badge-blue">${m.cb}A breaker</span>`,
+    derateF<1?`<span class="badge badge-orange">−${Math.round((1-derateF)*100)}% altitude derate</span>`:'',
+    m.kw_ng!==m.kw_lp&&fuel==='ng'?`<span class="badge badge-red">NG ≠ LP rating</span>`:'',
+    m.grp.includes('Legacy')?`<span class="badge badge-orange">Legacy — Verify BTUs w/ Spec Sheet</span>`:'',
+  ].filter(Boolean).join('');
+
+  const dn=r('derate-notice');
+  if(derateF<1){
+    dn.className='derate-notice show';
+    dn.textContent=`⚠ Altitude derate: ${Math.round((1-derateF)*100)}% reduction at ${elev.toLocaleString()} ft above sea level. Effective output: NG → ${effKW_ng.toFixed(1)}kW · LP → ${effKW_lp.toFixed(1)}kW. Per Generac spec: −${m.der_pct}% per 1,000 ft above ${m.der_above.toLocaleString()} ft.`;
+  } else {dn.className='derate-notice';}
+
+  r('btu-full-val').textContent=fmtBTU(btuFull);
+  r('btu-full-sub').textContent=fuel==='ng'
+    ?`${cfhF} CFH × ${m.ng_btu_cf.toLocaleString()} BTU/ft³`
+    :`${gphF} GPH × 91,452 BTU/gal`;
+
+  r('btu-half-val').textContent=fmtBTU(btuHalf);
+  r('btu-half-sub').textContent=fuel==='ng'
+    ?`${cfhH} CFH × ${m.ng_btu_cf.toLocaleString()} BTU/ft³`
+    :`${gphH} GPH × 91,452 BTU/gal`;
+
+  if(fuel==='ng'){
+    r('flow-label').textContent='Natural Gas — Full Load';
+    r('flow-val').textContent=cfhF.toLocaleString();
+    r('flow-unit').textContent='CFH  (ft³/hr)';
+    r('flow-sub').textContent=`Half load: ${cfhH} CFH`;
+  } else {
+    r('flow-label').textContent='LP Propane — Full Load';
+    r('flow-val').textContent=gphF.toFixed(2);
+    r('flow-unit').textContent='GPH  (gal/hr)';
+    r('flow-sub').textContent=`Half load: ${gphH.toFixed(2)} GPH`;
+  }
+
+  const hasSpec25 = m.ng_cfh_25 != null;
+  const ng25  = hasSpec25 ? m.ng_cfh_25  : Math.round(m.ng_cfh_f  * 0.40);
+  const ng75  = hasSpec25 ? m.ng_cfh_75  : Math.round(m.ng_cfh_f  * 0.80);
+  const lp25  = hasSpec25 ? m.lp_gph_25  : parseFloat((m.lp_gph_f * 0.44).toFixed(2));
+  const lp75  = hasSpec25 ? m.lp_gph_75  : parseFloat((m.lp_gph_f * 0.81).toFixed(2));
+  const estCls= hasSpec25 ? 'fc-val' : 'fc-val est';
+
+  const btuFull_ng = m.ng_cfh_f * m.ng_btu_cf;
+  const btuFull_lp = m.lp_gph_f * m.lp_btu_gal;
+
+  r('fuel-rows-wrap').innerHTML = `
+    <div class="fuel-row-card ng-row">
+      <div class="fuel-tag">NG</div>
+      <div class="fuel-cells">
+        <div class="fuel-cell"><div class="fc-label">Rated Output</div><div class="fc-val">${m.kw_ng} kW</div></div>
+        <div class="fuel-cell"><div class="fc-label">¼ Load</div><div class="${estCls}">${ng25} CFH</div></div>
+        <div class="fuel-cell"><div class="fc-label">½ Load</div><div class="fc-val">${m.ng_cfh_h} CFH</div></div>
+        <div class="fuel-cell"><div class="fc-label">¾ Load</div><div class="${estCls}">${ng75} CFH</div></div>
+        <div class="fuel-cell"><div class="fc-label">Full Load</div><div class="fc-val">${m.ng_cfh_f} CFH</div></div>
+        <div class="fuel-cell"><div class="fc-label">BTU/hr Full</div><div class="fc-val">${Math.round(btuFull_ng).toLocaleString()}</div></div>
+        <div class="fuel-cell"><div class="fc-label">Required Press.</div><div class="fc-val" style="font-size:.7rem">${m.req_ng}</div></div>
+      </div>
+    </div>
+    <div class="fuel-row-card lp-row">
+      <div class="fuel-tag">LP</div>
+      <div class="fuel-cells">
+        <div class="fuel-cell"><div class="fc-label">Rated Output</div><div class="fc-val">${m.kw_lp} kW</div></div>
+        <div class="fuel-cell"><div class="fc-label">¼ Load</div><div class="${estCls}">${lp25.toFixed(2)} GPH</div></div>
+        <div class="fuel-cell"><div class="fc-label">½ Load</div><div class="fc-val">${m.lp_gph_h.toFixed(2)} GPH</div></div>
+        <div class="fuel-cell"><div class="fc-label">¾ Load</div><div class="${estCls}">${lp75.toFixed(2)} GPH</div></div>
+        <div class="fuel-cell"><div class="fc-label">Full Load</div><div class="fc-val">${m.lp_gph_f.toFixed(2)} GPH</div></div>
+        <div class="fuel-cell"><div class="fc-label">BTU/hr Full</div><div class="fc-val">${Math.round(btuFull_lp).toLocaleString()}</div></div>
+        <div class="fuel-cell"><div class="fc-label">Required Press.</div><div class="fc-val" style="font-size:.7rem">${m.req_lp}</div></div>
+      </div>
+    </div>
+    ${!hasSpec25?'<div style="font-family:var(--font-mono);font-size:.58rem;color:var(--text-dim);letter-spacing:1px;padding:4px 2px">* ¼ and ¾ load values estimated — spec sheet for this model only publishes ½ and full load data</div>':''}
+  `;
+
+  const infoCells = [
+    {label:'Main Breaker',       val:m.cb+'A (1-Ph)'},
+    {label:'NG BTU Content',     val:m.ng_btu_cf.toLocaleString()+' BTU/ft³'},
+    {label:'LP BTU Content',     val:'91,452 BTU/gal'},
+    {label:'Sound Level',        val:m.snd},
+    {label:'Warranty',           val:m.warr},
+    ...(m.weight&&m.weight!=='—'?[{label:'Unit Weight', val:m.weight}]:[]),
+  ];
+  r('info-row-cards').innerHTML = infoCells.map(c=>
+    `<div class="info-cell"><div class="ic-label">${c.label}</div><div class="ic-val">${c.val}</div></div>`
+  ).join('');
+
+  const LP_SCALE = (2516/1020) * Math.pow(0.60/1.52, 0.541);
+  const ngBtuAdj = fuel === 'ng' ? (1020 / m.ng_btu_cf) : 1.0;
+
+  function buildPipeTable(tbodyId, thUnitId, runLen, pressMult, isLP, matKey){
+    const mat = PIPE_MATERIALS[matKey] || PIPE_MATERIALS.steel;
+    const matSizes = mat.sizes;
+    const matData  = mat.data;
+    const li = PIPE_LENGTHS.reduce((b,l,i)=>Math.abs(l-runLen)<Math.abs(PIPE_LENGTHS[b]-runLen)?i:b,0);
+    document.getElementById(thUnitId).textContent = isLP ? 'GPH Capacity' : 'CFH Capacity';
+    const tbody = document.getElementById(tbodyId);
+    tbody.innerHTML = '';
+    const noteRow = document.createElement('tr');
+    noteRow.innerHTML = `<td colspan="5" style="font-family:var(--font-mono);font-size:.6rem;color:var(--text-dim);padding:6px 12px;background:rgba(0,0,0,.2);border-bottom:1px solid rgba(255,255,255,.06)">📐 ${mat.label} — ${mat.note} · ${PIPE_LENGTHS[li]} ft column</td>`;
+    tbody.appendChild(noteRow);
+    let found = false;
+    matSizes.forEach(size => {
+      if(!matData[size]) return;
+      let capBTU = matData[size][li] * pressMult;
+      if(isLP) capBTU *= LP_SCALE;
+      const ok     = capBTU >= btuFull * (isLP ? 1.0 : ngBtuAdj);
+      const isRec  = ok && !found;
+      if(isRec) found = true;
+      const capDisp = isLP
+        ? (capBTU / m.lp_btu_gal).toFixed(1) + ' GPH'
+        : Math.round(capBTU / 1020).toLocaleString() + ' CFH';
+      const pct  = Math.round((btuFull / capBTU) * 100);
+      const note = isRec ? '✓ Minimum recommended'
+        : ok ? `${pct}% of capacity used`
+        : 'Undersized for this load';
+      const tr = document.createElement('tr');
+      if(isRec) tr.className = 'recommended';
+      tr.innerHTML = `
+        <td>${size}${isRec ? '<span class="pipe-rec-tag">✓ MIN</span>' : ok ? '' : '<span class="pipe-warn-tag">TOO SMALL</span>'}</td>
+        <td>${Math.round(capBTU / 1000).toLocaleString()}k BTU/hr</td>
+        <td>${capDisp}</td>
+        <td style="color:${ok ? 'var(--green)' : 'var(--red)'};font-weight:700">${ok ? '✓ YES' : '✕ NO'}</td>
+        <td style="font-size:.66rem;color:${isRec ? '#10B981' : ok ? 'var(--text-dim)' : 'var(--red)'}">${note}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  let run1Len, run2Len, run1Mult, run2Mult, run1Label, run2Label, run1PressLabel, run2PressLabel;
+
+  if(fuel==='ng'){
+    run1Len       = parseInt(document.getElementById('ng1-len').value)||50;
+    run2Len       = parseInt(document.getElementById('ng2-len').value)||30;
+    const p1v     = document.getElementById('ng1-press').value;
+    const p2v     = document.getElementById('ng2-press').value;
+    run1Mult      = getPressMult(p1v, 'ng');
+    run2Mult      = getPressMult(p2v, 'ng');
+    run1Label     = 'Gas Meter → Second Stage Regulator';
+    run2Label     = 'Second Stage Regulator → Generator';
+    run1PressLabel= document.getElementById('ng1-press').options[document.getElementById('ng1-press').selectedIndex].text.split('—')[0].trim();
+    run2PressLabel= document.getElementById('ng2-press').options[document.getElementById('ng2-press').selectedIndex].text.split('—')[0].trim();
+  } else {
+    run1Len       = parseInt(document.getElementById('lp1-len').value)||30;
+    run2Len       = parseInt(document.getElementById('lp2-len').value)||20;
+    const p1v     = document.getElementById('lp1-press').value;
+    const p2v     = document.getElementById('lp2-press').value;
+    run1Mult      = getPressMult(p1v, 'lp');
+    run2Mult      = getPressMult(p2v, 'lp');
+    run1Label     = 'First Stage Regulator → Second Stage Regulator';
+    run2Label     = 'Second Stage Regulator → Generator';
+    run1PressLabel= document.getElementById('lp1-press').options[document.getElementById('lp1-press').selectedIndex].text.split('—')[0].trim();
+    run2PressLabel= document.getElementById('lp2-press').options[document.getElementById('lp2-press').selectedIndex].text.split('—')[0].trim();
+  }
+
+  const run1Mat = fuel==='ng' ? document.getElementById('ng1-mat').value : document.getElementById('lp1-mat').value;
+  const run2Mat = fuel==='ng' ? document.getElementById('ng2-mat').value : document.getElementById('lp2-mat').value;
+  const mat1Label = PIPE_MATERIALS[run1Mat]?.label || '';
+  const mat2Label = PIPE_MATERIALS[run2Mat]?.label || '';
+
+  r('pipe1-title').textContent = run1Label;
+  r('pipe1-meta').textContent  = `${run1Len} ft · ${run1PressLabel} · ${mat1Label} · Full load: ${fmtBTU(btuFull)} BTU/hr`;
+  buildPipeTable('pipe1-tbody','th1-unit', run1Len, run1Mult, fuel==='lp', run1Mat);
+
+  r('pipe2-title').textContent = run2Label;
+  r('pipe2-meta').textContent  = `${run2Len} ft · ${run2PressLabel} · ${mat2Label} · Full load: ${fmtBTU(btuFull)} BTU/hr`;
+  buildPipeTable('pipe2-tbody','th2-unit', run2Len, run2Mult, fuel==='lp', run2Mat);
+
+  const extraContainer = document.getElementById('extra-pipe-results');
+  extraContainer.innerHTML = '';
+  const extraCards = document.querySelectorAll(`.extra-run-${fuel}`);
+  let extraRunNum = 3;
+  extraCards.forEach(card => {
+    const runId   = card.dataset.runId;
+    const runLen  = parseInt(document.getElementById(`len-${runId}`).value) || 20;
+    const pressV  = document.getElementById(`press-${runId}`).value;
+    const matKey  = document.getElementById(`mat-${runId}`).value;
+    const pressMult = getPressMult(pressV, fuel);
+    const pressOpt  = document.getElementById(`press-${runId}`);
+    const pressLabel = pressOpt.options[pressOpt.selectedIndex].text.split('—')[0].trim();
+    const matLabel = PIPE_MATERIALS[matKey]?.label || matKey;
+
+    const stageDiv = document.createElement('div');
+    stageDiv.className = 'pipe-stage';
+    const tbId = `extra-tbody-${runId}`;
+    const thId = `extra-th-${runId}`;
+    stageDiv.innerHTML = `
+      <div class="pipe-stage-hdr extra">
+        <span class="pipe-stage-num">⑶</span>
+        <span class="pipe-stage-title-txt">Additional Run ${extraRunNum - 2}</span>
+        <span class="pipe-stage-meta">${runLen} ft · ${pressLabel} · ${matLabel} · Full load: ${fmtBTU(btuFull)} BTU/hr</span>
+      </div>
+      <table class="pipe-table">
+        <thead><tr>
+          <th>Pipe Size</th><th>Max Capacity (BTU/hr)</th>
+          <th id="${thId}">CFH / GPH</th><th>Sufficient?</th><th>Notes</th>
+        </tr></thead>
+        <tbody id="${tbId}"></tbody>
+      </table>`;
+    extraContainer.appendChild(stageDiv);
+    buildPipeTable(tbId, thId, runLen, pressMult, fuel === 'lp', matKey);
+    extraRunNum++;
+  });
+
+  document.getElementById('results-output').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── DYNAMIC PIPE RUNS ─────────────────────────────────────────────────
+let runSeq = 0;
+
+function addPipeRun(fuelType, stageNum, btn) {
+  runSeq++;
+  const runId = `${fuelType}_s${stageNum}_r${runSeq}`;
+  const card  = document.createElement('div');
+  card.className = `pipe-stage-config extra-run-${fuelType}`;
+  card.id = `card-${runId}`;
+  card.dataset.runId = runId;
+
+  const ngS1Press = `
+    <optgroup label="── Low / Near-Atmospheric ──">
+      <option value="0.25psi">¼ PSI (7" WC) — Low medium</option>
+      <option value="0.5psi">½ PSI (14" WC) — Lower medium</option>
+      <option value="1psi">1 PSI (28" WC)</option>
+    </optgroup>
+    <optgroup label="── Medium Pressure ──">
+      <option value="2psi" selected>2 PSI — Standard residential</option>
+      <option value="5psi">5 PSI — Higher medium</option>
+    </optgroup>
+    <optgroup label="── High Pressure ──">
+      <option value="10psi">10 PSI — Commercial</option>
+      <option value="15psi">15 PSI — High-pressure service</option>
+      <option value="30psi">30 PSI — High-pressure main</option>
+      <option value="60psi">60 PSI — Distribution main</option>
+    </optgroup>`;
+
+  const ngS2Press = `
+    <optgroup label="── Standard Low Pressure ──">
+      <option value="3.5wc">3.5" WC — Min Guardian inlet</option>
+      <option value="5wc">5" WC</option>
+      <option value="7wc" selected>7" WC — Standard (0.25 PSI)</option>
+      <option value="8wc">8" WC</option>
+      <option value="10wc">10" WC</option>
+      <option value="11wc">11" WC (0.40 PSI)</option>
+    </optgroup>
+    <optgroup label="── Higher Low Pressure ──">
+      <option value="14wc">14" WC — 0.5 PSI</option>
+      <option value="0.5psi">0.5 PSI</option>
+      <option value="1psi">1 PSI</option>
+      <option value="2psi">2 PSI</option>
+    </optgroup>`;
+
+  const lpS1Press = `
+    <optgroup label="── Low Vapor ──">
+      <option value="5psi">5 PSI — Cold / nearly empty</option>
+      <option value="10psi" selected>10 PSI — Low vapor</option>
+    </optgroup>
+    <optgroup label="── Moderate / High Vapor ──">
+      <option value="15psi">15 PSI</option>
+      <option value="20psi">20 PSI</option>
+      <option value="25psi">25 PSI</option>
+      <option value="30psi">30 PSI — Large tank</option>
+    </optgroup>
+    <optgroup label="── Bulk / Commercial ──">
+      <option value="60psi">60 PSI — Bulk underground</option>
+      <option value="100psi">100 PSI — Bulk storage</option>
+      <option value="200psi">200 PSI — Transport</option>
+    </optgroup>`;
+
+  const lpS2Press = `
+    <optgroup label="── Standard LP Low Pressure ──">
+      <option value="8wc">8" WC</option>
+      <option value="10wc">10" WC — Min Guardian inlet</option>
+      <option value="11wc" selected>11" WC — Standard (0.40 PSI)</option>
+      <option value="12wc">12" WC — Max Guardian inlet</option>
+    </optgroup>
+    <optgroup label="── Higher Delivery ──">
+      <option value="14wc">14" WC — 0.5 PSI</option>
+      <option value="0.5psi">0.5 PSI</option>
+      <option value="1psi">1 PSI</option>
+      <option value="2psi">2 PSI</option>
+    </optgroup>`;
+
+  const pressOpts = fuelType==='ng'
+    ? (stageNum===1 ? ngS1Press : ngS2Press)
+    : (stageNum===1 ? lpS1Press : lpS2Press);
+
+  const pressLabel = fuelType==='ng'
+    ? (stageNum===1 ? 'Supply Pressure' : 'Line Pressure')
+    : (stageNum===1 ? 'LP Vapor Pressure' : 'Outlet Pressure');
+
+  const runLabel = fuelType==='ng'
+    ? (stageNum===1 ? 'Gas Meter → 2nd Stage Reg.' : '2nd Stage Reg. → Generator')
+    : (stageNum===1 ? '1st Stage Reg. → 2nd Stage Reg.' : '2nd Stage Reg. → Generator');
+
+  const matOpts = `
+    <option value="steel" selected>Black Steel / Rigid / Galvanized (Sch 40)</option>
+    <option value="pe">PE Underground (IPS SDR-11)</option>
+    <option value="csst">CSST — Gastite / Wardflex</option>
+    <option value="tracpipe">TracPipe CounterStrike (OmegaFlex)</option>`;
+
+  card.innerHTML = `
+    <div class="psc-title">
+      <span class="psc-title-left">
+        <span class="psc-num">+</span>
+        ${runLabel}
+      </span>
+      <button class="remove-run-btn" onclick="removePipeRun('card-${runId}')">✕ Remove</button>
+    </div>
+    <div class="psc-grid">
+      <div class="field-wrap">
+        <label class="field-label">Pipe Run Length (ft)</label>
+        <input class="field-input" type="number" id="len-${runId}" value="20" min="5" max="500">
+      </div>
+      <div class="field-wrap">
+        <label class="field-label">${pressLabel}</label>
+        <select class="field-select" id="press-${runId}">${pressOpts}</select>
+      </div>
+      <div class="field-wrap" style="grid-column:1/-1">
+        <label class="field-label">Pipe Material</label>
+        <select class="field-select" id="mat-${runId}">${matOpts}</select>
+      </div>
+    </div>`;
+
+  btn.parentNode.insertBefore(card, btn);
+}
+
+function removePipeRun(cardId) {
+  const el = document.getElementById(cardId);
+  if(el) el.remove();
+}
+
+// ── LOAD BUILDER ─────────────────────────────────────────────────────
+function filterCat(cat,btn){document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderApplianceList(cat);}
+function renderApplianceList(cat){
+  const items=cat==='all'?APPLIANCES:APPLIANCES.filter(a=>a.cat===cat);
+  document.getElementById('appliance-list').innerHTML=items.map(a=>
+    `<div class="appliance-item" onclick='quickAdd(${JSON.stringify(a)})'><div class="appliance-item-name">${a.name}</div><div class="appliance-item-watts">Run: ${a.run.toLocaleString()}W · Start: ${a.start.toLocaleString()}W</div></div>`
+  ).join('');
+}
+function quickAdd(a){const ex=loads.find(l=>l.name===a.name);if(ex)ex.qty++;else loads.push({name:a.name,run:a.run,start:a.start,qty:1});renderLoadTable();calcSizing();}
+function addCustomLoad(){
+  const name=document.getElementById('custom-name').value.trim()||'Custom Load';
+  const run=parseInt(document.getElementById('custom-run').value)||0;
+  const start=parseInt(document.getElementById('custom-start').value)||run;
+  if(run<=0){document.getElementById('custom-run').focus();return;}
+  loads.push({name,run,start,qty:1});
+  ['custom-name','custom-run','custom-start'].forEach(id=>document.getElementById(id).value='');
+  renderLoadTable();calcSizing();
+}
+function changeQty(i,d){loads[i].qty=Math.max(1,loads[i].qty+d);renderLoadTable();calcSizing();}
+function removeLoad(i){loads.splice(i,1);renderLoadTable();calcSizing();}
+function renderLoadTable(){
+  const rows=document.getElementById('load-rows');
+  if(!loads.length){rows.innerHTML='<div class="empty-loads">⚡ No loads added yet</div>';document.getElementById('tot-run-val').textContent='0 W';document.getElementById('tot-start-val').textContent='0 W';document.getElementById('sizing-result').className='sizing-result';return;}
+  const totalRun=loads.reduce((s,l)=>s+l.run*l.qty,0);
+  const maxStart=Math.max(...loads.map(l=>l.start));
+  rows.innerHTML=loads.map((l,i)=>`
+    <div class="load-row">
+      <div class="td-name">${l.name}</div>
+      <div class="td-qty"><button class="qty-btn" onclick="changeQty(${i},-1)">−</button><span class="qty-val">${l.qty}</span><button class="qty-btn" onclick="changeQty(${i},1)">+</button></div>
+      <div class="td-start td-watts">${(l.start*l.qty).toLocaleString()} W</div>
+      <div class="td-total">${(l.run*l.qty).toLocaleString()} W</div>
+      <button class="del-btn" onclick="removeLoad(${i})">✕</button>
+    </div>`).join('');
+  document.getElementById('tot-run-val').textContent=totalRun.toLocaleString()+' W';
+  document.getElementById('tot-start-val').textContent=maxStart.toLocaleString()+' W';
+}
+
+function calcSizing(){
+  if(!loads.length){document.getElementById('sizing-result').className='sizing-result';return;}
+  const totalRun=loads.reduce((s,l)=>s+l.run*l.qty,0);
+  const maxStart=Math.max(...loads.map(l=>l.start));
+  const peakW=totalRun+maxStart;
+  const minKW=peakW/1000/0.8;
+
+  const mKW=m=>fuel==='ng'?m.kw_ng:m.kw_lp;
+  const candidates=GM.filter(m=>m.cooled===cooling);
+  const rec=candidates.find(m=>mKW(m)>=minKW)||candidates[candidates.length-1];
+  suggestedModel=rec;
+
+  const btuFull=fuel==='ng'?rec.ng_cfh_f*rec.ng_btu_cf:rec.lp_gph_f*rec.lp_btu_gal;
+  const body=document.getElementById('sizing-result-body');
+  body.innerHTML=`
+    Running Load: <span class="sizing-highlight">${totalRun.toLocaleString()} W (${(totalRun/1000).toFixed(1)} kW)</span><br>
+    Peak w/ Surge: <span class="sizing-highlight">${peakW.toLocaleString()} W</span> · Min Generator: <span class="sizing-highlight">${Math.ceil(minKW*10)/10} kW</span> (80% rule)<br>
+    Recommended: <span class="sizing-highlight">${rec.model}</span> · ${rec.num}<br>
+    BTU/hr Full Load: <span class="sizing-highlight">${Math.round(btuFull).toLocaleString()} BTU/hr</span>
+  `;
+  document.getElementById('sizing-result').className='sizing-result show';
+}
+
+function applyRecommendedModel(){
+  if(!suggestedModel)return;
+  const sel=document.getElementById('model-select');
+  const opt=[...sel.options].find(o=>o.value===suggestedModel.num);
+  if(opt){
+    sel.value=suggestedModel.num;
+    window.scrollTo({top:0,behavior:'smooth'});
+  } else {
+    if(suggestedModel.cooled!==cooling){setCooling(suggestedModel.cooled);}
+    setTimeout(()=>{
+      const s=document.getElementById('model-select');
+      const o=[...s.options].find(x=>x.value===suggestedModel.num);
+      if(o)s.value=suggestedModel.num;
+    },100);
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ── HELPERS ──────────────────────────────────────────────────────────
+function fmtBTU(v){
+  if(v>=1000000)return (v/1000000).toFixed(2)+'M';
+  if(v>=1000)return Math.round(v/1000)+'k';
+  return Math.round(v).toString();
+}
+</script>
+
+<!-- Offline banner -->
+<div id="offline-banner">No network connection · Calculator available offline</div>
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('../sw.js', { scope: '../' })
+    .then(function(reg) {
+      console.log('[Gas Calc] SW registered, scope:', reg.scope);
+      reg.addEventListener('updatefound', function() {
+        var newWorker = reg.installing;
+        newWorker.addEventListener('statechange', function() {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            console.log('[Gas Calc] Update available');
+          }
+        });
+      });
+    })
+    .catch(function(err) { console.warn('[Gas Calc] SW registration failed:', err); });
+}
+
+(function() {
+  var banner = document.getElementById('offline-banner');
+  function setOnline()  { if (banner) banner.classList.remove('visible'); }
+  function setOffline() { if (banner) banner.classList.add('visible');    }
+  window.addEventListener('online',  setOnline);
+  window.addEventListener('offline', setOffline);
+  if (!navigator.onLine) setOffline();
+})();
+</script>
+
+
+<script>
+// ===== THEME TOGGLE =====
+const THEME_KEY = 'aog_gas_theme';
+function applyTheme(t) {
+  if (t === 'light') document.body.classList.add('light-mode');
+  else document.body.classList.remove('light-mode');
+  try { localStorage.setItem(THEME_KEY, t); } catch(e) {}
+}
+function toggleTheme() {
+  applyTheme(document.body.classList.contains('light-mode') ? 'dark' : 'light');
+}
+(function() {
+  const saved = localStorage.getItem(THEME_KEY);
+  const preferLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+  applyTheme(saved || (preferLight ? 'light' : 'dark'));
+})();
+document.addEventListener('DOMContentLoaded', function() {
+  const btn = document.getElementById('theme-toggle-btn');
+  if (btn) btn.addEventListener('click', toggleTheme);
+
+  // Dynamic top padding
+  function adjustPadding() {
+    const bar = document.getElementById('action-bar');
+    const container = document.querySelector('.container');
+    if (bar && container) container.style.paddingTop = (bar.offsetHeight + 16) + 'px';
+  }
+  window.addEventListener('resize', adjustPadding);
+  adjustPadding();
+  setTimeout(adjustPadding, 100);
+});
+</script>
+</body>
+</html>
