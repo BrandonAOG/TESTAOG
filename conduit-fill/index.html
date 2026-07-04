@@ -1146,6 +1146,7 @@ function toggleTheme() {
 
 // ── FILL MODE ──────────────────────────────────────────────
 function setFillMode(mode) {
+  if (mode !== fillMode && window.AOGSound) AOGSound.play(mode === 'raceway' ? 'clunk' : 'tink');
   fillMode = mode;
   document.getElementById('tog-raceway').classList.toggle('active', mode === 'raceway');
   document.getElementById('tog-nipple').classList.toggle('active', mode === 'nipple');
