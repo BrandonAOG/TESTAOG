@@ -1,6 +1,6 @@
 // ============================================================
 //  Always On Generators – Field Hub
-//  Service Worker  |  sw.js  |  Version: aog-forms-v3.1.1
+//  Service Worker  |  sw.js  |  Version: aog-forms-v3.1.2
 //  Scope: root (../)
 //
 //  ⚠ WHEN YOU UPDATE ANY TOOL:
@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v3.1.1';
+var CACHE_NAME = 'aog-forms-v2.4.0';
 var DEV_MODE   = false;
 
 // Tracks whether this SW instance has already run a precache repair pass
@@ -26,6 +26,12 @@ var CHANGELOG = [
   '📳 New Vibrate setting in Sound Settings — choose Sound only, Vibrate only, or Sound + Vibrate (vibration on Android).',
   '🗑️ Hitting OK on Clear All Fields now plays a delete sound, and Conduit Fill\'s Raceway/Nipple toggle has pipe-tap sounds.',
   '🎚️ 80 sound styles to pick from in Sound Settings, including 10 thunder and 10 firework variants.',
+  '⚡ Conduit Fill now recalculates instantly when you switch between Raceway and Nipple.',
+  '🔔 Update notices like this one now appear on every form, not just a few.',
+  '🐞 Added a Report a Bug button — pick the form with the problem and it emails Brandon with your device details attached automatically.',
+  '💡 Added a Suggestions button — send ideas for any form, or pitch a brand new one.',
+  '📣 You can now add your name and choose to be credited in the update banner when you report a bug or send a suggestion.',
+  '🔗 Added a Share App button — sends the hub link straight from your share sheet.',
 ];
 // ============================================================
 
