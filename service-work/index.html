@@ -761,8 +761,12 @@ document.addEventListener('change', saveDraft);
 document.addEventListener('input', saveDraft);
 
 // ── CLEAR ──
-function clearForm() {
-  if (!confirm('Clear all fields?')) return;
+function clearForm(confirmed) {
+  if (confirmed !== true) {
+    if (window.AOGConfirm) { AOGConfirm('Clear all fields?').then(function(ok){ if (ok) clearForm(true); }); }
+    else if (confirm('Clear all fields?')) clearForm(true);
+    return;
+  }
   document.querySelectorAll('input[type="text"],input[type="time"]').forEach(function(el){ el.value=''; });
   document.querySelectorAll('input[type="checkbox"]').forEach(function(el){ el.checked=false; });
   document.querySelectorAll('textarea').forEach(function(el){ el.value=''; });

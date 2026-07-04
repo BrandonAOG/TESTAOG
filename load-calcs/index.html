@@ -329,7 +329,7 @@ input[type=number][id^="pexva_"]::-webkit-inner-spin-button{-webkit-appearance:n
   <button class="ab-btn" onclick="printReport()">⎙ REPORT</button>
   <button class="ab-btn" id="ab-capture" onclick="captureReport()">⤓ SAVE IMG</button>
   <a class="ab-btn" onclick="window.print()" style="cursor:pointer;">⎙ FULL</a>
-  <a class="ab-btn" onclick="if(confirm('Start a new job? This clears all saved entries on this device.')){aogClearSaved();location.reload();}" style="cursor:pointer;">↺ NEW JOB</a>
+  <a class="ab-btn" onclick="aogNewJobConfirm()" style="cursor:pointer;">↺ NEW JOB</a>
   <span id="aog-save-status" style="font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(255,255,255,0.45);letter-spacing:.5px;align-self:center;white-space:nowrap;padding:0 4px;"></span>
 </div>
 
@@ -1821,6 +1821,17 @@ function aogRestore(){
   return true;
 }
 
+function aogNewJobConfirm() {
+  var msg = 'Start a new job? This clears all saved entries on this device.';
+  var p = window.AOGConfirm
+    ? AOGConfirm(msg, { title: '\u21BA NEW JOB', confirmText: 'New Job' })
+    : Promise.resolve(confirm(msg));
+  p.then(function (ok) {
+    if (!ok) return;
+    aogClearSaved();
+    setTimeout(function () { location.reload(); }, 350);
+  });
+}
 function aogClearSaved(){
   try{ localStorage.removeItem(AOG_SAVE_KEY); }catch(e){}
 }

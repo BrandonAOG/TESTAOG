@@ -2250,8 +2250,12 @@ async function loadFromFillablePdf(bytes, fname) {
   }
 }
 
-function clearForm() {
-  if (!confirm('Clear all fields?')) return;
+function clearForm(confirmed) {
+  if (confirmed !== true) {
+    if (window.AOGConfirm) { AOGConfirm('Clear all fields?').then(function(ok){ if (ok) clearForm(true); }); }
+    else if (confirm('Clear all fields?')) clearForm(true);
+    return;
+  }
   // Clear every field regardless of type: checkboxes/radios get unchecked,
   // everything else (text, date, number, textarea, and any future type) gets
   // its value blanked. Then drop the saved draft so it stays cleared.

@@ -1,6 +1,6 @@
 // ============================================================
 //  Always On Generators – Field Hub
-//  Service Worker  |  sw.js  |  Version: aog-forms-v2.5.0
+//  Service Worker  |  sw.js  |  Version: aog-forms-v3.1.0
 //  Scope: root (../)
 //
 //  ⚠ WHEN YOU UPDATE ANY TOOL:
@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v2.3.2';
+var CACHE_NAME = 'aog-forms-v3.1.0';
 var DEV_MODE   = false;
 
 // Tracks whether this SW instance has already run a precache repair pass
@@ -23,12 +23,9 @@ var cacheProgress = { percent: 0, label: '', done: false }; // ← SET TRUE duri
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  '🔊 Added UI sounds — subtle clicks, chimes, and a welcome tone throughout the hub.',
-  '🔇 New Sound On/Off button next to Report a Bug — your choice is remembered on this device.',
-  '🎆 Fireworks now boom and whistle, and every seasonal theme has matching ambience (wind, thunder, jingle bells, birds & more).',
-  '⚡ The hub background scenes have sound too — lightning cracks, tesla zaps, rain, engine hum, sonar pings.',
-  '✅ Checkboxes pop when ticked, and finishing a full checklist plays a little fanfare.',
-  '📸 Camera shutter when you attach a photo, chime when the app updates, and tones when you go online/offline.',
+  '📳 New Vibrate setting in Sound Settings — choose Sound only, Vibrate only, or Sound + Vibrate (vibration on Android).',
+  '🗑️ Hitting OK on Clear All Fields now plays a delete sound, and Conduit Fill\'s Raceway/Nipple toggle has pipe-tap sounds.',
+  '🎚️ 80 sound styles to pick from in Sound Settings, including 10 thunder and 10 firework variants.',
 ];
 // ============================================================
 

@@ -2295,8 +2295,12 @@ window.addEventListener('DOMContentLoaded', () => {
 /* ================================================================
    CLEAR
 ================================================================ */
-function clearForm() {
-  if (!confirm('Clear all fields? This cannot be undone.')) return;
+function clearForm(confirmed) {
+  if (confirmed !== true) {
+    if (window.AOGConfirm) { AOGConfirm('Clear all fields? This cannot be undone.').then(function(ok){ if (ok) clearForm(true); }); }
+    else if (confirm('Clear all fields? This cannot be undone.')) clearForm(true);
+    return;
+  }
   document.querySelectorAll('input[type="text"], input[type="number"], input[type="date"], textarea').forEach(el => el.value = '');
   document.querySelectorAll('input[type="checkbox"]').forEach(el => {
     el.checked = false;

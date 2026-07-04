@@ -920,6 +920,53 @@
   window.addEventListener('online',  function () { S.online();  });
   window.addEventListener('offline', function () { S.offline(); });
 
+  /* ============ THEMED CONFIRM DIALOG (all forms) ============ */
+  // AOGConfirm('message', {title, confirmText, cancelText}) -> Promise<boolean>
+  // The confirm button is caught by the in-dialog click matcher above,
+  // so the delete noise plays exactly when the user confirms.
+  window.AOGConfirm = function (message, opts) {
+    opts = opts || {};
+    return new Promise(function (resolve) {
+      var back = document.createElement('div');
+      back.setAttribute('role', 'dialog');
+      back.setAttribute('aria-modal', 'true');
+      back.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px;';
+      var card = document.createElement('div');
+      card.style.cssText = 'background:#0f172a;border:1px solid rgba(251,191,36,.4);border-radius:14px;max-width:340px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.6);font-family:inherit;';
+      var h = document.createElement('div');
+      h.textContent = opts.title || '\u26A0 CLEAR ALL FIELDS';
+      h.style.cssText = 'font-weight:800;font-size:.9rem;letter-spacing:2px;color:#fbbf24;margin-bottom:10px;';
+      var p = document.createElement('div');
+      p.textContent = message || '';
+      p.style.cssText = 'font-size:.85rem;color:#94a3b8;line-height:1.5;margin-bottom:18px;';
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;';
+      function done(ok) {
+        if (back.parentNode) back.parentNode.removeChild(back);
+        document.removeEventListener('keydown', onKey);
+        resolve(ok);
+      }
+      var cancel = document.createElement('button');
+      cancel.type = 'button';
+      cancel.textContent = opts.cancelText || 'Cancel';
+      cancel.style.cssText = 'padding:9px 16px;border-radius:8px;font-size:.82rem;cursor:pointer;border:1px solid #334155;background:transparent;color:#cbd5e1;';
+      cancel.addEventListener('click', function () { done(false); });
+      var ok = document.createElement('button');
+      ok.type = 'button';
+      ok.textContent = opts.confirmText || 'Clear';
+      ok.style.cssText = 'padding:9px 18px;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;border:none;background:#fbbf24;color:#0f172a;';
+      ok.addEventListener('click', function () { done(true); });
+      function onKey(e) { if (e.key === 'Escape') done(false); }
+      back.addEventListener('click', function (e) { if (e.target === back) done(false); });
+      document.addEventListener('keydown', onKey);
+      row.appendChild(cancel); row.appendChild(ok);
+      card.appendChild(h); card.appendChild(p); card.appendChild(row);
+      back.appendChild(card);
+      document.body.appendChild(back);
+      ok.focus();
+    });
+  };
+
   /* ================= PUBLIC API ================= */
 
   window.AOGSound = {

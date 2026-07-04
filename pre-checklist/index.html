@@ -665,8 +665,12 @@ function toggleTheme() {
 }
 
 // ===== CLEAR FORM =====
-function clearForm() {
-  if (!confirm('Clear all fields?')) return;
+function clearForm(confirmed) {
+  if (confirmed !== true) {
+    if (window.AOGConfirm) { AOGConfirm('Clear all fields?').then(function(ok){ if (ok) clearForm(true); }); }
+    else if (confirm('Clear all fields?')) clearForm(true);
+    return;
+  }
   document.querySelectorAll('input[type="text"], input[type="date"], textarea').forEach(function(el) { el.value = ''; });
   document.querySelectorAll('input[type="checkbox"]').forEach(function(el) { el.checked = false; });
   try { localStorage.removeItem('aog-autosave'); } catch (e) {}
