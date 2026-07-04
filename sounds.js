@@ -208,6 +208,59 @@
     tone({ type: 'sine', from: 500 + Math.random() * 300, to: 1600 + Math.random() * 600, dur: 0.5, vol: 0.03 });
   }
 
+  var lastIgnite = 0;
+  function ignite() { // engine combustion pop, throttled per cycle
+    var now = Date.now();
+    if (now - lastIgnite < 220) return;
+    lastIgnite = now;
+    noiseBurst({ dur: 0.04, vol: 0.08, filter: 'lowpass', from: 500, curve: 3 });
+    tone({ type: 'sine', from: 85, to: 45, dur: 0.09, vol: 0.07 });
+  }
+
+  function trip() { // breaker trip: heavy mechanical CLACK + arc snap
+    noiseBurst({ dur: 0.035, vol: 0.16, filter: 'lowpass', from: 900, curve: 3 });
+    tone({ type: 'square', from: 170, to: 90, dur: 0.07, vol: 0.07 });
+    noiseBurst({ dur: 0.1, vol: 0.06, filter: 'highpass', from: 2800, curve: 2, delay: 0.03 });
+  }
+
+  function surge() { // rising electrical whine
+    tone({ type: 'sawtooth', from: 180, to: 850, dur: 0.55, vol: 0.035 });
+  }
+
+  function sizzle() { // spreading electric crackle (lichtenberg / fire)
+    var n = 8 + (Math.random() * 6 | 0);
+    for (var i = 0; i < n; i++) {
+      noiseBurst({ dur: 0.012 + Math.random() * 0.02, vol: 0.045 * (1 - i / n),
+                   filter: 'highpass', from: 2500 + Math.random() * 3500, curve: 1,
+                   delay: Math.pow(Math.random(), 0.6) * 0.7 });
+    }
+  }
+
+  function shimmer() { // cosmic / aurora: descending glassy notes
+    var f = 2400 + Math.random() * 800;
+    for (var i = 0; i < 5; i++) {
+      tone({ type: 'sine', from: f * Math.pow(0.84, i), dur: 0.22, vol: 0.03, delay: i * 0.09 });
+    }
+  }
+
+  function flare() { // solar flare eruption: deep slow whoosh
+    noiseBurst({ dur: 1.3, vol: 0.055, filter: 'bandpass', from: 90, to: 480, q: 0.7, curve: 1.2 });
+    tone({ type: 'sine', from: 55, to: 90, dur: 1.0, vol: 0.045 });
+  }
+
+  function grb() { // gamma ray burst: colossal slow detonation
+    boom(0.26);
+    tone({ type: 'sine', from: 48, to: 18, dur: 1.6, vol: 0.14, delay: 0.05 });
+    noiseBurst({ dur: 1.8, vol: 0.07, from: 300, to: 45, curve: 1.5, delay: 0.3 });
+  }
+
+  function arcflash() { // violent electrical blast
+    zap(true);
+    noiseBurst({ dur: 0.25, vol: 0.16, filter: 'highpass', from: 1200, curve: 2 });
+    tone({ type: 'sine', from: 110, to: 35, dur: 0.35, vol: 0.14, delay: 0.01 });
+    sizzle();
+  }
+
   /* ================= PRESETS ================= */
 
   var S = {
@@ -249,6 +302,14 @@
                            tone({ type: 'sine', from: 623, dur: 0.28, vol: 0.09, delay: 0.16 }); },
     online:  function () { tone({ type: 'sine', from: 440, to: 660, dur: 0.12, vol: 0.08 });
                            tone({ type: 'sine', from: 660, to: 880, dur: 0.12, vol: 0.08, delay: 0.11 }); },
+    ignite: ignite,
+    trip: trip,
+    surge: surge,
+    sizzle: sizzle,
+    shimmer: shimmer,
+    flare: flare,
+    grb: grb,
+    arcflash: arcflash,
     offline: function () { tone({ type: 'sine', from: 660, to: 440, dur: 0.12, vol: 0.08 });
                            tone({ type: 'sine', from: 440, to: 280, dur: 0.15, vol: 0.08, delay: 0.11 }); }
   };
@@ -298,7 +359,9 @@
     wind:   function () { noiseLoopNode('bandpass', 320, 0.7, 0.03, true); },
     hum:    function () { oscLoopNode('sine', 60, 0.014); oscLoopNode('sine', 120, 0.008); oscLoopNode('triangle', 180, 0.004); },
     engine: function () { oscLoopNode('sawtooth', 55, 0.012); oscLoopNode('sine', 110, 0.01); noiseLoopNode('lowpass', 300, 0.5, 0.012); },
-    drone:  function () { oscLoopNode('sine', 42, 0.02); oscLoopNode('sine', 63, 0.01); }
+    drone:  function () { oscLoopNode('sine', 42, 0.02); oscLoopNode('sine', 63, 0.01); },
+    fire:   function () { noiseLoopNode('lowpass', 1100, 0.6, 0.02); noiseLoopNode('highpass', 3200, 1, 0.008); },
+    arcbuzz:function () { oscLoopNode('sawtooth', 110, 0.011); noiseLoopNode('highpass', 3000, 1, 0.009); }
   };
 
   function scheduleOccasional(name, minMs, maxMs) {
@@ -311,53 +374,53 @@
 
   /* ---- Homepage canvas themes → sound profile ---- */
   var SCENES = {
-    'lightning':      {},                                   // bolts hooked directly
-    'tesla':          {},                                   // arcs hooked directly
+    'lightning':      {},                                    // bolt strikes hooked to visuals
+    'tesla':          {},                                    // arcs hooked
     'plasma':         { loop: 'hum' },
-    'emp':            {},                                   // pulses hooked directly
+    'emp':            {},                                    // pulses hooked
     'powergrid':      { loop: 'hum' },
-    'voltage':        { loop: 'hum' },
-    'rain':           { loop: 'rain', occ: [['thunder', 15000, 35000]] },
-    'hurricane':      { loop: 'wind', occ: [['thunder', 12000, 30000]] },
-    'fog':            { loop: 'wind' },
-    'supercell':      { loop: 'wind', occ: [['thunder', 7000, 16000]] },
+    'voltage':        { loop: 'hum' },                       // spikes hooked
+    'rain':           { loop: 'rain' },                      // bolts hooked
+    'hurricane':      { loop: 'wind' },                      // bolts hooked
+    'fog':            { loop: 'wind' },                      // bolts hooked
+    'supercell':      { loop: 'wind' },                      // bolts hooked
     'matrix':         { occ: [['tick', 400, 900]] },
-    'sonar':          { occ: [['ping', 3600, 4400]] },
+    'sonar':          {},                                    // ping synced to sweep
     'blueprint':      { loop: 'hum' },
-    'solarflare':     { occ: [['zapBig', 8000, 16000]] },
-    'lichtenberg':    { occ: [['zap', 2000, 5000]] },
-    'aurora g5':      { loop: 'drone' },
+    'solarflare':     {},                                    // eruptions hooked
+    'lichtenberg':    {},                                    // figures hooked
+    'aurora g5':      { loop: 'drone' },                     // bursts hooked
     'tornado alley':  { loop: 'wind', occ: [['wind', 5000, 11000]] },
-    'power lines':    { loop: 'hum' },
-    'xfmr explosion': { occ: [['explosion', 9000, 18000]], loop: 'hum' },
-    'engine cutaway': { loop: 'engine' },
-    'elec fire':      { occ: [['zap', 1000, 2600]] },
+    'power lines':    { loop: 'hum' },                       // bolts + arcs hooked
+    'xfmr explosion': { loop: 'hum' },                       // blasts hooked
+    'engine cutaway': { loop: 'engine' },                    // ignition hooked
+    'elec fire':      { loop: 'fire', occ: [['sizzle', 900, 2200]] },
     'solar wind':     { loop: 'wind' },
-    'cosmic ray':     { occ: [['ping', 4000, 9000]] },
+    'cosmic ray':     {},                                    // showers hooked
     'magnetosphere':  { loop: 'drone' },
     'pulsar':         { occ: [['ping', 1300, 1900]] },
-    'faraday cage':   { occ: [['zap', 3000, 7000]] },
+    'faraday cage':   {},                                    // strikes hooked
     'oscilloscope':   { loop: 'hum' },
-    'jacobs ladder':  { occ: [['zap', 700, 1800]] },
-    'emf field lines':{ loop: 'hum' },
-    'substation':     { loop: 'hum', occ: [['zap', 6000, 15000]] },
+    'jacobs ladder':  { loop: 'arcbuzz' },
+    'emf field lines':{ loop: 'hum' },                       // bolts hooked
+    'substation':     { loop: 'hum' },                       // coronas + arcs hooked
     'underground cable': { loop: 'hum' },
-    'switchgear trip':{ occ: [['zapBig', 5000, 12000]] },
-    'van de graaff':  { occ: [['zap', 1500, 4000]] },
+    'switchgear trip':{ loop: 'hum' },                       // trips hooked
+    'van de graaff':  { loop: 'hum' },                       // arcs + discharge hooked
     'ball lightning': { occ: [['zap', 2500, 6000]] },
     'black hole':     { loop: 'drone' },
-    'ion storm':      { occ: [['zapBig', 3000, 8000]] },
-    'gamma ray burst':{ occ: [['zapBig', 6000, 14000]] },
-    'power outage':   { once: 'powerDown' },
-    'synapse':        { occ: [['pop', 1500, 4000]] },
-    'grid goes down': { once: 'powerDown', occ: [['zap', 6000, 14000]] },
-    'combustion':     { loop: 'engine' },
+    'ion storm':      { loop: 'drone' },                     // bolts hooked
+    'gamma ray burst':{},                                    // bursts hooked
+    'power outage':   { once: 'powerDown' },                 // flicker sparks hooked
+    'synapse':        {},                                    // neuron firing hooked
+    'grid goes down': { once: 'powerDown' },                 // node failures hooked
+    'combustion':     { loop: 'engine' },                    // ignition hooked
     'cooling fan':    { loop: 'engine' },
     'battery charge': { occ: [['result', 6000, 12000]] },
     'three-phase':    { loop: 'hum' },
     'circuit traces': { occ: [['tick', 600, 1400]] },
-    'arc flash':      { occ: [['zapBig', 4000, 9000]] },
-    'strike on grid': { occ: [['boltStrike', 8000, 16000]] },
+    'arc flash':      {},                                    // blasts hooked
+    'strike on grid': {},                                    // strikes + surges hooked
     'ice storm':      { loop: 'wind' },
     'solar eclipse':  { loop: 'drone' },
     'thermal scan':   { occ: [['ping', 3000, 6000]] }
