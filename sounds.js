@@ -851,8 +851,17 @@
     if (!el) return;
     S.click();
     var sig = (el.id + ' ' + el.className + ' ' + (el.textContent || '').slice(0, 60)).toLowerCase();
-    if (/\bclear\b|\breset\b|start over/.test(sig)) { /* wait for confirm OK */ }
+    // Is this button inside a confirmation popup? (custom modals like the
+    // Estimate sheet's Clear dialog, or any role="dialog" overlay)
+    var inDialog = el.closest('[role="dialog"], [aria-modal="true"], .confirm-modal, .confirm-modal-backdrop, #themed-confirm-overlay');
+    if (/\bclear\b|\breset\b|start over/.test(sig)) {
+      // Confirming inside a popup → delete noise now.
+      // Opening the popup (or a no-confirm clear button) → stay quiet;
+      // native confirm() dialogs are handled by the confirm override.
+      if (inDialog) S.trash();
+    }
     else if (/delete|remove|trash|\ud83d\uddd1/.test(sig)) S.trash();
+    else if (/\bok\b|\byes\b/.test(sig) && inDialog) S.trash();
     else if (/copy|clipboard/.test(sig)) S.copied();
     else if (/pdf|export|download|save|print|submit|send/.test(sig)) S.result();
   }, { passive: true });
