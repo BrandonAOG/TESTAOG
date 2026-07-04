@@ -20,17 +20,22 @@
     if (!ctx) {
       var AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return null;
-      ctx = new AC();
+      try { ctx = new AC({ latencyHint: 'interactive' }); } catch (e) { ctx = new AC(); }
     }
-    if (ctx.state === 'suspended') ctx.resume();
+    if (ctx.state !== 'running') { try { ctx.resume(); } catch (e) {} }
     return ctx;
   }
+  // Create the context IMMEDIATELY at load (starts suspended, resumes on
+  // first gesture) so there is zero setup cost when the first sound fires.
+  getCtx();
   function ready() { return !muted && ctx && ctx.state === 'running'; }
 
   // Browsers block audio until first user gesture; unlock then start ambience
   function unlock() {
     var c = getCtx();
-    if (c) setTimeout(applyScene, 150);
+    if (!c) return;
+    if (c.state === 'running') applyScene();
+    else if (c.resume) c.resume().then(applyScene).catch(function(){});
   }
   ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) {
     document.addEventListener(ev, unlock, { once: true, passive: true });
@@ -40,7 +45,7 @@
 
   function tone(o) {
     if (muted) return;
-    var c = getCtx(); if (!c || c.state !== 'running') return;
+    var c = getCtx(); if (!c) return;
     var osc = c.createOscillator(), g = c.createGain();
     var t = c.currentTime + (o.delay || 0), dur = o.dur || 0.12;
     osc.type = o.type || 'sine';
@@ -55,7 +60,7 @@
 
   function noiseBurst(o) { // one-shot noise through a filter
     if (muted) return;
-    var c = getCtx(); if (!c || c.state !== 'running') return;
+    var c = getCtx(); if (!c) return;
     var t = c.currentTime + (o.delay || 0), dur = o.dur || 0.3;
     var len = Math.floor(c.sampleRate * dur);
     var buf = c.createBuffer(1, len, c.sampleRate);
@@ -78,7 +83,7 @@
 
   function boom(vol) { // realistic firework burst
     if (muted) return;
-    var c = getCtx(); if (!c || c.state !== 'running') return;
+    var c = getCtx(); if (!c) return;
     vol = vol || 0.22;
     var t = c.currentTime;
 
@@ -106,7 +111,7 @@
 
   function thunder(vol) { // long distant rumble
     if (muted) return;
-    var c = getCtx(); if (!c || c.state !== 'running') return;
+    var c = getCtx(); if (!c) return;
     vol = vol || 0.1;
     var dur = 1.6 + Math.random() * 1.2;
     var t = c.currentTime;
@@ -464,7 +469,7 @@
       muted = !muted;
       localStorage.setItem('aog-sound-muted', muted ? '1' : '0');
       if (muted) stopAmbient();
-      else { getCtx(); setTimeout(applyScene, 100); }
+      else { var c = getCtx(); if (c && c.state === 'running') applyScene(); else if (c && c.resume) c.resume().then(applyScene).catch(function(){}); }
       return muted;
     },
     isMuted: function () { return muted; },
