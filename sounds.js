@@ -76,11 +76,32 @@
     noiseBurst({ dur: dur || 0.35, vol: vol || 0.08, filter: 'bandpass', from: 400, to: 2200, curve: 1 });
   }
 
-  function boom(vol) { // firework / explosion
+  function boom(vol) { // realistic firework burst
     if (muted) return;
-    vol = vol || 0.18;
-    noiseBurst({ dur: 0.5 + Math.random() * 0.4, vol: vol, from: 2000 + Math.random() * 1500, to: 120, curve: 2.2 });
-    tone({ type: 'sine', from: 90 + Math.random() * 30, to: 35, dur: 0.38, vol: vol * 1.2 });
+    var c = getCtx(); if (!c || c.state !== 'running') return;
+    vol = vol || 0.22;
+    var t = c.currentTime;
+
+    // 1) Sharp initial CRACK — loud, short, full-spectrum
+    noiseBurst({ dur: 0.06, vol: vol * 1.4, filter: 'highpass', from: 300, q: 0.5, curve: 1.2 });
+
+    // 2) Deep concussive thump right behind it
+    tone({ type: 'sine', from: 120 + Math.random() * 40, to: 30, dur: 0.5, vol: vol * 1.1, delay: 0.01 });
+
+    // 3) Body of the explosion — noise with falling filter
+    noiseBurst({ dur: 0.7 + Math.random() * 0.4, vol: vol * 0.7, from: 3000 + Math.random() * 2000, to: 100, curve: 2.5, delay: 0.02 });
+
+    // 4) Crackle tail — dozens of tiny random pops as sparks burn out
+    var crackles = 18 + (Math.random() * 14 | 0);
+    for (var i = 0; i < crackles; i++) {
+      var when = 0.15 + Math.pow(Math.random(), 0.7) * 1.1; // denser early, sparser late
+      var fade = 1 - when / 1.4;
+      noiseBurst({ dur: 0.015 + Math.random() * 0.02, vol: vol * 0.35 * fade,
+                   filter: 'highpass', from: 2000 + Math.random() * 4000, q: 1, curve: 1, delay: when });
+    }
+
+    // 5) Distant echo rumble rolling back
+    noiseBurst({ dur: 0.9 + Math.random() * 0.5, vol: vol * 0.25, from: 400, to: 60, curve: 1.8, delay: 0.25 + Math.random() * 0.15 });
   }
 
   function thunder(vol) { // long distant rumble
