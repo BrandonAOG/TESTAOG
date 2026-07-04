@@ -41,7 +41,7 @@
     explosion:'seasonal', launch:'seasonal', jingle:'seasonal', bell:'seasonal',
     chirp:'seasonal', harp:'seasonal', wind:'seasonal',
     pop:'forms', fanfare:'forms', result:'forms', shutter:'forms',
-    trash:'forms', copied:'forms', sweep:'forms'
+    trash:'forms', copied:'forms', sweep:'forms', clunk:'taps', tink:'taps'
   };
 
   function getCtx() {
@@ -581,6 +581,16 @@
     noiseBurst({ dur: 0.25, vol: 0.05, filter: 'bandpass', from: 2600, to: 700, q: 1.2, curve: 1, delay: 0.18 });
   }
 
+  function clunk() { // heavy pipe clank — raceway
+    noiseBurst({ dur: 0.03, vol: 0.12, filter: 'lowpass', from: 700, curve: 3 });
+    tone({ type: 'triangle', from: 220, to: 180, dur: 0.12, vol: 0.1 });
+    tone({ type: 'sine', from: 440, dur: 0.08, vol: 0.04 });
+  }
+  function tink() { // short bright pipe tap — nipple
+    tone({ type: 'triangle', from: 1150, to: 1050, dur: 0.09, vol: 0.1 });
+    noiseBurst({ dur: 0.012, vol: 0.06, filter: 'highpass', from: 3000, curve: 3 });
+  }
+
   /* ================= PRESETS ================= */
 
   var RAW = {
@@ -626,6 +636,8 @@
     flare: flare,
     grb: grb,
     arcflash: arcflash,
+    clunk:  clunk,
+    tink:   tink,
     trash:  trashSound,
     copied: copiedSound,
     sweep:  sweepSound,
@@ -847,6 +859,18 @@
     var t = e.target;
     if (t && t.matches && t.matches('input[type="number"], input[inputmode="decimal"], input[inputmode="numeric"], input[type="range"]')) S.tick();
   }, true);
+
+  // Confirm dialogs: hitting OK on a destructive confirm plays the delete noise
+  var nativeConfirm = window.confirm ? window.confirm.bind(window) : null;
+  if (nativeConfirm) {
+    window.confirm = function (msg) {
+      var ok = nativeConfirm(msg);
+      if (ok && /clear|delete|remove|reset|cannot be undone|new job|start over/i.test(String(msg || ''))) {
+        S.trash();
+      }
+      return ok;
+    };
+  }
 
   // Required-field validation failure → error buzz (one per burst)
   var lastInvalid = 0;
