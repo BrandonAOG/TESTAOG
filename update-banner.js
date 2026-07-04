@@ -124,7 +124,10 @@
 
     document.body.insertBefore(banner, document.body.firstChild);
 
-    setTimeout(function () { banner.classList.add('show'); }, 100);
+    setTimeout(function () {
+      banner.classList.add('show');
+      if (window.AOGSound) AOGSound.play('notify');
+    }, 100);
 
     document.getElementById('aog-update-btn').addEventListener('click', function () {
       waitingWorker.postMessage({ action: 'SKIP_WAITING' });

@@ -623,6 +623,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     for(var i=0;i<n;i++) state.particles.push({x:rand(0,W),y:rand(0,H),vx:rand(-.12,.12),vy:rand(-.12,.12),r:rand(.7,1.8),a:rand(.06,.22),col:Math.random()>.6?'251,191,36':Math.random()>.5?'249,115,22':'0,212,255'});
   }
   function spawnLightningBolt(){
+    if(window.AOGSound)AOGSound.play('boltStrike');
     var sx=rand(W*.05,W*.95),sy=rand(-20,H*.2);
     var ex=sx+rand(-130,130),ey=sy+rand(H*.35,H*.85);
     var am=Math.random()>.4;
@@ -654,6 +655,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state.nextArc=0;
   }
   function spawnArc(){
+    if(window.AOGSound)AOGSound.play('zap');
     var angle=rand(0,Math.PI*2);
     var len=rand(H*.18,H*.55);
     var ex=state.cx+Math.cos(angle)*len+rand(-60,60);
@@ -716,6 +718,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state.nextPulse=0;
   }
   function spawnPulse(){
+    if(window.AOGSound)AOGSound.play('pulse');
     state.pulses.push({x:rand(W*.15,W*.85),y:rand(H*.15,H*.85),r:0,maxR:Math.max(W,H)*.8,speed:rand(2.5,5),alpha:1,col:Math.random()>.5?'251,191,36':'0,212,255',rings:randInt(2,4)});
   }
   function drawEMP(){
@@ -1017,6 +1020,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     if(Math.random()<.012){
       var sx=rand(W*.15,W*.85),sy=rand(H*.05,H*.4);
       var ex=sx+rand(-150,150),ey=sy+rand(60,H*.35);
+      if(window.AOGSound)AOGSound.play('boltStrike');
       state.bolts.push({segs:buildBolt(sx,sy,ex,ey,3),life:1,decay:rand(.1,.18),core:'255,240,180',glow:'251,191,36',fx:sx,fy:sy,fr:rand(80,200)});
     }
     for(var i=state.bolts.length-1;i>=0;i--){
@@ -3749,6 +3753,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
 
   resize();
   theme.init();
+  if(window.AOGSound)AOGSound.scene(theme.name);
 
   var generation = 0; // increment on every switch; old loops see stale gen and die
 
@@ -3790,6 +3795,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     resize();
     state = {};
     theme.init();
+  if(window.AOGSound)AOGSound.scene(theme.name);
     last = 0; acc = 0;
     loop(generation);
   });

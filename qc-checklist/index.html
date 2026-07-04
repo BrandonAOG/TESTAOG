@@ -3701,6 +3701,7 @@ function createSeasonalCanvas(theme) {
       }
       function explode(p){
         p.phase='burst'; p.flash=1;
+        if (window.AOGSound) AOGSound.play('explosion');
         var type=pick(['sphere','sphere','ring','willow','chrys']);
         var n=type==='ring'?44:(30+(Math.random()*22|0));
         var base=rnd(3.2,5.4);
@@ -3759,7 +3760,7 @@ function createSeasonalCanvas(theme) {
         tick: function(p){
           var kk, src;
           if (p.phase==='wait'){
-            if (--p.delay<=0){ src=newRise(); for (kk in src) p[kk]=src[kk]; }
+            if (--p.delay<=0){ src=newRise(); for (kk in src) p[kk]=src[kk]; if (window.AOGSound) AOGSound.play('launch'); }
             return;
           }
           if (p.phase==='rise'){
