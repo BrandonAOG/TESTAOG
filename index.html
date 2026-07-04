@@ -421,7 +421,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   <div class="hub-actions">
     <button type="button" class="hub-action-btn" id="sound-toggle-btn">
       <span id="sound-toggle-icon">🔊</span>
-      <span id="sound-toggle-label">SOUND ON</span>
+      <span id="sound-toggle-label">SOUNDS</span>
     </button>
     <button type="button" class="hub-action-btn" id="bug-report-btn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l1.88 1.88M14.12 3.88L16 2M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6z"/><path d="M12 20v-9M6.53 9C4.6 8.8 3 7.1 3 5M6 13H2M3 21c0-2.1 1.7-3.9 3.8-4M20.97 5c0 2.1-1.6 3.8-3.5 4M22 13h-4M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>
@@ -3890,29 +3890,154 @@ document.querySelectorAll('.cat-btn').forEach(function(btn) {
   });
 });
 
-// ═══ SOUND ON/OFF TOGGLE ═══
+// ═══ SOUND PANEL ═══
 (function(){
   var btn = document.getElementById('sound-toggle-btn');
   if (!btn) return;
   var icon = document.getElementById('sound-toggle-icon');
-  var label = document.getElementById('sound-toggle-label');
-  function render(m){
+
+  function A(){ return window.AOGSound || null; }
+  function renderBtn(){
+    var m = A() ? A().isMuted() : (localStorage.getItem('aog-sound-muted')==='1');
     icon.textContent = m ? '🔇' : '🔊';
-    label.textContent = m ? 'SOUND OFF' : 'SOUND ON';
-    btn.classList.toggle('active', !m);
   }
-  // reflect saved state on load (works even if sounds.js loads after)
-  render(localStorage.getItem('aog-sound-muted') === '1');
+  renderBtn();
+
+  var CATS = [
+    ['master',     '🔊', 'Master — all sounds'],
+    ['taps',       '👆', 'Taps & Clicks'],
+    ['animations', '⚡', 'Background Animations'],
+    ['seasonal',   '🎆', 'Seasonal & Fireworks'],
+    ['forms',      '✅', 'Forms & Checklists'],
+    ['alerts',     '🔔', 'Alerts & Updates']
+  ];
+  var SAMPLE = { master:'click', taps:'click', animations:'boltStrike', seasonal:'explosion', forms:'pop', alerts:'notify' };
+  var TONES = [
+    ['click',     '👆 Button Click', [['classic','Classic'],['typewriter','Typewriter'],['bubble','Bubble']]],
+    ['pop',       '✅ Checkbox',     [['pop','Pop'],['tick','Wood Tick'],['blip','Blip']]],
+    ['toast',     '💬 Toast',        [['chime','Chime'],['doorbell','Doorbell'],['marimba','Marimba']]],
+    ['success',   '🌟 Success',      [['arpeggio','Arpeggio'],['tada','Ta-Da'],['gentle','Gentle']]],
+    ['explosion', '🎆 Fireworks',    [['realistic','Realistic'],['deep','Deep Boom'],['crackler','Crackler']]]
+  ];
+
+  var overlay = null;
+  function buildPanel(){
+    overlay = document.createElement('div');
+    overlay.id = 'aog-sound-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    var card = document.createElement('div');
+    card.style.cssText = 'background:#0f172a;border:1px solid rgba(251,191,36,.35);border-radius:16px;max-width:420px;width:100%;max-height:85vh;overflow-y:auto;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.6);color:#e2e8f0;font-family:inherit;';
+    var h = document.createElement('div');
+    h.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;';
+    h.innerHTML = '<div style="font-weight:800;font-size:1.05rem;color:#fbbf24;">🎚️ SOUND SETTINGS</div>';
+    var x = document.createElement('button');
+    x.textContent = '✕';
+    x.style.cssText = 'background:none;border:none;color:#94a3b8;font-size:1.2rem;cursor:pointer;padding:4px 8px;';
+    x.addEventListener('click', close);
+    h.appendChild(x);
+    card.appendChild(h);
+
+    // ── category switches ──
+    CATS.forEach(function(c){
+      var key=c[0];
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:10px 4px;border-bottom:1px solid rgba(148,163,184,.12);'+(key==='master'?'margin-bottom:4px;':'');
+      row.innerHTML = '<span style="font-size:.92rem;'+(key==='master'?'font-weight:700;color:#fbbf24;':'')+'">'+c[1]+' '+c[2]+'</span>';
+      var sw = document.createElement('button');
+      sw.type='button';
+      sw.dataset.cat = key;
+      sw.style.cssText = 'width:52px;height:28px;border-radius:14px;border:none;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;';
+      var knob = document.createElement('span');
+      knob.style.cssText = 'position:absolute;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:left .2s;';
+      sw.appendChild(knob);
+      function paint(on){ sw.style.background = on ? '#fbbf24' : '#334155'; knob.style.left = on ? '27px' : '3px'; }
+      sw._paint = paint;
+      sw.addEventListener('click', function(){
+        var a = A(); if (!a) return;
+        var on = !(a.getPrefs()[key]);
+        a.setPref(key, on);
+        paint(on);
+        if (on) a.play(SAMPLE[key]);
+        if (key === 'master') renderBtn();
+        syncDisabled();
+      });
+      row.appendChild(sw);
+      card.appendChild(row);
+    });
+
+    // ── tone pickers ──
+    var th = document.createElement('div');
+    th.style.cssText = 'font-weight:800;font-size:.95rem;color:#fbbf24;margin:16px 0 6px;';
+    th.textContent = '🎵 TONE STYLES — tap to preview & pick';
+    card.appendChild(th);
+    TONES.forEach(function(t){
+      var name=t[0];
+      var row = document.createElement('div');
+      row.style.cssText = 'padding:8px 4px;border-bottom:1px solid rgba(148,163,184,.12);';
+      var lbl = document.createElement('div');
+      lbl.style.cssText = 'font-size:.88rem;margin-bottom:6px;color:#cbd5e1;';
+      lbl.textContent = t[1];
+      row.appendChild(lbl);
+      var pills = document.createElement('div');
+      pills.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
+      t[2].forEach(function(v){
+        var p = document.createElement('button');
+        p.type='button';
+        p.textContent = v[1];
+        p.dataset.tone = name; p.dataset.variant = v[0];
+        p.style.cssText = 'padding:6px 12px;border-radius:20px;font-size:.8rem;cursor:pointer;border:1px solid rgba(251,191,36,.4);background:transparent;color:#cbd5e1;transition:all .15s;';
+        p.addEventListener('click', function(){
+          var a = A(); if (!a) return;
+          a.setTone(name, v[0]);
+          a.play(name); // instant preview of the chosen style
+          paintPills(name);
+        });
+        pills.appendChild(p);
+      });
+      row.appendChild(pills);
+      card.appendChild(row);
+    });
+
+    var note = document.createElement('div');
+    note.style.cssText = 'font-size:.75rem;color:#64748b;margin-top:12px;line-height:1.4;';
+    note.textContent = 'Settings save automatically and apply on every AOG page on this device.';
+    card.appendChild(note);
+
+    overlay.appendChild(card);
+    overlay.addEventListener('click', function(e){ if (e.target === overlay) close(); });
+    document.body.appendChild(overlay);
+  }
+
+  function paintPills(only){
+    if (!A()) return;
+    var cur = A().getTones();
+    overlay.querySelectorAll('[data-tone]').forEach(function(p){
+      if (only && p.dataset.tone !== only) return;
+      var on = cur[p.dataset.tone] === p.dataset.variant;
+      p.style.background = on ? '#fbbf24' : 'transparent';
+      p.style.color = on ? '#0f172a' : '#cbd5e1';
+      p.style.fontWeight = on ? '700' : '400';
+    });
+  }
+  function syncDisabled(){
+    if (!A()) return;
+    var prefs = A().getPrefs();
+    overlay.querySelectorAll('[data-cat]').forEach(function(sw){
+      sw._paint(prefs[sw.dataset.cat]);
+      if (sw.dataset.cat !== 'master') sw.style.opacity = prefs.master ? '1' : '.4';
+    });
+  }
+  function open(){
+    if (!overlay) buildPanel();
+    overlay.style.display = 'flex';
+    syncDisabled();
+    paintPills();
+  }
+  function close(){ if (overlay) overlay.style.display = 'none'; }
+
   btn.addEventListener('click', function(){
-    var m;
-    if (window.AOGSound) {
-      m = AOGSound.toggleMute();
-      if (!m) AOGSound.play('click'); // audible confirmation when turning ON
-    } else {
-      m = localStorage.getItem('aog-sound-muted') !== '1';
-      localStorage.setItem('aog-sound-muted', m ? '1' : '0');
-    }
-    render(m);
+    if (!window.AOGSound) return; // engine not loaded yet
+    open();
   });
 })();
 
