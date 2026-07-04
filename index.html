@@ -3968,6 +3968,34 @@ document.querySelectorAll('.cat-btn').forEach(function(btn) {
       card.appendChild(row);
     });
 
+    // ── output mode: sound / vibrate / both ──
+    var mh = document.createElement('div');
+    mh.style.cssText = 'font-weight:800;font-size:.95rem;color:#fbbf24;margin:16px 0 6px;';
+    mh.textContent = '📳 OUTPUT MODE';
+    card.appendChild(mh);
+    var mrow = document.createElement('div');
+    mrow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;padding:4px;';
+    [['sound','🔊 Sound only'],['vibrate','📳 Vibrate only'],['both','🔊📳 Sound + Vibrate']].forEach(function(mo){
+      var p = document.createElement('button');
+      p.type='button';
+      p.textContent = mo[1];
+      p.dataset.mode = mo[0];
+      p.style.cssText = 'padding:8px 14px;border-radius:20px;font-size:.82rem;cursor:pointer;border:1px solid rgba(251,191,36,.4);background:transparent;color:#cbd5e1;transition:all .15s;';
+      p.addEventListener('click', function(){
+        var a = A(); if (!a) return;
+        a.setMode(mo[0]);
+        if (mo[0] !== 'vibrate') a.play('click');
+        if (mo[0] !== 'sound' && navigator.vibrate) navigator.vibrate(20);
+        paintModes();
+      });
+      mrow.appendChild(p);
+    });
+    card.appendChild(mrow);
+    var mnote = document.createElement('div');
+    mnote.id = 'aog-vib-note';
+    mnote.style.cssText = 'font-size:.72rem;color:#64748b;padding:2px 4px 6px;';
+    card.appendChild(mnote);
+
     // ── tone pickers ──
     var th = document.createElement('div');
     th.style.cssText = 'font-weight:800;font-size:.95rem;color:#fbbf24;margin:16px 0 6px;';
@@ -4011,6 +4039,20 @@ document.querySelectorAll('.cat-btn').forEach(function(btn) {
     document.body.appendChild(overlay);
   }
 
+  function paintModes(){
+    if (!A() || !overlay) return;
+    var cur = A().getMode();
+    overlay.querySelectorAll('[data-mode]').forEach(function(p){
+      var on = p.dataset.mode === cur;
+      p.style.background = on ? '#fbbf24' : 'transparent';
+      p.style.color = on ? '#0f172a' : '#cbd5e1';
+      p.style.fontWeight = on ? '700' : '400';
+    });
+    var note = document.getElementById('aog-vib-note');
+    if (note) note.textContent = A().canVibrate()
+      ? 'Vibration works on Android. Haptic strength follows the sound — fireworks thump harder than clicks.'
+      : 'This device/browser does not support web vibration (iPhones block it), so vibrate modes will be silent here. The setting still syncs for Android users.';
+  }
   function paintPills(only){
     if (!A()) return;
     var cur = A().getTones();
@@ -4035,6 +4077,7 @@ document.querySelectorAll('.cat-btn').forEach(function(btn) {
     overlay.style.display = 'flex';
     syncDisabled();
     paintPills();
+    paintModes();
   }
   function close(){ if (overlay) overlay.style.display = 'none'; }
 
