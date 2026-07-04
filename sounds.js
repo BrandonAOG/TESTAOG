@@ -252,8 +252,38 @@
     tone({ type: 'sine', from: 2000, dur: 0.02, vol: 0.025 });
   }
 
-  function launchWhistle() {
-    tone({ type: 'sine', from: 500 + Math.random() * 300, to: 1600 + Math.random() * 600, dur: 0.5, vol: 0.03 });
+  function launchWhistle() { // realistic shell launch
+    if (muted) return;
+    // 1) Mortar tube THUMP — the deep "toomp" of the lift charge
+    noiseBurst({ dur: 0.06, vol: 0.1, filter: 'lowpass', from: 480, curve: 2.5 });
+    tone({ type: 'sine', from: 75, to: 42, dur: 0.14, vol: 0.08 });
+
+    // 2) Breathy rising hiss as the shell climbs (noise, not a pure tone)
+    noiseBurst({ dur: 0.9 + Math.random() * 0.4, vol: 0.03, filter: 'bandpass',
+                 from: 800 + Math.random() * 300, to: 3200 + Math.random() * 800,
+                 q: 2.5, curve: 0.8, delay: 0.06 });
+
+    // 3) Sometimes a faint wavering whistle rides on top (whistling shell)
+    if (Math.random() < 0.45) {
+      var c = getCtx(); if (!c) return;
+      var t = c.currentTime + 0.1;
+      var dur = 0.8 + Math.random() * 0.3;
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(900 + Math.random() * 200, t);
+      o.frequency.exponentialRampToValueAtTime(2300 + Math.random() * 500, t + dur);
+      // vibrato LFO makes it warble like a real whistle
+      var lfo = c.createOscillator(), lg = c.createGain();
+      lfo.frequency.value = 22 + Math.random() * 8;
+      lg.gain.value = 45;
+      lfo.connect(lg).connect(o.frequency);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.014, t + 0.15);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g).connect(c.destination);
+      lfo.start(t); o.start(t);
+      lfo.stop(t + dur + 0.05); o.stop(t + dur + 0.05);
+    }
   }
 
   var lastIgnite = 0;
