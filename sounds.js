@@ -24,9 +24,9 @@
   function allowed(cat) { return !muted && prefs[cat] !== false; }
 
   // Selectable tone styles for the most audible sounds (hub Sound Panel)
-  var DEFAULT_TONES = { click: 'classic', toast: 'chime', pop: 'pop', success: 'arpeggio', explosion: 'realistic', notify: 'doorbell', fanfare: 'classic', thunder: 'rumble' };
+  var DEFAULT_TONES = { click: 'knock', toast: 'harp', pop: 'pop', success: 'tada', explosion: 'deep', notify: 'pager', fanfare: 'victory', thunder: 'rumble' };
   var toneChoice;
-  try { toneChoice = JSON.parse(localStorage.getItem('aog-sound-tones')) || {}; } catch (e) { toneChoice = {}; }
+  try { toneChoice = JSON.parse(localStorage.getItem('aog-sound-tones-v2')) || {}; } catch (e) { toneChoice = {}; }
   for (var tk in DEFAULT_TONES) if (!toneChoice[tk]) toneChoice[tk] = DEFAULT_TONES[tk];
 
   // preset name → category
@@ -759,7 +759,7 @@
     setTone: function (name, variant) {
       if (VARIANTS[name] && VARIANTS[name][variant]) {
         toneChoice[name] = variant;
-        localStorage.setItem('aog-sound-tones', JSON.stringify(toneChoice));
+        localStorage.setItem('aog-sound-tones-v2', JSON.stringify(toneChoice));
       }
     },
     getPrefs: function () { var o = { master: !muted }; for (var k in prefs) o[k] = prefs[k]; return o; },
