@@ -40,7 +40,8 @@
     ignite:'animations', trip:'animations',
     explosion:'seasonal', launch:'seasonal', jingle:'seasonal', bell:'seasonal',
     chirp:'seasonal', harp:'seasonal', wind:'seasonal',
-    pop:'forms', fanfare:'forms', result:'forms', shutter:'forms'
+    pop:'forms', fanfare:'forms', result:'forms', shutter:'forms',
+    trash:'forms', copied:'forms', sweep:'forms'
   };
 
   function getCtx() {
@@ -566,6 +567,20 @@
   };
   function pick(name) { return (VARIANTS[name][toneChoice[name]] || VARIANTS[name][DEFAULT_TONES[name]])(); }
 
+  function trashSound() { // delete: down-whoosh + soft thud landing
+    noiseBurst({ dur: 0.18, vol: 0.06, filter: 'bandpass', from: 1800, to: 300, q: 1, curve: 1 });
+    tone({ type: 'sine', from: 500, to: 180, dur: 0.14, vol: 0.07 });
+    noiseBurst({ dur: 0.04, vol: 0.09, filter: 'lowpass', from: 500, curve: 3, delay: 0.15 });
+  }
+  function copiedSound() { // two quick high ticks — "got it"
+    tone({ type: 'sine', from: 1320, dur: 0.05, vol: 0.07 });
+    tone({ type: 'sine', from: 1760, dur: 0.07, vol: 0.07, delay: 0.08 });
+  }
+  function sweepSound() { // clear/reset: fast broom sweep
+    noiseBurst({ dur: 0.3, vol: 0.06, filter: 'bandpass', from: 800, to: 2600, q: 1.2, curve: 1 });
+    noiseBurst({ dur: 0.25, vol: 0.05, filter: 'bandpass', from: 2600, to: 700, q: 1.2, curve: 1, delay: 0.18 });
+  }
+
   /* ================= PRESETS ================= */
 
   var RAW = {
@@ -611,6 +626,9 @@
     flare: flare,
     grb: grb,
     arcflash: arcflash,
+    trash:  trashSound,
+    copied: copiedSound,
+    sweep:  sweepSound,
     offline: function () { tone({ type: 'sine', from: 660, to: 440, dur: 0.12, vol: 0.08 });
                            tone({ type: 'sine', from: 440, to: 280, dur: 0.15, vol: 0.08, delay: 0.11 }); }
   };
@@ -795,7 +813,10 @@
     if (!el) return;
     S.click();
     var sig = (el.id + ' ' + el.className + ' ' + (el.textContent || '').slice(0, 60)).toLowerCase();
-    if (/pdf|export|download|save|print|submit|send/.test(sig)) S.result();
+    if (/delete|remove|trash|\ud83d\uddd1/.test(sig)) S.trash();
+    else if (/copy|clipboard/.test(sig)) S.copied();
+    else if (/\bclear\b|\breset\b|start over/.test(sig)) S.sweep();
+    else if (/pdf|export|download|save|print|submit|send/.test(sig)) S.result();
   }, { passive: true });
 
   // Checkboxes: pop on check; fanfare when a page's checklist hits 100%
@@ -825,6 +846,15 @@
   document.addEventListener('input', function (e) {
     var t = e.target;
     if (t && t.matches && t.matches('input[type="number"], input[inputmode="decimal"], input[inputmode="numeric"], input[type="range"]')) S.tick();
+  }, true);
+
+  // Required-field validation failure → error buzz (one per burst)
+  var lastInvalid = 0;
+  document.addEventListener('invalid', function () {
+    var now = Date.now();
+    if (now - lastInvalid < 600) return;
+    lastInvalid = now;
+    S.error();
   }, true);
 
   // Connectivity
