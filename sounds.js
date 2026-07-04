@@ -927,18 +927,31 @@
   window.AOGConfirm = function (message, opts) {
     opts = opts || {};
     return new Promise(function (resolve) {
+      // Seasonal flair for the title, keyed off the page's seasonal class
+      var flair = '';
+      var m = (document.body && document.body.className || '').match(/seasonal-([a-z]+)/);
+      if (m) {
+        flair = ({ fourthofjuly: '\uD83C\uDF86 ', halloween: '\uD83C\uDF83 ', christmas: '\uD83C\uDF84 ',
+                   newyear: '\uD83C\uDF89 ', valentines: '\uD83D\uDC96 ', stpatricks: '\uD83C\uDF40 ',
+                   spring: '\uD83C\uDF38 ', easter: '\uD83D\uDC23 ', summer: '\u2600\uFE0F ',
+                   fall: '\uD83C\uDF42 ', thanksgiving: '\uD83E\uDD83 ', backtoschool: '\uD83D\uDCDA ' })[m[1]] || '';
+      }
+
       var back = document.createElement('div');
       back.setAttribute('role', 'dialog');
       back.setAttribute('aria-modal', 'true');
-      back.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px;';
+      back.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(3px);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px;';
       var card = document.createElement('div');
-      card.style.cssText = 'background:#0f172a;border:1px solid rgba(251,191,36,.4);border-radius:14px;max-width:340px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.6);font-family:inherit;';
+      // Built entirely from the page's theme variables: --panel/--text flip with
+      // light/dark mode, --cyan/--amber/--border-bright recolor with each
+      // seasonal theme. Fallbacks keep it usable on any page missing a var.
+      card.style.cssText = 'background:var(--panel, var(--bg2, #0f172a));border:1px solid var(--border-bright, rgba(251,191,36,.4));border-radius:14px;max-width:340px;width:100%;padding:20px;box-shadow:var(--glow, 0 20px 60px rgba(0,0,0,.5));font-family:var(--font-body, inherit);';
       var h = document.createElement('div');
-      h.textContent = opts.title || '\u26A0 CLEAR ALL FIELDS';
-      h.style.cssText = 'font-weight:800;font-size:.9rem;letter-spacing:2px;color:#fbbf24;margin-bottom:10px;';
+      h.textContent = flair + (opts.title || '\u26A0 CLEAR ALL FIELDS');
+      h.style.cssText = 'font-family:var(--font-display, inherit);font-weight:800;font-size:.9rem;letter-spacing:2px;color:var(--cyan, #fbbf24);margin-bottom:10px;';
       var p = document.createElement('div');
       p.textContent = message || '';
-      p.style.cssText = 'font-size:.85rem;color:#94a3b8;line-height:1.5;margin-bottom:18px;';
+      p.style.cssText = 'font-size:.85rem;color:var(--text-muted, #94a3b8);line-height:1.5;margin-bottom:18px;';
       var row = document.createElement('div');
       row.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;';
       function done(ok) {
@@ -949,12 +962,12 @@
       var cancel = document.createElement('button');
       cancel.type = 'button';
       cancel.textContent = opts.cancelText || 'Cancel';
-      cancel.style.cssText = 'padding:9px 16px;border-radius:8px;font-size:.82rem;cursor:pointer;border:1px solid #334155;background:transparent;color:#cbd5e1;';
+      cancel.style.cssText = 'padding:9px 16px;border-radius:8px;font-size:.82rem;cursor:pointer;border:1px solid var(--border, #334155);background:transparent;color:var(--text, #cbd5e1);font-family:var(--font-body, inherit);';
       cancel.addEventListener('click', function () { done(false); });
       var ok = document.createElement('button');
       ok.type = 'button';
       ok.textContent = opts.confirmText || 'Clear';
-      ok.style.cssText = 'padding:9px 18px;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;border:none;background:#fbbf24;color:#0f172a;';
+      ok.style.cssText = 'padding:9px 18px;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;border:none;background:var(--amber, var(--cyan, #fbbf24));color:var(--bg, #0f172a);font-family:var(--font-body, inherit);';
       ok.addEventListener('click', function () { done(true); });
       function onKey(e) { if (e.key === 'Escape') done(false); }
       back.addEventListener('click', function (e) { if (e.target === back) done(false); });
