@@ -16,6 +16,33 @@
   var ctx = null;
   var muted = localStorage.getItem('aog-sound-muted') === '1';
 
+  // Per-category sound preferences (controlled by the hub Sound Panel)
+  var DEFAULT_PREFS = { taps: true, animations: true, seasonal: true, forms: true, alerts: true };
+  var prefs;
+  try { prefs = JSON.parse(localStorage.getItem('aog-sound-prefs')) || {}; } catch (e) { prefs = {}; }
+  for (var pk in DEFAULT_PREFS) if (typeof prefs[pk] !== 'boolean') prefs[pk] = DEFAULT_PREFS[pk];
+  function allowed(cat) { return !muted && prefs[cat] !== false; }
+
+  // Selectable tone styles for the most audible sounds (hub Sound Panel)
+  var DEFAULT_TONES = { click: 'classic', toast: 'chime', pop: 'pop', success: 'arpeggio', explosion: 'realistic' };
+  var toneChoice;
+  try { toneChoice = JSON.parse(localStorage.getItem('aog-sound-tones')) || {}; } catch (e) { toneChoice = {}; }
+  for (var tk in DEFAULT_TONES) if (!toneChoice[tk]) toneChoice[tk] = DEFAULT_TONES[tk];
+
+  // preset name → category
+  var CATS = {
+    click:'taps', hover:'taps', tick:'taps',
+    toast:'alerts', notify:'alerts', online:'alerts', offline:'alerts', success:'alerts', error:'alerts',
+    welcome:'animations', whoosh:'animations', pulse:'animations',
+    boltStrike:'animations', zap:'animations', zapBig:'animations', thunder:'animations',
+    ping:'animations', powerDown:'animations', surge:'animations', sizzle:'animations',
+    shimmer:'animations', flare:'animations', grb:'animations', arcflash:'animations',
+    ignite:'animations', trip:'animations',
+    explosion:'seasonal', launch:'seasonal', jingle:'seasonal', bell:'seasonal',
+    chirp:'seasonal', harp:'seasonal', wind:'seasonal',
+    pop:'forms', fanfare:'forms', result:'forms', shutter:'forms'
+  };
+
   function getCtx() {
     if (!ctx) {
       var AC = window.AudioContext || window.webkitAudioContext;
@@ -282,22 +309,66 @@
     sizzle();
   }
 
+  var VARIANTS = {
+    click: {
+      classic:    function () { tone({ type: 'sine', from: 880, to: 660, dur: 0.06, vol: 0.10 }); },
+      typewriter: function () { noiseBurst({ dur: 0.025, vol: 0.12, filter: 'bandpass', from: 2200, q: 1.5, curve: 3 }); },
+      bubble:     function () { tone({ type: 'sine', from: 320, to: 950, dur: 0.07, vol: 0.10 }); }
+    },
+    toast: {
+      chime:    function () { tone({ type: 'sine', from: 660, to: 990, dur: 0.14, vol: 0.12 });
+                              tone({ type: 'sine', from: 990, to: 1320, dur: 0.12, vol: 0.10, delay: 0.10 }); },
+      doorbell: function () { tone({ type: 'sine', from: 830, dur: 0.2, vol: 0.11 });
+                              tone({ type: 'sine', from: 623, dur: 0.32, vol: 0.11, delay: 0.18 }); },
+      marimba:  function () { [523, 659, 784].forEach(function (f, i) {
+                                tone({ type: 'triangle', from: f, dur: 0.18, vol: 0.10, delay: i * 0.08 }); }); }
+    },
+    pop: {
+      pop:  function () { tone({ type: 'sine', from: 440, to: 880, dur: 0.05, vol: 0.09 }); },
+      tick: function () { noiseBurst({ dur: 0.02, vol: 0.13, filter: 'lowpass', from: 1400, curve: 3 }); },
+      blip: function () { tone({ type: 'square', from: 990, dur: 0.045, vol: 0.05 }); }
+    },
+    success: {
+      arpeggio: function () { tone({ type: 'triangle', from: 523, dur: 0.1, vol: 0.12 });
+                              tone({ type: 'triangle', from: 659, dur: 0.1, vol: 0.12, delay: 0.09 });
+                              tone({ type: 'triangle', from: 784, dur: 0.16, vol: 0.12, delay: 0.18 }); },
+      tada:     function () { tone({ type: 'triangle', from: 587, dur: 0.12, vol: 0.11 });
+                              tone({ type: 'triangle', from: 880, dur: 0.4, vol: 0.12, delay: 0.12 });
+                              tone({ type: 'sine', from: 440, dur: 0.4, vol: 0.06, delay: 0.12 }); },
+      gentle:   function () { tone({ type: 'sine', from: 660, dur: 0.2, vol: 0.08 });
+                              tone({ type: 'sine', from: 880, dur: 0.3, vol: 0.07, delay: 0.15 }); }
+    },
+    explosion: {
+      realistic: function () { boom(); },
+      deep:      function () { // heavier sub, minimal crackle — the "mortar shell"
+                   noiseBurst({ dur: 0.05, vol: 0.28, filter: 'lowpass', from: 800, curve: 1.5 });
+                   tone({ type: 'sine', from: 100, to: 22, dur: 0.9, vol: 0.3, delay: 0.01 });
+                   noiseBurst({ dur: 1.1, vol: 0.14, from: 900, to: 60, curve: 2, delay: 0.03 });
+                   noiseBurst({ dur: 1.2, vol: 0.08, from: 300, to: 40, curve: 1.6, delay: 0.35 }); },
+      crackler:  function () { // light report, huge sparkle tail
+                   noiseBurst({ dur: 0.05, vol: 0.2, filter: 'highpass', from: 500, curve: 1.5 });
+                   tone({ type: 'sine', from: 110, to: 40, dur: 0.3, vol: 0.12 });
+                   for (var i = 0; i < 45; i++) {
+                     var when = 0.1 + Math.pow(Math.random(), 0.6) * 1.6;
+                     noiseBurst({ dur: 0.012 + Math.random() * 0.02, vol: 0.09 * (1 - when / 1.9),
+                                  filter: 'highpass', from: 2500 + Math.random() * 4500, curve: 1, delay: when }); } }
+    }
+  };
+  function pick(name) { return (VARIANTS[name][toneChoice[name]] || VARIANTS[name][DEFAULT_TONES[name]])(); }
+
   /* ================= PRESETS ================= */
 
-  var S = {
-    click:   function () { tone({ type: 'sine', from: 880, to: 660, dur: 0.06, vol: 0.10 }); },
+  var RAW = {
+    click:   function () { pick('click'); },
     hover:   function () { tone({ type: 'sine', from: 1200, dur: 0.03, vol: 0.04 }); },
-    toast:   function () { tone({ type: 'sine', from: 660, to: 990, dur: 0.14, vol: 0.12 });
-                           tone({ type: 'sine', from: 990, to: 1320, dur: 0.12, vol: 0.10, delay: 0.10 }); },
-    success: function () { tone({ type: 'triangle', from: 523, dur: 0.1, vol: 0.12 });
-                           tone({ type: 'triangle', from: 659, dur: 0.1, vol: 0.12, delay: 0.09 });
-                           tone({ type: 'triangle', from: 784, dur: 0.16, vol: 0.12, delay: 0.18 }); },
+    toast:   function () { pick('toast'); },
+    success: function () { pick('success'); },
     error:   function () { tone({ type: 'square', from: 220, to: 140, dur: 0.22, vol: 0.09 }); },
     welcome: function () { whoosh(0.4, 0.06);
                            tone({ type: 'sine', from: 440, to: 880, dur: 0.3, vol: 0.08, delay: 0.05 }); },
     whoosh:  function () { whoosh(); },
     pulse:   function () { tone({ type: 'sine', from: 200, to: 60, dur: 0.4, vol: 0.06 }); },
-    explosion: function () { boom(); },
+    explosion: function () { pick('explosion'); },
     launch:  launchWhistle,
     thunder: function () { thunder(); },
     boltStrike: function () { // homepage lightning: crack now, rumble after
@@ -314,7 +385,7 @@
     harp:    harp,
     wind:    windGust,
     shutter: shutter,
-    pop:     pop,
+    pop:     function () { pick('pop'); },
     fanfare: fanfare,
     tick:    tick,
     result:  function () { tone({ type: 'sine', from: 660, to: 880, dur: 0.09, vol: 0.07 });
@@ -334,6 +405,11 @@
     offline: function () { tone({ type: 'sine', from: 660, to: 440, dur: 0.12, vol: 0.08 });
                            tone({ type: 'sine', from: 440, to: 280, dur: 0.15, vol: 0.08, delay: 0.11 }); }
   };
+
+  var S = {};
+  Object.keys(RAW).forEach(function (k) {
+    S[k] = function () { if (allowed(CATS[k] || 'taps')) RAW[k](); };
+  });
 
   /* ================= AMBIENT LOOPS ================= */
   // Continuous quiet beds: rain, wind, hum (60Hz electrical), engine, drone
@@ -473,6 +549,8 @@
       if (m && SEASONS[m[1]]) profile = SEASONS[m[1]];
     }
     if (!profile) return;
+    var cat = (amb.scene && SCENES[amb.scene]) ? 'animations' : 'seasonal';
+    if (!allowed(cat)) return;
     if (profile.loop && LOOPS[profile.loop]) LOOPS[profile.loop]();
     if (profile.once && S[profile.once]) S[profile.once]();
     if (profile.occ) profile.occ.forEach(function (o) { scheduleOccasional(o[0], o[1], o[2]); });
@@ -517,27 +595,27 @@
     var t = e.target;
     if (!t || !t.matches) return;
     if (t.matches('input[type="checkbox"], input[type="radio"]')) {
-      if (t.checked) pop(); else tone({ type: 'sine', from: 700, to: 420, dur: 0.05, vol: 0.06 });
+      if (t.checked) S.pop(); else if (allowed('forms')) tone({ type: 'sine', from: 700, to: 420, dur: 0.05, vol: 0.06 });
       if (t.type === 'checkbox') {
         var boxes = document.querySelectorAll('input[type="checkbox"]');
         if (boxes.length >= 4) {
           var all = true;
           for (var i = 0; i < boxes.length; i++) if (!boxes[i].checked) { all = false; break; }
-          if (all && !fanfared) { fanfared = true; setTimeout(fanfare, 150); }
+          if (all && !fanfared) { fanfared = true; setTimeout(S.fanfare, 150); }
           if (!all) fanfared = false;
         }
       }
       return;
     }
-    if (t.matches('select')) { tick(); return; }
+    if (t.matches('select')) { S.tick(); return; }
     if (t.matches('input[type="number"]')) { S.result(); return; }
-    if (t.matches('input[type="file"]')) { shutter(); return; }
+    if (t.matches('input[type="file"]')) { S.shutter(); return; }
   }, true);
 
   // Soft tick while typing numbers into the calculators
   document.addEventListener('input', function (e) {
     var t = e.target;
-    if (t && t.matches && t.matches('input[type="number"], input[inputmode="decimal"], input[inputmode="numeric"], input[type="range"]')) tick();
+    if (t && t.matches && t.matches('input[type="number"], input[inputmode="decimal"], input[inputmode="numeric"], input[type="range"]')) S.tick();
   }, true);
 
   // Connectivity
@@ -557,6 +635,27 @@
       return muted;
     },
     isMuted: function () { return muted; },
+    getTones: function () { var o = {}; for (var k in toneChoice) o[k] = toneChoice[k]; return o; },
+    setTone: function (name, variant) {
+      if (VARIANTS[name] && VARIANTS[name][variant]) {
+        toneChoice[name] = variant;
+        localStorage.setItem('aog-sound-tones', JSON.stringify(toneChoice));
+      }
+    },
+    getPrefs: function () { var o = { master: !muted }; for (var k in prefs) o[k] = prefs[k]; return o; },
+    setPref: function (key, on) {
+      if (key === 'master') {
+        if (!!on === !muted) return;
+        muted = !on;
+        localStorage.setItem('aog-sound-muted', muted ? '1' : '0');
+        if (muted) stopAmbient(); else { sceneStarted = false; tryStart(); }
+        return;
+      }
+      prefs[key] = !!on;
+      localStorage.setItem('aog-sound-prefs', JSON.stringify(prefs));
+      // restart or stop ambience to reflect animation/seasonal changes
+      stopAmbient(); sceneStarted = false; tryStart();
+    },
     mapAnimation: function (a, s) { animationSounds[a] = s; }
   };
 })();
