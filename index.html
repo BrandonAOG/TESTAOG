@@ -813,7 +813,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state.meters.forEach(function(m){
       // Occasional spike
       if(m.spikeTimer>0){m.spikeTimer--;m.target=rand(.7,.98);}
-      else if(Math.random()<.004){m.spikeTimer=randInt(8,25);m.target=rand(.7,.98);}
+      else if(Math.random()<.004){m.spikeTimer=randInt(8,25);m.target=rand(.7,.98);if(window.AOGSound)AOGSound.play('surge');}
       else if(Math.random()<.01) m.target=rand(.05,.55);
       m.current+=(m.target-m.current)*m.speed;
       var h=H*.52, barW=clamp(W*.06,W<480?28:40,W<480?55:90);
@@ -875,7 +875,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
       ctx.strokeStyle='rgba(100,160,220,'+r.alpha+')';ctx.lineWidth=.8;ctx.stroke();ctx.restore();
     }
     // Occasional lightning
-    if(Math.random()<.004) state.bolts.push({segs:buildBolt(rand(W*.1,W*.9),0,rand(W*.1,W*.9),rand(H*.4,H*.8),4),life:1,decay:rand(.07,.13),core:'200,230,255',glow:'160,200,255'});
+    if(Math.random()<.004){if(window.AOGSound)AOGSound.play('boltStrike'); state.bolts.push({segs:buildBolt(rand(W*.1,W*.9),0,rand(W*.1,W*.9),rand(H*.4,H*.8),4),life:1,decay:rand(.07,.13),core:'200,230,255',glow:'160,200,255'});}
     for(var i=state.bolts.length-1;i>=0;i--){
       var b=state.bolts[i];
       if(b.life>.7){var fl=ctx.createRadialGradient(W*.5,0,0,W*.5,0,W*.6);fl.addColorStop(0,'rgba(180,220,255,'+b.life*.06+')');fl.addColorStop(1,'transparent');ctx.fillStyle=fl;ctx.fillRect(0,0,W,H);}
@@ -952,7 +952,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     // Distant lightning flash (behind fog)
     if(Math.random()<.005){
       var fx=rand(0,W);
-      state.bolts.push({segs:buildBolt(fx,rand(-10,H*.1),fx+rand(-80,80),rand(H*.5,H*.9),3),life:1,decay:rand(.08,.14),core:'200,220,255',glow:'160,190,255',fx:fx,fy:0,fr:W*.4});
+      if(window.AOGSound)AOGSound.play('boltStrike');state.bolts.push({segs:buildBolt(fx,rand(-10,H*.1),fx+rand(-80,80),rand(H*.5,H*.9),3),life:1,decay:rand(.08,.14),core:'200,220,255',glow:'160,190,255',fx:fx,fy:0,fr:W*.4});
     }
     // Draw bolts first (behind fog)
     for(var i=state.bolts.length-1;i>=0;i--){
@@ -1089,7 +1089,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     ctx.fillStyle='rgba(2,8,18,0.92)';ctx.fillRect(0,0,W,H);
     state.t++;
     var cx=W*.5,cy=H*.5,maxR=Math.min(W,H)*(W<480?.42:.48);
-    state.sweepAngle+=.018;
+    state.sweepAngle+=.018;if(state.sweepAngle%(Math.PI*2)<.018){if(window.AOGSound)AOGSound.play('ping');}
     // Grid rings
     for(var r=1;r<=4;r++){
       ctx.save();ctx.beginPath();ctx.arc(cx,cy,maxR*r/4,0,Math.PI*2);
@@ -1201,7 +1201,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state.prominences=[];
     state.nextFlare=0;
   }
-  function spawnFlare(){
+  function spawnFlare(){if(window.AOGSound)AOGSound.play('flare');
     var angle=rand(-0.4,0.4);
     var len=rand(H*.25,H*.65);
     var ox=rand(-80,80);
@@ -1255,7 +1255,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     buildLich(ex,ey,angle-rand(.2,.7),len*rand(.55,.75),depth-1,segs);
     if(depth>2&&Math.random()>.6) buildLich(ex,ey,angle+rand(-.1,.1),len*rand(.4,.65),depth-2,segs);
   }
-  function spawnLich(){
+  function spawnLich(){if(window.AOGSound)AOGSound.play('sizzle');
     var startAngle=rand(0,Math.PI*2);
     var segs=[];
     buildLich(rand(W*.2,W*.8),rand(H*.2,H*.8),startAngle,rand(60,130),6,segs);
@@ -1427,7 +1427,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     });
 
     // G5 solar wind burst — occasional wide horizontal band sweeping down
-    if(Math.random()<.003){
+    if(Math.random()<.003){if(window.AOGSound)AOGSound.play('shimmer');
       state.solarBursts.push({
         y: rand(-H*.1, H*.1),
         speed: rand(1.2,2.5),
@@ -1690,7 +1690,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     // Intra-storm lightning (inside the cloud, dim)
     if(Math.random()<.015){
       var lx=rand(W*.1,W*.9), ly=rand(H*.05,H*.3);
-      state.bolts.push({segs:buildBolt(lx,ly,lx+rand(-100,100),ly+rand(60,H*.25),3),life:1,decay:rand(.15,.25),core:'200,220,140',glow:'150,180,80'});
+      if(window.AOGSound)AOGSound.play('boltStrike');state.bolts.push({segs:buildBolt(lx,ly,lx+rand(-100,100),ly+rand(60,H*.25),3),life:1,decay:rand(.15,.25),core:'200,220,140',glow:'150,180,80'});
     }
     for(var i=state.bolts.length-1;i>=0;i--){
       var b=state.bolts[i];
@@ -1798,7 +1798,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     if(Math.random()<.004&&state.wires.length>0){
       var wi=randInt(0,state.wires.length);
       var pt=state.wires[wi][randInt(8,22)];
-      state.arcs.push({segs:buildBolt(pt[0],pt[1],pt[0]+rand(-30,30),pt[1]+rand(10,40),2),life:1,decay:rand(.1,.2),core:'255,240,120',glow:'251,191,36'});
+      if(window.AOGSound)AOGSound.play('zap');state.arcs.push({segs:buildBolt(pt[0],pt[1],pt[0]+rand(-30,30),pt[1]+rand(10,40),2),life:1,decay:rand(.1,.2),core:'255,240,120',glow:'251,191,36'});
     }
     for(var i=state.arcs.length-1;i>=0;i--){
       var a=state.arcs[i];drawBoltSegs(a.segs,a.core,a.glow,a.life,1);
@@ -1819,7 +1819,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state.tx=W*.5;state.ty=H*.52;
     state.nextBlow=randInt(60,160);state.blowCount=0;
   }
-  function spawnExplosion(x,y){
+  function spawnExplosion(x,y){if(window.AOGSound)AOGSound.play('explosion');
     // Sparks
     for(var i=0;i<80;i++){
       var angle=rand(0,Math.PI*2),speed=rand(2,9);
@@ -1932,7 +1932,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
       var isFiring=Math.sin(pistonAngle)>0.92;
       if(isFiring&&!cyl.firing){
         cyl.firing=true;cyl.fireTimer=8;
-        state.sparks.push({x:boreX,y:cy-scale*3.5,life:1,decay:.09});
+        if(window.AOGSound)AOGSound.play('ignite');state.sparks.push({x:boreX,y:cy-scale*3.5,life:1,decay:.09});
       }
       if(!isFiring) cyl.firing=false;
       if(cyl.fireTimer>0){
@@ -1999,7 +1999,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
         }
         // Arc from wire
         if(Math.random()<.015){
-          state.arcs.push({segs:buildBolt(wx,wy,wx+rand(-40,40),wy+rand(20,60),2),life:1,decay:.12,core:Math.random()>.5?'0,200,255':'255,160,50',glow:Math.random()>.5?'0,180,255':'249,115,22'});
+          if(window.AOGSound)AOGSound.play('zap');state.arcs.push({segs:buildBolt(wx,wy,wx+rand(-40,40),wy+rand(20,60),2),life:1,decay:.12,core:Math.random()>.5?'0,200,255':'255,160,50',glow:Math.random()>.5?'0,180,255':'249,115,22'});
         }
         // Glow at fire point
         var fg=ctx.createRadialGradient(wx,wy,0,wx,wy,30);
@@ -2088,7 +2088,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state.t=0;state.showers=[];state.nextShower=0;state.bgParticles=[];
     for(var i=0;i<80;i++) state.bgParticles.push({x:rand(0,W),y:rand(0,H),vy:rand(.2,.8),alpha:rand(.05,.2),r:rand(.4,1.2)});
   }
-  function spawnShower(){
+  function spawnShower(){if(window.AOGSound)AOGSound.play('shimmer');
     var ix=rand(W*.1,W*.9),iy=0;
     var branches=[];
     function addBranch(x,y,angle,energy,depth){
@@ -2295,7 +2295,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     if(state.nextBolt<=0){
       var sx=rand(W*.1,W*.9),sy=rand(-20,H*.2);
       var targetNode=state.nodes[randInt(0,state.nodes.length)];
-      state.bolts.push({segs:buildBolt(sx,sy,targetNode.x,targetNode.y,4),life:1,decay:.06,core:'255,220,80',glow:'251,191,36',node:targetNode});
+      if(window.AOGSound)AOGSound.play('boltStrike');state.bolts.push({segs:buildBolt(sx,sy,targetNode.x,targetNode.y,4),life:1,decay:.06,core:'255,220,80',glow:'251,191,36',node:targetNode});
       state.nextBolt=randInt(50,150);
     }
     for(var i=state.bolts.length-1;i>=0;i--){
@@ -2569,7 +2569,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     if(state.nextBolt<=0){
       var bsx=rand(W*.05,W*.95),bsy=rand(-20,H*.1);
       var hitCharge=state.charges[randInt(0,state.charges.length)];
-      var bolt={segs:buildBolt(bsx,bsy,hitCharge.x+rand(-20,20),hitCharge.y+rand(-20,20),4),life:1,decay:rand(.05,.09),core:'255,240,120',glow:'251,191,36'};
+      if(window.AOGSound)AOGSound.play('boltStrike');var bolt={segs:buildBolt(bsx,bsy,hitCharge.x+rand(-20,20),hitCharge.y+rand(-20,20),4),life:1,decay:rand(.05,.09),core:'255,240,120',glow:'251,191,36'};
       state.bolts.push(bolt);
       // Ripples from hit point
       for(var r=0;r<3;r++){
@@ -2684,7 +2684,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
         // Insulator rings
         for(var r=0;r<4;r++){ctx.beginPath();ctx.ellipse(eq.x,eq.y-eq.h+8+r*10,7,3,0,0,Math.PI*2);ctx.fillStyle='rgba(160,150,120,0.6)';ctx.fill();}
         // Corona ring glow
-        if(Math.random()<.02){state.coronas.push({x:eq.x,y:eq.y-eq.h,life:1,decay:rand(.08,.18)});}
+        if(Math.random()<.02){if(window.AOGSound)AOGSound.play('zap');state.coronas.push({x:eq.x,y:eq.y-eq.h,life:1,decay:rand(.08,.18)});}
       } else if(eq.type==='breaker'){
         ctx.fillStyle='rgba(40,40,55,1)';ctx.fillRect(eq.x-eq.w/2,eq.y-eq.h,eq.w,eq.h);
         ctx.strokeStyle='rgba(80,80,100,0.5)';ctx.lineWidth=1;ctx.strokeRect(eq.x-eq.w/2,eq.y-eq.h,eq.w,eq.h);
@@ -2702,7 +2702,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     // Occasional inter-bus arc
     if(Math.random()<.003){
       var bx=rand(W*.15,W*.85);
-      state.arcs.push({segs:buildBolt(bx,H*.38,bx+rand(-15,15),H*.48,2),life:1,decay:.12,core:'255,240,120',glow:'251,191,36'});
+      if(window.AOGSound)AOGSound.play('zap');state.arcs.push({segs:buildBolt(bx,H*.38,bx+rand(-15,15),H*.48,2),life:1,decay:.12,core:'255,240,120',glow:'251,191,36'});
     }
     for(var i=state.arcs.length-1;i>=0;i--){
       var a=state.arcs[i];drawBoltSegs(a.segs,a.core,a.glow,a.life,1);
@@ -2820,7 +2820,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
       var energized=state.panels.filter(function(p){return p.energized&&!p.tripping;});
       if(energized.length>0){
         var target=energized[randInt(0,energized.length)];
-        target.tripping=true; target.tripTimer=45;
+        target.tripping=true; target.tripTimer=45;if(window.AOGSound)AOGSound.play('trip');
         // Maybe cascade to neighbor
         if(Math.random()>.5){
           var idx2=state.panels.indexOf(target);
@@ -2891,7 +2891,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
       if(state.charge>=state.maxCharge){
         state.discharging=true;state.dischargeTimer=40;
         // Big discharge bolt to ground
-        state.arcs.push({segs:buildBolt(cx,cy-sphereR,cx+rand(-80,80),H*.92,4),life:1,decay:.04,core:'255,240,120',glow:'251,191,36',big:true});
+        if(window.AOGSound)AOGSound.play('boltStrike');state.arcs.push({segs:buildBolt(cx,cy-sphereR,cx+rand(-80,80),H*.92,4),life:1,decay:.04,core:'255,240,120',glow:'251,191,36',big:true});
       }
     } else {
       state.dischargeTimer--;
@@ -2943,7 +2943,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     // Small corona arcs when charged
     if(state.charge>.6&&Math.random()<.08){
       var ca=rand(0,Math.PI*2);
-      state.arcs.push({segs:buildBolt(cx+Math.cos(ca)*sphereR,cy-sphereR+Math.sin(ca)*sphereR,cx+Math.cos(ca)*(sphereR+rand(20,60)),cy-sphereR+Math.sin(ca)*rand(20,50),2),life:1,decay:.15,core:'255,220,80',glow:'251,191,36',big:false});
+      if(window.AOGSound)AOGSound.play('zap');state.arcs.push({segs:buildBolt(cx+Math.cos(ca)*sphereR,cy-sphereR+Math.sin(ca)*sphereR,cx+Math.cos(ca)*(sphereR+rand(20,60)),cy-sphereR+Math.sin(ca)*rand(20,50),2),life:1,decay:.15,core:'255,220,80',glow:'251,191,36',big:false});
     }
     for(var i=state.arcs.length-1;i>=0;i--){
       var a=state.arcs[i];drawBoltSegs(a.segs,a.core,a.glow,a.life,a.big?2.5:1);
@@ -3162,7 +3162,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     // Ion lightning — more frequent than normal
     if(Math.random()<.025){
       var lx=rand(W*.05,W*.95),ly=rand(H*.05,H*.95);
-      state.bolts.push({segs:buildBolt(lx,ly,lx+rand(-80,80),ly+rand(-80,80),3),life:1,decay:.12,core:'200,180,255',glow:'160,140,220'});
+      if(window.AOGSound)AOGSound.play('zapBig');state.bolts.push({segs:buildBolt(lx,ly,lx+rand(-80,80),ly+rand(-80,80),3),life:1,decay:.12,core:'200,180,255',glow:'160,140,220'});
     }
     for(var i=state.bolts.length-1;i>=0;i--){
       var b=state.bolts[i];drawBoltSegs(b.segs,b.core,b.glow,b.life*.6,.8);
@@ -3184,7 +3184,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state.t=0;state.bursts=[];state.particles=[];state.nextBurst=0;
     for(var i=0;i<150;i++) state.particles.push({x:rand(0,W),y:rand(0,H),r:rand(.2,1.4),a:rand(.05,.6),tw:rand(0,Math.PI*2),tws:rand(.01,.04)});
   }
-  function spawnGRB(){
+  function spawnGRB(){if(window.AOGSound)AOGSound.play('grb');
     var cx=rand(W*.2,W*.8),cy=rand(H*.2,H*.8);
     var angle=rand(0,Math.PI*2);
     state.bursts.push({cx:cx,cy:cy,angle:angle,phase:0,life:1,decay:.005,jets:[],rings:[]});
@@ -3275,7 +3275,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
       });
     }
     // Flicker sparks at trip point
-    if(state.phase==='flicker'&&Math.random()<.15){
+    if(state.phase==='flicker'&&Math.random()<.15){if(window.AOGSound)AOGSound.play('zap');
       var sx=rand(W*.3,W*.7),sy=rand(H*.1,H*.4);
       for(var s=0;s<8;s++) state.sparks.push({x:sx,y:sy,vx:rand(-3,3),vy:rand(-4,.5),life:1,decay:rand(.06,.15),col:'0,212,255'});
     }
@@ -3349,7 +3349,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state.nextFire--;
     if(state.nextFire<=0){
       var dormant=state.neurons.filter(function(n){return !n.firing&&n.charge<.5;});
-      if(dormant.length>0){var target=dormant[randInt(0,dormant.length)];target.firing=true;target.fireTimer=20;}
+      if(dormant.length>0){var target=dormant[randInt(0,dormant.length)];target.firing=true;target.fireTimer=20;if(window.AOGSound)AOGSound.play('pop');}
       state.nextFire=randInt(10,35);
     }
     // Propagate signals
@@ -3423,7 +3423,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
       var live=state.nodes.filter(function(n){return n.energized&&!n.failing;});
       if(live.length>0){
         var fail=live[randInt(0,live.length)];
-        fail.failing=true;fail.failTimer=25;
+        fail.failing=true;fail.failTimer=25;if(window.AOGSound)AOGSound.play('trip');
         // Also fail connected edges
         state.edges.forEach(function(e){if(e.a===fail.id||e.b===fail.id)e.energized=false;});
       } else {state.allDown=true;state.restartTimer=200;}
@@ -3435,7 +3435,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
       if(state.restartTimer<=0){
         state.nodes.forEach(function(n){n.energized=true;n.failing=false;});
         state.edges.forEach(function(e){e.energized=true;});
-        state.allDown=false;state.nextFail=80;
+        state.allDown=false;state.nextFail=80;if(window.AOGSound)AOGSound.play('online');
       }
       // Countdown text
       ctx.save();ctx.font='bold 13px monospace';ctx.fillStyle='rgba(180,60,60,0.8)';ctx.textAlign='center';
@@ -3496,7 +3496,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     ctx.strokeStyle='rgba(160,170,200,0.35)'; ctx.lineWidth=3;
     ctx.strokeRect(cx-cyl, top, cyl*2, bottom-top);
     // ignition flash near top of stroke
-    if(cycle>0.46 && cycle<0.54){
+    if(cycle>0.46 && cycle<0.54){if(window.AOGSound)AOGSound.play('ignite');
       state.fire=1;
       for(var i=0;i<6;i++) state.parts.push({x:cx+rand(-cyl*0.8,cyl*0.8),y:top+cyl*0.3,vx:rand(-1.4,1.4),vy:rand(0.6,2.4),life:1,r:rand(2,5)});
     }
@@ -3602,7 +3602,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   function drawArcFlash(){
     state.t+=0.016; drawBase('rgba(10,12,24,1)');
     for(var i=0;i<state.parts.length;i++){var p=state.parts[i];p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(0,212,255,'+p.a+')';ctx.fill();}
-    if(state.t>state.next){state.flash=1;state.next=state.t+rand(1.6,3.2);state.bx=rand(W*0.3,W*0.7);state.by=rand(H*0.3,H*0.6);for(var i=0;i<40;i++)state.debris.push({x:state.bx,y:state.by,vx:rand(-6,6),vy:rand(-6,6),life:1,r:rand(1,3)});}
+    if(state.t>state.next){if(window.AOGSound)AOGSound.play('arcflash');state.flash=1;state.next=state.t+rand(1.6,3.2);state.bx=rand(W*0.3,W*0.7);state.by=rand(H*0.3,H*0.6);for(var i=0;i<40;i++)state.debris.push({x:state.bx,y:state.by,vx:rand(-6,6),vy:rand(-6,6),life:1,r:rand(1,3)});}
     state.flash*=0.86;
     if(state.flash>0.02){var g=ctx.createRadialGradient(state.bx,state.by,0,state.bx,state.by,Math.max(W,H)*0.6*state.flash);g.addColorStop(0,'rgba(255,255,255,'+(0.95*state.flash)+')');g.addColorStop(0.2,'rgba(200,235,255,'+(0.6*state.flash)+')');g.addColorStop(0.5,'rgba(0,160,255,'+(0.25*state.flash)+')');g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}
     for(var i=state.debris.length-1;i>=0;i--){var d=state.debris[i];d.x+=d.vx;d.y+=d.vy;d.vy+=0.12;d.vx*=0.97;d.life-=0.022;if(d.life<=0){state.debris.splice(i,1);continue;}ctx.beginPath();ctx.arc(d.x,d.y,d.r*d.life,0,Math.PI*2);ctx.fillStyle='rgba(255,'+Math.floor(180+70*d.life)+',120,'+d.life+')';ctx.fill();}
@@ -3622,7 +3622,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     ctx.strokeStyle='rgba(80,90,110,'+(0.4+state.glow*0.5)+')';ctx.lineWidth=1.5;
     for(var s=-1;s<=1;s+=2){ctx.beginPath();ctx.moveTo(0,poleTop+40);ctx.quadraticCurveTo(poleX,poleTop+70,W,poleTop+40);ctx.stroke();}
     ctx.restore();
-    if(state.t>state.next){state.bolt=buildBolt(poleX+rand(-30,30),-20,poleX,poleTop,4);state.boltLife=1;state.surge=1;state.glow=1;state.next=state.t+rand(1.4,3);}
+    if(state.t>state.next){if(window.AOGSound)AOGSound.play('boltStrike');if(window.AOGSound)AOGSound.play('surge');state.bolt=buildBolt(poleX+rand(-30,30),-20,poleX,poleTop,4);state.boltLife=1;state.surge=1;state.glow=1;state.next=state.t+rand(1.4,3);}
     if(state.bolt&&state.boltLife>0){drawBoltSegs(state.bolt,'255,240,160','251,191,36',state.boltLife,2);state.boltLife-=0.06;}
     state.glow*=0.92;
     // surge ripple along wires
