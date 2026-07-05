@@ -4034,17 +4034,6 @@ document.querySelectorAll('.cat-btn').forEach(function(btn) {
     note.textContent = 'Settings save automatically and apply on every AOG page on this device.';
     card.appendChild(note);
 
-    // debug overlay toggle (for diagnosing no-sound issues)
-    var dbgLink = document.createElement('button');
-    dbgLink.type = 'button';
-    dbgLink.style.cssText = 'margin-top:10px;font-size:.72rem;color:#64748b;background:none;border:1px dashed rgba(148,163,184,.4);border-radius:8px;padding:6px 10px;cursor:pointer;';
-    dbgLink.textContent = (A() && A().isDebug && A().isDebug()) ? '🐞 Disable sound debug overlay' : '🐞 Enable sound debug overlay';
-    dbgLink.addEventListener('click', function(){
-      var a = A(); if (!a || !a.debugMode) return;
-      a.debugMode(!(a.isDebug && a.isDebug()));
-    });
-    card.appendChild(dbgLink);
-
     overlay.appendChild(card);
     overlay.addEventListener('click', function(e){ if (e.target === overlay) close(); });
     document.body.appendChild(overlay);
