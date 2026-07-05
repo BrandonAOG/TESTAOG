@@ -4031,7 +4031,7 @@ document.querySelectorAll('.cat-btn').forEach(function(btn) {
 
     var note = document.createElement('div');
     note.style.cssText = 'font-size:.75rem;color:#64748b;margin-top:12px;line-height:1.4;';
-    note.textContent = 'Settings save automatically and apply on every AOG page on this device.';
+    note.textContent = 'Settings save automatically and apply on every AOG page on this device. Sound engine: ' + ((A() && A().version) || 'OLD (pre-v3.5.0 — cache is stale!)');
     card.appendChild(note);
 
     // debug overlay toggle (for diagnosing no-sound issues)

@@ -63,6 +63,11 @@
   };
 
   function getCtx() {
+    // iOS 17+ Audio Session API: in home-screen (standalone) web apps, iOS
+    // defaults web audio to an 'ambient'-style session where AudioContext
+    // reports 'running' but its clock stays frozen at 0.00 forever. Asking
+    // for the 'playback' session type is the documented fix.
+    try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') { navigator.audioSession.type = 'playback'; dbg('audioSession.type -> playback'); } } catch (e) {}
     if (ctx && ctx.state === 'closed') ctx = null; // rebuilt after zombie teardown
     if (!ctx) {
       var AC = window.AudioContext || window.webkitAudioContext;
@@ -163,14 +168,35 @@
   // why that "fixed" it.) We keep doing this on every gesture until we see
   // the clock actually advance.
   var SILENT_WAV = 'data:audio/wav;base64,UklGRrQBAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YZABAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA';
-  var sessionEl = null, sessionLive = false;
+  var sessionEl = null, sessionLive = false, pipedCtx = null;
   function activateSession() {
     if (sessionLive) return;
+    try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') { navigator.audioSession.type = 'playback'; dbg('audioSession.type -> playback (gesture)'); } } catch (e) {}
     try {
       if (!sessionEl) {
         sessionEl = new Audio(SILENT_WAV);
         sessionEl.setAttribute('playsinline', '');
+        sessionEl.loop = true;
         sessionEl.volume = 0.01;
+      }
+      // Second known unfreezer: route the element THROUGH the WebAudio
+      // graph. The element's playback drags the context's rendering onto
+      // the same live session, which can start a frozen clock.
+      var c = ctx;
+      if (c && pipedCtx !== c) {
+        try {
+          // an element can only be attached to ONE context ever, and we
+          // rebuild contexts — so each context gets its own fresh element
+          var el2 = new Audio(SILENT_WAV);
+          el2.setAttribute('playsinline', '');
+          el2.loop = true;
+          var src = c.createMediaElementSource(el2);
+          var g = c.createGain(); g.gain.value = 0.0001;
+          src.connect(g); g.connect(c.destination);
+          el2.play().then(function(){ dbg('piped el playing'); }).catch(function(e){ dbg('piped el blocked: ' + e.name); });
+          pipedCtx = c;
+          dbg('audio-el piped through ctx');
+        } catch (e2) { dbg('pipe failed: ' + e2.name); }
       }
       var p = sessionEl.play();
       if (p && p.then) {
@@ -1193,7 +1219,7 @@
         if (ctx && ctx.state === 'running') { frozen = (t === lastT) ? frozen + 1 : 0; }
         lastT = t;
         head.textContent =
-          'v3.4.9  standalone:' + (navigator.standalone === true ? 'YES' : 'no') +
+          'v3.5.1  standalone:' + (navigator.standalone === true ? 'YES' : 'no') +
           '  vis:' + document.visibilityState + '\n' +
           'ctx:' + (ctx ? ctx.state : 'NULL') +
           '  time:' + (ctx ? t.toFixed(2) : '-') +
@@ -1211,6 +1237,7 @@
   /* ================= PUBLIC API ================= */
 
   window.AOGSound = {
+    version: 'v3.5.1',
     play: function (name) { if (S[name]) S[name](); },
     // Force-play for the Sound Settings panel: taps must always be audible,
     // even for 'animations' sounds (fireworks/thunder) that preview mode
