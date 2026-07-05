@@ -138,6 +138,7 @@
   ['pointerdown', 'touchstart', 'keydown'].forEach(function (ev) {
     document.addEventListener(ev, function () {
       if (!ctx || ctx.state !== 'running') tryStart();
+      else verifyAlive(); // 'running' can be a lie after iOS suspends the PWA — verify the clock is ticking
     }, { passive: true });
   });
 
@@ -147,6 +148,18 @@
     window.addEventListener(ev, function () {
       if (!document.hidden) { sceneStarted = false; startRetryLoop(); }
     });
+  });
+  // iOS standalone PWAs often fire ONLY visibilitychange (no focus/pageshow)
+  // when returning via the app switcher. If the context came back anything
+  // other than 'running', don't trust resume() — tear it down and rebuild.
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) return;
+    if (ctx && ctx.state !== 'running') {
+      try { ctx.close(); } catch (e) {}
+      ctx = null;
+    }
+    sceneStarted = false;
+    startRetryLoop();
   });
 
   /* ================= INSTRUMENTS ================= */
@@ -697,6 +710,7 @@
   var S = {};
   Object.keys(RAW).forEach(function (k) {
     S[k] = function () {
+      verifyAlive(); // self-heal a zombie context; if frozen, it rebuilds so the NEXT tap plays
       if (!allowed(CATS[k] || 'taps')) return;
       if (mode !== 'vibrate') RAW[k]();
       if (mode !== 'sound') buzz(k);
