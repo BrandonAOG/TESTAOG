@@ -1,6 +1,6 @@
 // ============================================================
 //  Always On Generators – Field Hub
-//  Service Worker  |  sw.js  |  Version: aog-forms-v3.3.1
+//  Service Worker  |  sw.js  |  Version: aog-forms-v3.4.0
 //  Scope: root (../)
 //
 //  ⚠ WHEN YOU UPDATE ANY TOOL:
@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v3.3.1';
+var CACHE_NAME = 'aog-forms-v3.4.0';
 var DEV_MODE   = false;
 
 // Tracks whether this SW instance has already run a precache repair pass
@@ -271,6 +271,15 @@ self.addEventListener('fetch', function(event) {
   var dest = request.destination || '';
   if (dest === 'image' || url.pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|webp)$/i)) {
     event.respondWith(cacheFirst(request));
+    return;
+  }
+
+  // The sound engine and update banner must be CURRENT immediately after an
+  // update — stale-while-revalidate serves the old copy once, which made new
+  // sounds take several app restarts to appear. Network-first fixes that:
+  // online loads always get the newest engine; offline falls back to cache.
+  if (isSameOrigin && url.pathname.match(/(sounds|update-banner)\.js$/i)) {
+    event.respondWith(networkFirst(request));
     return;
   }
 

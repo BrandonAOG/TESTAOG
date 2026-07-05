@@ -24,7 +24,12 @@
   // Output mode: 'sound' | 'vibrate' | 'both'
   var mode = localStorage.getItem('aog-sound-mode') || 'sound';
   if (mode !== 'sound' && mode !== 'vibrate' && mode !== 'both') mode = 'sound';
-  function allowed(cat) { return !muted && prefs[cat] !== false; }
+  var preview = false; // true while the Sound Settings panel is open
+  function allowed(cat) {
+    if (muted) return false;
+    if (preview && (cat === 'animations' || cat === 'seasonal')) return false;
+    return prefs[cat] !== false;
+  }
 
   // Selectable tone styles for the most audible sounds (hub Sound Panel)
   var DEFAULT_TONES = { click: 'thock', toast: 'slide', pop: 'bubblepop', success: 'tada', explosion: 'deep', notify: 'gentlealarm', fanfare: 'victory', thunder: 'boomer' };
@@ -987,6 +992,11 @@
       return muted;
     },
     isMuted: function () { return muted; },
+    previewMode: function (on) {
+      preview = !!on;
+      if (preview) stopAmbient();
+      else { sceneStarted = false; tryStart(); }
+    },
     getMode: function () { return mode; },
     setMode: function (m) {
       if (m !== 'sound' && m !== 'vibrate' && m !== 'both') return;

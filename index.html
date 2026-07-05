@@ -4075,11 +4075,15 @@ document.querySelectorAll('.cat-btn').forEach(function(btn) {
   function open(){
     if (!overlay) buildPanel();
     overlay.style.display = 'flex';
+    if (A() && A().previewMode) A().previewMode(true);
     syncDisabled();
     paintPills();
     paintModes();
   }
-  function close(){ if (overlay) overlay.style.display = 'none'; }
+  function close(){
+    if (overlay) overlay.style.display = 'none';
+    if (A() && A().previewMode) A().previewMode(false);
+  }
 
   btn.addEventListener('click', function(){
     if (!window.AOGSound) return; // engine not loaded yet
