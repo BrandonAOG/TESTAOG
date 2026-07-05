@@ -82,15 +82,38 @@
     if (c.state === 'running') goLive();
     else if (c.resume) c.resume().then(goLive).catch(function () {});
   }
-  tryStart(); // attempt zero-tap start right now
-  var retries = 0;
-  var retryTimer = setInterval(function () {
-    if (sceneStarted || ++retries > 30) { clearInterval(retryTimer); return; }
+  // Retry loop — restartable, because the OS suspends audio when the app is
+  // backgrounded and we must fight to get it back the moment we return.
+  var retryTimer = null;
+  function startRetryLoop() {
+    if (retryTimer) clearInterval(retryTimer);
+    var retries = 0;
     tryStart();
-  }, 500);
-  function unlock() { tryStart(); }
-  ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'mousedown', 'keydown'].forEach(function (ev) {
-    document.addEventListener(ev, unlock, { once: true, passive: true });
+    retryTimer = setInterval(function () {
+      var c = ctx;
+      if ((sceneStarted && c && c.state === 'running') || ++retries > 30) {
+        clearInterval(retryTimer); retryTimer = null; return;
+      }
+      tryStart();
+    }, 500);
+  }
+  startRetryLoop(); // attempt zero-tap start right now
+
+  // PERSISTENT gesture rescue: any tap/keypress revives a suspended context.
+  // (Not once-only — after returning from the background the context is
+  // suspended again and needs reviving again.)
+  ['pointerdown', 'touchstart', 'keydown'].forEach(function (ev) {
+    document.addEventListener(ev, function () {
+      if (!ctx || ctx.state !== 'running') tryStart();
+    }, { passive: true });
+  });
+
+  // Returning to the app: kick the retry loop immediately on every path the
+  // browser can take back to us — tab switch, app switcher, back/forward cache.
+  ['focus', 'pageshow'].forEach(function (ev) {
+    window.addEventListener(ev, function () {
+      if (!document.hidden) { sceneStarted = false; startRetryLoop(); }
+    });
   });
 
   /* ================= INSTRUMENTS ================= */
@@ -833,7 +856,7 @@
   // Pause ambience in background tabs
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) stopAmbient();
-    else { sceneStarted = false; tryStart(); }
+    else { sceneStarted = false; startRetryLoop(); }
   });
 
   /* ================= AUTO EVENT HOOKS ================= */
