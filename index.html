@@ -3960,7 +3960,7 @@ document.querySelectorAll('.cat-btn').forEach(function(btn) {
         var on = !(a.getPrefs()[key]);
         a.setPref(key, on);
         paint(on);
-        if (on) a.play(SAMPLE[key]);
+        if (on) (a.previewPlay || a.play)(SAMPLE[key]);
         if (key === 'master') renderBtn();
         syncDisabled();
       });
@@ -4020,7 +4020,7 @@ document.querySelectorAll('.cat-btn').forEach(function(btn) {
         p.addEventListener('click', function(){
           var a = A(); if (!a) return;
           a.setTone(name, v[0]);
-          a.play(name); // instant preview of the chosen style
+          (a.previewPlay || a.play)(name); // instant preview — always audible, even for fireworks/thunder
           paintPills(name);
         });
         pills.appendChild(p);

@@ -1011,6 +1011,14 @@
 
   window.AOGSound = {
     play: function (name) { if (S[name]) S[name](); },
+    // Force-play for the Sound Settings panel: taps must always be audible,
+    // even for 'animations' sounds (fireworks/thunder) that preview mode
+    // silences to stop background bleed. Still respects master mute + mode.
+    previewPlay: function (name) {
+      if (!RAW[name]) return;
+      if (mode !== 'vibrate') RAW[name]();
+      if (mode !== 'sound') buzz(name);
+    },
     scene: function (name) { amb.scene = name; sceneStarted = false; tryStart(); },
     toggleMute: function () {
       muted = !muted;
