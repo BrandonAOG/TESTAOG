@@ -17,14 +17,8 @@
   var muted = localStorage.getItem('aog-sound-muted') === '1';
 
   // ── DEBUG LOG (overlay enabled via localStorage 'aog-sound-debug'='1') ──
-  var DBG_ON = localStorage.getItem('aog-sound-debug') === '1';
-  var dbgLog = [];
-  function dbg(msg) {
-    if (!DBG_ON) return;
-    var t = (performance.now() / 1000).toFixed(1);
-    dbgLog.push(t + 's ' + msg);
-    if (dbgLog.length > 14) dbgLog.shift();
-  }
+  try { localStorage.removeItem('aog-sound-debug'); } catch (e) {} // debug overlay retired
+  function dbg() {} // no-op (was the debug overlay logger)
 
   // Per-category sound preferences (controlled by the hub Sound Panel)
   var DEFAULT_PREFS = { taps: true, animations: true, seasonal: true, forms: true, alerts: true };
@@ -1167,77 +1161,10 @@
   };
 
 
-  /* ================= DEBUG OVERLAY ================= */
-  // Enable: toggle in Sound Settings panel, or run
-  // localStorage.setItem('aog-sound-debug','1') and reload.
-  if (DBG_ON) (function () {
-    function build() {
-      var d = document.createElement('div');
-      d.id = 'aog-snd-dbg';
-      d.style.cssText = 'position:fixed;left:6px;right:6px;bottom:6px;z-index:99999;background:rgba(0,0,0,.88);color:#4ade80;font:10px/1.45 monospace;padding:8px;border-radius:8px;border:1px solid #4ade80;pointer-events:auto;white-space:pre-wrap;word-break:break-all;';
-      var head = document.createElement('div');
-      head.id = 'aog-snd-dbg-head';
-      head.style.cssText = 'color:#fbbf24;margin-bottom:4px;';
-      var log = document.createElement('div');
-      log.id = 'aog-snd-dbg-log';
-      var row = document.createElement('div');
-      row.style.cssText = 'margin-top:6px;display:flex;gap:6px;';
-      function mkbtn(txt, fn) {
-        var b = document.createElement('button');
-        b.textContent = txt;
-        b.style.cssText = 'flex:1;padding:6px;font:bold 11px monospace;background:#fbbf24;color:#000;border:none;border-radius:6px;';
-        b.addEventListener('click', fn);
-        return b;
-      }
-      row.appendChild(mkbtn('TEST BEEP', function () {
-        dbg('TEST BEEP tapped');
-        try {
-          var c = getCtx();
-          var o = c.createOscillator(), g = c.createGain();
-          o.frequency.value = 880; o.type = 'sine';
-          g.gain.setValueAtTime(0.15, c.currentTime);
-          g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.4);
-          o.connect(g); g.connect(c.destination);
-          o.start(); o.stop(c.currentTime + 0.4);
-          dbg('beep scheduled ok, state=' + c.state);
-        } catch (e) { dbg('beep ERROR: ' + e.message); }
-      }));
-      row.appendChild(mkbtn('REBUILD CTX', function () {
-        dbg('manual rebuild');
-        try { if (ctx) ctx.close(); } catch (e) {}
-        ctx = null; sceneStarted = false; getCtx(); startRetryLoop();
-      }));
-      row.appendChild(mkbtn('OFF', function () {
-        localStorage.removeItem('aog-sound-debug');
-        d.remove();
-      }));
-      d.appendChild(head); d.appendChild(log); d.appendChild(row);
-      document.body.appendChild(d);
-      var lastT = -1, frozen = 0;
-      setInterval(function () {
-        var t = ctx ? ctx.currentTime : -1;
-        if (ctx && ctx.state === 'running') { frozen = (t === lastT) ? frozen + 1 : 0; }
-        lastT = t;
-        head.textContent =
-          'v3.5.1  standalone:' + (navigator.standalone === true ? 'YES' : 'no') +
-          '  vis:' + document.visibilityState + '\n' +
-          'ctx:' + (ctx ? ctx.state : 'NULL') +
-          '  time:' + (ctx ? t.toFixed(2) : '-') +
-          (frozen > 1 ? ' *FROZEN*' : ' (ticking)') +
-          '  sr:' + (ctx ? ctx.sampleRate : '-') + '\n' +
-          'trusted:' + ctxTrusted + '  scene:' + sceneStarted +
-          '  muted:' + muted + '  mode:' + mode + '  preview:' + preview;
-        log.textContent = dbgLog.join('\n');
-      }, 400);
-    }
-    if (document.body) build();
-    else document.addEventListener('DOMContentLoaded', build);
-  })();
-
   /* ================= PUBLIC API ================= */
 
   window.AOGSound = {
-    version: 'v3.5.1',
+    version: 'v3.5.2',
     play: function (name) { if (S[name]) S[name](); },
     // Force-play for the Sound Settings panel: taps must always be audible,
     // even for 'animations' sounds (fireworks/thunder) that preview mode
@@ -1290,12 +1217,6 @@
       // restart or stop ambience to reflect animation/seasonal changes
       stopAmbient(); sceneStarted = false; tryStart();
     },
-    mapAnimation: function (a, s) { animationSounds[a] = s; },
-    debugMode: function (on) {
-      if (on) localStorage.setItem('aog-sound-debug', '1');
-      else localStorage.removeItem('aog-sound-debug');
-      location.reload();
-    },
-    isDebug: function () { return DBG_ON; }
+    mapAnimation: function (a, s) { animationSounds[a] = s; }
   };
 })();

@@ -1,6 +1,6 @@
 // ============================================================
 //  Always On Generators – Field Hub
-//  Service Worker  |  sw.js  |  Version: aog-forms-v3.5.1
+//  Service Worker  |  sw.js  |  Version: aog-forms-v3.5.2
 //  Scope: root (../)
 //
 //  ⚠ WHEN YOU UPDATE ANY TOOL:
@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v3.5.1';
+var CACHE_NAME = 'aog-forms-v3.5.2';
 var DEV_MODE   = false;
 
 // Tracks whether this SW instance has already run a precache repair pass
