@@ -140,14 +140,22 @@
   // silent buffer SYNCHRONOUSLY inside the gesture is what reliably
   // unlocks audio on iOS. Some iOS versions only honor touchend/click,
   // so we listen on those too.
+  var ctxTrusted = false; // becomes true only for a context born inside a user gesture
   function gestureUnlock() {
+    // COLD-LAUNCH SILENT DUD: on a fresh iOS PWA launch the context created
+    // at page load can report 'running' with a ticking clock while
+    // outputting pure silence — NO status check can catch it. The only cure
+    // is a brand-new context created inside a user gesture (which is what a
+    // switcher round-trip effectively forces). So: the first tap after
+    // every page load unconditionally discards the load-time context and
+    // rebuilds fresh, right here inside the gesture.
+    if (!ctxTrusted) {
+      if (ctx) { try { ctx.close(); } catch (e) {} }
+      ctx = null;
+      sceneStarted = false;
+      ctxTrusted = true;
+    }
     var c = getCtx();
-    // COLD-LAUNCH DUD: on a fresh iOS PWA launch (no app-switcher round
-    // trip), the context created at page load can be permanently stuck —
-    // resume() and silent buffers do nothing, forever. If a previous tap
-    // already tried and failed to unlock it, stop trusting it: close it and
-    // build a brand-new context right here INSIDE the gesture, which iOS
-    // always honors.
     if (c && c.state !== 'running') {
       gestureUnlock._fails = (gestureUnlock._fails || 0) + 1;
       if (gestureUnlock._fails >= 2) {
