@@ -16,6 +16,16 @@
   var ctx = null;
   var muted = localStorage.getItem('aog-sound-muted') === '1';
 
+  // ── DEBUG LOG (overlay enabled via localStorage 'aog-sound-debug'='1') ──
+  var DBG_ON = localStorage.getItem('aog-sound-debug') === '1';
+  var dbgLog = [];
+  function dbg(msg) {
+    if (!DBG_ON) return;
+    var t = (performance.now() / 1000).toFixed(1);
+    dbgLog.push(t + 's ' + msg);
+    if (dbgLog.length > 14) dbgLog.shift();
+  }
+
   // Per-category sound preferences (controlled by the hub Sound Panel)
   var DEFAULT_PREFS = { taps: true, animations: true, seasonal: true, forms: true, alerts: true };
   var prefs;
@@ -80,6 +90,7 @@
       if (!ctx || ctx.state !== 'running') return;
       if (ctx.currentTime === t0) {
         // Zombie: clock frozen. Tear down and rebuild from scratch.
+        dbg('ZOMBIE detected (clock frozen) - rebuilding');
         try { ctx.close(); } catch (e) {}
         ctx = null;
         sceneStarted = false;
@@ -104,6 +115,7 @@
   var sceneStarted = false;
   function goLive() {
     if (sceneStarted || muted) return;
+    dbg('goLive: engine LIVE, state=' + (ctx && ctx.state));
     sceneStarted = true;
     applyScene();
     if (typeof flushPending === 'function') flushPending();
@@ -140,14 +152,71 @@
   // silent buffer SYNCHRONOUSLY inside the gesture is what reliably
   // unlocks audio on iOS. Some iOS versions only honor touchend/click,
   // so we listen on those too.
+  var ctxTrusted = false; // becomes true only for a context born inside a user gesture
+  // ── iOS AUDIO SESSION ACTIVATOR ──────────────────────────────
+  // Debug overlay proved: on cold PWA launch every AudioContext (even ones
+  // born inside a gesture) reports 'running' with currentTime frozen at
+  // 0.00 forever. iOS simply never activated the app's system audio
+  // session. WebAudio cannot force that — but playing an HTML <audio>
+  // element inside a gesture CAN. Once the session is live, contexts tick.
+  // (A switcher round-trip activates the session as a side effect, which is
+  // why that "fixed" it.) We keep doing this on every gesture until we see
+  // the clock actually advance.
+  var SILENT_WAV = 'data:audio/wav;base64,UklGRrQBAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YZABAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA';
+  var sessionEl = null, sessionLive = false;
+  function activateSession() {
+    if (sessionLive) return;
+    try {
+      if (!sessionEl) {
+        sessionEl = new Audio(SILENT_WAV);
+        sessionEl.setAttribute('playsinline', '');
+        sessionEl.volume = 0.01;
+      }
+      var p = sessionEl.play();
+      if (p && p.then) {
+        p.then(function () { dbg('audio-el played: session ACTIVATED'); })
+         .catch(function (e) { dbg('audio-el play blocked: ' + e.name); });
+      }
+    } catch (e) { dbg('audio-el ERROR: ' + e.message); }
+  }
+  // Watch for the clock finally ticking; once it does, session is confirmed
+  // live and we stop poking it. Also restart ambience since earlier
+  // goLive() calls happened on a frozen engine.
+  setInterval(function () {
+    if (sessionLive || !ctx || ctx.state !== 'running') return;
+    if (ctx.currentTime > 0) {
+      sessionLive = true;
+      dbg('CLOCK TICKING — audio session confirmed live');
+      sceneStarted = false;
+      tryStart();
+    }
+  }, 250);
+
   function gestureUnlock() {
+    activateSession(); // MUST be first — inside the gesture, activates iOS system audio session
+    // If the session just came alive but our context was born BEFORE it
+    // (frozen clock), rebuild it now inside this gesture.
+    if (ctx && ctx.state === 'running' && ctx.currentTime === 0 && gestureUnlock._sawFrozen) {
+      dbg('ctx frozen at 0.00 across gestures — rebuilding in gesture');
+      try { ctx.close(); } catch (e) {}
+      ctx = null; sceneStarted = false;
+    }
+    gestureUnlock._sawFrozen = !!(ctx && ctx.state === 'running' && ctx.currentTime === 0);
+    // COLD-LAUNCH SILENT DUD: on a fresh iOS PWA launch the context created
+    // at page load can report 'running' with a ticking clock while
+    // outputting pure silence — NO status check can catch it. The only cure
+    // is a brand-new context created inside a user gesture (which is what a
+    // switcher round-trip effectively forces). So: the first tap after
+    // every page load unconditionally discards the load-time context and
+    // rebuilds fresh, right here inside the gesture.
+    if (!ctxTrusted) {
+      dbg('1st gesture: discarding load-time ctx (state=' + (ctx && ctx.state) + ')');
+      if (ctx) { try { ctx.close(); } catch (e) {} }
+      ctx = null;
+      sceneStarted = false;
+      ctxTrusted = true;
+    }
     var c = getCtx();
-    // COLD-LAUNCH DUD: on a fresh iOS PWA launch (no app-switcher round
-    // trip), the context created at page load can be permanently stuck —
-    // resume() and silent buffers do nothing, forever. If a previous tap
-    // already tried and failed to unlock it, stop trusting it: close it and
-    // build a brand-new context right here INSIDE the gesture, which iOS
-    // always honors.
     if (c && c.state !== 'running') {
       gestureUnlock._fails = (gestureUnlock._fails || 0) + 1;
       if (gestureUnlock._fails >= 2) {
@@ -155,6 +224,7 @@
         ctx = null;
         gestureUnlock._fails = 0;
         sceneStarted = false;
+        dbg('unlock failed x2: rebuilt ctx in gesture');
         c = getCtx(); // fresh context, born inside a user gesture
       }
     } else {
@@ -170,7 +240,7 @@
         src.start(0);
       } catch (e) {}
     }
-    if (!ctx || ctx.state !== 'running') tryStart();
+    if (!ctx || ctx.state !== 'running') { dbg('gesture: state=' + (ctx && ctx.state) + ' -> tryStart'); tryStart(); }
     else verifyAlive(); // 'running' can be a lie after iOS suspends the PWA — verify the clock is ticking
   }
   ['pointerdown', 'touchstart', 'touchend', 'click', 'keydown'].forEach(function (ev) {
@@ -188,7 +258,8 @@
   // when returning via the app switcher. If the context came back anything
   // other than 'running', don't trust resume() — tear it down and rebuild.
   document.addEventListener('visibilitychange', function () {
-    if (document.hidden) return;
+    if (document.hidden) { dbg('hidden'); return; }
+    dbg('visible again: state=' + (ctx && ctx.state));
     if (ctx && ctx.state !== 'running') {
       try { ctx.close(); } catch (e) {}
       ctx = null;
@@ -754,7 +825,8 @@
   Object.keys(RAW).forEach(function (k) {
     S[k] = function () {
       verifyAlive(); // self-heal a zombie context; if frozen, it rebuilds so the NEXT tap plays
-      if (!allowed(CATS[k] || 'taps')) return;
+      if (!allowed(CATS[k] || 'taps')) { dbg('play ' + k + ' BLOCKED (pref/mute)'); return; }
+      dbg('play ' + k + ' state=' + (ctx && ctx.state) + ' t=' + (ctx ? ctx.currentTime.toFixed(2) : '-'));
       if (mode !== 'vibrate' && ctx && ctx.state !== 'running') {
         pendingSound = { k: k, t: Date.now() }; // replay once unlocked
         try { ctx.resume().then(flushPending).catch(function () {}); } catch (e) {}
@@ -1068,6 +1140,74 @@
     });
   };
 
+
+  /* ================= DEBUG OVERLAY ================= */
+  // Enable: toggle in Sound Settings panel, or run
+  // localStorage.setItem('aog-sound-debug','1') and reload.
+  if (DBG_ON) (function () {
+    function build() {
+      var d = document.createElement('div');
+      d.id = 'aog-snd-dbg';
+      d.style.cssText = 'position:fixed;left:6px;right:6px;bottom:6px;z-index:99999;background:rgba(0,0,0,.88);color:#4ade80;font:10px/1.45 monospace;padding:8px;border-radius:8px;border:1px solid #4ade80;pointer-events:auto;white-space:pre-wrap;word-break:break-all;';
+      var head = document.createElement('div');
+      head.id = 'aog-snd-dbg-head';
+      head.style.cssText = 'color:#fbbf24;margin-bottom:4px;';
+      var log = document.createElement('div');
+      log.id = 'aog-snd-dbg-log';
+      var row = document.createElement('div');
+      row.style.cssText = 'margin-top:6px;display:flex;gap:6px;';
+      function mkbtn(txt, fn) {
+        var b = document.createElement('button');
+        b.textContent = txt;
+        b.style.cssText = 'flex:1;padding:6px;font:bold 11px monospace;background:#fbbf24;color:#000;border:none;border-radius:6px;';
+        b.addEventListener('click', fn);
+        return b;
+      }
+      row.appendChild(mkbtn('TEST BEEP', function () {
+        dbg('TEST BEEP tapped');
+        try {
+          var c = getCtx();
+          var o = c.createOscillator(), g = c.createGain();
+          o.frequency.value = 880; o.type = 'sine';
+          g.gain.setValueAtTime(0.15, c.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.4);
+          o.connect(g); g.connect(c.destination);
+          o.start(); o.stop(c.currentTime + 0.4);
+          dbg('beep scheduled ok, state=' + c.state);
+        } catch (e) { dbg('beep ERROR: ' + e.message); }
+      }));
+      row.appendChild(mkbtn('REBUILD CTX', function () {
+        dbg('manual rebuild');
+        try { if (ctx) ctx.close(); } catch (e) {}
+        ctx = null; sceneStarted = false; getCtx(); startRetryLoop();
+      }));
+      row.appendChild(mkbtn('OFF', function () {
+        localStorage.removeItem('aog-sound-debug');
+        d.remove();
+      }));
+      d.appendChild(head); d.appendChild(log); d.appendChild(row);
+      document.body.appendChild(d);
+      var lastT = -1, frozen = 0;
+      setInterval(function () {
+        var t = ctx ? ctx.currentTime : -1;
+        if (ctx && ctx.state === 'running') { frozen = (t === lastT) ? frozen + 1 : 0; }
+        lastT = t;
+        head.textContent =
+          'v3.4.9  standalone:' + (navigator.standalone === true ? 'YES' : 'no') +
+          '  vis:' + document.visibilityState + '\n' +
+          'ctx:' + (ctx ? ctx.state : 'NULL') +
+          '  time:' + (ctx ? t.toFixed(2) : '-') +
+          (frozen > 1 ? ' *FROZEN*' : ' (ticking)') +
+          '  sr:' + (ctx ? ctx.sampleRate : '-') + '\n' +
+          'trusted:' + ctxTrusted + '  scene:' + sceneStarted +
+          '  muted:' + muted + '  mode:' + mode + '  preview:' + preview;
+        log.textContent = dbgLog.join('\n');
+      }, 400);
+    }
+    if (document.body) build();
+    else document.addEventListener('DOMContentLoaded', build);
+  })();
+
   /* ================= PUBLIC API ================= */
 
   window.AOGSound = {
@@ -1123,6 +1263,12 @@
       // restart or stop ambience to reflect animation/seasonal changes
       stopAmbient(); sceneStarted = false; tryStart();
     },
-    mapAnimation: function (a, s) { animationSounds[a] = s; }
+    mapAnimation: function (a, s) { animationSounds[a] = s; },
+    debugMode: function (on) {
+      if (on) localStorage.setItem('aog-sound-debug', '1');
+      else localStorage.removeItem('aog-sound-debug');
+      location.reload();
+    },
+    isDebug: function () { return DBG_ON; }
   };
 })();
