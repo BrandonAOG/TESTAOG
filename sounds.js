@@ -106,6 +106,7 @@
     if (sceneStarted || muted) return;
     sceneStarted = true;
     applyScene();
+    if (typeof flushPending === 'function') flushPending();
   }
   function tryStart() {
     var c = getCtx(); // getCtx() also calls resume()
@@ -135,11 +136,27 @@
   // PERSISTENT gesture rescue: any tap/keypress revives a suspended context.
   // (Not once-only — after returning from the background the context is
   // suspended again and needs reviving again.)
-  ['pointerdown', 'touchstart', 'keydown'].forEach(function (ev) {
-    document.addEventListener(ev, function () {
-      if (!ctx || ctx.state !== 'running') tryStart();
-      else verifyAlive(); // 'running' can be a lie after iOS suspends the PWA — verify the clock is ticking
-    }, { passive: true });
+  // iOS unlock ritual: resume() alone is sometimes ignored — playing a
+  // silent buffer SYNCHRONOUSLY inside the gesture is what reliably
+  // unlocks audio on iOS. Some iOS versions only honor touchend/click,
+  // so we listen on those too.
+  function gestureUnlock() {
+    var c = getCtx();
+    if (c) {
+      if (c.state !== 'running') { try { c.resume(); } catch (e) {} }
+      try {
+        var b = c.createBuffer(1, 1, 22050);
+        var src = c.createBufferSource();
+        src.buffer = b;
+        src.connect(c.destination);
+        src.start(0);
+      } catch (e) {}
+    }
+    if (!ctx || ctx.state !== 'running') tryStart();
+    else verifyAlive(); // 'running' can be a lie after iOS suspends the PWA — verify the clock is ticking
+  }
+  ['pointerdown', 'touchstart', 'touchend', 'click', 'keydown'].forEach(function (ev) {
+    document.addEventListener(ev, gestureUnlock, { passive: true });
   });
 
   // Returning to the app: kick the retry loop immediately on every path the
@@ -708,10 +725,22 @@
   }
 
   var S = {};
+  // The tap that UNLOCKS audio would normally be silent (engine not running
+  // yet when the sound fires). Queue it and replay the moment we go live.
+  var pendingSound = null;
+  function flushPending() {
+    if (!pendingSound) return;
+    var p = pendingSound; pendingSound = null;
+    if (Date.now() - p.t < 1500 && S[p.k]) S[p.k]();
+  }
   Object.keys(RAW).forEach(function (k) {
     S[k] = function () {
       verifyAlive(); // self-heal a zombie context; if frozen, it rebuilds so the NEXT tap plays
       if (!allowed(CATS[k] || 'taps')) return;
+      if (mode !== 'vibrate' && ctx && ctx.state !== 'running') {
+        pendingSound = { k: k, t: Date.now() }; // replay once unlocked
+        try { ctx.resume().then(flushPending).catch(function () {}); } catch (e) {}
+      }
       if (mode !== 'vibrate') RAW[k]();
       if (mode !== 'sound') buzz(k);
     };
