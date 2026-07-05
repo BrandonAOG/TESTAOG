@@ -1,6 +1,6 @@
 // ============================================================
 //  Always On Generators – Field Hub
-//  Service Worker  |  sw.js  |  Version: aog-forms-v3.4.0
+//  Service Worker  |  sw.js  |  Version: aog-forms-v3.4.2
 //  Scope: root (../)
 //
 //  ⚠ WHEN YOU UPDATE ANY TOOL:
@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v3.4.0';
+var CACHE_NAME = 'aog-forms-v3.4.2';
 var DEV_MODE   = false;
 
 // Tracks whether this SW instance has already run a precache repair pass
@@ -274,12 +274,13 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // The sound engine and update banner must be CURRENT immediately after an
-  // update — stale-while-revalidate serves the old copy once, which made new
-  // sounds take several app restarts to appear. Network-first fixes that:
-  // online loads always get the newest engine; offline falls back to cache.
+  // The sound engine and update banner should be CURRENT after an update, but
+  // must never be SLOW. Timed race: give the network 600ms — if a fresh copy
+  // arrives that fast, use it (instant updates on good connections); otherwise
+  // serve the cached copy immediately (reliable on job-site connections) and
+  // let the network response refresh the cache in the background for next load.
   if (isSameOrigin && url.pathname.match(/(sounds|update-banner)\.js$/i)) {
-    event.respondWith(networkFirst(request));
+    event.respondWith(networkRace(request, 600));
     return;
   }
 
@@ -300,6 +301,34 @@ self.addEventListener('fetch', function(event) {
 
   event.respondWith(networkFirst(request));
 });
+
+// ============================================================
+//  STRATEGY: Network Race — network wins only if faster than timeoutMs,
+//  otherwise cached copy is served and the network refreshes cache silently
+// ============================================================
+function networkRace(request, timeoutMs) {
+  return caches.open(CACHE_NAME).then(function(cache) {
+    return cache.match(request).then(function(hit) {
+      return hit || caches.match(request);
+    }).then(function(cached) {
+      var networkFetch = fetch(request).then(function(res) {
+        if (res && res.ok) {
+          caches.open(CACHE_NAME).then(function(c) { c.put(request, res.clone()); });
+        }
+        return res;
+      });
+      if (!cached) {
+        // nothing cached (first ever load) — network is the only option
+        return networkFetch;
+      }
+      var timer = new Promise(function(resolve) {
+        setTimeout(function() { resolve(cached); }, timeoutMs);
+      });
+      // Whichever finishes first wins; network errors fall back to cache
+      return Promise.race([networkFetch.catch(function() { return cached; }), timer]);
+    });
+  });
+}
 
 // ============================================================
 //  STRATEGY: Network First

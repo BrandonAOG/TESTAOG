@@ -53,13 +53,40 @@
   };
 
   function getCtx() {
+    if (ctx && ctx.state === 'closed') ctx = null; // rebuilt after zombie teardown
     if (!ctx) {
       var AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return null;
       try { ctx = new AC({ latencyHint: 'interactive' }); } catch (e) { ctx = new AC(); }
     }
+    // iOS PWAs surface an extra 'interrupted' state after backgrounding —
+    // treat anything not running as resumable
     if (ctx.state !== 'running') { try { ctx.resume(); } catch (e) {} }
     return ctx;
+  }
+
+  // ── iOS standalone-PWA zombie watchdog ─────────────────────
+  // After iOS suspends a home-screen PWA, the context can report 'running'
+  // while its clock is frozen and no audio plays; resume() lies. Detect a
+  // frozen clock and rebuild the whole context (Safari tabs recover on
+  // their own; installed PWAs frequently do not).
+  var watchdogBusy = false;
+  function verifyAlive() {
+    if (watchdogBusy || !ctx || ctx.state !== 'running') return;
+    watchdogBusy = true;
+    var t0 = ctx.currentTime;
+    setTimeout(function () {
+      watchdogBusy = false;
+      if (!ctx || ctx.state !== 'running') return;
+      if (ctx.currentTime === t0) {
+        // Zombie: clock frozen. Tear down and rebuild from scratch.
+        try { ctx.close(); } catch (e) {}
+        ctx = null;
+        sceneStarted = false;
+        getCtx();
+        startRetryLoop();
+      }
+    }, 300);
   }
   // Create the context IMMEDIATELY at load (starts suspended, resumes on
   // first gesture) so there is zero setup cost when the first sound fires.
@@ -83,6 +110,7 @@
   function tryStart() {
     var c = getCtx(); // getCtx() also calls resume()
     if (!c) return;
+    verifyAlive();
     c.onstatechange = function () { if (c.state === 'running') goLive(); };
     if (c.state === 'running') goLive();
     else if (c.resume) c.resume().then(goLive).catch(function () {});
