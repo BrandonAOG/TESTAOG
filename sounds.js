@@ -142,6 +142,24 @@
   // so we listen on those too.
   function gestureUnlock() {
     var c = getCtx();
+    // COLD-LAUNCH DUD: on a fresh iOS PWA launch (no app-switcher round
+    // trip), the context created at page load can be permanently stuck —
+    // resume() and silent buffers do nothing, forever. If a previous tap
+    // already tried and failed to unlock it, stop trusting it: close it and
+    // build a brand-new context right here INSIDE the gesture, which iOS
+    // always honors.
+    if (c && c.state !== 'running') {
+      gestureUnlock._fails = (gestureUnlock._fails || 0) + 1;
+      if (gestureUnlock._fails >= 2) {
+        try { c.close(); } catch (e) {}
+        ctx = null;
+        gestureUnlock._fails = 0;
+        sceneStarted = false;
+        c = getCtx(); // fresh context, born inside a user gesture
+      }
+    } else {
+      gestureUnlock._fails = 0;
+    }
     if (c) {
       if (c.state !== 'running') { try { c.resume(); } catch (e) {} }
       try {
