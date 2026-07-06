@@ -1082,14 +1082,18 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state.sweepAngle=0;
     state.pings=[];
     state.blips=[];
-    // Seed random blips (targets)
-    for(var i=0;i<8;i++) state.blips.push({x:rand(W*.1,W*.9),y:rand(H*.1,H*.9),alpha:0,size:rand(2,5)});
+    // Seed random blips (targets) INSIDE the radar circle
+    var cx=W*.5,cy=H*.5,maxR=Math.min(W,H)*(W<480?.42:.48);
+    for(var i=0;i<8;i++){
+      var a=rand(0,Math.PI*2),r=rand(maxR*.18,maxR*.92);
+      state.blips.push({x:cx+Math.cos(a)*r,y:cy+Math.sin(a)*r,alpha:0,size:rand(2,5)});
+    }
   }
   function drawSonar(){
     ctx.fillStyle='rgba(2,8,18,0.92)';ctx.fillRect(0,0,W,H);
     state.t++;
     var cx=W*.5,cy=H*.5,maxR=Math.min(W,H)*(W<480?.42:.48);
-    state.sweepAngle+=.018;if(state.sweepAngle%(Math.PI*2)<.018){if(window.AOGSound)AOGSound.play('ping');}
+    state.sweepAngle+=.018;
     // Grid rings
     for(var r=1;r<=4;r++){
       ctx.save();ctx.beginPath();ctx.arc(cx,cy,maxR*r/4,0,Math.PI*2);
@@ -1117,7 +1121,10 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state.blips.forEach(function(b){
       var bAngle=Math.atan2(b.y-cy,b.x-cx);
       var diff=((state.sweepAngle-bAngle)%(Math.PI*2)+Math.PI*2)%(Math.PI*2);
-      if(diff<.08) b.alpha=1;
+      if(diff<.08){
+        if(b.alpha<.5 && window.AOGSound)AOGSound.play('ping'); // ding on contact, once per pass
+        b.alpha=1;
+      }
       else b.alpha=Math.max(0,b.alpha-.008);
       if(b.alpha>0){
         ctx.save();ctx.beginPath();ctx.arc(b.x,b.y,b.size,0,Math.PI*2);
@@ -1201,7 +1208,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state.prominences=[];
     state.nextFlare=0;
   }
-  function spawnFlare(){if(window.AOGSound)AOGSound.play('flare');
+  function spawnFlare(silent){if(!silent&&window.AOGSound)AOGSound.play('flare');
     var angle=rand(-0.4,0.4);
     var len=rand(H*.25,H*.65);
     var ox=rand(-80,80);
@@ -1211,7 +1218,10 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     ctx.fillStyle='rgba(4,6,16,0.9)';ctx.fillRect(0,0,W,H);
     state.t+=.008;
     state.nextFlare--;
-    if(state.nextFlare<=0){spawnFlare();if(Math.random()>.5)spawnFlare();state.nextFlare=randInt(40,120);}
+    if(state.nextFlare<=0){spawnFlare();
+      if(Math.random()>.5){spawnFlare(true);// visual now, sound staggered so two bursts don't stack on the limiter
+        setTimeout(function(){if(window.AOGSound)AOGSound.play('flare');},250+Math.random()*250);}
+      state.nextFlare=randInt(40,120);}
     // Sun body (off bottom-left)
     var sx=-80,sy=H+80,sr=Math.min(W,H)*.28;
     var sun=ctx.createRadialGradient(sx,sy,0,sx,sy,sr*2.5);
