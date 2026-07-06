@@ -1374,7 +1374,7 @@
     'matrix':         { occ: [['tick', 400, 900]] },
     'sonar':          {},                                    // ping synced to sweep
     'blueprint':      { loop: 'paper', occ: [['tick', 1800, 4500]] }, // drafting room + pencil strokes (was 'hum' — mains buzz fit electrical scenes, not a drawing)
-    'solarflare':     {},                                    // eruptions hooked
+    'solarflare':     { loop: 'fire' },                      // eruptions hooked — continuous plasma roar underneath (was silent between eruptions)
     'lichtenberg':    {},                                    // figures hooked
     'aurora g5':      { loop: 'drone' },                     // bursts hooked
     'tornado alley':  { loop: 'wind', occ: [['wind', 5000, 11000]] },
