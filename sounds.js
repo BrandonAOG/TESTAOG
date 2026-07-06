@@ -1201,6 +1201,11 @@
   }
   Object.keys(RAW).forEach(function (k) {
     S[k] = function () {
+      // Scene-aware remap: the voltage theme fires success() on its spikes,
+      // which plays the user's success tone (Mario coin, tada, ...) — a UI
+      // reward sound, wrong for an electrical event. Reroute to zap here so
+      // the theme file doesn't need touching.
+      if (k === 'success' && amb.scene === 'voltage') { S.zap(); return; }
       verifyAlive(); // self-heal a zombie context; if frozen, it rebuilds so the NEXT tap plays
       if (!allowed(CATS[k] || 'taps')) {  return; }
       
