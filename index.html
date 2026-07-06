@@ -3857,6 +3857,11 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     document.body.appendChild(bar);
 
     // Hidden by default — triple-tap the footer within 1.5s to toggle it
+    // Also re-hide when returning via back button (bfcache restores the page
+    // exactly as it was left, switcher included).
+    window.addEventListener('pageshow', function(e){
+      if(e.persisted) bar.style.display = 'none';
+    });
     var footer = document.querySelector('.footer');
     if(footer){
       var taps = 0, tapTimer = null;
