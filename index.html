@@ -817,7 +817,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state.meters.forEach(function(m){
       // Occasional spike
       if(m.spikeTimer>0){m.spikeTimer--;m.target=rand(.7,.98);}
-      else if(Math.random()<.004){m.spikeTimer=randInt(8,25);m.target=rand(.7,.98);if(window.AOGSound)AOGSound.play('surge');}
+      else if(Math.random()<.004){m.spikeTimer=randInt(8,25);m.target=rand(.7,.98);if(window.AOGSound)AOGSound.play('zap');}
       else if(Math.random()<.01) m.target=rand(.05,.55);
       m.current+=(m.target-m.current)*m.speed;
       var h=H*.52, barW=clamp(W*.06,W<480?28:40,W<480?55:90);
