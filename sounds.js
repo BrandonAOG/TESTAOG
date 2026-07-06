@@ -26,6 +26,19 @@
   // clipping that sounds like crackling static on older iOS.
   function out(c) { return (c && c._master) || c.destination; }
 
+  // Restore the master bus after any duck/hard-mute (hide, pagehide). MUST be
+  // called on every comeback path — a bfcache restore brings the page back
+  // with the SAME context and a zeroed gain, which silenced everything.
+  function unduck() {
+    try {
+      if (ctx && ctx._masterGain) {
+        var lvl = (ctx._masterLevel != null) ? ctx._masterLevel : 0.9;
+        if (ctx.state === 'running') ctx._masterGain.gain.setTargetAtTime(lvl, ctx.currentTime, 0.02);
+        else ctx._masterGain.gain.value = lvl;
+      }
+    } catch (e) {}
+  }
+
   // Set the iOS audio session category (no-op elsewhere / if unsupported)
   function setSession(type) {
     try {
@@ -560,7 +573,7 @@
   // browser can take back to us — tab switch, app switcher, back/forward cache.
   ['focus', 'pageshow'].forEach(function (ev) {
     window.addEventListener(ev, function () {
-      if (!document.hidden) { sceneStarted = false; startRetryLoop(); }
+      if (!document.hidden) { unduck(); sceneStarted = false; startRetryLoop(); }
     });
   });
   // iOS standalone PWAs often fire ONLY visibilitychange (no focus/pageshow)
@@ -607,13 +620,7 @@
     if (!IS_IOS && ctx && ctx.state === 'suspended') {
       try { ctx.resume().catch(function(){}); } catch (e) {}
     }
-    // Un-duck the master bus (it was faded to 0 on hide)
-    try {
-      if (ctx && ctx._masterGain) {
-        var lvl = (ctx._masterLevel != null) ? ctx._masterLevel : 0.9;
-        ctx._masterGain.gain.setTargetAtTime(lvl, ctx.currentTime, 0.02);
-      }
-    } catch (e) {}
+    unduck(); // master bus was faded to 0 on hide
     // Re-arm the looper: a previously-allowed element may resume without a
     // fresh gesture; if iOS blocks it, the next tap's unlock handles it.
     if (sessionEl) {
@@ -1412,6 +1419,7 @@
   function applyScene() {
     stopAmbient();
     if (!ready()) return;
+    unduck(); // never start a scene into a ducked/zeroed master bus
     var profile = null;
     if (amb.scene && SCENES[amb.scene]) profile = SCENES[amb.scene];
     if (!profile) { // form pages: read seasonal class off <body>
@@ -1530,8 +1538,13 @@
 
   // TRUE CLOSE (swipe-away / navigation): no time for automation — zero the
   // master bus instantly so the OS session teardown doesn't clip mid-wave.
+  // pageshow/focus/applyScene all call unduck(), so a bfcache restore (which
+  // resumes the SAME page state, gain still 0) recovers immediately.
   window.addEventListener('pagehide', function () {
     try { if (ctx && ctx._masterGain) ctx._masterGain.gain.value = 0; } catch (e) {}
+  });
+  window.addEventListener('pageshow', function (e) {
+    if (e && e.persisted) unduck(); // bfcache restore — same ctx, gain was zeroed
   });
 
   // Connectivity
@@ -1624,7 +1637,7 @@
   if (window.__aogPendingScene) { amb.scene = window.__aogPendingScene; window.__aogPendingScene = null; }
 
   window.AOGSound = {
-    version: 'v1.0.6',
+    version: 'v1.0.5',
     play: function (name) { if (S[name]) S[name](); },
     // Force-play for the Sound Settings panel: taps must always be audible,
     // even for 'animations' sounds (fireworks/thunder) that preview mode
