@@ -1333,7 +1333,16 @@
               oscLoopNode('sine', 60, 0.02); oscLoopNode('sine', 120, 0.022);
               oscLoopNode('triangle', 180, 0.014); oscLoopNode('sine', 240, 0.009); },
     engine: engineLoopNode,
-    drone:  function () { oscLoopNode('sine', 42, 0.03); oscLoopNode('sine', 84, 0.02); oscLoopNode('sine', 126, 0.01); },
+    // Sub-bass foundation kept for systems that can reproduce it, but small
+    // laptop/phone speakers can't play 42–126 Hz at all — the drone scenes
+    // (aurora g5, black hole, ion storm...) were silent on them. Added mid
+    // harmonics (168/252 Hz, quiet) plus a faint slow-breathing airy noise
+    // wash so the bed is audible everywhere without changing its character.
+    drone:  function () {
+      oscLoopNode('sine', 42, 0.03); oscLoopNode('sine', 84, 0.02); oscLoopNode('sine', 126, 0.01);
+      oscLoopNode('sine', 168, 0.008); oscLoopNode('sine', 252, 0.005);
+      noiseLoopNode(900, 0.012, true); // wobbling filtered air — the "shimmer"
+    },
     fire:   function () { noiseLoopNode('lowpass', 1100, 0.6, 0.045); noiseLoopNode('highpass', 3200, 1, 0.016); },
     arcbuzz:function () { oscLoopNode('sawtooth', 110, 0.011); noiseLoopNode('highpass', 3000, 1, 0.009); },
     fan:    fanLoopNode
