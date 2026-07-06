@@ -1199,21 +1199,8 @@
     var p = pendingSound; pendingSound = null;
     if (Date.now() - p.t < 1500 && S[p.k]) S[p.k]();
   }
-  // Scene-aware remap: the voltage theme fires success() on its spikes,
-  // which plays the user's success tone (Mario coin, tada, ...) — a UI
-  // reward sound, wrong for an electrical event. Reroute to zap so the
-  // theme file doesn't need touching. Used by S[k], play() AND previewPlay()
-  // — the settings/switcher preview path calls RAW directly and was still
-  // playing the coin after the main path was fixed.
-  function remapForScene(k) {
-    if (k === 'success' && amb.scene === 'voltage') return 'zap';
-    return k;
-  }
-
   Object.keys(RAW).forEach(function (k) {
     S[k] = function () {
-      var rk = remapForScene(k);
-      if (rk !== k) { S[rk](); return; }
       verifyAlive(); // self-heal a zombie context; if frozen, it rebuilds so the NEXT tap plays
       if (!allowed(CATS[k] || 'taps')) {  return; }
       
@@ -1685,7 +1672,6 @@
     // even for 'animations' sounds (fireworks/thunder) that preview mode
     // silences to stop background bleed. Still respects master mute + mode.
     previewPlay: function (name) {
-      name = remapForScene(name); // switcher/settings preview matches real playback
       if (!RAW[name]) return;
       if (mode !== 'vibrate') RAW[name]();
       if (mode !== 'sound') buzz(name);
