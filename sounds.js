@@ -1,5 +1,5 @@
 /* ============================================================
-   AOG Sound Engine v1.0.6 — drop-in UI + ambient sounds (no files)
+   AOG Sound Engine v1.0.8 — drop-in UI + ambient sounds (no files)
    <script src="./sounds.js"></script>  (../sounds.js from sub-pages)
 
    - Synthesized with Web Audio API → 100% offline in the PWA
@@ -1333,6 +1333,9 @@
               oscLoopNode('sine', 60, 0.02); oscLoopNode('sine', 120, 0.022);
               oscLoopNode('triangle', 180, 0.014); oscLoopNode('sine', 240, 0.009); },
     engine: engineLoopNode,
+    // Drafting room: soft paper/air room tone — a barely-there mid-band wash,
+    // no electrical character. Used by blueprint (was wrongly on 'hum').
+    paper:  function () { noiseLoopNode('lowpass', 1400, 0.7, 0.011); noiseLoopNode('bandpass', 3000, 0.6, 0.004); },
     // Sub-bass foundation kept for systems that can reproduce it, but small
     // laptop/phone speakers can't play 42–126 Hz at all — the drone scenes
     // (aurora g5, black hole, ion storm...) were silent on them. Added mid
@@ -1370,7 +1373,7 @@
     'supercell':      { loop: 'wind' },                      // bolts hooked
     'matrix':         { occ: [['tick', 400, 900]] },
     'sonar':          {},                                    // ping synced to sweep
-    'blueprint':      { loop: 'hum' },
+    'blueprint':      { loop: 'paper', occ: [['tick', 1800, 4500]] }, // drafting room + pencil strokes (was 'hum' — mains buzz fit electrical scenes, not a drawing)
     'solarflare':     {},                                    // eruptions hooked
     'lichtenberg':    {},                                    // figures hooked
     'aurora g5':      { loop: 'drone' },                     // bursts hooked
@@ -1663,7 +1666,7 @@
   startRetryLoop(); // zero-tap start attempt — everything above is now defined
 
   window.AOGSound = {
-    version: 'v1.0.7',
+    version: 'v1.0.8',
     play: function (name) { if (S[name]) S[name](); },
     // Force-play for the Sound Settings panel: taps must always be audible,
     // even for 'animations' sounds (fireworks/thunder) that preview mode
