@@ -564,6 +564,10 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     W = canvas.width  = window.innerWidth;
     H = canvas.height = window.innerHeight;
   }
+  // sounds.js loads with defer (runs AFTER this inline script), so a direct
+  // AOGSound.scene() call at load always missed — the engine never knew the
+  // scene and ambient beds never started. Queue the name; the engine reads it.
+  function announceScene(n){ if(window.AOGSound) AOGSound.scene(n); else window.__aogPendingScene = n; }
   function rand(a,b){ return Math.random()*(b-a)+a; }
   function randInt(a,b){ return Math.floor(rand(a,b)); }
   function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
@@ -3763,7 +3767,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
 
   resize();
   theme.init();
-  if(window.AOGSound)AOGSound.scene(theme.name);
+  announceScene(theme.name);
 
   var generation = 0; // increment on every switch; old loops see stale gen and die
 
@@ -3805,7 +3809,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     resize();
     state = {};
     theme.init();
-  if(window.AOGSound)AOGSound.scene(theme.name);
+  announceScene(theme.name);
     last = 0; acc = 0;
     loop(generation);
   });
@@ -3823,7 +3827,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state = {};
     resize();
     theme.init();
-    if(window.AOGSound) AOGSound.scene(theme.name);
+    announceScene(theme.name);
     sessionStorage.setItem('aog_theme', idx);
     last = 0; acc = 0;
     loop(generation);
