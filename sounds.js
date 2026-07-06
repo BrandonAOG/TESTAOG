@@ -1645,14 +1645,16 @@
   //               paste it back for analysis.
   
 
+  // Scene queued by the hub's inline theme script (which runs before this
+  // deferred file): MUST be picked up BEFORE the retry loop starts. On
+  // desktop with autoplay granted, goLive() fires immediately — grabbing the
+  // scene afterwards meant applyScene ran with no scene, marked itself done,
+  // and the queued theme (aurora g5, black hole, ...) never played at load.
+  if (window.__aogPendingScene) { amb.scene = window.__aogPendingScene; window.__aogPendingScene = null; }
   startRetryLoop(); // zero-tap start attempt — everything above is now defined
 
-  // Scene queued by the hub's inline theme script (which runs before this
-  // deferred file): pick it up now, otherwise ambient never starts at load.
-  if (window.__aogPendingScene) { amb.scene = window.__aogPendingScene; window.__aogPendingScene = null; }
-
   window.AOGSound = {
-    version: 'v1.0.6',
+    version: 'v1.0.7',
     play: function (name) { if (S[name]) S[name](); },
     // Force-play for the Sound Settings panel: taps must always be audible,
     // even for 'animations' sounds (fireworks/thunder) that preview mode
