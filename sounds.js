@@ -1,5 +1,5 @@
 /* ============================================================
-   AOG Sound Engine v1.0.5 — drop-in UI + ambient sounds (no files)
+   AOG Sound Engine v1.0.6 — drop-in UI + ambient sounds (no files)
    <script src="./sounds.js"></script>  (../sounds.js from sub-pages)
 
    - Synthesized with Web Audio API → 100% offline in the PWA
@@ -19,7 +19,7 @@
   // revisits the browser grants audio instantly, so goLive() -> applyScene()
   // -> stopAmbient() fires synchronously at load. Defining amb later crashed
   // the whole script (killing window.AOGSound and the sound panel button).
-  var amb = { nodes: [], timers: [], scene: null };
+  var amb = { nodes: [], timers: [], scene: null, playingKey: null };
 
   // All audible output routes through the context's master limiter
   // (built in getCtx) instead of raw destination — prevents the hard
@@ -1226,6 +1226,7 @@
   function stopAmbient() {
     // Fade gain nodes to zero over ~60ms before stopping sources — a hard
     // stop() mid-waveform produces an audible click/pop on scene changes.
+    amb.playingKey = null;
     var nodes = amb.nodes; amb.nodes = [];
     amb.timers.forEach(clearTimeout);
     amb.timers = [];
@@ -1417,18 +1418,32 @@
   };
 
   function applyScene() {
-    stopAmbient();
-    if (!ready()) return;
-    unduck(); // never start a scene into a ducked/zeroed master bus
-    var profile = null;
-    if (amb.scene && SCENES[amb.scene]) profile = SCENES[amb.scene];
-    if (!profile) { // form pages: read seasonal class off <body>
-      var m = (document.body && document.body.className || '').match(/seasonal-([a-z]+)/);
-      if (m && SEASONS[m[1]]) profile = SEASONS[m[1]];
+    // Resolve the target profile FIRST so an unchanged scene is a no-op.
+    // applyScene is re-triggered constantly (window focus, pageshow,
+    // visibilitychange, ANY body class mutation) and used to tear down and
+    // rebuild the loops every time — an audible split-second dropout.
+    var profile = null, key = null;
+    if (ready()) {
+      if (amb.scene && SCENES[amb.scene]) { profile = SCENES[amb.scene]; key = 'scene:' + amb.scene; }
+      if (!profile) { // form pages: read seasonal class off <body>
+        var m = (document.body && document.body.className || '').match(/seasonal-([a-z]+)/);
+        if (m && SEASONS[m[1]]) { profile = SEASONS[m[1]]; key = 'season:' + m[1]; }
+      }
+      if (profile) {
+        var cat = (key.indexOf('scene:') === 0) ? 'animations' : 'seasonal';
+        if (!allowed(cat) || mode === 'vibrate') { profile = null; key = null; }
+        else key += '|' + mode; // mode change must rebuild
+      }
     }
+    // Same profile already live (nodes or timers still armed)? Leave it be.
+    if (key && amb.playingKey === key && (amb.nodes.length || amb.timers.length)) {
+      unduck(); // still make sure the bus isn't ducked
+      return;
+    }
+    stopAmbient();
     if (!profile) return;
-    var cat = (amb.scene && SCENES[amb.scene]) ? 'animations' : 'seasonal';
-    if (!allowed(cat) || mode === 'vibrate') return;
+    unduck(); // never start a scene into a ducked/zeroed master bus
+    amb.playingKey = key;
     if (profile.loop && LOOPS[profile.loop]) LOOPS[profile.loop]();
     if (profile.once && S[profile.once]) S[profile.once]();
     if (profile.occ) profile.occ.forEach(function (o) { scheduleOccasional(o[0], o[1], o[2]); });
@@ -1637,7 +1652,7 @@
   if (window.__aogPendingScene) { amb.scene = window.__aogPendingScene; window.__aogPendingScene = null; }
 
   window.AOGSound = {
-    version: 'v1.0.5',
+    version: 'v1.0.6',
     play: function (name) { if (S[name]) S[name](); },
     // Force-play for the Sound Settings panel: taps must always be audible,
     // even for 'animations' sounds (fireworks/thunder) that preview mode
