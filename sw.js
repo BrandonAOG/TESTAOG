@@ -1,6 +1,6 @@
 // ============================================================
 //  Always On Generators – Field Hub
-//  Service Worker  |  sw.js  |  Version: aog-forms-v3.5.2
+//  Service Worker  |  sw.js  |  Version: aog-forms-v3.6.11
 //  Scope: root (../)
 //
 //  ⚠ WHEN YOU UPDATE ANY TOOL:
@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v3.5.2';
+var CACHE_NAME = 'aog-forms-v2.4.1';
 var DEV_MODE   = false;
 
 // Tracks whether this SW instance has already run a precache repair pass
@@ -23,9 +23,15 @@ var cacheProgress = { percent: 0, label: '', done: false }; // ← SET TRUE duri
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  '🎚️ Sound Settings now has 166 hand-picked tone styles — up to 25 per sound type, including 13 fireworks and a Random Mix thunder.',
-  '🔊 Every style was auditioned and chosen by Brandon. Tap any pill in Sound Settings to preview and switch.',
+  '⚡ Conduit Fill now recalculates instantly when you switch between Raceway and Nipple.',
+  '🔔 Update notices like this one now appear on every form, not just a few.',
+  '🐞 Added a Report a Bug button — pick the form with the problem and it emails Brandon with your device details attached automatically.',
+  '💡 Added a Suggestions button — send ideas for any form, or pitch a brand new one.',
+  '📣 You can now add your name and choose to be credited in the update banner when you report a bug or send a suggestion.',
+  '🔗 Added a Share App button — sends the hub link straight from your share sheet.',
+  '🎚️ Added Sound to app with settings that has 166 tone styles — up to 25 per sound type, including 13 fireworks and a Random Mix thunder.',
 ];
+// 
 // ============================================================
 
 var PRECACHE_URLS = [

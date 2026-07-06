@@ -3801,6 +3801,51 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   });
 
   loop(generation);
+
+  // ─────────────────────────────────────────────────
+  //  SCENE SWITCHER (debug/QA) — flip through all themes
+  // ─────────────────────────────────────────────────
+  function switchTo(i){
+    idx = ((i % themes.length) + themes.length) % themes.length;
+    theme = themes[idx];
+    generation++;
+    cancelAnimationFrame(raf);
+    state = {};
+    resize();
+    theme.init();
+    if(window.AOGSound) AOGSound.scene(theme.name);
+    sessionStorage.setItem('aog_theme', idx);
+    last = 0; acc = 0;
+    loop(generation);
+    var lbl = document.getElementById('scene-switcher-label');
+    if(lbl) lbl.textContent = (idx+1) + '/' + themes.length + ' — ' + theme.name;
+  }
+
+  (function buildSwitcher(){
+    var bar = document.createElement('div');
+    bar.id = 'scene-switcher';
+    bar.style.cssText = 'position:fixed;bottom:12px;left:50%;transform:translateX(-50%);' +
+      'z-index:9999;display:flex;align-items:center;gap:8px;padding:6px 10px;' +
+      'background:rgba(10,14,20,0.85);border:1px solid rgba(255,255,255,0.25);' +
+      'border-radius:999px;font:600 13px/1.2 -apple-system,system-ui,sans-serif;' +
+      'color:#fff;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);';
+    var btnCss = 'background:rgba(255,255,255,0.12);color:#fff;border:none;border-radius:50%;' +
+      'width:34px;height:34px;font-size:17px;cursor:pointer;touch-action:manipulation;';
+    var prev = document.createElement('button');
+    prev.type = 'button'; prev.textContent = '‹'; prev.style.cssText = btnCss;
+    prev.setAttribute('aria-label','Previous scene');
+    var next = document.createElement('button');
+    next.type = 'button'; next.textContent = '›'; next.style.cssText = btnCss;
+    next.setAttribute('aria-label','Next scene');
+    var lbl = document.createElement('span');
+    lbl.id = 'scene-switcher-label';
+    lbl.style.cssText = 'min-width:150px;text-align:center;white-space:nowrap;';
+    lbl.textContent = (idx+1) + '/' + themes.length + ' — ' + theme.name;
+    prev.addEventListener('click', function(e){ e.stopPropagation(); switchTo(idx-1); });
+    next.addEventListener('click', function(e){ e.stopPropagation(); switchTo(idx+1); });
+    bar.appendChild(prev); bar.appendChild(lbl); bar.appendChild(next);
+    document.body.appendChild(bar);
+  })();
 })();
 
 
@@ -4033,6 +4078,7 @@ document.querySelectorAll('.cat-btn').forEach(function(btn) {
     note.style.cssText = 'font-size:.75rem;color:#64748b;margin-top:12px;line-height:1.4;';
     note.textContent = 'Settings save automatically and apply on every AOG page on this device. Sound engine: ' + ((A() && A().version) || 'OLD (pre-v3.5.0 — cache is stale!)');
     card.appendChild(note);
+
 
 
     overlay.appendChild(card);
