@@ -3835,7 +3835,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     var bar = document.createElement('div');
     bar.id = 'scene-switcher';
     bar.style.cssText = 'position:fixed;bottom:12px;left:50%;transform:translateX(-50%);' +
-      'z-index:9999;display:flex;align-items:center;gap:8px;padding:6px 10px;' +
+      'z-index:9999;display:none;align-items:center;gap:8px;padding:6px 10px;' +
       'background:rgba(10,14,20,0.85);border:1px solid rgba(255,255,255,0.25);' +
       'border-radius:999px;font:600 13px/1.2 -apple-system,system-ui,sans-serif;' +
       'color:#fff;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);';
@@ -3855,6 +3855,22 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     next.addEventListener('click', function(e){ e.stopPropagation(); switchTo(idx+1); });
     bar.appendChild(prev); bar.appendChild(lbl); bar.appendChild(next);
     document.body.appendChild(bar);
+
+    // Hidden by default — triple-tap the footer within 1.5s to toggle it
+    var footer = document.querySelector('.footer');
+    if(footer){
+      var taps = 0, tapTimer = null;
+      footer.addEventListener('click', function(){
+        taps++;
+        clearTimeout(tapTimer);
+        tapTimer = setTimeout(function(){ taps = 0; }, 1500);
+        if(taps >= 3){
+          taps = 0;
+          var showing = bar.style.display === 'flex';
+          bar.style.display = showing ? 'none' : 'flex';
+        }
+      });
+    }
   })();
 })();
 
