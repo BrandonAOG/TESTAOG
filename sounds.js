@@ -308,10 +308,15 @@
         sessionEl.setAttribute('playsinline', '');
         sessionEl.loop = true;
         sessionEl.volume = 0.01;
-        ['playing', 'pause', 'suspend', 'stalled', 'error', 'ended'].forEach(function (ev) {
-          sessionEl.addEventListener(ev, function () {
-            
-          });
+        // FAST PATH: 'playing' on the looper is the EARLIEST signal that
+        // iOS accepted the audio session. A context born before that moment
+        // never ticks — so recycle it NOW instead of waiting for the 1.5s
+        // watchdog cycle. This is most of the old 5-10s cold-start silence.
+        sessionEl.addEventListener('playing', function () {
+          if (!IS_IOS || sessionLive) return;
+          if (ctx && ctx.state === 'running' && ctx.currentTime > 0) return; // already ticking
+          if (ctx && ctx._bornAt && Date.now() - ctx._bornAt < 250) return;  // newborn — give it a beat
+          recycleCtx();
         });
       }
       // Second known unfreezer: route the element THROUGH the WebAudio
@@ -390,20 +395,24 @@
       try { ctx.resume().catch(function () {}); } catch (e) {}
       return;
     }
-    if (hadGesture && ctx._bornAt && Date.now() - ctx._bornAt > 1500) {
-      // A gesture happened, the polite 'ambient' kick ran, and the clock is
-      // STILL frozen 1.5s later — this is the genuine cold-launch dead
-      // session. NOW escalate to 'playback' (this will pause the user's
-      // music, unavoidable on the buggy builds) until the clock ticks.
-      
-      
-      try { ctx.close(); } catch (e) {}
-      ctx = null; sceneStarted = false; pipedCtx = null;
-      var c = getCtx(); // fresh context; getCtx() resumes non-running states
-      if (c && c.state !== 'running') { try { c.resume().catch(function () {}); } catch (e) {} }
-      activateSession(); // re-pipe the looper element through the new ctx
-    }
+    // 800ms (was 1500): resume() settles well inside this, and every extra
+    // waiting round was a full silent cycle added to cold-start. The
+    // looper's 'playing' listener usually recycles even sooner.
+    if (hadGesture && ctx._bornAt && Date.now() - ctx._bornAt > 800) recycleCtx();
   }, 250);
+  // Throw away a frozen pre-session context and build a fresh one — the only
+  // cure for the iOS cold-launch dead session (see watchdog comment above).
+  var _lastRecycle = 0;
+  function recycleCtx() {
+    var now = Date.now();
+    if (now - _lastRecycle < 400) return; // event + watchdog can both fire
+    _lastRecycle = now;
+    try { if (ctx) ctx.close(); } catch (e) {}
+    ctx = null; sceneStarted = false; pipedCtx = null;
+    var c = getCtx(); // fresh context; getCtx() resumes non-running states
+    if (c && c.state !== 'running') { try { c.resume().catch(function () {}); } catch (e) {} }
+    activateSession(); // re-pipe the looper element through the new ctx
+  }
   // RE-FREEZE GUARD (iOS): if the clock ever stops advancing again while
   // 'running', re-arm the unlock so the next tap does the full activation.
   var lastLiveT = 0, stuckTicks = 0;
@@ -1326,8 +1335,61 @@
     noiseLoopNode('lowpass', 260, 0.6, 0.02);
   }
 
+  // Rain: the old version was two steady filtered-noise beds — i.e. TV
+  // static. What makes rain read as rain: (1) a darker wash whose density
+  // slowly shifts (gusting), (2) individual droplet transients on top —
+  // mostly noisy ticks (drops on pavement/leaves) with the occasional
+  // pitched plink (drops on water/metal). Droplet one-shots self-stop, so
+  // only the scheduler timer needs tracking; stopAmbient's timer clear
+  // halts new drops and any in-flight ones end within ~100ms of the fade.
+  var dropBuf = null;
+  function rainLoopNode() {
+    var c = ctx;
+    // Distant wash: lowpassed (dark, not staticky), wobble = gust swells
+    noiseLoopNode('lowpass', 1300, 0.5, 0.035, true);
+    // Very faint high sizzle for the fine misty patter
+    noiseLoopNode('highpass', 6000, 1, 0.006);
+    // Shared 60ms decaying-noise burst reused by every noise-tick droplet
+    if (!dropBuf || dropBuf.sampleRate !== c.sampleRate) {
+      var len = (c.sampleRate * 0.06) | 0;
+      dropBuf = c.createBuffer(1, len, c.sampleRate);
+      var dd = dropBuf.getChannelData(0);
+      for (var i = 0; i < len; i++) dd[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    }
+    function tick() {
+      var t = c.currentTime, n = 2 + Math.floor(Math.random() * 4);
+      for (var i = 0; i < n; i++) {
+        var at = t + Math.random() * 0.16;
+        if (Math.random() < 0.8) {
+          // Noise tick: drop hitting pavement/leaves. Randomized band + rate
+          // so no two ticks sound alike — identical ticks read as clicking.
+          var s = c.createBufferSource(); s.buffer = dropBuf;
+          s.playbackRate.value = 0.7 + Math.random() * 0.9;
+          var f = c.createBiquadFilter(); f.type = 'bandpass';
+          f.frequency.value = 1800 + Math.random() * 3500; f.Q.value = 2.5;
+          var g = c.createGain(); g.gain.value = 0.015 + Math.random() * 0.025;
+          s.connect(f).connect(g).connect(out(c));
+          s.start(at);
+        } else {
+          // Pitched plink: drop on water — quick downward pitch bend
+          var o = c.createOscillator(); o.type = 'sine';
+          var f0 = 900 + Math.random() * 2200;
+          o.frequency.setValueAtTime(f0, at);
+          o.frequency.exponentialRampToValueAtTime(f0 * 0.55, at + 0.025);
+          var pg = c.createGain();
+          pg.gain.setValueAtTime(0.012 + Math.random() * 0.012, at);
+          pg.gain.exponentialRampToValueAtTime(0.0001, at + 0.05 + Math.random() * 0.05);
+          o.connect(pg).connect(out(c));
+          o.start(at); o.stop(at + 0.12);
+        }
+      }
+      amb.timers.push(setTimeout(tick, 120 + Math.random() * 100));
+    }
+    tick();
+  }
+
   var LOOPS = {
-    rain:   function () { noiseLoopNode('bandpass', 3800, 0.4, 0.05); noiseLoopNode('lowpass', 500, 0.5, 0.020); },
+    rain:   rainLoopNode,
     wind:   function () { noiseLoopNode('bandpass', 320, 0.7, 0.08, true); noiseLoopNode('bandpass', 900, 0.8, 0.02, true); },
     hum:    function () { // weighted toward harmonics — 60Hz alone is inaudible on phone/laptop speakers
               oscLoopNode('sine', 60, 0.02); oscLoopNode('sine', 120, 0.022);
@@ -1344,7 +1406,7 @@
     drone:  function () {
       oscLoopNode('sine', 42, 0.03); oscLoopNode('sine', 84, 0.02); oscLoopNode('sine', 126, 0.01);
       oscLoopNode('sine', 168, 0.008); oscLoopNode('sine', 252, 0.005);
-      noiseLoopNode(900, 0.012, true); // wobbling filtered air — the "shimmer"
+      noiseLoopNode('bandpass', 900, 0.8, 0.012, true); // wobbling filtered air — the "shimmer"
     },
     fire:   function () { noiseLoopNode('lowpass', 1100, 0.6, 0.045); noiseLoopNode('highpass', 3200, 1, 0.016); },
     arcbuzz:function () { oscLoopNode('sawtooth', 110, 0.011); noiseLoopNode('highpass', 3000, 1, 0.009); },
@@ -1456,9 +1518,16 @@
     if (!profile) return;
     unduck(); // never start a scene into a ducked/zeroed master bus
     amb.playingKey = key;
-    if (profile.loop && LOOPS[profile.loop]) LOOPS[profile.loop]();
-    if (profile.once && S[profile.once]) S[profile.once]();
-    if (profile.occ) profile.occ.forEach(function (o) { scheduleOccasional(o[0], o[1], o[2]); });
+    try {
+      if (profile.loop && LOOPS[profile.loop]) LOOPS[profile.loop]();
+      if (profile.once && S[profile.once]) S[profile.once]();
+      if (profile.occ) profile.occ.forEach(function (o) { scheduleOccasional(o[0], o[1], o[2]); });
+    } catch (e) {
+      // A broken loop must never propagate into the theme cycler (it calls
+      // AOGSound.scene() synchronously — an exception here stopped the theme
+      // from rendering at all). Ambience degrades to silence instead.
+      stopAmbient();
+    }
   }
 
   // Seasonal class can be added by page scripts after load — watch for it
