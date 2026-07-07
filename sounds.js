@@ -1361,7 +1361,7 @@
     function tick() {
       var t = c.currentTime, n = 5 + Math.floor(Math.random() * 6);
       for (var i = 0; i < n; i++) {
-        var at = t + Math.random() * 0.1;
+        var at = t + Math.random() * 0.05;
         if (Math.random() < 0.8) {
           // Noise tick: drop hitting pavement/leaves. Randomized band + rate
           // so no two ticks sound alike — identical ticks read as clicking.
@@ -1385,7 +1385,7 @@
           o.start(at); o.stop(at + 0.12);
         }
       }
-      amb.timers.push(setTimeout(tick, 70 + Math.random() * 60));
+      amb.timers.push(setTimeout(tick, 35 + Math.random() * 30));
     }
     tick();
   }
