@@ -326,7 +326,7 @@ input[type=number][id^="pexva_"]::-webkit-inner-spin-button{-webkit-appearance:n
 
 <div class="action-bar" id="action-bar">
   <a class="ab-btn" href="../">🏠 HOME</a>
-  <button class="ab-btn" onclick="printReport()">⎙ REPORT</button>
+  <button class="ab-btn" onclick="capturePDF(this)">⎙ PDF</button>
   <button class="ab-btn" id="ab-capture" onclick="captureReport()">⤓ SAVE IMG</button>
   <a class="ab-btn" onclick="window.print()" style="cursor:pointer;">⎙ FULL</a>
   <a class="ab-btn" onclick="aogNewJobConfirm()" style="cursor:pointer;">↺ NEW JOB</a>
@@ -2337,8 +2337,10 @@ function captureReport(){
       if(!blob){ restore(); alert('Could not create image.'); return; }
       var file = new File([blob], fileName, { type:'image/jpeg' });
 
-      // Prefer the native share sheet (lets user save to Photos, email, text, etc.)
-      if(navigator.canShare && navigator.canShare({ files:[file] })){
+      // Desktop always downloads directly; share sheet is mobile-only
+      var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+                     || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
+      if(isMobile && navigator.canShare && navigator.canShare({ files:[file] })){
         navigator.share({ files:[file], title:'AOG Load Calculation', text:'Load Calculation Report' })
           .then(restore)
           .catch(function(err){
@@ -2368,6 +2370,100 @@ function downloadBlob(blob, fileName){
   a.click();
   document.body.removeChild(a);
   setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+}
+
+// Load jsPDF on demand (cached after first use)
+function loadJsPDF(){
+  return new Promise(function(resolve, reject){
+    if(window.jspdf && window.jspdf.jsPDF) return resolve(window.jspdf.jsPDF);
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload = function(){ resolve(window.jspdf.jsPDF); };
+    s.onerror = function(){ reject(new Error('Could not load PDF library (check your connection).')); };
+    document.head.appendChild(s);
+  });
+}
+
+// Capture the report as a PDF (same rendering pipeline as SAVE IMG — no print
+// dialog). Uses the native share sheet when available, otherwise downloads.
+function capturePDF(btn){
+  var html = buildReportHTML();
+  if(html===null) return;
+
+  var origText = btn ? btn.textContent : '';
+  if(btn){ btn.textContent = '… RENDERING'; btn.style.opacity = '0.6'; }
+  var restore = function(){ if(btn){ btn.textContent = origText; btn.style.opacity = '1'; } };
+
+  // Same off-screen fixed-width (8.5in @ 96dpi = 816px) container as SAVE IMG
+  var holder = document.createElement('div');
+  holder.style.cssText = 'position:fixed;left:-10000px;top:0;width:816px;background:#fff;'
+    + 'font-family:\'Share Tech Mono\',monospace;font-size:9.5pt;color:#000;'
+    + 'padding:34px 38px 29px 38px;box-sizing:border-box;z-index:-1;';
+  holder.innerHTML = html;
+  document.body.appendChild(holder);
+
+  Promise.all([loadHtml2Canvas(), loadJsPDF()]).then(function(libs){
+    var h2c = libs[0];
+    return h2c(holder, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      windowWidth: 816
+    }).then(function(canvas){ return { canvas: canvas, jsPDF: libs[1] }; });
+  }).then(function(r){
+    document.body.removeChild(holder);
+    var canvas = r.canvas, jsPDF = r.jsPDF;
+
+    var pdf = new jsPDF({ orientation:'portrait', unit:'in', format:'letter' });
+    var pageW = 8.5, pageH = 11;
+    // Height of one PDF page expressed in canvas pixels
+    var pagePx = Math.floor(canvas.width * (pageH / pageW));
+    var pages = Math.max(1, Math.ceil(canvas.height / pagePx));
+
+    for(var p = 0; p < pages; p++){
+      var sliceH = Math.min(pagePx, canvas.height - p * pagePx);
+      var slice = document.createElement('canvas');
+      slice.width = canvas.width;
+      slice.height = sliceH;
+      var ctx = slice.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, slice.width, slice.height);
+      ctx.drawImage(canvas, 0, p * pagePx, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+      var imgData = slice.toDataURL('image/jpeg', 0.92);
+      if(p > 0) pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, 0, pageW, sliceH * (pageW / canvas.width));
+    }
+
+    var co = (iv('j_co')||'AOG');
+    var addr = (iv('j_addr')||'');
+    var stamp = new Date().toISOString().slice(0,10);
+    var fileName = ('AOG_LoadCalc_' + co + (addr?('_'+addr):'') + '_' + stamp)
+                     .replace(/[^a-z0-9_\-]+/gi,'_').replace(/_+/g,'_') + '.pdf';
+
+    var blob = pdf.output('blob');
+    var file = new File([blob], fileName, { type:'application/pdf' });
+
+    // Desktop always downloads directly; share sheet is mobile-only
+    var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+                   || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent)); // iPadOS reports as Mac
+    if(isMobile && navigator.canShare && navigator.canShare({ files:[file] })){
+      navigator.share({ files:[file], title:'AOG Load Calculation', text:'Load Calculation Report' })
+        .then(restore)
+        .catch(function(err){
+          if(err && err.name === 'AbortError'){ restore(); return; }
+          downloadBlob(blob, fileName); restore();
+        });
+    } else {
+      downloadBlob(blob, fileName);
+      restore();
+    }
+  }).catch(function(err){
+    if(holder.parentNode) document.body.removeChild(holder);
+    restore();
+    console.error('capturePDF error:', err);
+    alert('PDF capture failed: ' + (err && err.message ? err.message : err));
+  });
 }
 </script>
   <script>
