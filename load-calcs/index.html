@@ -1920,6 +1920,9 @@ function buildReportHTML(){
     }
     var tot = (totEl.textContent||'').trim();
     if(tot==='—'||tot==='0'||!tot) return;
+    var qtyEl = tr.querySelector('input[id^="qty_"], input[id^="xqty_"]');
+    var q = qtyEl ? (parseInt(qtyEl.value,10)||0) : 0;
+    if(q>1) name += ' ×'+q;
     applLines.push({name:name, tot:tot});
   });
   var pp = document.getElementById('tot_pool_panel');
@@ -1941,7 +1944,8 @@ function buildReportHTML(){
     var val   = (gas&&gas.checked)
       ? (parseInt(qty.value)||1)*250
       : (parseInt(qty.value)||1)*(parseInt(va.value)||5000);
-    if(val) dryerLines.push({name:label+' ×'+(qty.value||1), tot:val.toLocaleString()});
+    var _dq = parseInt(qty.value,10)||1;
+    if(val) dryerLines.push({name:label+(_dq>1?' ×'+_dq:''), tot:val.toLocaleString()});
   }
 
   // ── Cooking ──
@@ -1966,6 +1970,19 @@ function buildReportHTML(){
     var val=isgas?500:(parseInt(vael&&vael.value)||0);
     if(val) cookLines.push({name:'Oven/Range '+(isgas?'(gas 500VA)':'electric'), tot:val.toLocaleString()});
   }
+  // Group identical cooking units into one line with ×N and summed VA
+  (function(){
+    var grouped={}, order=[];
+    cookLines.forEach(function(r){
+      var key=r.name+'|'+r.tot;
+      if(!grouped[key]){ grouped[key]={name:r.name, unitVA:parseInt(r.tot.replace(/,/g,''),10)||0, n:0}; order.push(key); }
+      grouped[key].n++;
+    });
+    cookLines = order.map(function(k){
+      var g=grouped[k];
+      return {name:g.name+(g.n>1?' ×'+g.n:''), tot:(g.unitVA*g.n).toLocaleString()};
+    });
+  })();
 
   // ── HVAC ──
   var hvacLines=[];
@@ -2018,6 +2035,64 @@ function buildReportHTML(){
   // ── Pool ──
   var phA=tv('rp_phA'), phB=tv('rp_phB');
   var pwire=tv('rp_wire'), ppanel=tv('rp_panel'), pegc=tv('rp_egc');
+
+  // ── Pool load line items (only counted loads; zeros, gas-excluded-to-0, and managed skipped) ──
+  var poolLines=[];
+  if(gc('has_pool')){
+    // Spa heater
+    var _spaQty=gv('qty_spa');
+    if(_spaQty>0){
+      var _spaGas=gc('gas_spa');
+      var _spaVA=_spaQty*(_spaGas?500:11000);
+      poolLines.push({name:'Spa Heater'+(_spaGas?' (gas 500VA ctrl)':'')+(_spaQty>1?' ×'+_spaQty:''), tot:_spaVA.toLocaleString()});
+    }
+    // 3.5 ton heater
+    if(!(document.getElementById('va_ph35')&&document.getElementById('va_ph35').value==='managed')){
+      var _q35=gv('qty_ph35'), _g35=gc('gas_ph35');
+      var _v35=_q35*(_g35?500:gv('va_ph35'));
+      if(_v35>0) poolLines.push({name:'Pool Heater 3.5 Ton HP'+(_g35?' (gas 500VA ctrl)':'')+(_q35>1?' ×'+_q35:''), tot:_v35.toLocaleString()});
+    }
+    // 5 ton heater
+    if(!(document.getElementById('va_ph5')&&document.getElementById('va_ph5').value==='managed')){
+      var _q5=gv('qty_ph5'), _g5=gc('gas_ph5');
+      var _v5=_q5*(_g5?500:gv('va_ph5'));
+      if(_v5>0) poolLines.push({name:'Pool Heater 5 Ton HP'+(_g5?' (gas 500VA ctrl)':'')+(_q5>1?' ×'+_q5:''), tot:_v5.toLocaleString()});
+    }
+    // Blower
+    if(!(document.getElementById('va_blower')&&document.getElementById('va_blower').value==='managed')){
+      var _bv=gv('va_blower');
+      if(_bv>0) poolLines.push({name:'Blower Motor', tot:_bv.toLocaleString()});
+    }
+    // Pool lights
+    var _lq=gv('qty_plight');
+    if(_lq>0) poolLines.push({name:'Pool Light'+(_lq>1?' ×'+_lq:''), tot:(_lq*300).toLocaleString()});
+    // Dynamic pool pumps
+    if(typeof poolPumpCount!=='undefined'){
+      for(var _n=1;_n<=poolPumpCount;_n++){
+        if(!document.getElementById('ppump_'+_n)) continue;
+        var _pe=document.getElementById('ppva_'+_n);
+        if(_pe&&_pe.value==='managed') continue;
+        var _pv=gv('ppva_'+_n);
+        if(_pv>0) poolLines.push({name:'Pool Pump '+_n+' ('+(gs('ppvolt_'+_n)||'240')+'V)', tot:_pv.toLocaleString()});
+      }
+    }
+    // Dynamic non-continuous loads
+    if(typeof poolNcCount!=='undefined'){
+      for(var _n=1;_n<=poolNcCount;_n++){
+        if(!document.getElementById('pnc_'+_n)) continue;
+        var _ne=document.getElementById('pncva_'+_n);
+        if(_ne&&_ne.value==='managed') continue;
+        var _nv=gv('pncva_'+_n);
+        if(_nv>0){
+          var _nmEl=document.getElementById('pncname_'+_n);
+          poolLines.push({name:(_nmEl&&_nmEl.value?_nmEl.value:'Non-continuous Load '+_n), tot:_nv.toLocaleString()});
+        }
+      }
+    }
+  }
+  var poolRows=poolLines.map(function(r){
+    return '<tr><td>'+r.name+'</td><td class="r">'+r.tot+' VA</td></tr>';
+  }).join('');
 
   // ── Build HTML ──
   var H = function(tag,cls,content){ return '<'+tag+(cls?' class="'+cls+'"':'')+'>'+content+'</'+tag+'>'; };
@@ -2099,6 +2174,8 @@ function buildReportHTML(){
 
     <div class="sh">Pool Panel Feeder — NEC 680</div>
     <table class="dt">
+      ${poolRows}
+      ${poolRows?'<tr class="tot"><td>Pool Panel Loads Total</td><td class="r">'+poolLines.reduce(function(a,r){return a+parseInt(r.tot.replace(/,/g,''),10);},0).toLocaleString()+' VA</td></tr>':''}
       <tr><td>Phase A</td><td class="r">${phA} A</td></tr>
       <tr><td>Phase B</td><td class="r">${phB} A</td></tr>
       <tr><td>Min. Pool Feeder Wire</td><td class="r">${pwire}</td></tr>
