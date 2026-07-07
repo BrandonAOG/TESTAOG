@@ -2128,10 +2128,9 @@ function buildReportHTML(){
   <!-- Left: load inputs -->
   <div>
     <div class="sh">Step 1 — Lighting &amp; Circuits</div>
-    <table class="dt"><tr><td>Floor Area Entered</td><td class="r">${sqftVal||'—'} sq ft</td></tr>
-    <tr><td>General Lighting (3VA/ft²)</td><td class="r">${tv('r1_gl')} VA</td></tr>
-    <tr><td>Small Appliance Circuits</td><td class="r">${tv('r1_sa')} VA</td></tr>
-    <tr><td>Laundry Circuits</td><td class="r">${tv('r1_lc')} VA</td></tr>
+    <table class="dt"><tr><td>General Lighting (${sqftVal||'—'} sq ft × 3VA/ft²)</td><td class="r">${tv('r1_gl')} VA</td></tr>
+    <tr><td>Small Appliance Circuits ×${iv('smapp')||0} (1,500 VA ea.)</td><td class="r">${tv('r1_sa')} VA</td></tr>
+    <tr><td>Laundry Circuits ×${iv('laundry')||0} (1,500 VA ea.)</td><td class="r">${tv('r1_lc')} VA</td></tr>
     <tr class="tot"><td>Step 1 Total</td><td class="r">${s1} VA</td></tr></table>
 
     <div class="sh">Step 2 — HVAC (added @ 100% after demand factor)</div>
