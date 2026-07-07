@@ -1345,10 +1345,12 @@
   var dropBuf = null;
   function rainLoopNode() {
     var c = ctx;
-    // Distant wash: lowpassed (dark, not staticky), wobble = gust swells
-    noiseLoopNode('lowpass', 1300, 0.5, 0.035, true);
-    // Very faint high sizzle for the fine misty patter
-    noiseLoopNode('highpass', 6000, 1, 0.006);
+    // Downpour roar: a heavy low rumble under a broader, louder wash.
+    // Pouring rain is mostly this dense white roar — the drops sit on top.
+    noiseLoopNode('lowpass', 400, 0.6, 0.05);           // low rumble floor
+    noiseLoopNode('lowpass', 1800, 0.5, 0.055, true);   // main wash, gust swells
+    // Sheeting-water sizzle — much more present than a light shower
+    noiseLoopNode('highpass', 5000, 1, 0.018);
     // Shared 60ms decaying-noise burst reused by every noise-tick droplet
     if (!dropBuf || dropBuf.sampleRate !== c.sampleRate) {
       var len = (c.sampleRate * 0.06) | 0;
@@ -1357,9 +1359,9 @@
       for (var i = 0; i < len; i++) dd[i] = (Math.random() * 2 - 1) * (1 - i / len);
     }
     function tick() {
-      var t = c.currentTime, n = 2 + Math.floor(Math.random() * 4);
+      var t = c.currentTime, n = 5 + Math.floor(Math.random() * 6);
       for (var i = 0; i < n; i++) {
-        var at = t + Math.random() * 0.16;
+        var at = t + Math.random() * 0.1;
         if (Math.random() < 0.8) {
           // Noise tick: drop hitting pavement/leaves. Randomized band + rate
           // so no two ticks sound alike — identical ticks read as clicking.
@@ -1367,7 +1369,7 @@
           s.playbackRate.value = 0.7 + Math.random() * 0.9;
           var f = c.createBiquadFilter(); f.type = 'bandpass';
           f.frequency.value = 1800 + Math.random() * 3500; f.Q.value = 2.5;
-          var g = c.createGain(); g.gain.value = 0.015 + Math.random() * 0.025;
+          var g = c.createGain(); g.gain.value = 0.02 + Math.random() * 0.03;
           s.connect(f).connect(g).connect(out(c));
           s.start(at);
         } else {
@@ -1383,7 +1385,7 @@
           o.start(at); o.stop(at + 0.12);
         }
       }
-      amb.timers.push(setTimeout(tick, 120 + Math.random() * 100));
+      amb.timers.push(setTimeout(tick, 70 + Math.random() * 60));
     }
     tick();
   }
