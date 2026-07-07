@@ -2201,7 +2201,8 @@ ${managedLines.length>0?'<div style="margin-top:10pt;border:1.5pt solid #D97706;
   .dt .tot td{font-weight:700;border-top:1pt solid #ccc;border-bottom:1pt solid #ccc;background:#fafafa;}
 </style>`;
 
-  return html;
+  // Wrap in 2.5pt orange page border — fills 8.5×11 page inside .15in margins
+  return '<div style="border:2.5pt solid #D97706;padding:10pt 12pt;background:#fff;min-height:10.7in;box-sizing:border-box;">'+html+'</div>';
   } catch(e){ console.error('buildReportHTML error:', e); alert('Report error: '+e.message); return null; }
 }
 
@@ -2210,12 +2211,12 @@ function reportWrapStyles(){
   return '*{box-sizing:border-box;margin:0;padding:0;}'
     +'html,body{height:auto;overflow:hidden;}'
     +'body{font-family:\'Share Tech Mono\',monospace;font-size:9.5pt;color:#000;background:#fff;'
-    +'  width:8.5in;margin:0 auto;padding:.35in .4in .3in .4in;}'
+    +'  width:8.5in;margin:0 auto;padding:.15in;}'
     +'body > *:last-child,body > *:nth-last-child(2){margin-bottom:0!important;}'
     +'@media print{'
     +'  @page{size:8.5in 11in;margin:0;}'
     +'  html,body{height:auto;}'
-    +'  body{width:8.5in;padding:.35in .4in .3in .4in;}'
+    +'  body{width:8.5in;padding:.15in;}'
     +'  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}'
     +'}';
 }
@@ -2313,7 +2314,7 @@ function captureReport(){
   var holder = document.createElement('div');
   holder.style.cssText = 'position:fixed;left:-10000px;top:0;width:816px;background:#fff;'
     + 'font-family:\'Share Tech Mono\',monospace;font-size:9.5pt;color:#000;'
-    + 'padding:34px 38px 29px 38px;box-sizing:border-box;z-index:-1;';
+    + 'padding:14.4px;box-sizing:border-box;z-index:-1;';
   holder.innerHTML = html;
   document.body.appendChild(holder);
 
@@ -2398,7 +2399,7 @@ function capturePDF(btn){
   var holder = document.createElement('div');
   holder.style.cssText = 'position:fixed;left:-10000px;top:0;width:816px;background:#fff;'
     + 'font-family:\'Share Tech Mono\',monospace;font-size:9.5pt;color:#000;'
-    + 'padding:34px 38px 29px 38px;box-sizing:border-box;z-index:-1;';
+    + 'padding:14.4px;box-sizing:border-box;z-index:-1;';
   holder.innerHTML = html;
   document.body.appendChild(holder);
 
