@@ -3570,6 +3570,25 @@ function capturePageToCanvas(_fontsReady, _rectSink) {
     var CAPTURE_W = 1050;
     var PAPER_H   = Math.round(CAPTURE_W * 11 / 8.5);
 
+    // ── Sample the notes' ON-SCREEN typography and content width, before the page
+    // is widened to CAPTURE_W. The capture must reproduce the screen's wrapping
+    // exactly: same characters per line ⇒ same line count ⇒ nothing hits the
+    // 3-line cap that didn't already hit it on screen. That means scaling the font
+    // by however much the box itself grows, not stamping a fixed px size.
+    var _noteScreen = {};
+    page.querySelectorAll('#gen_notes, #pad_notes, #gas_notes, #ready_notes').forEach(function(el) {
+      var cs = window.getComputedStyle(el);
+      var lh = parseFloat(cs.lineHeight);
+      if (!lh || isNaN(lh)) lh = parseFloat(cs.fontSize) * 1.25;   // line-height:normal
+      _noteScreen[el.id] = {
+        fs: parseFloat(cs.fontSize),
+        lh: lh,
+        // clientWidth includes padding, excludes border — subtract padding for the
+        // true text column width, which is what governs where lines break.
+        textW: el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+      };
+    });
+
     page.style.width     = CAPTURE_W + 'px';
     page.style.maxWidth  = CAPTURE_W + 'px';
     page.style.height    = 'auto';
@@ -3778,21 +3797,25 @@ function capturePageToCanvas(_fontsReady, _rectSink) {
 
     // ── Notes textareas: capture typography applied to the LIVE DOM ──
     // These get swapped for <div>s in onclone (html2canvas can't wrap textarea text).
-    // On screen, notes and text inputs share one font (--fs-phone-input, 0.88rem), so
-    // they must share one font in the capture too — and the capture scales inputs up to
-    // CAPTURE_FONT_PX for legibility in the 1050px-wide image. Anything less and the
-    // notes read smaller than the field text beside them. Keep this in sync with the
-    // input font-size stamp above.
-    // Height is re-measured here (not in onclone) because the page is forced to
-    // CAPTURE_W and the bigger font rewraps the text — measuring on the live DOM keeps
-    // the page, CAPTURE_H, and the editable-PDF field rects all in agreement.
-    // Reverted by restore() via _tweak.
-    var CAPTURE_FONT_PX = 20;   // ← must match the input font-size stamp above
+    // The font is scaled by exactly how much the text column widened when the page
+    // went from its on-screen width to CAPTURE_W. Characters-per-line is therefore
+    // unchanged, so the note wraps to the same lines it does on screen and reads at
+    // the same relative size — no fixed px value can do that, because the screen
+    // width varies by device. Math.floor biases the font down so a rounding error
+    // can only ever pull a line break earlier, never push a 4th line into the cap.
+    // Height is re-measured here (not in onclone) because the live page, CAPTURE_H
+    // and the editable-PDF field rects must all agree. Reverted by restore().
     page.querySelectorAll('#gen_notes, #pad_notes, #gas_notes, #ready_notes').forEach(function(el) {
       _tweak(el, function(e) {
-        var floorH = parseFloat(window.getComputedStyle(e).height) || 0;  // designed box size
-        e.style.setProperty('font-size', CAPTURE_FONT_PX + 'px', 'important');
-        e.style.setProperty('line-height', '1.3', 'important');
+        var s  = _noteScreen[e.id];
+        var cs = window.getComputedStyle(e);
+        var floorH = parseFloat(cs.height) || 0;   // designed box size, before we touch it
+        if (s && s.textW > 0) {
+          var textW1 = e.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+          var scale  = textW1 / s.textW;
+          e.style.setProperty('font-size',   (Math.floor(s.fs * scale * 10) / 10) + 'px', 'important');
+          e.style.setProperty('line-height', (s.lh * scale) + 'px', 'important');
+        }
         e.style.setProperty('box-sizing', 'border-box', 'important');
         e.style.setProperty('overflow', 'hidden', 'important');
         e.style.setProperty('max-height', 'none', 'important');
