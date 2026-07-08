@@ -3773,6 +3773,28 @@ function capturePageToCanvas(_fontsReady, _rectSink) {
       });
     });
 
+    // ── Notes textareas: capture typography applied to the LIVE DOM ──
+    // These get swapped for <div>s in onclone (html2canvas can't wrap textarea text).
+    // If the clone changed their font/height, the clone would be TALLER than the live
+    // page — but CAPTURE_H and the editable-PDF field rects are both measured off the
+    // live page, so the extra height fell off the bottom of the canvas. Style them
+    // here instead: the live page grows, CAPTURE_H sees it, rects stay aligned, and
+    // the clone just copies the computed values. Reverted by restore() via _tweak.
+    page.querySelectorAll('#gen_notes, #pad_notes, #gas_notes, #ready_notes').forEach(function(el) {
+      _tweak(el, function(e) {
+        var cs = window.getComputedStyle(e);
+        var floorH = parseFloat(cs.height) || 0;   // designed box size, before we touch it
+        e.style.setProperty('font-size', (parseFloat(cs.fontSize) + 3) + 'px', 'important');
+        e.style.setProperty('box-sizing', 'border-box', 'important');
+        e.style.setProperty('overflow', 'hidden', 'important');
+        e.style.setProperty('max-height', 'none', 'important');
+        e.style.setProperty('min-height', '0', 'important');
+        // Re-measure at the bumped font so no line is cut off.
+        e.style.setProperty('height', 'auto', 'important');
+        e.style.setProperty('height', Math.max(floorH, e.scrollHeight) + 'px', 'important');
+      });
+    });
+
     // ── Pair-glue for the first Transfer Switch row (capture only) ──
     // The row is allowed to wrap, but each inline-label is wrapped together with its
     // control in a nowrap inline-flex group, so a wrap can only occur between pairs:
@@ -3900,7 +3922,10 @@ function capturePageToCanvas(_fontsReady, _rectSink) {
 
     Promise.all(_iconPromises).then(function() {
     requestAnimationFrame(function() { requestAnimationFrame(function() {
-      var CAPTURE_H = Math.max(page.scrollHeight, PAPER_H);
+      // +24px of slack so a sub-pixel rounding difference between the live page and
+      // the html2canvas clone can never shave the last border line off the bottom.
+      // cropCanvasToContent() trims any unused white afterwards, so this costs nothing.
+      var CAPTURE_H = Math.max(page.scrollHeight + 24, PAPER_H);
 
       // ── Collect fillable-field rects (for the editable-PDF overlay) ──
       // Measured now, while #page is at capture width, relative to #page's
@@ -3994,15 +4019,14 @@ function capturePageToCanvas(_fontsReady, _rectSink) {
               // Copy geometry / box model
               div.style.cssText = [
                 'width:'          + computed.width,
-                // Grow to fit: the clone renders at a larger font (+3px below), so a
-                // hard height would clip the last line of a long note. min-height keeps
-                // the designed box size for short/empty notes.
+                // Mirror the live box exactly. The live textarea was already grown to fit
+                // its text (see the notes _tweak in the capture setup), so a fixed height
+                // here can't clip — and it guarantees the clone is the same height as the
+                // page html2canvas was told to render.
                 'min-height:'     + computed.height,
-                'height:auto',
+                'height:'         + computed.height,
                 'max-height:none',
                 'padding:'        + computed.padding,
-                // Shift text up a bit so the larger font doesn't clip at the bottom.
-                'padding-top:'    + Math.max(0, parseFloat(computed.paddingTop) - 4) + 'px',
                 'margin:'         + computed.margin,
                 'margin-top:'     + computed.marginTop,
                 'margin-bottom:'  + computed.marginBottom,
@@ -4011,7 +4035,7 @@ function capturePageToCanvas(_fontsReady, _rectSink) {
                 'border-radius:'  + computed.borderRadius,
                 'box-sizing:'     + computed.boxSizing,
                 'font-family:'    + computed.fontFamily,
-                'font-size:'      + (parseFloat(computed.fontSize) + 3) + 'px',
+                'font-size:'      + computed.fontSize,
                 'font-weight:'    + computed.fontWeight,
                 'line-height:'    + computed.lineHeight,
                 'color:'          + computed.color,
