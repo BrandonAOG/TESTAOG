@@ -3103,19 +3103,22 @@ function openPrintPreview() {
     });
 
     // ── Notes: measure content at the now-stamped print typography and lock in an
-    // exact height. 40px (2 lines) is the floor, so short notes look identical to
-    // before; long notes get a taller box instead of clipped text. _snapI is used
-    // so these beat the inline !important heights the on-screen auto-grow leaves
-    // behind — and restore() puts those back when the print dialog closes.
+    // exact height. 40px (2 lines) is the floor and NOTE_MAX_LINES (3) is the ceiling,
+    // so short notes look identical to before and long ones grow by one line, then
+    // clip. _snapI is used so these beat the inline !important heights the on-screen
+    // auto-grow leaves behind — restore() puts those back when the dialog closes.
     ['gen_notes', 'pad_notes', 'gas_notes', 'ready_notes'].forEach(function(id) {
       var ta = document.getElementById(id);
       if (!ta) return;
       _snapI(ta, 'height',     'auto');
       _snapI(ta, 'min-height', '0px');
       _snapI(ta, 'max-height', 'none');
-      var h = Math.max(40, ta.scrollHeight);
+      _snapI(ta, 'overflow-y', 'hidden');
+      var cap = (window.noteCapHeight ? window.noteCapHeight(ta) : 1e9);
+      var h   = Math.max(40, Math.min(ta.scrollHeight, cap));
       ta.style.setProperty('height',     h + 'px', 'important');
       ta.style.setProperty('min-height', h + 'px', 'important');
+      ta.style.setProperty('max-height', h + 'px', 'important');
     });
 
     // .check-item controls sizing
@@ -3789,9 +3792,11 @@ function capturePageToCanvas(_fontsReady, _rectSink) {
         e.style.setProperty('overflow', 'hidden', 'important');
         e.style.setProperty('max-height', 'none', 'important');
         e.style.setProperty('min-height', '0', 'important');
-        // Re-measure at the bumped font so no line is cut off.
+        // Re-measure at the bumped font, then clamp to NOTE_MAX_LINES.
         e.style.setProperty('height', 'auto', 'important');
-        e.style.setProperty('height', Math.max(floorH, e.scrollHeight) + 'px', 'important');
+        var cap = (window.noteCapHeight ? window.noteCapHeight(e) : 1e9);
+        // Never below the designed box, never above 3 lines.
+        e.style.setProperty('height', Math.min(Math.max(floorH, e.scrollHeight), cap) + 'px', 'important');
       });
     });
 
@@ -5813,14 +5818,31 @@ document.addEventListener('DOMContentLoaded', function() {
 // would otherwise beat a plain inline height. min-height in CSS still acts as the
 // floor, so scrollHeight never comes back smaller than the designed box.
 window.NOTE_IDS = ['gen_notes', 'pad_notes', 'gas_notes', 'ready_notes'];
+window.NOTE_MAX_LINES = 3;   // ← change this one number to re-cap every notes box
+
+// Tallest a notes box may get, in px, at whatever typography is currently applied.
+// Computed live (not hardcoded) so it stays correct on screen, in print, and in the
+// capture path — each of which uses a different font size, line-height and padding.
+window.noteCapHeight = function(el) {
+  var cs = window.getComputedStyle(el);
+  var lh = parseFloat(cs.lineHeight);
+  if (!lh || isNaN(lh)) lh = parseFloat(cs.fontSize) * 1.25;   // line-height:normal
+  var chrome = parseFloat(cs.paddingTop)     + parseFloat(cs.paddingBottom)
+             + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+  return Math.ceil(lh * window.NOTE_MAX_LINES + chrome);       // box-sizing:border-box
+};
 
 window.autoGrowNote = function(el) {
   if (!el) return;
   el.style.setProperty('height', 'auto', 'important');
-  var h = el.scrollHeight;
-  if (!h) return;                                  // hidden / not laid out yet
-  el.style.setProperty('height', h + 'px', 'important');
-  el.style.setProperty('max-height', 'none', 'important');
+  var content = el.scrollHeight;
+  if (!content) return;                            // hidden / not laid out yet
+  var cap = window.noteCapHeight(el);
+  el.style.setProperty('height', Math.min(content, cap) + 'px', 'important');
+  el.style.setProperty('max-height', cap + 'px', 'important');
+  // Past 3 lines the box stops growing — let the user scroll inside it so nothing
+  // they typed is invisible on screen. (Print/capture still clip at 3 lines.)
+  el.style.setProperty('overflow-y', content > cap ? 'auto' : 'hidden', 'important');
 };
 
 window.autoGrowAllNotes = function() {
