@@ -1305,9 +1305,10 @@ body.mobile-safari { -webkit-print-color-adjust: exact; }
     background: rgba(250,103,0,0.40) !important; border-color: #D35E13 !important;
     -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
   }
-  /* Note textareas — sized to show exactly 2 lines without clipping. */
+  /* Note textareas — 40px floor (2 lines), but free to grow with content.
+     openPrintPreview() stamps an exact measured px height inline, which wins. */
   #gen_notes, #pad_notes, #gas_notes, #ready_notes {
-    height: 40px !important; min-height: 40px !important; max-height: 40px !important;
+    min-height: 40px !important; max-height: none !important;
     line-height: 1.25 !important; padding: 2px 5px !important;
     box-sizing: border-box !important; overflow: hidden !important; margin-bottom: 0 !important;
     font-size: calc(0.756rem + 0.3px) !important;
@@ -2095,6 +2096,7 @@ function restoreDraft() {
         }
       } catch(e) {}
     });
+    if (window.autoGrowAllNotes) window.autoGrowAllNotes();
     if (data.__saved_at) {
       _updateAutosaveIndicator(data.__saved_at);
       // One-time heads-up so a stale/unrelated draft doesn't silently carry
@@ -3059,17 +3061,12 @@ function openPrintPreview() {
       _snap(el, 'minHeight',     'auto');
     });
 
-    // textareas — match mobile-safari print heights
-    var taNotes = {
-      'gen_notes': '40px', 'pad_notes': '40px',
-      'gas_notes': '40px', 'ready_notes': '40px'
-    };
-    Object.keys(taNotes).forEach(function(id) {
+    // textareas — match mobile-safari print typography. Height is NOT pinned here;
+    // it gets measured and stamped after the border/padding passes below, so a
+    // long note grows the box instead of clipping at 2 lines.
+    ['gen_notes', 'pad_notes', 'gas_notes', 'ready_notes'].forEach(function(id) {
       var ta = document.getElementById(id);
       if (ta) {
-        _snap(ta, 'height',    taNotes[id]);
-        _snap(ta, 'minHeight', taNotes[id]);
-        _snap(ta, 'maxHeight', taNotes[id]);
         _snap(ta, 'overflow',  'hidden');
         _snap(ta, 'lineHeight','1.25');
         _snap(ta, 'padding',   '2px 5px');
@@ -3103,6 +3100,22 @@ function openPrintPreview() {
         _snap(ta, 'border',  '0.5px solid #D35E13');
         _snap(ta, 'padding', '2px 5px');
       }
+    });
+
+    // ── Notes: measure content at the now-stamped print typography and lock in an
+    // exact height. 40px (2 lines) is the floor, so short notes look identical to
+    // before; long notes get a taller box instead of clipped text. _snapI is used
+    // so these beat the inline !important heights the on-screen auto-grow leaves
+    // behind — and restore() puts those back when the print dialog closes.
+    ['gen_notes', 'pad_notes', 'gas_notes', 'ready_notes'].forEach(function(id) {
+      var ta = document.getElementById(id);
+      if (!ta) return;
+      _snapI(ta, 'height',     'auto');
+      _snapI(ta, 'min-height', '0px');
+      _snapI(ta, 'max-height', 'none');
+      var h = Math.max(40, ta.scrollHeight);
+      ta.style.setProperty('height',     h + 'px', 'important');
+      ta.style.setProperty('min-height', h + 'px', 'important');
     });
 
     // .check-item controls sizing
@@ -3981,9 +3994,12 @@ function capturePageToCanvas(_fontsReady, _rectSink) {
               // Copy geometry / box model
               div.style.cssText = [
                 'width:'          + computed.width,
+                // Grow to fit: the clone renders at a larger font (+3px below), so a
+                // hard height would clip the last line of a long note. min-height keeps
+                // the designed box size for short/empty notes.
                 'min-height:'     + computed.height,
-                'height:'         + computed.height,
-                'max-height:'     + computed.maxHeight,
+                'height:auto',
+                'max-height:none',
                 'padding:'        + computed.padding,
                 // Shift text up a bit so the larger font doesn't clip at the bottom.
                 'padding-top:'    + Math.max(0, parseFloat(computed.paddingTop) - 4) + 'px',
@@ -4304,6 +4320,7 @@ function confirmClear() {
 function doClearForm() {
   document.querySelectorAll('input[type="text"],input[type="email"],input[type="tel"],input[type="date"],input[type="number"],input[data-was-date="1"],textarea').forEach(function(el) { el.value=''; });
   document.querySelectorAll('input[type="checkbox"],input[type="radio"]').forEach(function(el) { el.checked=false; });
+  if (window.autoGrowAllNotes) window.autoGrowAllNotes();
   var today = new Date().toISOString().split('T')[0];
   var todayInput = document.getElementById('today'); if (todayInput) todayInput.value = today;
   var estDone   = document.getElementById('est_done_on'); if (estDone) estDone.value = today;
@@ -5764,18 +5781,49 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 <script>
-// ── SINGLE-LINE NOTES — prevent Enter key wrapping to second line ──
+// ── AUTO-GROW NOTES — boxes expand as the user types (screen + capture + PDF) ──
+// The notes textareas have overflow:hidden and resize:none, so without this they
+// silently clip. We measure scrollHeight and stamp an inline !important height —
+// !important is required because the mobile screen rule
+// (@media screen and (max-width:768px) { textarea { height:80px !important } })
+// would otherwise beat a plain inline height. min-height in CSS still acts as the
+// floor, so scrollHeight never comes back smaller than the designed box.
+window.NOTE_IDS = ['gen_notes', 'pad_notes', 'gas_notes', 'ready_notes'];
+
+window.autoGrowNote = function(el) {
+  if (!el) return;
+  el.style.setProperty('height', 'auto', 'important');
+  var h = el.scrollHeight;
+  if (!h) return;                                  // hidden / not laid out yet
+  el.style.setProperty('height', h + 'px', 'important');
+  el.style.setProperty('max-height', 'none', 'important');
+};
+
+window.autoGrowAllNotes = function() {
+  window.NOTE_IDS.forEach(function(id) {
+    window.autoGrowNote(document.getElementById(id));
+  });
+};
+
 (function() {
-  var noteIds = ['gen_notes', 'pad_notes', 'gas_notes', 'ready_notes'];
-  document.addEventListener('DOMContentLoaded', function() {
-    noteIds.forEach(function(id) {
+  function bind() {
+    window.NOTE_IDS.forEach(function(id) {
       var el = document.getElementById(id);
       if (!el) return;
-      el.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') e.preventDefault();
-      });
+      el.addEventListener('input', function() { window.autoGrowNote(el); });
+      // Enter now inserts a real line break — the box grows to hold it.
     });
-  });
+    window.autoGrowAllNotes();
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bind);
+  } else {
+    bind();
+  }
+  // Re-fit after fonts settle and on any width change (wrapping shifts).
+  window.addEventListener('load',   function(){ setTimeout(window.autoGrowAllNotes, 60); });
+  window.addEventListener('resize', function(){ window.autoGrowAllNotes(); });
+  window.addEventListener('orientationchange', function(){ setTimeout(window.autoGrowAllNotes, 200); });
 })();
 
 function adjustTopPadding() {
