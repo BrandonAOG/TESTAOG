@@ -3778,21 +3778,26 @@ function capturePageToCanvas(_fontsReady, _rectSink) {
 
     // ── Notes textareas: capture typography applied to the LIVE DOM ──
     // These get swapped for <div>s in onclone (html2canvas can't wrap textarea text).
-    // If the clone changed their font/height, the clone would be TALLER than the live
-    // page — but CAPTURE_H and the editable-PDF field rects are both measured off the
-    // live page, so the extra height fell off the bottom of the canvas. Style them
-    // here instead: the live page grows, CAPTURE_H sees it, rects stay aligned, and
-    // the clone just copies the computed values. Reverted by restore() via _tweak.
+    // On screen, notes and text inputs share one font (--fs-phone-input, 0.88rem), so
+    // they must share one font in the capture too — and the capture scales inputs up to
+    // CAPTURE_FONT_PX for legibility in the 1050px-wide image. Anything less and the
+    // notes read smaller than the field text beside them. Keep this in sync with the
+    // input font-size stamp above.
+    // Height is re-measured here (not in onclone) because the page is forced to
+    // CAPTURE_W and the bigger font rewraps the text — measuring on the live DOM keeps
+    // the page, CAPTURE_H, and the editable-PDF field rects all in agreement.
+    // Reverted by restore() via _tweak.
+    var CAPTURE_FONT_PX = 20;   // ← must match the input font-size stamp above
     page.querySelectorAll('#gen_notes, #pad_notes, #gas_notes, #ready_notes').forEach(function(el) {
       _tweak(el, function(e) {
-        var cs = window.getComputedStyle(e);
-        var floorH = parseFloat(cs.height) || 0;   // designed box size, before we touch it
-        e.style.setProperty('font-size', (parseFloat(cs.fontSize) + 3) + 'px', 'important');
+        var floorH = parseFloat(window.getComputedStyle(e).height) || 0;  // designed box size
+        e.style.setProperty('font-size', CAPTURE_FONT_PX + 'px', 'important');
+        e.style.setProperty('line-height', '1.3', 'important');
         e.style.setProperty('box-sizing', 'border-box', 'important');
         e.style.setProperty('overflow', 'hidden', 'important');
         e.style.setProperty('max-height', 'none', 'important');
         e.style.setProperty('min-height', '0', 'important');
-        // Re-measure at the bumped font, then clamp to NOTE_MAX_LINES.
+        // Re-measure at the capture font/width, then clamp to NOTE_MAX_LINES.
         e.style.setProperty('height', 'auto', 'important');
         var cap = (window.noteCapHeight ? window.noteCapHeight(e) : 1e9);
         // Never below the designed box, never above 3 lines.
