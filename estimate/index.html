@@ -1213,6 +1213,10 @@ body.dark-mode::-webkit-scrollbar-thumb:hover { background: linear-gradient(180d
   .content { padding: 10px 8px; }
   .header { padding: 8px 12px; }
   textarea { height: 80px !important; min-height: 80px !important; }
+  /* ...except the notes boxes, which are sized in LINES by autoGrowNote() (2 resting,
+     3 max). An 80px floor here is taller than their 3-line cap, which pinned them open
+     and stopped them growing. */
+  #gen_notes, #pad_notes, #gas_notes, #ready_notes { height: auto !important; min-height: 0 !important; }
   .doc-title { font-size: 0.85rem; letter-spacing: 2px; }
   .footer { flex-wrap: wrap; gap: 8px; padding: 8px 12px; justify-content: center; }
   .inline-row { flex-wrap: wrap; gap: 5px; }
@@ -3818,7 +3822,6 @@ function capturePageToCanvas(_fontsReady, _rectSink) {
       _tweak(el, function(e) {
         var s  = _noteScreen[e.id];
         var cs = window.getComputedStyle(e);
-        var floorH = parseFloat(cs.height) || 0;   // designed box size, before we touch it
         if (s && s.textW > 0 && s.fs > 0) {
           var textW1 = e.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
           var boxScale = textW1 / s.textW;
@@ -3828,18 +3831,19 @@ function capturePageToCanvas(_fontsReady, _rectSink) {
           var fs = Math.min(CAPTURE_FONT_PX, ceiling);
           if (fs < s.fs) fs = s.fs;                // never render smaller than on screen
           e.style.setProperty('font-size', fs + 'px', 'important');
-          // Keep the screen's line-height ratio so the 3-line cap stays proportional.
+          // Keep the screen's line-height ratio so the cap stays proportional.
           e.style.setProperty('line-height', (fs * (s.lh / s.fs)) + 'px', 'important');
         }
         e.style.setProperty('box-sizing', 'border-box', 'important');
         e.style.setProperty('overflow', 'hidden', 'important');
-        e.style.setProperty('max-height', 'none', 'important');
-        e.style.setProperty('min-height', '0', 'important');
-        // Re-measure at the capture font/width, then clamp to NOTE_MAX_LINES.
-        e.style.setProperty('height', 'auto', 'important');
-        var cap = (window.noteCapHeight ? window.noteCapHeight(e) : 1e9);
-        // Never below the designed box, never above 3 lines.
-        e.style.setProperty('height', Math.min(Math.max(floorH, e.scrollHeight), cap) + 'px', 'important');
+        // Measure at the capture font/width with the stylesheet floors lifted, then
+        // clamp between 2 and 3 lines OF THE CAPTURE FONT. Reading the element's
+        // current pixel height as a floor is what put 80px (≈3 capture rows) under
+        // every empty box on the phone.
+        var content = window.noteContentHeight ? window.noteContentHeight(e) : 0;
+        var minH    = window.noteMinHeight     ? window.noteMinHeight(e)     : 0;
+        var cap     = window.noteCapHeight     ? window.noteCapHeight(e)     : 1e9;
+        if (content) e.style.setProperty('height', Math.min(Math.max(content, minH), cap) + 'px', 'important');
       });
     });
 
@@ -5861,28 +5865,47 @@ document.addEventListener('DOMContentLoaded', function() {
 // would otherwise beat a plain inline height. min-height in CSS still acts as the
 // floor, so scrollHeight never comes back smaller than the designed box.
 window.NOTE_IDS = ['gen_notes', 'pad_notes', 'gas_notes', 'ready_notes'];
+window.NOTE_MIN_LINES = 2;   // resting size of an empty box
 window.NOTE_MAX_LINES = 3;   // ← change this one number to re-cap every notes box
 
-// Tallest a notes box may get, in px, at whatever typography is currently applied.
+// Height of an N-line notes box, in px, at whatever typography is currently applied.
 // Computed live (not hardcoded) so it stays correct on screen, in print, and in the
 // capture path — each of which uses a different font size, line-height and padding.
-window.noteCapHeight = function(el) {
+// Mixing a px floor with a line-based cap is what broke the phone: the stylesheet's
+// `min-height:80px` on mobile outranked a 65px 3-line cap, so the box could neither
+// grow on screen nor rest at 2 lines in the capture. Everything is lines now.
+window.noteLinesHeight = function(el, lines) {
   var cs = window.getComputedStyle(el);
   var lh = parseFloat(cs.lineHeight);
   if (!lh || isNaN(lh)) lh = parseFloat(cs.fontSize) * 1.25;   // line-height:normal
   var chrome = parseFloat(cs.paddingTop)     + parseFloat(cs.paddingBottom)
              + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
-  return Math.ceil(lh * window.NOTE_MAX_LINES + chrome);       // box-sizing:border-box
+  return Math.ceil(lh * lines + chrome);                       // box-sizing:border-box
+};
+window.noteMinHeight = function(el) { return window.noteLinesHeight(el, window.NOTE_MIN_LINES); };
+window.noteCapHeight = function(el) { return window.noteLinesHeight(el, window.NOTE_MAX_LINES); };
+
+// Measure a note's true content height. The stylesheet floors (min-height:43px, and
+// 80px on mobile) have to be lifted first or scrollHeight just reports the floor and
+// the box appears never to grow.
+window.noteContentHeight = function(el) {
+  el.style.setProperty('min-height', '0',    'important');
+  el.style.setProperty('max-height', 'none', 'important');
+  el.style.setProperty('height',     'auto', 'important');
+  return el.scrollHeight;
 };
 
 window.autoGrowNote = function(el) {
   if (!el) return;
-  el.style.setProperty('height', 'auto', 'important');
-  var content = el.scrollHeight;
+  var content = window.noteContentHeight(el);
   if (!content) return;                            // hidden / not laid out yet
-  var cap = window.noteCapHeight(el);
-  el.style.setProperty('height', Math.min(content, cap) + 'px', 'important');
-  el.style.setProperty('max-height', cap + 'px', 'important');
+  var minH = window.noteMinHeight(el);
+  var cap  = window.noteCapHeight(el);
+  var h    = Math.min(Math.max(content, minH), cap);
+  // Pin all three so no stylesheet floor or ceiling can override the result.
+  el.style.setProperty('height',     h + 'px', 'important');
+  el.style.setProperty('min-height', h + 'px', 'important');
+  el.style.setProperty('max-height', h + 'px', 'important');
   // Past 3 lines the box stops growing — let the user scroll inside it so nothing
   // they typed is invisible on screen. (Print/capture still clip at 3 lines.)
   el.style.setProperty('overflow-y', content > cap ? 'auto' : 'hidden', 'important');
