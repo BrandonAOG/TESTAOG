@@ -3574,25 +3574,6 @@ function capturePageToCanvas(_fontsReady, _rectSink) {
     var CAPTURE_W = 1050;
     var PAPER_H   = Math.round(CAPTURE_W * 11 / 8.5);
 
-    // ── Sample the notes' ON-SCREEN typography and content width, before the page
-    // is widened to CAPTURE_W. The capture must reproduce the screen's wrapping
-    // exactly: same characters per line ⇒ same line count ⇒ nothing hits the
-    // 3-line cap that didn't already hit it on screen. That means scaling the font
-    // by however much the box itself grows, not stamping a fixed px size.
-    var _noteScreen = {};
-    page.querySelectorAll('#gen_notes, #pad_notes, #gas_notes, #ready_notes').forEach(function(el) {
-      var cs = window.getComputedStyle(el);
-      var lh = parseFloat(cs.lineHeight);
-      if (!lh || isNaN(lh)) lh = parseFloat(cs.fontSize) * 1.25;   // line-height:normal
-      _noteScreen[el.id] = {
-        fs: parseFloat(cs.fontSize),
-        lh: lh,
-        // clientWidth includes padding, excludes border — subtract padding for the
-        // true text column width, which is what governs where lines break.
-        textW: el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
-      };
-    });
-
     page.style.width     = CAPTURE_W + 'px';
     page.style.maxWidth  = CAPTURE_W + 'px';
     page.style.height    = 'auto';
@@ -3802,38 +3783,25 @@ function capturePageToCanvas(_fontsReady, _rectSink) {
     // ── Notes textareas: capture typography applied to the LIVE DOM ──
     // These get swapped for <div>s in onclone (html2canvas can't wrap textarea text).
     //
-    // Two competing wants: the notes should read at the same size as the text inputs
-    // beside them (which the capture stamps at CAPTURE_FONT_PX), and they must not
-    // spill past the 3-line cap and clip. Which one binds depends on the screen.
+    // The font is a FIXED px value, deliberately not derived from the screen. The
+    // capture always renders a 1050px-wide sheet, so characters-per-line — and hence
+    // whether a note fits the 3-line cap — depends only on this number. Scaling it by
+    // the screen width gave a phone 20px and a desktop 16.3px, i.e. two different PDFs
+    // from one form, and made the desktop output shift whenever the window was resized.
     //
-    // Characters-per-line scales as boxScale / fontScale. The box grows by
-    // CAPTURE_W / <screen page width>. So the font may grow by AT MOST that same
-    // factor — any more and each line holds fewer characters than it did on screen,
-    // the note needs an extra line, and the cap eats it. That proportional size is a
-    // CEILING, not a target; anything under it only widens the lines and is safe.
-    //
-    //   phone,   ~390px page → boxScale ≈ 2.69 → ceiling ≈ 38px → 20px wins (matches inputs)
-    //   desktop, ~904px page → boxScale ≈ 1.16 → ceiling ≈ 16.3px → ceiling wins (no clip)
+    // It sits below the CAPTURE_FONT_PX used for inputs (20px) because 3 lines of a
+    // long note don't fit the box at 20px. Notes therefore read slightly smaller than
+    // the field text beside them; that is the cost of not truncating the customer's
+    // notes. Raise it only if you also raise NOTE_MAX_LINES.
     //
     // Height is re-measured here (not in onclone) because the live page, CAPTURE_H
     // and the editable-PDF field rects must all agree. Reverted by restore().
-    var CAPTURE_FONT_PX = 20;   // desired size — matches the input font-size stamp above
+    var NOTE_CAPTURE_FONT_PX = 16;
+    var NOTE_CAPTURE_LINE_H  = 1.3;
     page.querySelectorAll('#gen_notes, #pad_notes, #gas_notes, #ready_notes').forEach(function(el) {
       _tweak(el, function(e) {
-        var s  = _noteScreen[e.id];
-        var cs = window.getComputedStyle(e);
-        if (s && s.textW > 0 && s.fs > 0) {
-          var textW1 = e.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-          var boxScale = textW1 / s.textW;
-          // floor() to a tenth biases the font down, so a rounding error can only pull
-          // a line break earlier — never push a 4th line into the cap.
-          var ceiling = Math.floor(s.fs * boxScale * 10) / 10;
-          var fs = Math.min(CAPTURE_FONT_PX, ceiling);
-          if (fs < s.fs) fs = s.fs;                // never render smaller than on screen
-          e.style.setProperty('font-size', fs + 'px', 'important');
-          // Keep the screen's line-height ratio so the cap stays proportional.
-          e.style.setProperty('line-height', (fs * (s.lh / s.fs)) + 'px', 'important');
-        }
+        e.style.setProperty('font-size',   NOTE_CAPTURE_FONT_PX + 'px', 'important');
+        e.style.setProperty('line-height', (NOTE_CAPTURE_FONT_PX * NOTE_CAPTURE_LINE_H) + 'px', 'important');
         e.style.setProperty('box-sizing', 'border-box', 'important');
         e.style.setProperty('overflow', 'hidden', 'important');
         // Measure at the capture font/width with the stylesheet floors lifted, then
