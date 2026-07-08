@@ -5874,24 +5874,63 @@ window.autoGrowNote = function(el) {
   el.style.setProperty('height',     h + 'px', 'important');
   el.style.setProperty('min-height', h + 'px', 'important');
   el.style.setProperty('max-height', h + 'px', 'important');
-  // Past 3 lines the box stops growing — let the user scroll inside it so nothing
-  // they typed is invisible on screen. (Print/capture still clip at 3 lines.)
-  el.style.setProperty('overflow-y', content > cap ? 'auto' : 'hidden', 'important');
+  // Never scroll. Input past the cap is rejected outright (see the input handler),
+  // so there is never hidden text to scroll to — what you see is the whole note.
+  el.style.setProperty('overflow', 'hidden', 'important');
+  return content <= cap;
 };
 
 window.autoGrowAllNotes = function() {
   window.NOTE_IDS.forEach(function(id) {
-    window.autoGrowNote(document.getElementById(id));
+    var el = document.getElementById(id);
+    if (!el) return;
+    // Called after restoreDraft() and doClearForm(), which set .value directly. The
+    // overflow guard rolls back to _noteLast, so it must track those writes — otherwise
+    // the first overflowing keystroke after a draft restore would wipe the note back to
+    // whatever it was at bind time.
+    el._noteLast = el.value;
+    window.autoGrowNote(el);
   });
 };
 
 (function() {
+  // Reject any edit that pushes the note past NOTE_MAX_LINES. We can't know whether a
+  // keystroke overflows until the browser has laid it out, so the edit is applied,
+  // measured, and rolled back to the last value that fit. `_noteLast` is seeded at bind
+  // time and only advanced on edits that fit, so a note restored from a draft that is
+  // already over the cap can still be deleted from — deleting shrinks the content and
+  // is always accepted.
+  function fits(el) {
+    var cap = window.noteCapHeight(el);
+    return window.noteContentHeight(el) <= cap;
+  }
   function bind() {
     window.NOTE_IDS.forEach(function(id) {
       var el = document.getElementById(id);
       if (!el) return;
-      el.addEventListener('input', function() { window.autoGrowNote(el); });
-      // Enter now inserts a real line break — the box grows to hold it.
+      el._noteLast = el.value;
+      el.addEventListener('input', function() {
+        if (fits(el)) {
+          el._noteLast = el.value;
+        } else {
+          var caret = el.selectionStart;
+          var delta = el.value.length - el._noteLast.length;   // chars this edit added
+          el.value = el._noteLast;
+          try { el.setSelectionRange(caret - delta, caret - delta); } catch (e) {}
+        }
+        window.autoGrowNote(el);
+      });
+      // Enter on a box that is already one line from the cap would add a line the input
+      // handler then rips out, flickering the caret. Refuse it up front. Note that a box
+      // sitting exactly AT the cap still "fits" — the test has to look one line ahead.
+      el.addEventListener('keydown', function(e) {
+        if (e.key !== 'Enter') return;
+        var oneLine = window.noteLinesHeight(el, 2) - window.noteLinesHeight(el, 1);
+        var cap     = window.noteCapHeight(el);
+        var content = window.noteContentHeight(el);   // mutates styles — restore below
+        window.autoGrowNote(el);
+        if (content + oneLine > cap) e.preventDefault();
+      });
     });
     window.autoGrowAllNotes();
   }
