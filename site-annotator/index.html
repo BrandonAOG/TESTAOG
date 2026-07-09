@@ -23,8 +23,18 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Site Annotator">
 
-<!-- AOG Fonts (matches hub) -->
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+<!-- Warm up the CDNs early so the big libs + fonts fetch in parallel with the
+     inline app script instead of waiting for it to finish parsing. -->
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="script" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js">
+<link rel="preload" as="script" href="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js">
+<link rel="preload" as="script" href="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">
+
+<!-- AOG Fonts (matches hub) — loaded non-blocking so it never delays first paint -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600&display=swap" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet"></noscript>
 <style>
 :root{--bg:#0f0f11;--surf:#1a1a1f;--surf2:#24242b;--b1:rgba(255,255,255,0.07);--b2:rgba(255,255,255,0.14);--txt:#f0f0f2;--txt2:#8888aa;--acc:#6c63ff;--acc2:#9d97ff;--rad:9px}
 html{position:fixed;width:100%;height:100%;overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-overflow-scrolling:none;}
@@ -270,8 +280,8 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .markup-btn:hover{background:var(--surf2);color:var(--txt)}
 .markup-btn.active{border-color:var(--acc);color:var(--acc2);background:rgba(108,99,255,.15)}
 /* SELECTION OVERLAY CANVAS */
-#img-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;z-index:10}
-#shapes-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;z-index:1}
+#img-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;z-index:2}
+#shapes-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;z-index:3}
 #txt-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;z-index:11}
 #sel-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;z-index:12}
 
@@ -1743,6 +1753,28 @@ window.AOG.dumpDebug=function(){
   _dbgLog.forEach(function(r){ console.log('['+r.stage+']', r.msg, r.data!==null?r.data:''); });
   return _dbgLog;
 };
+// Expose the object arrays for console inspection. They're function-scoped vars,
+// so `markupObjs` alone throws ReferenceError in the console — use AOG.dump().
+window.AOG.dump=function(){
+  var M=markupObjs, P=penObjs;
+  console.log('markupObjs:',M.length,'| penObjs:',P.length,'| shapeObjs:',shapeObjs.length,'| textObjs:',textObjs.length);
+  console.table(M.map(function(m){ return {
+    type:m.type, baked:!!m._bakedHl, color:m.color, opacity:m.opacity,
+    rings:(Array.isArray(m.poly)?m.poly.length:0),
+    w:Math.round(m.w), h:Math.round(m.h), x:Math.round(m.cx), y:Math.round(m.cy),
+    layer:m.layerIdx, layerVisible:!!(layers[m.layerIdx]||{}).visible }; }));
+  console.table(P.map(function(p){ return {
+    inkHl:!!p._inkHl, color:p.color, opacity:p.opacity,
+    strokeW:Math.round(p.strokeW), pts:p.pts.length,
+    x:Math.round(p.pts[0].x), y:Math.round(p.pts[0].y),
+    layer:p.layerIdx, layerVisible:!!(layers[p.layerIdx]||{}).visible }; }));
+  var cw=baseCv.width, ch=baseCv.height;
+  var off=M.filter(function(m){ return m.cx<0||m.cy<0||m.cx>cw||m.cy>ch; }).length
+        + P.filter(function(p){ return p.pts[0].x<0||p.pts[0].y<0||p.pts[0].x>cw||p.pts[0].y>ch; }).length;
+  console.log('canvas '+cw+'x'+ch+' | off-canvas: '+off);
+  return {markups:M, pens:P};
+};
+window.AOG.redraw=function(){ renderShapeAndMeasure(); composite(); };
 window.AOG.enableDebug=function(on){ AOG_DEBUG=(on!==false); try{ localStorage.setItem('AOG_DEBUG', AOG_DEBUG?'1':'0'); }catch(e){} return AOG_DEBUG; };
 // Toggle export model: AOG.fullRedraw(true) = redraw every element as a movable
 // object (nothing memory-stuck at import position); AOG.fullRedraw(false) = keep
@@ -1883,7 +1915,10 @@ var gridSz=document.getElementById('grid-sz');
 var togGrid=document.getElementById('tog-grid');
 var togSnap=document.getElementById('tog-snap');
 var legendList=document.getElementById('legend-list');
-var bCtx=baseCv.getContext('2d');
+// willReadFrequently: the backdrop is read back repeatedly (getImageData in the
+// highlight strip, text-color sampling, _baseSnap). Without this hint Chromium
+// keeps it GPU-backed and every readback stalls on a GPU→CPU copy.
+var bCtx=baseCv.getContext('2d',{willReadFrequently:true});
 var dCtx=drawCv.getContext('2d');
 var gCtx=gridCv.getContext('2d');
 var selCv=document.getElementById('sel-cv');
@@ -1947,6 +1982,20 @@ var CMT_SNAP_PAD = 1.5; // tighter padding used when the box snaps to hug text (
 // Shared by the renderer, the box-fit math, and the editor overlay so the
 // drawn text, the box height, and the typing caret all use identical spacing.
 var CMT_LINE_H = 1.15;
+// Line-height multiplier for editable TEXT OBJECTS (the red-on-green labels).
+// Single source of truth shared by the on-screen renderer, the box-fit /
+// hit-test math, the live editor caret, and the PDF/PNG export so the drawn
+// text, the selection box, the typing caret, and the exported file all use
+// identical spacing and can never drift apart. Values <1 tighten past the
+// glyph box so the highlight bars overlap (0.92 = snug, faint overlap).
+var TXT_LINE_H = 0.92;
+// Highlight-bar extent above/below the text baseline, as a fraction of font
+// size. FIXED (not per-glyph) so multi-line highlight bars always overlap into
+// one continuous block instead of leaving a white sliver between lines whose
+// text has no descenders (e.g. "dfdf"). 0.74 up / 0.21 down fully covers the
+// glyphs, so the text is never clipped by the bar. Shared by the on-screen
+// renderer, the PNG raster, and the PDF exporter so all three look identical.
+var TXT_ASC_F = 0.74, TXT_DESC_F = 0.21;
 // Inner text inset in canvas px: base pad + HALF the border stroke. The border
 // is stroked centered on the box edge, so half of it lands INSIDE — without
 // this the first text line sat on top of the border and visibly clipped at
@@ -2575,7 +2624,10 @@ function repositionCommentEditor(c){
 
   // Position changes every pan/zoom tick — always update left/top.
   // Viewport-local position only — no visualViewport offsets (see startCommentTextEdit).
-  var newLeft = Math.round(Math.max(0, panX + cx2*zoom)) + 'px';
+  // No Math.max(0,…) clamp here — pinning the editor at the screen's left edge
+  // made the note text move WITH the screen during a pan/zoom instead of
+  // tracking its box. Let it follow the canvas point, even partially off-screen.
+  var newLeft = Math.round(panX + cx2*zoom) + 'px';
   var newTop  = Math.round(panY + cy2*zoom) + 'px';
   if(textOv.style.left !== newLeft) textOv.style.left = newLeft;
   if(textOv.style.top  !== newTop)  textOv.style.top  = newTop;
@@ -2666,14 +2718,32 @@ function drawMarkupOnCtx(ctx,m,sc,lw){
   _markupInit(m);
   // Skip degenerate marks (a click with no drag) — they'd otherwise show as a lone
   // colored box/point with no content.
-  if(m.w<2 && m.h<2) return;
+  if(m.w<2 && m.h<2 && !(m.poly && m.poly.length)) return;
   var w=m.w*sc, h=m.h*sc;
   ctx.save();
   ctx.globalAlpha=m.opacity;
   ctx.translate(m.cx*sc, m.cy*sc);
   ctx.rotate(m.angle||0);
   if(m.type==='highlight'){
-    ctx.fillStyle=m.color; ctx.fillRect(-w/2,-h/2,w,h);
+    ctx.fillStyle=m.color;
+    if(m.poly && m.poly.length){
+      // Imported highlighter tint: fill its TRUE outline — an array of subpath
+      // RINGS (a flattened highlight is the union of letter/blob outlines), not a
+      // bounding box. Points are center-relative so the translate/rotate above
+      // carries them. Even-odd keeps inner counters (the hole in an "o") clear.
+      ctx.beginPath();
+      var _rings=(m.poly[0] && m.poly[0].length!=null) ? m.poly : [m.poly];
+      for(var _ri=0;_ri<_rings.length;_ri++){
+        var _rg=_rings[_ri];
+        if(!_rg || _rg.length<2) continue;
+        ctx.moveTo(_rg[0].x*sc, _rg[0].y*sc);
+        for(var _pi=1;_pi<_rg.length;_pi++) ctx.lineTo(_rg[_pi].x*sc, _rg[_pi].y*sc);
+        ctx.closePath();
+      }
+      ctx.fill('evenodd');
+    } else {
+      ctx.fillRect(-w/2,-h/2,w,h);
+    }
   } else if(m.type==='strikeout'){
     ctx.strokeStyle=m.color; ctx.lineWidth=lw;
     ctx.beginPath(); ctx.moveTo(-w/2,0); ctx.lineTo(w/2,0); ctx.stroke();
@@ -2683,10 +2753,30 @@ function drawMarkupOnCtx(ctx,m,sc,lw){
   }
   ctx.restore();
 }
+// ── Grab & move existing highlights with the Hilite tool ─────────
+// Press an existing highlight (rect markup OR an imported freehand highlighter
+// pen stroke) with the highlight tool → drag moves it. Press empty space →
+// draw a new highlight, exactly as before. The eraser already deletes both.
+var _mkDrag=null;   // {obj, kind:'markup'|'pen', lx, ly, moved}
+function findMarkupObjAt(x,y){
+  for(var i=markupObjs.length-1;i>=0;i--){
+    var m=markupObjs[i];
+    var L=layers[m.layerIdx]; if(L&&!L.visible) continue;
+    var x1=Math.min(m.x1,m.x2)-4/zoom, x2=Math.max(m.x1,m.x2)+4/zoom;
+    var y1=Math.min(m.y1,m.y2)-8/zoom, y2=Math.max(m.y1,m.y2)+8/zoom;
+    if(x>=x1&&x<=x2&&y>=y1&&y<=y2) return m;
+  }
+  return null;
+}
 function renderMarkupObjs(){
+  // Markups (highlight / strikeout / underline) draw onto the SHAPES canvas,
+  // FIRST in the shape pass — so they sit UNDER shapes, polylines, measures and
+  // text, exactly matching the export stacking. (They used to render on txt-cv,
+  // z-index 11, which floated imported highlights ABOVE freshly drawn polylines
+  // on screen even though the export put the lines on top.)
   markupObjs.forEach(function(m){
     var layer=layers[m.layerIdx]; if(layer&&!layer.visible) return;
-    drawMarkupOnCtx(tCtx, m, 1, Math.max(2,2/zoom));
+    drawMarkupOnCtx(shCtx, m, 1, Math.max(2,2/zoom));
   });
 }
 // ══════════════════════════════════════════════════════════════
@@ -2884,7 +2974,7 @@ var hintTimer;
 function makeLayer(name, col){
   var c=document.createElement('canvas');
   c.width=baseCv.width||1; c.height=baseCv.height||1;
-  return {name:name, color:col, visible:true, canvas:c, ctx:c.getContext('2d')};
+  return {name:name, color:col, visible:true, canvas:c, ctx:c.getContext('2d',{willReadFrequently:true})};
 }
 
 function initLayers(w,h){
@@ -2897,7 +2987,7 @@ function initLayers(w,h){
   defs.forEach(function(d){
     var c=document.createElement('canvas');
     c.width=w; c.height=h;
-    layers.push({name:d.name,color:d.color,visible:true,canvas:c,ctx:c.getContext('2d')});
+    layers.push({name:d.name,color:d.color,visible:true,canvas:c,ctx:c.getContext('2d',{willReadFrequently:true})});
   });
   activeLayerIdx=0;
   renderLayers();
@@ -3391,6 +3481,15 @@ openBtn.addEventListener('click',function(){
   if(window.showOpenFilePicker){
     window.showOpenFilePicker({
       multiple:false,
+      // Chromium remembers the last directory used under a given `id`, and that
+      // memory persists across browser restarts. Without an id the picker always
+      // reopens at the default folder. Reuse the SAME id as the export picker so
+      // opening and saving share one "current project folder".
+      id: 'aog-export',
+      // A handle in `startIn` overrides the remembered id folder, so only pass it
+      // when we actually have one from this session (opening a second file then
+      // starts in the first file's folder rather than the id default).
+      startIn: (_lastOpenedFileHandle || undefined),
       excludeAcceptAllOption:false,   // keep "All files" so HEIC/odd types stay pickable
       types:[{ description:'Plans & images', accept:{
         'application/pdf':['.pdf'],
@@ -3401,9 +3500,19 @@ openBtn.addEventListener('click',function(){
     }).then(function(handles){
       var handle = handles && handles[0]; if(!handle) return;
       _lastOpenedFileHandle = handle;   // pin export folder to this file's folder
+      saveLastOpenedHandle(handle);     // …and remember it across restarts
       return handle.getFile().then(function(f){ if(f) loadFile(f, IS_IPHONE?3200:IOS_MAX_PX); });
     }).catch(function(err){
       if(err && err.name==='AbortError') return;   // user cancelled — do nothing
+      // A restored handle can be stale (file moved/deleted/drive unplugged), which
+      // makes the picker reject before it ever opens. Drop it and retry once with
+      // just the remembered `id` folder before falling back to the <input>.
+      if(_lastOpenedFileHandle){
+        _lastOpenedFileHandle=null;
+        try{ if(_saveDb) _saveDb.transaction(SAVE_STORE,'readwrite').objectStore(SAVE_STORE).delete(HANDLE_KEY); }catch(e){}
+        openBtn.click();
+        return;
+      }
       fileIn.click();                              // any other failure → input fallback
     });
   } else {
@@ -3740,10 +3849,32 @@ function _loadPDFExploded(f){
 }
 
 // DPI / scale chosen exactly like renderPDFPage so coordinates line up.
+// Browsers cap a canvas's total AREA (Chrome/Edge ~16.78M px, Safari lower), and
+// exceeding it doesn't throw — the canvas silently comes back blank or truncated,
+// which shows up as unpainted white margins on the right/bottom. IOS_MAX_PX only
+// clamps the LONGEST SIDE, so a tall page (e.g. 543x839pt at 400 DPI = 3017x4663
+// = 14.1 MP) sails past it and lands right at the ceiling. The app also holds ~7
+// canvases of this size at once (base, draw, grid, img, shapes, text, + layers),
+// so the practical budget is well below the hard cap.
+//
+// Clamp the scale so w*h stays under CANVAS_MAX_AREA, keeping the page's aspect
+// ratio exactly (no letterboxing, no whitespace).
+var CANVAS_MAX_AREA = IS_IPHONE ? 4.2e6 : (IS_IPAD ? 8e6 : 12e6);
+function _clampScaleToArea(scale, pw, ph){
+  var area = (pw*scale) * (ph*scale);
+  if(area <= CANVAS_MAX_AREA) return scale;
+  var s = Math.sqrt(CANVAS_MAX_AREA / (pw*ph));
+  if(AOG_DEBUG) console.warn('[Scale] capped '+scale.toFixed(3)+' -> '+s.toFixed(3)+
+    ' ('+Math.round(pw*scale)+'x'+Math.round(ph*scale)+' = '+((area/1e6).toFixed(1))+'MP exceeds '+
+    (CANVAS_MAX_AREA/1e6)+'MP budget)');
+  return s;
+}
+
 function _explodeScale(vp1){
   var targetDpi = IS_IPHONE ? 150 : IS_IPAD ? 200 : 400;
   var dpiScale  = targetDpi / 72;
-  return Math.min(dpiScale, IOS_MAX_PX / Math.max(vp1.width, vp1.height));
+  var sc = Math.min(dpiScale, IOS_MAX_PX / Math.max(vp1.width, vp1.height));
+  return _clampScaleToArea(sc, vp1.width, vp1.height);
 }
 
 function _explodePDFPage(n){
@@ -3762,12 +3893,26 @@ function _explodePDFPage(n){
     // image and vector stroke (the diagram artwork) while removing the live text
     // — which we re-add as fully editable objects. This is the Acrobat model for
     // an image-with-text-layer PDF and avoids any baked-in/duplicated text.
+    // TWO operator lists:
+    //  • opList     — annotations INCLUDED. _extractMarkups needs it for the /CA
+    //                 alphas that live in each ink annot's appearance stream.
+    //  • opListPage — annotations EXCLUDED. Everything that reads the PAGE's own
+    //                 graphics (image pass, vector pass, dense/raster detection)
+    //                 must use this, because it has to match the backdrop, which
+    //                 now renders with annotationMode DISABLE. Without it the
+    //                 vector pass would extract annotation shapes AND white out
+    //                 the scan behind them. On Survey.pdf all 17 path ops come
+    //                 from annotations — the page itself is just a scanned image.
+    var _amOff=(pdfjsLib.AnnotationMode && pdfjsLib.AnnotationMode.DISABLE);
+    if(_amOff==null) _amOff=0;
     Promise.all([
       page.getOperatorList(),
       page.getTextContent(),
-      page.getAnnotations().catch(function(){ return []; })
+      page.getAnnotations().catch(function(){ return []; }),
+      page.getOperatorList({annotationMode:_amOff}).catch(function(){ return null; })
     ]).then(function(parts){
       var opList = parts[0], tc = parts[1], annots = parts[2]||[];
+      var opListPage = parts[3] || parts[0];   // fall back if the option is unsupported
       _pageAnnots = annots;   // stash for _explodeObjects
       if(AOG_DEBUG){
         try{
@@ -3778,8 +3923,26 @@ function _explodePDFPage(n){
           });
         }catch(e){ console.warn('annot dbg',e); }
       }
-      _renderBackdropNoText(page, opList, vp, w, h).then(function(){
-        _explodeObjects(page, opList, tc, vp, sc, w, h, n);
+      _renderBackdropNoText(page, opListPage, vp, w, h).then(function(){
+        // Ink annotations are no longer baked into the backdrop (it renders with
+        // annotationMode DISABLE), so there is nothing to patch out. Kept as a
+        // no-op hook in case a future backdrop path re-enables annotations.
+        return null;
+      }).then(function(){
+        // Run the extraction OUTSIDE the fallback's catch. Previously any error
+        // thrown in here (a bad object emit, a tainted-canvas getImageData…)
+        // fell through to the flatten path below, which calls afterLoad() and
+        // wipes penObjs/markupObjs — so freshly imported highlights and ink
+        // strokes appeared for a frame and then vanished. Extraction failures
+        // must not discard the page that already rendered fine.
+        try{
+          _explodeObjects(page, opListPage, tc, vp, sc, w, h, n, opList);
+        }catch(exObj){
+          console.error('[Explode] object extraction failed (page kept as-is):',exObj);
+          _lastLoadedDpi=Math.round(sc*72);
+          _vectorBackdropOK=true; _vecPageNum=n;
+          _finishExplode(n,w,h,sc,true);
+        }
       }).catch(function(err){
         console.warn('[Explode] backdrop render failed, full flatten:',err);
         // Fallback: plain flatten so the user still sees their drawing.
@@ -3806,19 +3969,155 @@ function _explodePDFPage(n){
 // CanvasGraphics replay through pdfjsLib's internal renderer is unavailable in
 // the minified build. So we take the robust route: render full page, then paint
 // white over each text run's box using the text geometry we already have.
+// Replace the backdrop pixels inside every Ink annotation's rect with a CLEAN
+// render of the page (annotations disabled). This removes the baked highlighter
+// blob while keeping the artwork/text under it — those strokes are re-emitted
+// as editable translucent pen objects by _explodeObjects. Resolves immediately
+// when the page has no Ink annots. Runs BEFORE _explodeObjects so _baseSnap and
+// any exploded raster overlays are cloned from the already-clean backdrop.
+function _patchInkAnnotRegions(page, annots, vp, w, h){
+  try{
+    var _INKN=(pdfjsLib.AnnotationType&&pdfjsLib.AnnotationType.INK)||15;
+    var U=pdfjsLib.Util;
+    var rects=[];
+    (annots||[]).forEach(function(an){
+      var sub=an.subtype||'';
+      if(sub!=='Ink' && an.annotationType!==_INKN) return;
+      var r=an.rect||[0,0,0,0];
+      var c1=U.applyTransform([r[0],r[1]],vp.transform);
+      var c2=U.applyTransform([r[2],r[3]],vp.transform);
+      rects.push({x0:Math.min(c1[0],c2[0]),y0:Math.min(c1[1],c2[1]),
+                  x1:Math.max(c1[0],c2[0]),y1:Math.max(c1[1],c2[1])});
+    });
+    if(!rects.length) return Promise.resolve();
+    var cc=document.createElement('canvas'); cc.width=w; cc.height=h;
+    var cctx=cc.getContext('2d');
+    cctx.fillStyle='#ffffff'; cctx.fillRect(0,0,w,h);   // match the backdrop's white base
+    var amDisable=(pdfjsLib.AnnotationMode&&pdfjsLib.AnnotationMode.DISABLE)||0;
+    return page.render({canvasContext:cctx, viewport:vp, annotationMode:amDisable})
+      .promise.then(function(){
+        rects.forEach(function(ir){
+          var px=Math.max(0,Math.floor(ir.x0-4)), py=Math.max(0,Math.floor(ir.y0-4));
+          var pw2=Math.min(w,Math.ceil(ir.x1+4))-px, ph2=Math.min(h,Math.ceil(ir.y1+4))-py;
+          if(pw2>0&&ph2>0) bCtx.drawImage(cc,px,py,pw2,ph2,px,py,pw2,ph2);
+        });
+      }).catch(function(err){ console.warn('[Explode] ink region patch:',err); });
+  }catch(e){ console.warn('[Explode] ink patch setup:',e); return Promise.resolve(); }
+}
+
+// Remove the baked highlighter tints from the backdrop, leaving the artwork that
+// sits over/under them intact. pdf.js's minified build doesn't export
+// CanvasGraphics, so a filtered operator-list replay isn't possible (page.render
+// has no `operatorList` option — it builds its own). Instead work on the
+// rendered PIXELS, but ONLY inside the tint's true outline: build a mask from the
+// fill's subpath rings (even-odd), and within it whiten pixels that are BRIGHT
+// and SATURATED. Everything darker — the black glyph outlines and linework drawn
+// over the tint — is left exactly as-is, which is what makes this safe where a
+// white rect wipe was destructive.
+//
+// Masking to the rings (not the bbox) matters: an ink-annotation stroke, or any
+// colored artwork, that merely passes through a highlight's bounding box would
+// otherwise be whitened too — that is what made the blue/green pen marks vanish.
+// (Takes no `page`/`opList`: it works purely on already-rendered backdrop pixels.
+// It used to declare them, and the call site inside _extractVectors — which has
+// no `page` in scope — threw ReferenceError. That error was swallowed by the
+// vector pass's catch AFTER the highlights had been created, so they rendered
+// once and were never drawn again: the "appears, then vanishes" bug.)
+function _stripBakedHls(vp, w, h){
+  var groups=_explodeBakedHls||[];
+  _explodeBakedHls=[];
+  if(!groups.length) return;
+  try{
+    // Each entry is one fill op: {rings:[ring,ring,…]}.
+    groups.forEach(function(grp){
+     try{
+      var rings=grp.rings||[];
+      var allX=[], allY=[];
+      rings.forEach(function(r){ r.forEach(function(p){ allX.push(p.x); allY.push(p.y); }); });
+      if(!allX.length) return;
+      // Clamp the sample region to the canvas. A tint whose outline runs off the
+      // page edge would otherwise produce an out-of-bounds getImageData rect,
+      // which throws — and the old catch responded by deleting every highlight.
+      var bw=(bCtx.canvas?bCtx.canvas.width:w), bh=(bCtx.canvas?bCtx.canvas.height:h);
+      var px=Math.max(0,Math.min(bw-1,Math.floor(Math.min.apply(null,allX)-2)));
+      var py=Math.max(0,Math.min(bh-1,Math.floor(Math.min.apply(null,allY)-2)));
+      var pw=Math.min(bw,Math.ceil(Math.max.apply(null,allX)+2))-px;
+      var ph=Math.min(bh,Math.ceil(Math.max.apply(null,allY)+2))-py;
+      if(!(pw>0)||!(ph>0)||!isFinite(pw)||!isFinite(ph)) return;
+
+      // Rasterize the fill's outline into a mask (even-odd, same as the render).
+      var mk=document.createElement('canvas'); mk.width=pw; mk.height=ph;
+      var mctx=mk.getContext('2d');
+      mctx.fillStyle='#fff';
+      mctx.beginPath();
+      rings.forEach(function(r){
+        if(!r || r.length<2) return;
+        mctx.moveTo(r[0].x-px, r[0].y-py);
+        for(var i=1;i<r.length;i++) mctx.lineTo(r[i].x-px, r[i].y-py);
+        mctx.closePath();
+      });
+      mctx.fill('evenodd');
+      var mdata=mctx.getImageData(0,0,pw,ph).data;
+
+      var img=bCtx.getImageData(px,py,pw,ph);
+      var d=img.data;
+      for(var i=0;i<d.length;i+=4){
+        if(mdata[i+3]===0) continue;            // outside the tint's outline
+        var r0=d[i], g0=d[i+1], b0=d[i+2];
+        var mx=Math.max(r0,g0,b0), mn=Math.min(r0,g0,b0);
+        // Same test as _isHiliteFill, per pixel. Dark ink (mx<110) and near-grays
+        // — i.e. the drawing on top of the tint — are preserved.
+        if(mx>=110 && (mx-mn)>=60){ d[i]=255; d[i+1]=255; d[i+2]=255; }
+      }
+      bCtx.putImageData(img,px,py);
+     }catch(eg){
+       // Skip just this tint; the rest still strip, and the markup survives.
+       console.warn('[Explode] strip skipped one highlight:',eg);
+     }
+    });
+  }catch(e){
+    // A strip failure must NEVER delete the user's imported highlights. Worst
+    // case the original tint stays baked in the backdrop and the markup sits on
+    // top of it (slightly darker) — that is strictly better than the highlight
+    // silently disappearing, which is what deleting them here used to cause.
+    console.warn('[Explode] baked-highlight strip failed (tint left baked):',e);
+  }
+}
+
 function _renderBackdropNoText(page, opList, vp, w, h){
-  // Keep annotation rendering ON: on these diagrams the linework/boxes ARE
-  // annotations, so disabling them would blank the artwork. FreeText notes that
-  // we import as editable objects are individually whited out of the backdrop in
-  // _explodeObjects (so they aren't doubled).
-  return page.render({canvasContext:bCtx, viewport:vp}).promise;
+  // Render the backdrop with ANNOTATIONS DISABLED.
+  //
+  // Every annotation we care about (FreeText notes, Ink strokes, Square/Circle/
+  // Polygon/Line markup, Highlights) is re-created as an editable object, so
+  // rendering it into the backdrop too would double it. The old approach kept
+  // annotations ON and then painted white over each one's rect — which was
+  // destructive twice over:
+  //   1. Move the note and you exposed a white hole where the drawing used to be.
+  //   2. An opaque note box HIDES artwork beneath it; wiping its rect deleted
+  //      that artwork permanently, even though it was only ever covered.
+  // Measured on Survey.pdf: the generator note's rect holds 22,064 non-white px
+  // with annots on, but 87,566 with them off — the box was concealing 65k px of
+  // survey linework that the whiteout then destroyed.
+  //
+  // Disabling annotations is safe: the page's own linework lives in the content
+  // stream, not in annotations. Verified across the sample surveys — with annots
+  // off, ~93–106% of the ink remains (the ~6% delta is exactly the ink strokes
+  // and highlights we import as objects; >100% means opaque note boxes were
+  // covering content that now shows through).
+  var mode=(pdfjsLib.AnnotationMode && pdfjsLib.AnnotationMode.DISABLE);
+  if(mode==null) mode=0;
+  return page.render({canvasContext:bCtx, viewport:vp, annotationMode:mode}).promise;
 }
 
 // Extract images AND text as editable/movable objects, like Acrobat. Embedded
 // image XObjects become draggable image overlays; text runs are merged into
 // editable line objects. Both are white-outed from the backdrop so the only
 // remaining baked content is vector artwork (conduit/grounding lines).
-function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
+// opList     = PAGE graphics only (annotations excluded) — matches the backdrop.
+// opListAnnot = includes annotations; only _extractMarkups needs it, for the
+//               /CA alpha values stored in each ink annot's appearance stream.
+function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
+  opListAnnot = opListAnnot || opList;
   var OPS=pdfjsLib.OPS;
   var U=pdfjsLib.Util;
   _lastLoadedDpi=Math.round(sc*72);
@@ -3897,8 +4196,12 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
   // text color BEFORE white-out.
   try{
     _baseSnap=document.createElement('canvas'); _baseSnap.width=w; _baseSnap.height=h;
-    _baseSnap.getContext('2d').drawImage(baseCv,0,0);
-    _baseSnap=_baseSnap.getContext('2d');
+    // willReadFrequently: _sampleTextColor / image-slice fallback read this canvas
+    // back many times per page. Without the hint every getImageData forces a
+    // GPU→CPU stall — a big share of the "slow open" on text-heavy plans.
+    var _bsx=_baseSnap.getContext('2d',{willReadFrequently:true});
+    _bsx.drawImage(baseCv,0,0);
+    _baseSnap=_bsx;
   }catch(e){ _baseSnap=null; }
 
   // ── IMAGE PASS ───────────────────────────────────────────────────────────
@@ -4021,6 +4324,15 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
   // chevrons that look like arrowheads get paired with their shaft into a single
   // arrow, axis-aligned closed quads → rectangles. Each extracted stroke is
   // painted over in white on the backdrop so it isn't duplicated.
+  // Highlights + ink annotations import on EVERY page, dense or not — they're a
+  // handful of objects and are exactly what the user wants to keep editable.
+  try{
+    // Needs the ANNOTATED op list: ink /CA alphas live in the annots' appearance
+    // streams. Content-stream highlight fills appear in both lists identically.
+    _extractMarkups(page, opListAnnot, _pageAnnots, vp, sc, w, h,
+                    (opList && opList.fnArray) ? opList.fnArray.length : 0);
+  }catch(e){ console.warn('[Explode] markup pass failed:',e); }
+
   var vecCount=0;
   if(EXPLODE_OTHER && !_denseDrawing) try{
     vecCount=_extractVectors(opList, vp, sc, w, h);
@@ -4244,19 +4556,10 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
         }
       }catch(e){}
       try{ if(an.borderStyle && an.borderStyle.width>0) importBw=Math.max(1,Math.round(an.borderStyle.width*sc)); }catch(e){}
-      // White out the baked FreeText from the backdrop so it isn't doubled with
-      // the editable note we create. FreeText text often renders LARGER than its
-      // stored rect, and these PDFs bake the annotation into the backdrop, so we
-      // pad generously to fully cover it (the export deletes annotations anyway).
-      try{
-        var padX=Math.max(8,(x1-x0)*0.25), padY=Math.max(8,(y1-y0)*0.25);
-        var bgF=_sampleBgAround(bCtx, x0, y0, x1-x0, y1-y0);
-        var rgbF=_hexToRgb(bgF);
-        if(rgbF && rgbF.r>=232 && rgbF.g>=232 && rgbF.b>=232) bgF='#ffffff';
-        bCtx.save(); bCtx.fillStyle=bgF;
-        bCtx.fillRect(x0-padX, y0-padY, (x1-x0)+padX*2, (y1-y0)+padY*2);
-        bCtx.restore();
-      }catch(e){}
+      // No backdrop whiteout: the backdrop is rendered with annotations DISABLED
+      // (see _renderBackdropNoText), so the original note was never painted into
+      // it. Nothing to cover — and nothing destroyed, so moving the note now
+      // reveals the survey underneath instead of a white hole.
       // Font size: prefer the annotation's parsed size; else derive from the box.
       var fpx=0;
       if(an.defaultAppearanceData && an.defaultAppearanceData.fontSize){ fpx=an.defaultAppearanceData.fontSize*sc; }
@@ -4332,17 +4635,40 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
     // stray frame you could move to reveal the note beneath. Match by center
     // inside the note rect AND similar size.
     if(_ftRects.length && shapeObjs.length){
+      // A bordered note box in the source PDF is usually drawn as a FILL rect AND a
+      // STROKE rect (two paths → two extracted shapes = the "double border" seen
+      // under a moved note), and the drawn box rarely matches the annotation's own
+      // /Rect exactly. The old center-inside + size-within-40% test missed both, so
+      // stray frames survived beneath the note. Match by OVERLAP instead: remove any
+      // extracted rect/ellipse whose box substantially coincides with a note's box
+      // (high intersection-over-union) OR is essentially contained within it. This
+      // catches the fill+stroke pair and off-by-a-few-px boxes alike — no whiteout
+      // needed, since these are the note's own frame captured as separate objects,
+      // not baked backdrop pixels.
+      var _ov=function(ax0,ay0,ax1,ay1,bx0,by0,bx1,by1){
+        var ix0=Math.max(ax0,bx0), iy0=Math.max(ay0,by0);
+        var ix1=Math.min(ax1,bx1), iy1=Math.min(ay1,by1);
+        var iw=ix1-ix0, ih=iy1-iy0;
+        if(iw<=0||ih<=0) return {iou:0, containA:0};
+        var inter=iw*ih;
+        var aA=Math.max(1,(ax1-ax0)*(ay1-ay0));
+        var aB=Math.max(1,(bx1-bx0)*(by1-by0));
+        return {iou:inter/(aA+aB-inter), containA:inter/aA};
+      };
       for(var si=shapeObjs.length-1; si>=0; si--){
         var s=shapeObjs[si];
         if(!s._fromExplode) continue;
         if(s.type!=='rect' && s.type!=='ellipse') continue;
+        var sx0=s.cx-s.w/2, sy0=s.cy-s.h/2, sx1=s.cx+s.w/2, sy1=s.cy+s.h/2;
         for(var k=0;k<_ftRects.length;k++){
           var ft=_ftRects[k];
-          var ftW=ft.x1-ft.x0, ftH=ft.y1-ft.y0;
-          var cInside = s.cx>=ft.x0-6 && s.cx<=ft.x1+6 && s.cy>=ft.y0-6 && s.cy<=ft.y1+6;
-          var sizeClose = Math.abs(s.w-ftW)<=Math.max(20,ftW*0.4) && Math.abs(s.h-ftH)<=Math.max(20,ftH*0.4);
-          if(cInside && sizeClose){
-            dbg('freetext','suppressed duplicate border rect',{cx:Math.round(s.cx),cy:Math.round(s.cy),w:Math.round(s.w),h:Math.round(s.h)});
+          // Pad the note rect slightly: the drawn frame often sits just outside it.
+          var pad=Math.max(6, Math.min(ft.x1-ft.x0, ft.y1-ft.y0)*0.25);
+          var o=_ov(sx0,sy0,sx1,sy1, ft.x0-pad,ft.y0-pad,ft.x1+pad,ft.y1+pad);
+          // Kill it if the two boxes largely coincide (IoU) OR the extracted rect is
+          // mostly swallowed by the note's box (its own inner/outer border).
+          if(o.iou>=0.5 || o.containA>=0.8){
+            dbg('freetext','suppressed duplicate border rect',{cx:Math.round(s.cx),cy:Math.round(s.cy),w:Math.round(s.w),h:Math.round(s.h),iou:o.iou.toFixed(2),cont:o.containA.toFixed(2)});
             shapeObjs.splice(si,1);
             break;
           }
@@ -4358,11 +4684,378 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n){
 // reads the original glyph pixels (after white-out they'd be gone).
 var _baseSnap=null;
 var _pageAnnots=[];   // pdf.js annotations for the current page (FreeText notes etc.)
+var _explodeBakedHls=[];  // content-stream highlighter fills pulled out this pass
 function _baseSampleCtx(){ return _baseSnap || bCtx; }
 
 // Decode vector paths from the operator list into editable objects.
 // Returns the number of objects created. Also paints white over each extracted
 // stroke on the backdrop so the artwork isn't duplicated.
+// ══════════════════════════════════════════════════════════════════════
+// MARKUP PASS — highlights + ink annotations, independent of the vector pass.
+// ----------------------------------------------------------------------
+// This MUST run even on "dense" drawings. _extractVectors is skipped when a page
+// has >1500 path ops (a detailed survey is kept as a faithful backdrop rather
+// than exploded into thousands of objects) — and the highlight/ink import used to
+// live inside it, so on exactly those pages NOTHING was imported. The marks
+// rendered from the backdrop for a frame and then the backdrop strip removed
+// them: the "appears, then vanishes" bug.
+//
+// Highlights and ink annots are a handful of objects even on a dense page, so
+// they are always worth extracting.
+// opList     = the ANNOTATED operator list (needed for ink /CA alphas AND for the
+//              appended annotation appearance ops).
+// pageOpCount = number of ops belonging to the PAGE itself; annotation ops start
+//              at that index. Lets us walk only the annotation tail.
+function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
+  var OPS=pdfjsLib.OPS;
+  var opListAnn = opList;
+  var U=pdfjsLib.Util;
+  var made=0;
+
+  // A saturated, bright, non-gray fill (yellow, green, cyan, orange…) is a
+  // highlighter tint — never structural linework (black/gray), never a
+  // background mask (white).
+  function _isHiliteFill(c){
+    if(!c) return false;
+    var conv=function(v){ if(v<=1.0001) v=v*255; return Math.max(0,Math.min(255,Math.round(v))); };
+    var r=conv(c[0]), g=conv(c[1]), b=conv(c[2]);
+    var mx=Math.max(r,g,b), mn=Math.min(r,g,b);
+    if(mx<110) return false;
+    if(mx-mn<60) return false;
+    return {r:r,g:g,b:b};
+  }
+  function _hex(c){ return '#'+[c.r,c.g,c.b].map(function(v){ return ('0'+v.toString(16)).slice(-2); }).join(''); }
+  function _mul(a,b){ return [a[0]*b[0]+a[2]*b[1], a[1]*b[0]+a[3]*b[1],
+                              a[0]*b[2]+a[2]*b[3], a[1]*b[2]+a[3]*b[3],
+                              a[0]*b[4]+a[2]*b[5]+a[4], a[1]*b[4]+a[3]*b[5]+a[5]]; }
+  function _ap(m,x,y){ return {x:m[0]*x+m[2]*y+m[4], y:m[1]*x+m[3]*y+m[5]}; }
+
+  // ── 1. Baked highlighter fills in the page content stream ──────────────
+  // One `fill` op can hold dozens of subpaths (a flattened highlighter is drawn
+  // as the union of letter/blob outlines — 29 and 42 subpaths on some surveys).
+  // They must merge into ONE object, so every subpath of a fill shares a group.
+  var bakedHls=[];
+  try{
+    var m=vp.transform.slice(), stack=[], fillC=null;
+    for(var i=0;i<opList.fnArray.length;i++){
+      var fn=opList.fnArray[i], a=opList.argsArray[i];
+      if(fn===OPS.save){ stack.push(m.slice()); }
+      else if(fn===OPS.restore){ if(stack.length) m=stack.pop(); }
+      else if(fn===OPS.transform){ m=_mul(m,a); }
+      else if(fn===OPS.setFillRGBColor){ fillC=a; }
+      else if(fn===OPS.constructPath){
+        var tint=_isHiliteFill(fillC);
+        if(!tint) continue;
+        // Only keep it if this path is actually FILLED (next fill/eoFill op).
+        var willFill=false;
+        for(var j=i+1;j<Math.min(i+6,opList.fnArray.length);j++){
+          if(opList.fnArray[j]===OPS.fill||opList.fnArray[j]===OPS.eoFill){ willFill=true; break; }
+          if(opList.fnArray[j]===OPS.stroke||opList.fnArray[j]===OPS.constructPath) break;
+        }
+        if(!willFill) continue;
+
+        var ops=a[0], co=a[1], k=0, rings=[], cur=null;
+        for(var oi=0;oi<ops.length;oi++){
+          var op=ops[oi];
+          if(op===13){ if(cur&&cur.length>1) rings.push(cur); cur=[_ap(m,co[k],co[k+1])]; k+=2; }
+          else if(op===14){ if(!cur) cur=[]; cur.push(_ap(m,co[k],co[k+1])); k+=2; }
+          else if(op===15){ if(cur){ cur.push(_ap(m,co[k],co[k+1])); cur.push(_ap(m,co[k+2],co[k+3])); cur.push(_ap(m,co[k+4],co[k+5])); } k+=6; }
+          else if(op===16||op===17){ if(cur){ cur.push(_ap(m,co[k],co[k+1])); cur.push(_ap(m,co[k+2],co[k+3])); } k+=4; }
+          else if(op===19){
+            var rx=co[k], ry=co[k+1], rw=co[k+2], rh=co[k+3]; k+=4;
+            rings.push([_ap(m,rx,ry),_ap(m,rx+rw,ry),_ap(m,rx+rw,ry+rh),_ap(m,rx,ry+rh)]);
+          }
+        }
+        if(cur&&cur.length>1) rings.push(cur);
+        if(rings.length) bakedHls.push({rings:rings, color:_hex(tint)});
+      }
+    }
+  }catch(e){ console.warn('[Markup] hilite fill scan:',e); }
+
+  bakedHls.forEach(function(grp){
+    var allX=[], allY=[];
+    grp.rings.forEach(function(r){ r.forEach(function(p){ allX.push(p.x); allY.push(p.y); }); });
+    if(!allX.length) return;
+    var x0=Math.min.apply(null,allX), x1=Math.max.apply(null,allX);
+    var y0=Math.min.apply(null,allY), y1=Math.max.apply(null,allY);
+    if((x1-x0)<3 && (y1-y0)<3) return;              // stray speck
+    var cx=(x0+x1)/2, cy=(y0+y1)/2;
+    markupObjs.push(_markupInit({
+      id:Date.now()+(made++), type:'highlight',
+      // Rings stored CENTER-RELATIVE so translate/rotate carries them.
+      poly:grp.rings.map(function(r){
+        return r.map(function(p){ return {x:p.x-cx, y:p.y-cy}; });
+      }),
+      x1:x0, y1:y0, x2:x1, y2:y1,
+      color:grp.color, opacity:1,                    // tint carries its own color
+      layerIdx:activeLayerIdx, _fromExplode:true, _bakedHl:true,
+      // Origin snapshot so the export can tell whether the user moved/resized it.
+      // The original tint still exists in the pristine PDF the vector export
+      // stamps onto, so a moved highlight must force the flattened path or the
+      // old one is left behind next to the new one.
+      _oCx:cx, _oCy:cy, _oW:(x1-x0), _oH:(y1-y0)
+    }));
+  });
+
+  // Remove the baked copies so the tint isn't doubled (darker) and IS erasable.
+  if(bakedHls.length){
+    _explodeBakedHls = bakedHls.map(function(g){ return {rings:g.rings}; });
+    _stripBakedHls(vp, w, h);
+    try{
+      var _bs=document.createElement('canvas'); _bs.width=w; _bs.height=h;
+      var _bsx2=_bs.getContext('2d',{willReadFrequently:true});
+      _bsx2.drawImage(baseCv,0,0);
+      _baseSnap=_bsx2;
+    }catch(e){}
+  }
+
+  // ── 2. Ink annotations → editable PEN objects ──────────────────────────
+  // Geometry from `inkLists` (true PDF-space points); width from
+  // borderStyle.width. pdf.js 3.x exposes neither `opacity` nor `it`, so real
+  // /CA alpha is harvested from the appearance streams' setGState ops.
+  try{
+    var INKN=(pdfjsLib.AnnotationType&&pdfjsLib.AnnotationType.INK)||15;
+    var alphas=[];
+    for(var oi2=0;oi2<opList.fnArray.length;oi2++){
+      if(opList.fnArray[oi2]!==OPS.setGState) continue;
+      var ga=opList.argsArray[oi2][0]||[];
+      for(var gi=0;gi<ga.length;gi++){ if(ga[gi][0]==='ca'){ alphas.push(ga[gi][1]); break; } }
+    }
+    var seen=0;
+    (annots||[]).forEach(function(an){
+      var sub=an.subtype||'';
+      if(sub!=='Ink' && an.annotationType!==INKN) return;
+      var idx=seen++;
+      var alpha=(alphas[idx]!=null)?alphas[idx]:1;
+      if(alpha<=0.02) return;      // CA:0 → invisible in the PDF; keep it invisible.
+
+      var bw=(an.borderStyle&&an.borderStyle.width)||0;
+      var isHl=(an.it==='InkHighlight') || bw>=6;
+      var col='#000000';
+      try{
+        var c=an.color||[0,0,0];
+        col='#'+[c[0],c[1],c[2]].map(function(v){ return ('0'+Math.max(0,Math.min(255,v|0)).toString(16)).slice(-2); }).join('');
+      }catch(e){}
+
+      (an.inkLists||[]).forEach(function(path){
+        var pts=[];
+        for(var i=0;i<path.length;i++){
+          var pt=path[i], px0, py0;
+          if(pt && typeof pt==='object'){ px0=pt.x; py0=pt.y; }
+          else { px0=path[i]; py0=path[++i]; }
+          var cp=U.applyTransform([px0,py0],vp.transform);
+          pts.push({x:cp[0], y:cp[1]});
+        }
+        if(!pts.length) return;
+        penObjs.push({
+          id:Date.now()+(made++), pts:pts,
+          color:col, strokeW:Math.max(2, bw*sc),
+          opacity:alpha, lineStyle:'solid',
+          layerIdx:activeLayerIdx, _fromExplode:true, _inkHl:isHl,
+          // Origin snapshot (first point) — the ink annot still lives in the
+          // pristine PDF, so a moved stroke must force the flattened export.
+          _oX:pts[0].x, _oY:pts[0].y
+        });
+      });
+    });
+  }catch(e){ console.warn('[Markup] ink annot import:',e); }
+
+  // ── 3. Shape annotations → editable objects ────────────────────────────
+  // Line / Square / Circle / Polygon annots (leader arrows, the MTR & ATS
+  // callout boxes, location markers). The backdrop renders with annotationMode
+  // DISABLE, so these are NOT drawn there — without recreating them here they
+  // simply vanish from the page.
+  //
+  // Geometry comes from the OPERATOR LIST, not the annotation dict. pdf.js sets
+  // `lineCoordinates = Util.normalizeRect(/L)`, which sorts x and y INDEPENDENTLY
+  // ascending — that destroys the endpoint pairing (for one leader on this survey
+  // the reported points aren't even on the original line), while `lineEndings`
+  // still indexes the raw /L order. The raw array isn't reachable either: these
+  // annots live in compressed object streams.
+  //
+  // But pdf.js APPENDS each annotation's appearance ops after the page ops,
+  // wrapped in beginAnnotation/endAnnotation, with every path already in page
+  // space. Walking that tail gives exact geometry with no reconstruction.
+  // A Line annot arrives as 2 subpaths: the shaft (2 pts) and the arrowhead
+  // (3 pts) — so the head is simply the shaft endpoint nearest the head subpath.
+  try{
+    var _mulA=function(a,b){ return [a[0]*b[0]+a[2]*b[1], a[1]*b[0]+a[3]*b[1],
+                                     a[0]*b[2]+a[2]*b[3], a[1]*b[2]+a[3]*b[3],
+                                     a[0]*b[4]+a[2]*b[5]+a[4], a[1]*b[4]+a[3]*b[5]+a[5]]; };
+    var _apA=function(m,x,y){ return {x:m[0]*x+m[2]*y+m[4], y:m[1]*x+m[3]*y+m[5]}; };
+    // Colors arrive as array-like {0:r,1:g,2:b}. Op-list values are 0-255 ints;
+    // annotation-dict values are 0-1 floats. Handle both.
+    var _annC=function(c,dflt){
+      if(c==null) return dflt;
+      try{
+        var r=c[0], g=c[1], b=c[2];
+        if(r==null||g==null||b==null) return dflt;
+        if(r<=1.0001 && g<=1.0001 && b<=1.0001){ r*=255; g*=255; b*=255; }
+        return '#'+[r,g,b].map(function(v){
+          return ('0'+Math.max(0,Math.min(255,Math.round(v))).toString(16)).slice(-2);
+        }).join('');
+      }catch(e){ return dflt; }
+    };
+    // Annotation ops are appended after the page ops; opListPage tells us where.
+    var _start = (pageOpCount!=null) ? pageOpCount : 0;
+    var m2=vp.transform.slice(), stk=[], inAnn=false;
+    var curSubs=[], curStroke='#000000', curFill=null, curLW=1, curAnn=null, curDash=false;
+
+    var _flushAnnot=function(){
+      if(!curSubs.length){ return; }
+      // Arrow ONLY when the annotation itself declares a non-"None" line ending.
+      // The old shape heuristic (2 subpaths, one with 3 pts) misfired on 3-vertex
+      // PolyLines, inventing arrowheads that don't exist in the PDF.
+      var _le=(curAnn && curAnn.lineEndings) || null;
+      var _hasEnding = !!(_le && ((_le[0]&&_le[0]!=='None') || (_le[1]&&_le[1]!=='None')));
+      var _isLine = !!(curAnn && curAnn.subtype==='Line');
+      var shaft=null, head=null;
+      if(_isLine && _hasEnding && curSubs.length===2){
+        var a0=curSubs[0], a1=curSubs[1];
+        if(a0.pts.length===2 && a1.pts.length>=3){ shaft=a0; head=a1; }
+        else if(a1.pts.length===2 && a0.pts.length>=3){ shaft=a1; head=a0; }
+      }
+      if(shaft && head){
+        var hx=0, hy=0;
+        head.pts.forEach(function(p){ hx+=p.x; hy+=p.y; });
+        hx/=head.pts.length; hy/=head.pts.length;
+        var s0=shaft.pts[0], s1=shaft.pts[1];
+        var d0=Math.hypot(s0.x-hx,s0.y-hy), d1=Math.hypot(s1.x-hx,s1.y-hy);
+        // App draws the head at (x2,y2): put the shaft end nearest the head there.
+        var p1=(d0<d1)?s1:s0, p2=(d0<d1)?s0:s1;
+        measureObjs.push({
+          id:Date.now()+(made++), x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y,
+          color:shaft.stroke||'#000000', strokeW:Math.max(1,shaft.lw), opacity:1,
+          lineStyle:(shaft.dash?'dashed':'solid'), layerIdx:activeLayerIdx,
+          showLabel:false, isArrow:true, _editing:false, _fromExplode:true,
+          _oX1:p1.x,_oY1:p1.y,_oX2:p2.x,_oY2:p2.y
+        });
+        curSubs=[]; return;
+      }
+      // Plain 2-point Line annots (no arrowhead) → straight line objects.
+      if(_isLine && !_hasEnding && curSubs.length===1 && curSubs[0].pts.length===2){
+        var _lp=curSubs[0];
+        measureObjs.push({
+          id:Date.now()+(made++),
+          x1:_lp.pts[0].x, y1:_lp.pts[0].y, x2:_lp.pts[1].x, y2:_lp.pts[1].y,
+          color:_lp.stroke||'#000000', strokeW:Math.max(1,_lp.lw), opacity:1,
+          lineStyle:(_lp.dash?'dashed':'solid'), layerIdx:activeLayerIdx,
+          showLabel:false, isArrow:false, _editing:false, _fromExplode:true,
+          _oX1:_lp.pts[0].x,_oY1:_lp.pts[0].y,_oX2:_lp.pts[1].x,_oY2:_lp.pts[1].y
+        });
+        curSubs=[]; return;
+      }
+      // Everything else becomes a POLYLINE, not a pen stroke.
+      //
+      // drawPenOnCtx smooths its points with quadraticCurveTo — a freehand
+      // smoother meant for hand-drawn strokes sampled at many close points. Feed
+      // it a 3-vertex right-angle conduit run and every corner is rounded into a
+      // curve, turning square runs into drooping cables. drawPolylineOnCtx joins
+      // the same points with lineTo, preserving exact corners, and polylines are
+      // equally selectable/movable/erasable.
+      //
+      // Preserve the source dash pattern too: these conduits are stroked with a
+      // dash array in the PDF, and hardcoding 'solid' redrew them as solid lines.
+      curSubs.forEach(function(sp){
+        if(sp.pts.length<2) return;
+        // Stroked paths use the STROKE color; only a genuinely filled path uses
+        // the fill color.
+        var useFill=(sp.painted==='fill');
+        polylineObjs.push({
+          id:Date.now()+(made++), pts:sp.pts,
+          color:(useFill?(sp.fill||sp.stroke):(sp.stroke||sp.fill))||'#000000',
+          strokeW:Math.max(1.5, sp.lw), opacity:1,
+          lineStyle:(sp.dash?'dashed':'solid'),
+          layerIdx:activeLayerIdx, _fromExplode:true,
+          _oX:sp.pts[0].x, _oY:sp.pts[0].y
+        });
+      });
+      curSubs=[];
+    };
+
+    for(var ai=_start; ai<opListAnn.fnArray.length; ai++){
+      var fnA=opListAnn.fnArray[ai], agA=opListAnn.argsArray[ai];
+      if(fnA===OPS.beginAnnotation){
+        // args: [id, rect, transform, matrix, isUsingOwnCanvas]. The path coords
+        // that follow are ALREADY in page space (they fall inside `rect`), so the
+        // CTM must be reset to the plain viewport transform. Multiplying in
+        // args[2] double-counted the annotation's offset and threw every line
+        // hundreds of px off — many landed outside the canvas entirely and simply
+        // never appeared.
+        inAnn=true; curSubs=[]; stk.push(m2.slice());
+        m2=vp.transform.slice();
+        curStroke='#000000'; curFill=null; curLW=1; curDash=false;
+        // Match this appearance block to its annotation by rect, so we can trust
+        // the dict's subtype/lineEndings instead of guessing from subpath shapes
+        // (a 3-vertex PolyLine looks exactly like a shaft+arrowhead pair).
+        curAnn=null;
+        try{
+          var _ar=agA && agA[1];
+          if(_ar){
+            for(var _qi=0;_qi<(annots||[]).length;_qi++){
+              var _q=annots[_qi], _qr=_q.rect;
+              if(!_qr) continue;
+              if(Math.abs(_qr[0]-_ar[0])<0.5 && Math.abs(_qr[1]-_ar[1])<0.5 &&
+                 Math.abs(_qr[2]-_ar[2])<0.5 && Math.abs(_qr[3]-_ar[3])<0.5){ curAnn=_q; break; }
+            }
+          }
+        }catch(e){}
+        // Dash comes from the annotation's declared border STYLE, not from a
+        // dashArray's presence: nearly every annot here carries dashArray [3]
+        // while style=1 (Solid). Only style=2 (Dashed) is actually dashed —
+        // reading the array alone rendered the solid conduit runs as dotted.
+        curDash=false;
+        try{
+          var _bs=curAnn && curAnn.borderStyle;
+          if(_bs && _bs.style===2 && _bs.dashArray && _bs.dashArray.length) curDash=true;
+        }catch(e){}
+        continue;
+      }
+      if(fnA===OPS.endAnnotation){ _flushAnnot(); inAnn=false; if(stk.length) m2=stk.pop(); continue; }
+      if(!inAnn) continue;
+      if(fnA===OPS.save){ stk.push(m2.slice()); }
+      else if(fnA===OPS.restore){ if(stk.length) m2=stk.pop(); }
+      else if(fnA===OPS.transform){ m2=_mulA(m2,agA); }
+      else if(fnA===OPS.setStrokeRGBColor){ curStroke=_annC(agA,'#000000'); }
+      else if(fnA===OPS.setFillRGBColor){ curFill=_annC(agA,null); }
+      else if(fnA===OPS.setLineWidth){ curLW=Math.max(1,(agA||1)*sc*0.5); }
+      // Record HOW the pending path is painted. These annots emit `stroke`, while
+      // setFillRGBColor often carries a stale color that is never used — taking
+      // fill-before-stroke tinted black leader lines magenta.
+      else if(fnA===OPS.stroke || fnA===OPS.closeStroke){
+        if(curSubs.length) curSubs[curSubs.length-1].painted='stroke';
+      }
+      else if(fnA===OPS.fill || fnA===OPS.eoFill){
+        if(curSubs.length) curSubs[curSubs.length-1].painted='fill';
+      }
+      else if(fnA===OPS.fillStroke || fnA===OPS.eoFillStroke){
+        if(curSubs.length) curSubs[curSubs.length-1].painted='fillstroke';
+      }
+      else if(fnA===OPS.constructPath){
+        var ops=agA[0], co=agA[1], k=0, pts=[];
+        for(var oi3=0;oi3<ops.length;oi3++){
+          var op=ops[oi3];
+          if(op===13||op===14){ pts.push(_apA(m2,co[k],co[k+1])); k+=2; }
+          else if(op===15){ pts.push(_apA(m2,co[k],co[k+1])); pts.push(_apA(m2,co[k+2],co[k+3])); pts.push(_apA(m2,co[k+4],co[k+5])); k+=6; }
+          else if(op===16||op===17){ pts.push(_apA(m2,co[k],co[k+1])); pts.push(_apA(m2,co[k+2],co[k+3])); k+=4; }
+          else if(op===19){
+            var rx=co[k], ry=co[k+1], rw2=co[k+2], rh2=co[k+3]; k+=4;
+            pts.push(_apA(m2,rx,ry)); pts.push(_apA(m2,rx+rw2,ry));
+            pts.push(_apA(m2,rx+rw2,ry+rh2)); pts.push(_apA(m2,rx,ry+rh2));
+            pts.push(_apA(m2,rx,ry));
+          }
+        }
+        if(pts.length>=2) curSubs.push({pts:pts, stroke:curStroke, fill:curFill, lw:curLW, dash:curDash});
+      }
+    }
+  }catch(e){ console.warn('[Markup] shape annot import:',e); }
+
+  _explodedMarkupCount=markupObjs.filter(function(o){return o._fromExplode;}).length;
+  _explodedPenCount   =penObjs.filter(function(o){return o._fromExplode;}).length;
+  dbg('import','markup pass', {highlights:_explodedMarkupCount, penStrokes:_explodedPenCount});
+  return made;
+}
+
 function _extractVectors(opList, vp, sc, w, h){
   var OPS=pdfjsLib.OPS;
   var fns=opList.fnArray, args=opList.argsArray;
@@ -4379,6 +5072,24 @@ function _extractVectors(opList, vp, sc, w, h){
   var strokeColor=[0,0,0], fillColorV=[0,0,0], lineW=1, dashOn=false, pendingPaths=[];
   // Collected raw subpaths in device space: {pts:[...], closed, isRect, nCurves}
   var collected=[];
+  // Bumped once per fill op so every subpath of that fill shares a group id.
+  // MUST be declared before the operator loop below: `var` hoists but the
+  // initializer ran after the loop, resetting it to 0 and making each `++`
+  // evaluate `undefined++` -> NaN. Every highlight then collapsed into one
+  // group keyed "NaN", so they rendered once and were replaced.
+  // A saturated, bright, non-gray fill (yellow, green, cyan, orange…) is a
+  // highlighter tint — never structural linework (black/gray) and never a
+  // background mask (white). Defined before the operator loop that calls it.
+  function _isHiliteFill(hex){
+    if(!hex) return false;
+    var m=/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+    if(!m) return false;
+    var r=parseInt(m[1],16), g=parseInt(m[2],16), b=parseInt(m[3],16);
+    var mx=Math.max(r,g,b), mn=Math.min(r,g,b);
+    if(mx<110) return false;              // too dark → ink/linework, not a tint
+    if(mx-mn < 60) return false;          // near-gray (incl. white/black) → not a tint
+    return true;                           // bright + saturated → highlighter
+  }
 
   for(var i=0;i<fns.length;i++){
     var fn=fns[i], a=args[i];
@@ -4388,7 +5099,15 @@ function _extractVectors(opList, vp, sc, w, h){
     else if(fn===OPS.setStrokeRGBColor){ strokeColor=[a[0],a[1],a[2]]; }
     else if(fn===OPS.setFillRGBColor){ fillColorV=[a[0],a[1],a[2]]; }
     else if(fn===OPS.setLineWidth){ lineW=a[0]; }
-    else if(fn===OPS.setDash){ dashOn = !!(a[0] && a[0].length); }
+    else if(fn===OPS.setDash){
+      // A bare single-value array like [3] is the artifact dash that nearly every
+      // path in these diagrams carries while actually rendering SOLID (same issue
+      // the annotation extractor guards against via borderStyle.style). Trusting
+      // its mere presence imported solid conduit/arrow runs as dotted. Honor only
+      // a genuine multi-value pattern with a meaningful gap.
+      var _da=a[0];
+      dashOn = !!(_da && _da.length>=2 && Math.max.apply(null,_da)>=4);
+    }
     else if(fn===OPS.constructPath){
       // a = [opcodes[], coords[], minMax?]
       var ops2=a[0], co=a[1], k=0, subs=[], curPts=null, curveCount=0;
@@ -4432,6 +5151,13 @@ function _extractVectors(opList, vp, sc, w, h){
       // dropped). Still skip tiny rect/line fills (e.g. white pipe masks) so they
       // stay baked in the backdrop and don't litter the scene with specks.
       pendingPaths.forEach(function(s){
+        // Highlighter tint painted into the page content → keep the path's real
+        // shape, mark it as a highlight so it renders translucent and is never
+        // whited out. Both blobs AND boxes qualify: it's the color that decides.
+        // Highlighter tints are owned by _extractMarkups (which runs on every
+        // page, dense or not) — skip them here so they're never turned into an
+        // opaque bounding ellipse, and never whited out of the backdrop.
+        if(_isHiliteFill(s.fillColor)) return;
         if(s.nCurves>=3){ s.filled=true; s.fillOnly=true; collected.push(s); return; }
         if(s.isRect){
           var xs=s.pts.map(function(p){return p.x;}), ys=s.pts.map(function(p){return p.y;});
@@ -4506,6 +5232,38 @@ function _extractVectors(opList, vp, sc, w, h){
   });
 
   var count=0;
+  // ── Highlight annotations → real highlight markups, not opaque shapes ──
+  // A PDF Highlight annotation's appearance is a plain colored fill-rect, so it
+  // used to be collected like any other filled box and emitted as an OPAQUE rect
+  // shape — and the whiteout below then wiped its footprint on the backdrop,
+  // ERASING THE TEXT UNDERNEATH. Net effect: a solid colored slab you couldn't
+  // read through. Map each Highlight annot's rect to canvas space; any collected
+  // fill-rect that lands inside one is re-emitted as a translucent highlight
+  // MARKUP object instead, and its backdrop whiteout is skipped so the page text
+  // under it survives.
+  var _hlRects=[];
+  try{
+    var _HLN=(pdfjsLib.AnnotationType&&pdfjsLib.AnnotationType.HIGHLIGHT)||9;
+    var _UH=pdfjsLib.Util;
+    (_pageAnnots||[]).forEach(function(an){
+      var sub=an.subtype||'';
+      if(sub!=='Highlight' && an.annotationType!==_HLN) return;
+      var r=an.rect||[0,0,0,0];
+      var c1=_UH.applyTransform([r[0],r[1]],vp.transform);
+      var c2=_UH.applyTransform([r[2],r[3]],vp.transform);
+      _hlRects.push({x0:Math.min(c1[0],c2[0]),y0:Math.min(c1[1],c2[1]),
+                     x1:Math.max(c1[0],c2[0]),y1:Math.max(c1[1],c2[1])});
+    });
+  }catch(exh){ console.warn('[Explode] highlight annot map:',exh); }
+  function _inHlAnnot(x0,y0,x1,y1){
+    var cx=(x0+x1)/2, cy=(y0+y1)/2;
+    for(var i=0;i<_hlRects.length;i++){
+      var h=_hlRects[i];
+      if(cx>=h.x0-2&&cx<=h.x1+2&&cy>=h.y0-2&&cy<=h.y1+2&&
+         (x1-x0)<=(h.x1-h.x0)+6&&(y1-y0)<=(h.y1-h.y0)+6) return true;
+    }
+    return false;
+  }
   // Emit rectangles as editable shapes.
   rects.forEach(function(r){
     var xs=r.pts.map(function(p){return p.x;}), ys=r.pts.map(function(p){return p.y;});
@@ -4513,6 +5271,20 @@ function _extractVectors(opList, vp, sc, w, h){
     var y0=Math.min.apply(null,ys), y1=Math.max.apply(null,ys);
     var rw=x1-x0, rh=y1-y0;
     if(rw<3||rh<3) return;
+    // Fill-rect that belongs to a Highlight annotation → translucent markup.
+    // Low opacity (the baked tint is still on the backdrop underneath, so this
+    // only needs to be strong enough to select/move/recolor, not to re-paint).
+    if(r.filled && _inHlAnnot(x0,y0,x1,y1)){
+      r._isHl=true;
+      markupObjs.push(_markupInit({
+        id:Date.now()+count, type:'highlight',
+        x1:x0, y1:y0, x2:x1, y2:y1,
+        color:(r.fillColor||'#ffff00'), opacity:0.3,
+        layerIdx:activeLayerIdx, _fromExplode:true
+      }));
+      count++;
+      return;
+    }
     var isFilled=!!r.filled;
     // A fill-only rect has no real outline — don't invent a stroke (which was
     // showing up as a stray colored border around gray boxes). Give it a hairline
@@ -4588,6 +5360,9 @@ function _extractVectors(opList, vp, sc, w, h){
     bCtx.beginPath(); bCtx.moveTo(ax-ex,ay-ey); bCtx.lineTo(bx+ex,by+ey); bCtx.stroke();
   }
   rects.forEach(function(r){
+    // Highlight-annotation rects keep their backdrop pixels — wiping the
+    // footprint white is exactly what deleted the text under the highlight.
+    if(r._isHl) return;
     if(r.filled){
       // Filled rect: wipe the whole footprint (plus a small outward margin for
       // the AA fringe) so the baked gray doesn't peek out around the new shape.
@@ -4632,6 +5407,11 @@ function _extractVectors(opList, vp, sc, w, h){
   segs.forEach(function(s){ wipe(s.a.x,s.a.y,s.b.x,s.b.y,Math.max(2,s.lineW)); });
   bCtx.restore();
 
+  // (Ink/highlight objects are created by _extractMarkups now, and counted there —
+  // `_explInkPens` no longer exists in this scope. Referencing it threw
+  // ReferenceError AFTER every whiteout above had already run, so the extracted
+  // linework was erased from the backdrop but never emitted as objects: the page
+  // came up with blank white regions.)
   return count;
 }
 
@@ -4752,6 +5532,65 @@ function _finishExplode(n, w, h, sc, flattened, imgCount, txtCount, vecCount){
   renderImgOverlays();
   renderTextObjs();
   if(typeof renderShapeAndMeasure==='function') renderShapeAndMeasure();
+  // ── FINAL FRAME DEDUP ──────────────────────────────────────────────────────
+  // A note imported from a FreeText annotation already draws its own border, but
+  // the box around that text in the source PDF often arrives SEPARATELY — as a
+  // Square annotation (extracted into polylineObjs) and/or a vector rect
+  // (shapeObjs). Those leftover frames are what stay behind when a note is moved
+  // ("double boxes"). Remove any rect/ellipse/closed-rect-polyline that is a TIGHT
+  // frame around a note. A generous ENCLOSURE (e.g. a cabinet outline that merely
+  // contains a label) is kept: it's excluded by the size cap below. No whiteout —
+  // these are free-floating objects, not baked backdrop pixels.
+  if(!flattened && typeof commentObjs!=='undefined' && commentObjs.length){
+    try{
+      var _notes=commentObjs.filter(function(c){ return c && c._fromFreeText; });
+      var _isFrameOf=function(bx0,by0,bx1,by1){
+        for(var ni=0;ni<_notes.length;ni++){
+          var nt=_notes[ni];
+          var nx0=nt.cx-nt.w/2, ny0=nt.cy-nt.h/2, nx1=nt.cx+nt.w/2, ny1=nt.cy+nt.h/2;
+          var ix0=Math.max(bx0,nx0), iy0=Math.max(by0,ny0);
+          var ix1=Math.min(bx1,nx1), iy1=Math.min(by1,ny1);
+          var iw=ix1-ix0, ih=iy1-iy0; if(iw<=0||ih<=0) continue;
+          var inter=iw*ih;
+          var aB=Math.max(1,(bx1-bx0)*(by1-by0));
+          var aN=Math.max(1,(nx1-nx0)*(ny1-ny0));
+          var iou=inter/(aB+aN-inter);
+          var noteInBox=inter/aN;
+          // Tight frame: high overlap, OR the note is essentially inside the box and
+          // the box is not dramatically larger (≤2.2× keeps cabinets/enclosures).
+          if(iou>=0.45 || (noteInBox>=0.85 && aB<=aN*2.2)) return true;
+        }
+        return false;
+      };
+      // Shapes: rect / ellipse extracted from the page or annotations.
+      if(typeof shapeObjs!=='undefined'){
+        for(var si=shapeObjs.length-1; si>=0; si--){
+          var s=shapeObjs[si];
+          if(!s._fromExplode || (s.type!=='rect' && s.type!=='ellipse')) continue;
+          if(_isFrameOf(s.cx-s.w/2, s.cy-s.h/2, s.cx+s.w/2, s.cy+s.h/2)){
+            shapeObjs.splice(si,1);
+          }
+        }
+      }
+      // Polylines: Square-annotation borders come through here. Only treat a SHORT
+      // closed-ish path (≤6 pts) as a candidate frame so real conduit runs, which
+      // share a bounding box with a nearby note purely by chance, are never removed.
+      if(typeof polylineObjs!=='undefined'){
+        for(var pi=polylineObjs.length-1; pi>=0; pi--){
+          var pl=polylineObjs[pi];
+          if(!pl._fromExplode || !pl.pts || pl.pts.length<4 || pl.pts.length>6) continue;
+          var xs=pl.pts.map(function(p){return p.x;}), ys=pl.pts.map(function(p){return p.y;});
+          var bx0=Math.min.apply(null,xs), bx1=Math.max.apply(null,xs);
+          var by0=Math.min.apply(null,ys), by1=Math.max.apply(null,ys);
+          // Rectangle-like: bbox area close to the path's implied area.
+          if(_isFrameOf(bx0,by0,bx1,by1)){
+            polylineObjs.splice(pi,1);
+          }
+        }
+      }
+      if(typeof renderShapeAndMeasure==='function') renderShapeAndMeasure();
+    }catch(e){ console.warn('[Explode] frame dedup:',e); }
+  }
   composite();
   if(flattened){
     toast('PDF opened (flattened — could not explode this page)','warn',4000);
@@ -4774,6 +5613,7 @@ function renderPDFPage(n){
     var targetDpi = IS_IPHONE ? 150 : IS_IPAD ? 200 : 400;
     var dpiScale  = targetDpi / 72;
     var sc = Math.min(dpiScale, IOS_MAX_PX / Math.max(vp1.width, vp1.height));
+    sc = _clampScaleToArea(sc, vp1.width, vp1.height);   // keep under the canvas area cap
     var vp=page.getViewport({scale:sc});
     var w=Math.round(vp.width),h=Math.round(vp.height);
     resize(w,h);
@@ -4971,7 +5811,7 @@ var layerTmps=layers.map(function(l){
     m.angle=(m.angle||0)+dRad;
     _markupSyncAABB(m);
   }); }catch(ex){ console.warn('[Rotate] markupObjs transform failed:',ex); }
-  if(typeof renderMarkupObjs==='function') renderMarkupObjs();
+  if(typeof renderShapeAndMeasure==='function') renderShapeAndMeasure();
 
   // Leaders: rotate both endpoints AND the shoulder direction vector so the
   // elbow shoulder turns with the page (it's no longer hardcoded horizontal).
@@ -5503,7 +6343,22 @@ function onDown(e){
     }
   }
   if(tool==='highlight'||tool==='strikeout'||tool==='underlinemark'){
-    e.preventDefault(); drawing=true;
+    e.preventDefault();
+    // Grab an existing highlight to MOVE it: rect markups first, then imported
+    // freehand highlighter strokes (pens tagged _inkHl by the PDF import).
+    var _gp=getPos(e);
+    var _gm=findMarkupObjAt(_gp.x,_gp.y);
+    var _gpen=null;
+    if(!_gm){
+      var _ph=findPenObjAt(_gp.x,_gp.y,_isTouchEvt);
+      if(_ph && _ph._inkHl) _gpen=_ph;
+    }
+    if(_gm||_gpen){
+      captureState(false);   // vector op — undo snapshot before the move
+      _mkDrag={obj:(_gm||_gpen), kind:(_gm?'markup':'pen'), lx:_gp.x, ly:_gp.y, moved:false};
+      return;
+    }
+    drawing=true;
     var p=snapPt(getPos(e).x,getPos(e).y); startX=p.x; startY=p.y;
     compositedSnap=dCtx.getImageData(0,0,drawCv.width,drawCv.height);
     return;
@@ -5720,6 +6575,25 @@ function onDown(e){
 }
 
 function onMove(e){
+  // ── Dragging an existing highlight (markup rect / imported ink pen) ──
+  if(_mkDrag){
+    if(e.cancelable) e.preventDefault();
+    var _mmp=getPos(e);
+    var _mdx=_mmp.x-_mkDrag.lx, _mdy=_mmp.y-_mkDrag.ly;
+    _mkDrag.lx=_mmp.x; _mkDrag.ly=_mmp.y;
+    if(_mdx||_mdy){
+      _mkDrag.moved=true;
+      var _mo=_mkDrag.obj;
+      if(_mkDrag.kind==='markup'){
+        _mo.x1+=_mdx; _mo.y1+=_mdy; _mo.x2+=_mdx; _mo.y2+=_mdy;
+        if(_mo.cx!=null){ _mo.cx+=_mdx; _mo.cy+=_mdy; }
+      } else {
+        _mo.pts.forEach(function(pt){ pt.x+=_mdx; pt.y+=_mdy; });
+      }
+      renderShapeAndMeasure();
+    }
+    return;
+  }
   // ── Dragging the selected polyline (whole shape or one vertex) ──
   if(plDrag && selectedPolyline){
     if(e.cancelable) e.preventDefault();
@@ -5938,7 +6812,7 @@ function onMove(e){
         selectedShape._textObj.fontSize=newFs;
         var _tlines=selectedShape._textObj.text.split('\n');
         var _newTextW=measureLinesW(_tlines,newFs);
-        var _newTextH=_tlines.length*newFs*1.35;
+        var _newTextH=_tlines.length*newFs*TXT_LINE_H;
         selectedShape.w=Math.max(_newTextW,40);
         selectedShape.h=Math.max(_newTextH,newFs*1.5);
         renderTextObjs();
@@ -5996,10 +6870,14 @@ function onMove(e){
     return;
   }
   if(tool==='pen'){
-    var mx=(lastPenX+x)/2, my=(lastPenY+y)/2;
-    // Preview on the display canvas only — NOT burned to the layer
-    setupCtx(dCtx); dCtx.quadraticCurveTo(lastPenX,lastPenY,mx,my); dCtx.stroke(); resetCtx(dCtx);
     penPathPoints.push({x:x,y:y});
+    // Preview on the display canvas only — NOT burned to the layer.
+    // Restore the pre-stroke snapshot and stroke the WHOLE path ONCE, with the
+    // same renderer the committed stroke uses. The old per-segment strokes
+    // stacked alpha at every overlapping round cap, so a 10%-opacity pen
+    // previewed near-opaque and then "snapped" to 10% on release.
+    if(compositedSnap) dCtx.putImageData(compositedSnap,0,0);
+    drawPenOnCtx(dCtx,{pts:penPathPoints,color:color,strokeW:strokeW,opacity:opacity,lineStyle:lineStyle},1);
     lastPenX=x; lastPenY=y;
   } else if(tool==='eraser'){
     // Erase baked pixels on EVERY visible layer (not just the active one) so
@@ -6048,6 +6926,15 @@ function onMove(e){
 }
 
 function onUp(e){
+  // ── Highlight move release ──
+  if(_mkDrag){
+    if(e.cancelable) e.preventDefault();
+    var _wasMoved=_mkDrag.moved;
+    _mkDrag=null;
+    renderShapeAndMeasure(); composite();
+    if(_wasMoved) pushUndo();   // a plain tap (no drag) isn't an undo step
+    return;
+  }
   // ── Polyline drag release: persist moved positions ──
   if(plDrag){
     if(e.cancelable) e.preventDefault();
@@ -6148,7 +7035,7 @@ function onUp(e){
         color:markupColor,opacity:markupOpacity,
         layerIdx:activeLayerIdx
       }));
-      renderTextObjs(); // renderMarkupObjs is called inside renderTextObjs
+      renderShapeAndMeasure(); // markups render in the shape pass now
       pushUndo();
     }
     return;
@@ -6249,7 +7136,7 @@ function onUp(e){
       var _lns=_tt.text.split('\n');
       var _fpx=ptToCanvasPx(_tt.fontSize);
       var _ew=measureLinesWFull(_lns,_fpx,_tt.fontFamily||'Arial',_tt.bold,_tt.italic);
-      var _eh=_lns.length*_fpx*1.35;
+      var _eh=_lns.length*_fpx*TXT_LINE_H;
       var _cs=Math.cos(selectedShape.angle), _sn=Math.sin(selectedShape.angle);
       var _lcx=_ew/2, _lcy=-_fpx+_eh/2;
       _tt.x=selectedShape.cx-(_lcx*_cs-_lcy*_sn);
@@ -6670,6 +7557,8 @@ function renderShapeAndMeasure(){
   if(shCv.width !== _wantW){ _sizeAnnoCanvas(shCv, shCtx, _eff); }
   else { shCtx.setTransform(_eff,0,0,_eff,0,0); }
   shCtx.clearRect(0,0,shCv.width,shCv.height);
+  // Markups first → they underlie everything drawn below (matches export).
+  renderMarkupObjs();
   // Shape objects
   shapeObjs.forEach(function(s){
     if(s._editing) return;
@@ -6714,6 +7603,11 @@ function renderShapeAndMeasure(){
   polylineObjs.forEach(function(pl){
     var layer=layers[pl.layerIdx];
     if(layer&&!layer.visible) return;
+    // The selected polyline is drawn live on selCv (renderPolylineSelection).
+    // Skipping it here avoids a second, overlapping stroke — the same pattern
+    // used for the selected leader below — which is what made dashed/dotted
+    // polylines flash solid while being moved or resized.
+    if(typeof selectedPolyline!=='undefined' && pl===selectedPolyline) return;
     drawPolylineOnCtx(shCtx, pl, 1);
   });
   // Pen / Polygon / Leader / Stamp objects (live, never burned)
@@ -7396,6 +8290,12 @@ drawCv.addEventListener('click',function(e){
       var _lpp=plPoints[plPoints.length-1];
       var _cvpl=constrainHV(_lpp.x,_lpp.y,plp.x,plp.y); plp={x:_cvpl.x,y:_cvpl.y};
     }
+    // The browser fires two `click`s before a `dblclick`, so the second click
+    // of a finishing double-click would stack a duplicate vertex on top of the
+    // one the first click just placed. Skip a point that lands on the previous
+    // one so the committed polyline doesn't end up with two endpoints.
+    var _lastPl=plPoints[plPoints.length-1];
+    if(_lastPl && Math.hypot(plp.x-_lastPl.x, plp.y-_lastPl.y) < 4/zoom) return;
     plPoints.push(plp); plActive=true; redrawPolylinePreview(plp.x,plp.y);
   }
   else if(tool==='leader'){
@@ -7696,9 +8596,9 @@ function renderTextObjs(){
   var _hideText = _dragText
     || ((selHandle!==-1 && selectedShape && selectedShape.type==='text') ? selectedShape._textObj : null);
   var _hideId = (_hideText && _hideText.id!==undefined) ? _hideText.id : null;
-  // Render markup (highlight / strike / underline) FIRST so it sits UNDERNEATH the
-  // text drawn below — keeps notes/text readable and matches the export stacking.
-  renderMarkupObjs();
+  // Markups now render in renderShapeAndMeasure (on shapes-cv, under shapes &
+  // polylines) — matching the export stacking. txt-cv carries only text, which
+  // still sits above the markups because txt-cv stacks over shapes-cv.
   textObjs.forEach(function(obj){
     if(obj._editing) return;
     // Never render an empty text object. A text with no visible characters can only
@@ -7731,24 +8631,23 @@ function renderTextObjs(){
     // the plan scale changed it no longer matched the glyph width and the label
     // slid off — on screen AND, worse, on export. Using obj.x removes that drift.)
     var ax=obj.x+(align==='center'?maxW/2:align==='right'?maxW:0);
-    // Draw background if bgOpacity>0 — tight, per-line highlight.
-    // Each line gets its own rectangle hugging that line's ACTUAL glyphs with
-    // exactly 1.5px above/below — so the bar is the same tightness at any font
-    // size, and lines without ascenders/descenders (e.g. "ss") aren't padded out
-    // to full cap-height. Empty lines get no highlight; a space/letter only its
-    // own width.
+    // Draw background if bgOpacity>0 — per-line highlight.
+    // Each line's bar spans a FIXED proportion of the font (TXT_ASC_F above the
+    // baseline, TXT_DESC_F below) rather than hugging that line's actual glyphs.
+    // This is deliberate: with the tight TXT_LINE_H, descender-less lines like
+    // "dfdf" would otherwise leave a white sliver between bars. Fixed extents make
+    // adjacent bars overlap into one continuous block — matching the PDF exporter.
+    // Empty lines still get no highlight; a space/letter only its own width.
     if(obj.bgOpacity&&obj.bgOpacity>0){
-      var _padX=2, _padY=1.5, _lineH=fpx*1.35;
+      var _padX=2, _padY=1.5, _lineH=fpx*TXT_LINE_H;
       tCtx.save();
       tCtx.globalAlpha=obj.opacity*obj.bgOpacity;
       tCtx.fillStyle=obj.bgColor||'#ffff00';
       var _bgLine=function(line, lineLeftX, baseY){
         var m=tCtx.measureText(line);
         var lw=m.width; if(lw<=0) return;            // empty line → nothing
-        var asc =(m.actualBoundingBoxAscent !=null)? m.actualBoundingBoxAscent  : fpx*0.74;
-        var desc=(m.actualBoundingBoxDescent!=null)? m.actualBoundingBoxDescent : fpx*0.21;
-        if(asc<=0.01) asc=fpx*0.5;                   // whitespace-only line → x-height bar
-        if(desc<0) desc=0;
+        var asc = fpx*TXT_ASC_F;                     // fixed proportions (not per-glyph)
+        var desc= fpx*TXT_DESC_F;                    // so adjacent bars overlap, no gap
         tCtx.fillRect(lineLeftX-_padX, baseY-asc-_padY, lw+_padX*2, asc+desc+_padY*2);
       };
       if(obj.angle){
@@ -7779,7 +8678,7 @@ function renderTextObjs(){
       tCtx.textAlign=align;
       var axOff=(align==='center'?maxW/2:align==='right'?maxW:0);
       lines.forEach(function(line,i){
-        var ly=i*fpx*1.35;
+        var ly=i*fpx*TXT_LINE_H;
         tCtx.fillText(line,axOff,ly);
         if(obj.underline){
           var lw=tCtx.measureText(line).width;
@@ -7798,7 +8697,7 @@ function renderTextObjs(){
       });
     } else {
       lines.forEach(function(line,i){
-        var ly=obj.y+i*fpx*1.35;
+        var ly=obj.y+i*fpx*TXT_LINE_H;
         tCtx.fillText(line,ax,ly);
         if(obj.underline){
           var lw=tCtx.measureText(line).width;
@@ -7818,7 +8717,7 @@ function renderTextObjs(){
     }
     tCtx.restore();
   });
-  // (Markup is now rendered ABOVE, before the text loop, so text sits on top of it.)
+  // (Markups render in the shape pass on shapes-cv; text always stacks above.)
 }
 
 // ── Hit test: find text object at canvas position ────────────
@@ -7829,7 +8728,7 @@ function findTextObjAt(x,y){
     var lines=o.text.split('\n');
     var ofpx=ptToCanvasPx(o.fontSize);
     var estW=measureLinesWFull(lines,ofpx,o.fontFamily||'Arial',o.bold,o.italic);
-    var estH=lines.length*ofpx*1.3;
+    var estH=lines.length*ofpx*TXT_LINE_H;
     var pad=Math.max(8,12/zoom);
     // Rotate the click point into the label's LOCAL frame (pivot = o.x,o.y,
     // the same origin the text is drawn about). Without this, a rotated label's
@@ -7840,8 +8739,11 @@ function findTextObjAt(x,y){
     var ca=Math.cos(-ang), sa=Math.sin(-ang);
     var lx=dx*ca-dy*sa;
     var ly=dx*sa+dy*ca;
-    // Local text box spans x:[0, estW], y:[-ofpx, estH-ofpx] (baseline-origin).
-    if(lx>=-pad&&lx<=estW+pad&&ly>=-ofpx-pad&&ly<=estH-ofpx+pad){
+    // Local text box spans x:[0, estW], y:[top, top+estH] (baseline-origin),
+    // where top is the TRUE visual top from font metrics — same geometry as the
+    // dashed chrome box, so what you see is exactly what you can click.
+    var _htop=-(function(){var f=_textOvFontMetrics(ofpx,o.fontFamily||'Arial',o.bold,o.italic);return f.asc+(ofpx*TXT_LINE_H-f.asc-f.desc)/2;})();
+    if(lx>=-pad&&lx<=estW+pad&&ly>=_htop-pad&&ly<=_htop+estH+pad){
       return o;
     }
   }
@@ -8037,7 +8939,7 @@ function showTextHover(x, y){
     var lines=overExisting.text.split('\n');
     var oefpx=ptToCanvasPx(overExisting.fontSize);
     var estW=measureLinesW(lines,oefpx);
-    var estH=lines.length*oefpx*1.3;
+    var estH=lines.length*oefpx*TXT_LINE_H;
     var pad=6/zoom;
     var _hang=overExisting.angle||0;   // follow the text's rotation
     selCtx.save();
@@ -8047,12 +8949,14 @@ function showTextHover(x, y){
     selCtx.rotate(_hang);
     selCtx.strokeStyle=color; selCtx.lineWidth=1.5/zoom;
     selCtx.setLineDash([4/zoom,3/zoom]); selCtx.globalAlpha=0.7;
-    selCtx.strokeRect(-pad, -oefpx-pad, estW+pad*2, estH+pad*2);
+    var _fmH=_textOvFontMetrics(oefpx,overExisting.fontFamily||'Arial',overExisting.bold,overExisting.italic);
+    var _topH=-(_fmH.asc+(oefpx*TXT_LINE_H-_fmH.asc-_fmH.desc)/2);
+    selCtx.strokeRect(-pad, _topH-pad, estW+pad*2, estH+pad*2);
     // Edit pencil icon hint
     selCtx.setLineDash([]); selCtx.globalAlpha=0.8;
     selCtx.font='bold '+(Math.max(10,11/zoom))+'px Arial,sans-serif';
     selCtx.fillStyle=color; selCtx.textAlign='left';
-    selCtx.fillText('✎ edit', 0, -oefpx-8/zoom);
+    selCtx.fillText('✎ edit', 0, _topH-8/zoom);
     selCtx.restore();
   } else {
     drawCv.style.cursor='crosshair';
@@ -8267,12 +9171,21 @@ function _textBoxDims(o){
   var lines=o.text.split('\n');
   var fpx=ptToCanvasPx(o.fontSize);
   var w=measureLinesWFull(lines,fpx,o.fontFamily||'Arial',o.bold,o.italic);
-  var h=lines.length*fpx*1.35;
-  return {fpx:fpx,w:w,h:h};
+  var h=lines.length*fpx*TXT_LINE_H;
+  // TRUE visual top of the text block relative to the first baseline (o.y).
+  // The old chrome assumed the glyphs start a full font-size above the baseline
+  // (top = -fpx), but the real cap sits at -(ascent + half-leading) — noticeably
+  // lower with the tight 0.92 line-height. That extra phantom space made the
+  // dashed edit box hang high: big gap above the text, crowded below. Use the
+  // font's measured ascent/descent so the box hugs the block evenly, matching
+  // the live editor's highlight.
+  var fm=_textOvFontMetrics(fpx,o.fontFamily||'Arial',o.bold,o.italic);
+  var top=-(fm.asc+(fpx*TXT_LINE_H-fm.asc-fm.desc)/2);
+  return {fpx:fpx,w:w,h:h,top:top};
 }
 function _textCenter(o){
   var d=_textBoxDims(o), ang=o.angle||0, ca=Math.cos(ang), sa=Math.sin(ang);
-  var lcx=d.w/2, lcy=-d.fpx+d.h/2;
+  var lcx=d.w/2, lcy=d.top+d.h/2;
   return {x:o.x+(lcx*ca-lcy*sa), y:o.y+(lcx*sa+lcy*ca)};
 }
 // Draw the dashed text box + rotate handle for o onto selCtx. Caller has cleared selCv.
@@ -8285,9 +9198,9 @@ function _drawTextChrome(o){
   // Dashed text box (rectangular, hugs the glyphs)
   selCtx.strokeStyle='rgba(0,212,255,0.9)'; selCtx.lineWidth=lw;
   selCtx.setLineDash([5/zoom,3/zoom]); selCtx.globalAlpha=1;
-  selCtx.strokeRect(-pad,-d.fpx-pad,d.w+pad*2,d.h+pad*2);
+  selCtx.strokeRect(-pad,d.top-pad,d.w+pad*2,d.h+pad*2);
   // Connector + rotate handle above top-center
-  var topx=d.w/2, topy=-d.fpx-pad, hubx=topx, huby=topy-ro;
+  var topx=d.w/2, topy=d.top-pad, hubx=topx, huby=topy-ro;
   selCtx.setLineDash([2/zoom,2/zoom]);
   selCtx.beginPath(); selCtx.moveTo(topx,topy); selCtx.lineTo(hubx,huby); selCtx.stroke();
   selCtx.setLineDash([]);
@@ -8359,7 +9272,7 @@ function _textBorderAt(o,x,y){
   var ang=o.angle||0, ca=Math.cos(-ang), sa=Math.sin(-ang);
   var dx=x-o.x, dy=y-o.y;
   var lx=dx*ca-dy*sa, ly=dx*sa+dy*ca;
-  var L=-pad, R=d.w+pad, T=-d.fpx-pad, B=d.h-d.fpx+pad;
+  var L=-pad, R=d.w+pad, T=d.top-pad, B=d.top+d.h+pad;
   if(lx<L-band||lx>R+band||ly<T-band||ly>B+band) return false;   // outside box+band
   if(lx>L+band&&lx<R-band&&ly>T+band&&ly<B-band) return false;   // deep interior → not border
   return true;
@@ -8425,22 +9338,27 @@ function _openTextEdit(o){
   // after loading another document, so the measured text width changed). Re-derive
   // the right edge from the CURRENT rendered width and re-base the anchor to it, so
   // the box lands exactly on the text without moving the text itself.
-  var _ovX=o.x;
+  var _ovX=o.x, _ovY=o.y;
   if(_textAnchorRight){
     var _olns=o.text.split('\n');
     var _ofpx=ptToCanvasPx(o.fontSize);
     var _ow=measureLinesWFull(_olns,_ofpx,o.fontFamily||'Arial',o.bold,o.italic);
-    _ovX=o.x+_ow;          // live right edge = where the glyphs actually end
-    o._anchorX=_ovX;       // keep commit pinned to the visible edge (no jump)
+    // Live far end = glyphs' end projected ALONG the label's own direction, so a
+    // rotated leader label's anchor tracks the turned text instead of sliding out
+    // along the canvas x-axis. (angle 0 → _ovX=o.x+_ow, _ovY=o.y, as before.)
+    var _oa=o.angle||0;
+    _ovX=o.x+_ow*Math.cos(_oa);
+    _ovY=o.y+_ow*Math.sin(_oa);
+    o._anchorX=_ovX; o._anchorY=_ovY;   // pin commit to the visible far end (no jump)
   }
-  textX=_ovX; textY=o.y;
+  textX=_ovX; textY=_ovY;
   // Load the text + formatting BEFORE showing/sizing the overlay, so the
   // auto-fit measures the real (full) content and the box grows to show every
   // line instead of clipping to the empty default height.
   textOv.value=o.text;
   _syncTextFmtFromObj(o);
   startTextCursor(o.x, o.y);
-  showTextOverlay(_ovX, o.y);
+  showTextOverlay(_ovX, _ovY);
   _fitTextOv();              // size to the loaded content (all lines visible)
   renderTextCursorFrame();   // draw the box + rotate handle right away
 }
@@ -8486,7 +9404,8 @@ function showTextOverlay(cx,cy){
   textOv.style.display = 'block';
   // Safety: ensure no leftover note rotation from a prior comment edit.
   textOv.style.transform = 'none'; textOv.style.transformOrigin = '';
-  repositionTextOverlay();
+  textOv._editBoxW = 0;          // new edit session — recompute wrap width
+  repositionTextOverlay(true);   // clamp on-screen ONLY for the initial placement
   // iOS: focus already called in onDown. Desktop + double-tap edit path: focus here.
   if(document.activeElement!==textOv){
     textOv.focus();
@@ -8494,7 +9413,27 @@ function showTextOverlay(cx,cy){
   }
 }
 
-function repositionTextOverlay(){
+// Measure the font's REAL ascent/descent (what the browser uses to place the
+// baseline inside a line box). Fallback ratios for engines without
+// fontBoundingBox metrics. Used to pin the live editor's first baseline onto
+// the canvas glyph baseline exactly.
+var _fmCv=null,_fmCtx=null;
+function _textOvFontMetrics(px, family, bold, italic){
+  if(!_fmCtx){ _fmCv=document.createElement('canvas'); _fmCtx=_fmCv.getContext('2d'); }
+  _fmCtx.font=(italic?'italic ':'')+(bold?'bold ':'')+px+'px '+family+',sans-serif';
+  var m=_fmCtx.measureText('Hg');
+  return {
+    asc:(m && m.fontBoundingBoxAscent!=null)?m.fontBoundingBoxAscent:px*0.8,
+    desc:(m && m.fontBoundingBoxDescent!=null)?m.fontBoundingBoxDescent:px*0.25
+  };
+}
+
+function repositionTextOverlay(clampToView){
+  // clampToView=true ONLY on the initial placement (showTextOverlay). During
+  // pan/zoom repositions the old on-screen clamps below pinned the live editor
+  // to the viewport edges, so the text you were typing MOVED WITH THE SCREEN
+  // instead of staying glued to its canvas point. Skip the clamps then — the
+  // editor may go partially off-screen, exactly like every other canvas object.
   if(textOv.style.display==='none') return;
   // The shared textarea currently belongs to a NOTE — its styling is owned by
   // repositionCommentEditor. Never apply text-tool sizing/transform to it.
@@ -8509,8 +9448,7 @@ function repositionTextOverlay(){
   // viewport-local space only. (Desktop: offsets were 0, identical behavior.)
   // The old "keep above keyboard" clamp (vv.height-60) also yanked any
   // lower-half tap upward — removed for the same reason.
-  var sx = panX + cx*zoom;
-  var sy = panY + cy*zoom - FONT_PX*zoom;
+  var sxA = panX + cx*zoom;              // anchor (glyph start / baseline-left) on screen
   // The box is drawn at renderSz font then visually shrunk with transform:scale
   // when zoomed out (transform-origin top-left). That scale shrinks the box's
   // VISUAL width to boxW*scaleV. The right-anchor must use the SCALED width or
@@ -8519,6 +9457,21 @@ function repositionTextOverlay(){
   var _renderSz0 = Math.max(16, _screenSz0);
   var _scaleV0   = _screenSz0 / _renderSz0;     // <1 when zoomed out
   if(_scaleV0 >= 0.99) _scaleV0 = 1;            // matches transform:none threshold below
+  // ── Pixel-exact overlay↔canvas alignment ─────────────────────
+  // The canvas draws the committed glyph with its BASELINE at o.y and its left
+  // edge at o.x. The old box placement assumed the textarea's first baseline sat
+  // exactly FONT_PX below the box top and ignored the textarea's own CSS padding
+  // (2px top / 4px left) — so on opening an edit the live text jumped slightly
+  // UP and RIGHT of the committed glyphs. Compute where the browser really puts
+  // the first line's baseline inside the textarea (padding + half-leading from
+  // line-height:TXT_LINE_H + the font's ascent) and offset the box by that, so
+  // the live glyphs sit dead on the canvas ones.
+  var _padL = 4, _padT = 2;                     // matches #text-ov padding:2px 4px
+  var _fm = _textOvFontMetrics(_renderSz0, textFontFamily||'Arial', textBold, textItalic);
+  var _lineHpx = TXT_LINE_H * _renderSz0;
+  var _blOff = _padT + (_lineHpx - (_fm.asc + _fm.desc))/2 + _fm.asc; // baseline below box top (textarea-local px)
+  var sx = sxA - _padL*_scaleV0;                // glyph left = box left + padL·scale
+  var sy = panY + cy*zoom - _blOff*_scaleV0;    // glyph baseline = box top + blOff·scale
   // Keep the text START (the box's left edge) anchored at the click point so
   // the I-beam and typed text land exactly where the user clicked — including
   // on the right side of the canvas. Previously the whole box was shifted left
@@ -8528,29 +9481,35 @@ function repositionTextOverlay(){
   // right edge, then (and only then) pull it back onto the canvas.
   var vpW = viewport.clientWidth, vpH = viewport.clientHeight;
   var boxW = Math.max(200, vpW * 0.5);
+  // Reuse the width locked in at initial placement so the text doesn't re-wrap
+  // (visually jump) when the box is repositioned during a pan/zoom.
+  if(!clampToView && textOv._editBoxW) boxW = textOv._editBoxW;
   var boxH = Math.max(40, Math.max(16, FONT_PX*zoom) * 2);
   if(_textAnchorRight){
     // Right-anchored (left-hanging leader label): the box's VISUAL right edge
     // (after the scale transform) sits at the anchor point and the box extends
     // LEFT, so the first letter stays put just left of the line at every zoom.
-    var rightEdge = sx;                          // anchor screen-x = visual right edge
+    // The glyphs end padR(4px)·scale left of the box's right edge, so push the
+    // box right by that so the TEXT (not the box) ends at the anchor.
+    var rightEdge = sxA + _padL*_scaleV0;        // box's visual right edge
     sx = rightEdge - boxW*_scaleV0;              // box left edge (scaled width)
-    if(vpW > 0){
+    if(clampToView && vpW > 0){
       if(rightEdge > vpW) { rightEdge = vpW; sx = rightEdge - boxW*_scaleV0; }
       if(rightEdge < 40)  { rightEdge = 40;  sx = rightEdge - boxW*_scaleV0; }
       if(sx < 0){ boxW = rightEdge/_scaleV0; sx = 0; } // shrink instead of going off-screen
       if(boxW < 60) boxW = 60;
     }
-  } else if(vpW > 0){
+  } else if(clampToView && vpW > 0){
     if(sx < 0) sx = 0;
     if(sx > vpW - 40) sx = vpW - 40;          // keep at least a sliver on-screen
     if(sx + boxW*_scaleV0 > vpW) boxW = (vpW - sx)/_scaleV0; // shrink, don't shift
     if(boxW < 60) boxW = 60;                   // minimum usable width
   }
-  if(vpH > 0){
+  if(clampToView && vpH > 0){
     if(sy + boxH > vpH) sy = vpH - boxH;
     if(sy < 0) sy = 0;
   }
+  if(clampToView) textOv._editBoxW = boxW; // lock wrap width for this edit session
   textOv.style.display  = 'block';
   textOv.style.left     = sx+'px';
   textOv.style.top      = sy+'px';
@@ -8560,7 +9519,7 @@ function repositionTextOverlay(){
   var renderSz = Math.max(16, screenSz);
   var scaleV   = screenSz / renderSz;
   textOv.style.fontSize  = renderSz+'px';
-  textOv.style.lineHeight = '1.2';
+  textOv.style.lineHeight = String(TXT_LINE_H);
   textOv.style.transform = scaleV<0.99 ? 'scale('+scaleV.toFixed(3)+')' : 'none';
   textOv.style.transformOrigin='top left';
   // ── Rotated editing (type sideways, Adobe-style) ──────────────
@@ -8569,12 +9528,26 @@ function repositionTextOverlay(){
   // you click. Anchor + rotate about the glyph's top-left corner.
   var _eAng = (editingObj && editingObj.angle) ? editingObj.angle : 0;
   if(_eAng){
-    var _gx = cx + FONT_PX*Math.sin(_eAng);   // rotated glyph-top-left (canvas)
-    var _gy = cy - FONT_PX*Math.cos(_eAng);
+    // Pivot the rotated editor on the glyph START (editingObj.x/.y) — the same
+    // point the canvas renderer and the dashed box rotate about. For a
+    // right-anchored leader label, cx/cy is the FAR (right) end, so feeding it in
+    // here threw the box off by the whole text width once the label was turned.
+    // The object's own x/y is the start regardless of anchor mode.
+    var _ex=(editingObj?editingObj.x:cx), _ey=(editingObj?editingObj.y:cy);
+    // Box top-left = glyph start + the (−padL, −baselineOffset) editor offset
+    // (screen px → canvas px via /zoom) rotated by the label's angle — same
+    // padding/baseline compensation as the unrotated path above.
+    var _oxc = (_padL*_scaleV0)/zoom, _oyc = (_blOff*_scaleV0)/zoom;
+    var _gx = _ex + (-_oxc*Math.cos(_eAng) + _oyc*Math.sin(_eAng));
+    var _gy = _ey + (-_oxc*Math.sin(_eAng) - _oyc*Math.cos(_eAng));
     textOv.style.left = (panX + _gx*zoom) + 'px';
     textOv.style.top  = (panY + _gy*zoom) + 'px';
     textOv.style.transform = 'rotate(' + _eAng + 'rad)' +
       (scaleV < 0.99 ? (' scale(' + scaleV.toFixed(3) + ')') : '');
+    textOv.style.transformOrigin = 'top left';
+    // Grow from the start when rotated; right-align would offset the text inside a
+    // wider box and detach it from the pivot.
+    textOv.style.textAlign = 'left';
   }
   textOv.style.color   = color;
   textOv.style.opacity = 1;   // text has no opacity control — keep it full, not faint
@@ -8613,7 +9586,6 @@ function repositionTextOverlay(){
   // the final clamped overlay position (account for the textarea's CSS padding:
   // 4px left / 2px top) and convert screen→canvas so they line up exactly.
   if(_txtCursorActive){
-    var _padL = 4, _padT = 2; // matches #text-ov padding:2px 4px
     var _caretScreenX;
     if(_textAnchorRight){
       // Right-anchored: the caret/first-letter sits at the box's VISUAL right
@@ -8622,7 +9594,7 @@ function repositionTextOverlay(){
     } else {
       _caretScreenX = sx + _padL*_scaleV0;
     }
-    var _caretScreenY = sy + _padT + FONT_PX * zoom; // baseline ≈ top + one line
+    var _caretScreenY = sy + _blOff*_scaleV0; // first line's true baseline
     _txtCursorX = (_caretScreenX - panX) / zoom;
     _txtCursorY = (_caretScreenY - panY) / zoom;
     renderTextCursorFrame();
@@ -8653,7 +9625,10 @@ function _fitTextOv(){
   // label shows a long bar stretching left from the leader. Keep the RIGHT edge
   // pinned at the anchor and grow the box LEFTWARD as characters are added, so it
   // starts ~one letter wide and grows one character at a time.
-  if(_textAnchorRight){
+  if(_textAnchorRight && !(editingObj && editingObj.angle)){
+    // (Rotated labels skip this: their box is pivoted on the glyph start and just
+    // hugs its width below — the horizontal "grow leftward from the leader" re-fit
+    // only makes sense for an upright label and would slide a rotated box sideways.)
     // The box may carry a scale() transform when zoomed out; the VISUAL right
     // edge is left + width*scale. Pin that visual edge and grow leftward.
     var _trS = textOv.style.transform || '', _siS = _trS.indexOf('scale(');
@@ -8864,7 +9839,13 @@ function commitText(){
         var _eln=val.split('\n');
         var _efpx=ptToCanvasPx(editingObj.fontSize);
         var _emw=measureLinesWFull(_eln,_efpx,editingObj.fontFamily||'Arial',editingObj.bold,editingObj.italic);
-        editingObj.x = editingObj._anchorX - _emw;
+        // Keep the FAR end pinned and grow the start back along the label's own
+        // direction, so a rotated label grows/shrinks in line with its glyphs
+        // instead of drifting along the canvas x-axis. (angle 0 → old behavior.)
+        var _ea=editingObj.angle||0;
+        var _ay=(editingObj._anchorY!=null?editingObj._anchorY:editingObj.y);
+        editingObj.x = editingObj._anchorX - _emw*Math.cos(_ea);
+        editingObj.y = _ay - _emw*Math.sin(_ea);
         editingObj._anchorRight = true;
       }
       var upd=editingObj; editingObj=null;
@@ -8887,7 +9868,7 @@ function commitText(){
              fontFamily:textFontFamily,bold:textBold,italic:textItalic,
              underline:textUnderline,strike:textStrike,textAlign:_newAlign,
              bgColor:textBgColor,bgOpacity:textBgOpacity,
-             _anchorRight:_textAnchorRight, _anchorX:textX};
+             _anchorRight:_textAnchorRight, _anchorX:textX, _anchorY:textY};
     textObjs.push(obj); renderTextObjs(); pushUndo();
     // (No transform box — a freshly placed text just sits there. Re-click to edit.)
   }
@@ -8911,7 +9892,7 @@ function enterTextTransformMode(obj){
   // Tight bounds around the actual rendered text — the selection is drawn as a
   // rectangular text box (not an oval), so it should hug the glyphs.
   var textW=measureLinesWFull(lines,tmfpx,obj.fontFamily||'Arial',obj.bold,obj.italic);
-  var textH=lines.length*tmfpx*1.35;
+  var textH=lines.length*tmfpx*TXT_LINE_H;
   var estW=textW;
   var estH=textH;
   // The text is drawn rotated about its origin (obj.x, obj.y). Compute the box
@@ -9213,7 +10194,7 @@ function renderSelection(){
       selCtx.textAlign=talign;
       var tlines=to.text.split('\n');
       var tmaxW=measureLinesWFull(tlines,tofpx,tfam,to.bold,to.italic);
-      var tH=tlines.length*tofpx*1.35;
+      var tH=tlines.length*tofpx*TXT_LINE_H;
       // local center offset (matches enterTextTransformMode): (textW/2, -fpx+textH/2)
       var lcx=tmaxW/2, lcy=-tofpx+tH/2;
       var ca=Math.cos(s.angle), sa=Math.sin(s.angle);
@@ -9222,7 +10203,7 @@ function renderSelection(){
       selCtx.translate(ox,oy);
       selCtx.rotate(s.angle);
       var taxOff=(talign==='center'?tmaxW/2:talign==='right'?tmaxW:0);
-      tlines.forEach(function(line,i){ selCtx.fillText(line,taxOff,i*tofpx*1.35); });
+      tlines.forEach(function(line,i){ selCtx.fillText(line,taxOff,i*tofpx*TXT_LINE_H); });
     }
   }
   selCtx.restore();
@@ -9359,7 +10340,7 @@ function commitSelection(){
     // matching convention everywhere is what stops the label from shifting /
     // doubling when you re-select it after committing.
     var estW=measureLinesWFull(lines,cmfpx,obj.fontFamily||'Arial',obj.bold,obj.italic);
-    var estH=lines.length*cmfpx*1.35;
+    var estH=lines.length*cmfpx*TXT_LINE_H;
     var cos=Math.cos(s.angle), sin=Math.sin(s.angle);
     var tLocalX=estW/2, tLocalY=-cmfpx+estH/2;
     obj.x=s.cx - (tLocalX*cos - tLocalY*sin);
@@ -9445,6 +10426,12 @@ function updateSelCursor(x,y){
       else if(h===3||h===7) cmtCur='ew-resize';   // left/right center → horizontal
       else cmtCur=HANDLE_CURSORS[h];              // corners → diagonal (nw/ne/se/sw)
       drawCv.style.cursor=cmtCur; return;
+    }
+    // Resize handles (0-7): pick the cursor that matches the handle's CURRENT
+    // on-screen direction, so it rotates with a rotated shape instead of always
+    // showing the un-rotated diagonal. Rotate handles (8-11) keep 'grab'.
+    if(h>=0 && h<=7){
+      drawCv.style.cursor = rotatedResizeCursor(h, selectedShape.angle||0); return;
     }
     drawCv.style.cursor=HANDLE_CURSORS[h]; return;
   }
@@ -9964,6 +10951,12 @@ function renderPolylineSelection(){
   selCtx.strokeStyle='#6c63ff';
   selCtx.lineWidth=(pl.strokeW||2)+6/zoom;
   selCtx.lineCap='round'; selCtx.lineJoin='round';
+  // Match the line's dash so the glow doesn't fill the gaps of a dashed/dotted
+  // polyline (which made it look partly solid). Solid lines keep a solid glow.
+  var _gsw=pl.strokeW||2;
+  if(pl.lineStyle==='dashed') selCtx.setLineDash([_gsw*4,_gsw*3]);
+  else if(pl.lineStyle==='dotted') selCtx.setLineDash([_gsw,_gsw*2.5]);
+  else selCtx.setLineDash([]);
   selCtx.beginPath();
   selCtx.moveTo(pl.pts[0].x,pl.pts[0].y);
   for(var i=1;i<pl.pts.length;i++) selCtx.lineTo(pl.pts[i].x,pl.pts[i].y);
@@ -10038,6 +11031,17 @@ function redrawPolylinePreview(mx,my){
 }
 
 function closePolyline(){
+  // Strip consecutive duplicate vertices before committing — e.g. the extra
+  // point a double-click / double-tap can leave stacked at the finish spot,
+  // which otherwise shows up as a second endpoint when the polyline is resized.
+  if(plPoints.length>=2){
+    var _tol=4/zoom, _clean=[plPoints[0]];
+    for(var _i=1;_i<plPoints.length;_i++){
+      var _prev=_clean[_clean.length-1], _cur=plPoints[_i];
+      if(Math.hypot(_cur.x-_prev.x, _cur.y-_prev.y)>=_tol) _clean.push(_cur);
+    }
+    plPoints=_clean;
+  }
   if(plPoints.length<2){ plPoints=[]; plActive=false; renderShapeAndMeasure(); return; }
   captureState();
   polylineObjs.push({
@@ -11257,18 +12261,15 @@ function compositeExport(maxPx){
       // scale changed, no longer matched the glyph width — which pushed the text far
       // left of its leader on export. Matching the on-screen obj.x path fixes that.
       ax_=Math.round(obj.x*scale)+(align_==='center'?maxW_/2:align_==='right'?maxW_:0);
-      // Background — tight, per-line, hugs each line's actual glyphs (matches screen).
+      // Background — per-line, fixed proportions so bars overlap (matches screen + PDF).
       if(obj.bgOpacity&&obj.bgOpacity>0){
         ctx.save(); ctx.globalAlpha=obj.opacity*obj.bgOpacity; ctx.fillStyle=obj.bgColor||'#ffff00';
         var _efs=efpx*scale;
-        var _padX_=2*scale, _padY_=1.5*scale, _lineH_=_efs*1.35;
+        var _padX_=2*scale, _padY_=1.5*scale, _lineH_=_efs*TXT_LINE_H;
         var _bgLine_=function(line, lineLeftX, baseY){
           var m=ctx.measureText(line);
           var lw_=m.width; if(lw_<=0) return;
-          var asc=(m.actualBoundingBoxAscent !=null)? m.actualBoundingBoxAscent  : _efs*0.74;
-          var desc=(m.actualBoundingBoxDescent!=null)? m.actualBoundingBoxDescent : _efs*0.21;
-          if(asc<=0.01) asc=_efs*0.5;
-          if(desc<0) desc=0;
+          var asc=_efs*TXT_ASC_F, desc=_efs*TXT_DESC_F;   // fixed → bars overlap, no gap
           ctx.fillRect(lineLeftX-_padX_, baseY-asc-_padY_, lw_+_padX_*2, asc+desc+_padY_*2);
         };
         if(obj.angle){
@@ -11283,7 +12284,7 @@ function compositeExport(maxPx){
           lines_.forEach(function(line,i){
             var lw_=ctx.measureText(line).width;
             var lx_=ax_-(align_==='center'?lw_/2:align_==='right'?lw_:0);
-            _bgLine_(line, lx_, Math.round((obj.y+i*efpx*1.35)*scale));
+            _bgLine_(line, lx_, Math.round((obj.y+i*efpx*TXT_LINE_H)*scale));
           });
         }
         ctx.restore();
@@ -11294,14 +12295,14 @@ function compositeExport(maxPx){
         ctx.rotate(obj.angle);
         var axOff_=align_==='center'?maxW_/2:align_==='right'?maxW_:0;
         lines_.forEach(function(line,i){
-          var ly_=Math.round(i*efpx*1.35*scale);
+          var ly_=Math.round(i*efpx*TXT_LINE_H*scale);
           ctx.fillText(line,axOff_,ly_);
           if(obj.underline){var lw_=ctx.measureText(line).width;var lx_=align_==='center'?axOff_-lw_/2:align_==='right'?axOff_-lw_:axOff_;ctx.save();ctx.strokeStyle=obj.color;ctx.lineWidth=Math.max(1,efpx*scale*0.07);ctx.beginPath();ctx.moveTo(lx_,ly_+efpx*scale*0.12);ctx.lineTo(lx_+lw_,ly_+efpx*scale*0.12);ctx.stroke();ctx.restore();}
           if(obj.strike){var lw_=ctx.measureText(line).width;var lx_=align_==='center'?axOff_-lw_/2:align_==='right'?axOff_-lw_:axOff_;ctx.save();ctx.strokeStyle=obj.color;ctx.lineWidth=Math.max(1,efpx*scale*0.07);ctx.beginPath();ctx.moveTo(lx_,ly_-efpx*scale*0.32);ctx.lineTo(lx_+lw_,ly_-efpx*scale*0.32);ctx.stroke();ctx.restore();}
         });
       } else {
         lines_.forEach(function(line,i){
-          var ly_=Math.round((obj.y+i*efpx*1.35)*scale);
+          var ly_=Math.round((obj.y+i*efpx*TXT_LINE_H)*scale);
           ctx.fillText(line,ax_,ly_);
           if(obj.underline){var lw_=ctx.measureText(line).width;var lx_=align_==='center'?ax_-lw_/2:align_==='right'?ax_-lw_:ax_;ctx.save();ctx.strokeStyle=obj.color;ctx.lineWidth=Math.max(1,efpx*scale*0.07);ctx.beginPath();ctx.moveTo(lx_,ly_+efpx*scale*0.12);ctx.lineTo(lx_+lw_,ly_+efpx*scale*0.12);ctx.stroke();ctx.restore();}
           if(obj.strike){var lw_=ctx.measureText(line).width;var lx_=align_==='center'?ax_-lw_/2:align_==='right'?ax_-lw_:ax_;ctx.save();ctx.strokeStyle=obj.color;ctx.lineWidth=Math.max(1,efpx*scale*0.07);ctx.beginPath();ctx.moveTo(lx_,ly_-efpx*scale*0.32);ctx.lineTo(lx_+lw_,ly_-efpx*scale*0.32);ctx.stroke();ctx.restore();}
@@ -11584,6 +12585,12 @@ var _FULL_REDRAW = (function(){ try{ var v=localStorage.getItem('AOG_FULLREDRAW'
 function _movedExplodeObj(o){
   if(!o || !o._fromExplode) return false;
   var e=0.75;
+  // Pen strokes have no x/y — their position lives in pts[]. Compare the first
+  // point against the origin snapshot taken at import.
+  if(o.pts && o._oX!=null){
+    if(!o.pts.length) return true;
+    return Math.abs(o.pts[0].x-o._oX)>e || Math.abs(o.pts[0].y-o._oY)>e;
+  }
   if(o._oX1!=null) return Math.abs(o.x1-o._oX1)>e||Math.abs(o.y1-o._oY1)>e||Math.abs(o.x2-o._oX2)>e||Math.abs(o.y2-o._oY2)>e;
   if(o._oCx!=null) return Math.abs(o.cx-o._oCx)>e||Math.abs(o.cy-o._oCy)>e||Math.abs(o.w-o._oW)>e||Math.abs(o.h-o._oH)>e||((o.angle||0)!==0);
   if(o._oX!=null)  return Math.abs(o.x-o._oX)>e||Math.abs(o.y-o._oY)>e;
@@ -11615,8 +12622,29 @@ function _shouldWhiteCoverPage(){
 // export without hacks (the pristine page still shows the original). In that case we
 // export the clean flattened composite instead — the backdrop already has every
 // extracted object erased, so moves are reflected with no white cover-ups.
+// Count of highlight/ink objects created at import. If fewer survive at export,
+// the user erased one — and the pristine page still contains it, so the native
+// vector export must not be used.
+var _explodedMarkupCount=0, _explodedPenCount=0;
+function _explodedMarkupsDeleted(){
+  try{
+    var m=0,p=0;
+    if(typeof markupObjs!=='undefined') m=markupObjs.filter(function(o){return o._fromExplode;}).length;
+    if(typeof penObjs!=='undefined')    p=penObjs.filter(function(o){return o._fromExplode;}).length;
+    return m<_explodedMarkupCount || p<_explodedPenCount;
+  }catch(e){ return false; }
+}
+
 function _anyMovedExtracted(){
   try{
+    // Imported highlights / ink strokes: the ORIGINALS are still in the pristine
+    // PDF that the vector export stamps onto. If one was moved — or ERASED —
+    // the native path would leave the original behind (moved) or keep showing it
+    // (erased), so fall back to the flattened composite, whose backdrop already
+    // has the tint stripped and reflects every edit.
+    if(typeof markupObjs!=='undefined' && markupObjs.some(function(m){return m._fromExplode && _movedExplodeObj(m);})) return true;
+    if(typeof penObjs!=='undefined'    && penObjs.some(function(p){return p._fromExplode && _movedExplodeObj(p);}))    return true;
+    if(_explodedMarkupsDeleted()) return true;
     if(typeof shapeObjs!=='undefined'   && shapeObjs.some(function(o){return o._fromExplode && _movedExplodeObj(o);}))   return true;
     if(typeof measureObjs!=='undefined' && measureObjs.some(function(o){return o._fromExplode && _movedExplodeObj(o);})) return true;
     if(typeof textObjs!=='undefined'    && textObjs.some(function(o){return o._fromExplode && _movedExplodeObj(o);}))    return true;
@@ -11700,7 +12728,7 @@ function _stampBackdropPatches(pdf, page, sz, sc, v2p, rot){
         var efpx=ptToCanvasPx(t.fontSize)||12;
         var lines=String(t.text||'').split('\n');
         var maxw=0; lines.forEach(function(ln){ maxw=Math.max(maxw, ln.length*efpx*0.62); });
-        var th=lines.length*efpx*1.35;
+        var th=lines.length*efpx*TXT_LINE_H;
         var x0=t._oX-4, y0=t._oY-efpx-4, x1=t._oX+maxw+4, y1=t._oY-efpx+th+4;
         pushPatch(x0,y0,x1,y1,function(ctx,ox,oy){
           ctx.save(); ctx.fillStyle='#ffffff';
@@ -11939,7 +12967,7 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
     var align=obj.textAlign||'left';
     var op=(obj.opacity==null?1:obj.opacity);
     var a=(obj.angle||0);
-    var lineH=efpx*1.35;
+    var lineH=efpx*TXT_LINE_H;
     // Block width (widest line) so right/center alignment is measured from obj.x
     // as the LEFT edge — identical to the screen/raster paths. Anchoring on obj.x
     // (same coord space as the leader line) keeps the label glued to its leader at
@@ -11970,7 +12998,7 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
       } else {
         // optional background highlight behind the line
         if(obj.bgOpacity && obj.bgOpacity>0){
-          var asc=fsize*0.74, desc=fsize*0.21, padX=2/sc, padY=1.5/sc;
+          var asc=fsize*TXT_ASC_F, desc=fsize*TXT_DESC_F, padX=2/sc, padY=1.5/sc;
           // canvas baseline point (lx, ly); bg rect bottom-left in canvas terms
           // is (lx - padX*sc, ly + desc*sc + padY*sc). Map that corner.
           var bp=P(lx - padX*sc, ly + (desc+padY)*sc);
@@ -12199,22 +13227,13 @@ function _buildVectorPdf(attachJson, onReady){
                   pdf.embedFont(PDFLib.StandardFonts.HelveticaBoldOblique)
                 ]).then(function(fs){ _fonts={regular:fs[0],bold:fs[1],italic:fs[2],boldItalic:fs[3]}; })
                 : Promise.resolve());
-              // Draw the transparent annotation overlay so it fills the VISUAL page.
-              // Under rotation we rotate+position the image to cover the page; the
-              // image content is already in visual orientation (matches canvas).
-              var chain=fontChain.then(function(){ return pdf.embedPng(overlayBytes); }).then(function(ovImg){
-                var deg=PDFLib.degrees;
-                if(rot===0){
-                  page.drawImage(ovImg,{x:0,y:0,width:PW,height:PH});
-                } else if(rot===90){
-                  // place so the visual-bottom-left maps correctly
-                  page.drawImage(ovImg,{x:PW,y:0,width:VW,height:VH,rotate:deg(90)});
-                } else if(rot===180){
-                  page.drawImage(ovImg,{x:PW,y:PH,width:VW,height:VH,rotate:deg(180)});
-                } else if(rot===270){
-                  page.drawImage(ovImg,{x:0,y:PH,width:VW,height:VH,rotate:deg(270)});
-                }
-              });
+              // DRAW ORDER (bottom → top): native HD images FIRST, then the
+              // transparent annotation overlay (which carries shapes, text AND notes)
+              // LAST, so notes/text always sit ON TOP of pictures and are never
+              // hidden on export. Pictures still "show through" everywhere the overlay
+              // is transparent. (Previously the overlay was drawn first and native
+              // images stamped over it, burying any note that overlapped a picture.)
+              var chain=fontChain;
               natives.forEach(function(n){
                 chain=chain.then(function(){
                   return pdf.embedJpg(n.bytes).then(function(im){
@@ -12236,6 +13255,22 @@ function _buildVectorPdf(attachJson, onReady){
                     page.drawImage(im,{x:ax,y:ay,width:Wp,height:Hp,rotate:deg(rot),opacity:op});
                   });
                 });
+              });
+              // Now stamp the transparent annotation overlay (shapes, text, notes)
+              // ON TOP of the native images so notes/text are never hidden behind a
+              // picture. Under rotation we rotate+position it to cover the page; the
+              // overlay content is already in visual orientation (matches canvas).
+              chain=chain.then(function(){ return pdf.embedPng(overlayBytes); }).then(function(ovImg){
+                var deg=PDFLib.degrees;
+                if(rot===0){
+                  page.drawImage(ovImg,{x:0,y:0,width:PW,height:PH});
+                } else if(rot===90){
+                  page.drawImage(ovImg,{x:PW,y:0,width:VW,height:VH,rotate:deg(90)});
+                } else if(rot===180){
+                  page.drawImage(ovImg,{x:PW,y:PH,width:VW,height:VH,rotate:deg(180)});
+                } else if(rot===270){
+                  page.drawImage(ovImg,{x:0,y:PH,width:VW,height:VH,rotate:deg(270)});
+                }
               });
               // No stamp/white-patch pass. The only remaining kept-page cases here
               // have NO moved extracted content (moves are routed to the clean
@@ -12538,10 +13573,38 @@ function initSaveDB(cb){
     };
     req.onsuccess=function(e){
       _saveDb=e.target.result;
+      // Repopulate the open/save picker's starting folder from the last session.
+      loadLastOpenedHandle(function(h){ if(h && !_lastOpenedFileHandle) _lastOpenedFileHandle=h; });
       if(cb) cb();
     };
     req.onerror=function(){ setSaveStatus('error'); console.warn('[Save] IndexedDB unavailable'); };
   }catch(ex){ setSaveStatus('error'); }
+}
+
+// ── Remember the last opened FILE HANDLE across browser restarts ──────────
+// FileSystemFileHandle is structured-cloneable, so it can live in IndexedDB
+// (localStorage can't hold it — it stringifies to "[object Object]"). Passing it
+// back as the open picker's `startIn` reopens the exact folder you were last in.
+//
+// Note: after a restart the handle's permission is 'prompt', not 'granted'.
+// We never call requestPermission() here — `startIn` only needs the handle for
+// its directory, not read access — so the user sees no extra permission dialog.
+var HANDLE_KEY='last-opened-handle';
+function saveLastOpenedHandle(handle){
+  try{
+    if(!_saveDb || !handle) return;
+    var tx=_saveDb.transaction(SAVE_STORE,'readwrite');
+    tx.objectStore(SAVE_STORE).put({id:HANDLE_KEY, handle:handle, at:Date.now()});
+  }catch(e){ /* private mode / unsupported clone → folder memory just won't persist */ }
+}
+function loadLastOpenedHandle(cb){
+  try{
+    if(!_saveDb) return cb(null);
+    var tx=_saveDb.transaction(SAVE_STORE,'readonly');
+    var rq=tx.objectStore(SAVE_STORE).get(HANDLE_KEY);
+    rq.onsuccess=function(){ cb((rq.result&&rq.result.handle)||null); };
+    rq.onerror=function(){ cb(null); };
+  }catch(e){ cb(null); }
 }
 
 // Perform the save — layers are encoded ONE AT A TIME with a gap between each.
@@ -14481,10 +15544,35 @@ var _IMG_RES_CURSORS = [
   'se-resize','s-resize','sw-resize','w-resize'
 ];
 
+// ── Rotation-aware resize cursors ──────────────────────────────────
+// The 8 CSS resize cursors, ordered by the screen-space angle (y-down)
+// of the direction they point: index 0 = E (0°), 1 = SE (45°), 2 = S,
+// 3 = SW, 4 = W, 5 = NW, 6 = N, 7 = NE. They're double-headed, so a
+// direction and its opposite share the same glyph.
+var _RES_CUR_OCTANTS = ['e-resize','se-resize','s-resize','sw-resize',
+                        'w-resize','nw-resize','n-resize','ne-resize'];
+// Base outward angle (radians, screen y-down) of each resize handle 0-7:
+// 0 TL, 1 TC, 2 TR, 3 MR, 4 BR, 5 BC, 6 BL, 7 ML
+var _HANDLE_BASE_ANGLE = [
+  -3*Math.PI/4, -Math.PI/2, -Math.PI/4, 0,
+   Math.PI/4,    Math.PI/2,  3*Math.PI/4, Math.PI
+];
+// Given a resize handle (0-7) and the object's rotation (radians), return
+// the CSS cursor whose arrow lines up with the handle's CURRENT on-screen
+// direction — so cursors rotate together with a rotated image/shape.
+function rotatedResizeCursor(handleIdx, objAngle){
+  if(handleIdx < 0 || handleIdx > 7) return 'nwse-resize';
+  var a = _HANDLE_BASE_ANGLE[handleIdx] + (objAngle || 0);
+  a %= (2 * Math.PI);
+  if(a < 0) a += 2 * Math.PI;
+  var oct = Math.round(a / (Math.PI / 4)) % 8;
+  return _RES_CUR_OCTANTS[oct];
+}
+
 // Compute the correct CSS cursor for the current selImg state
 function _imgCursorForHandle(hi){
   if(hi >= 8)  return 'crosshair';  // rotate handle
-  if(hi >= 0)  return _IMG_RES_CURSORS[hi];
+  if(hi >= 0)  return rotatedResizeCursor(hi, selImg ? (selImg.angle || 0) : 0);
   return 'move';                     // body drag (hi === -1)
 }
 
@@ -14652,7 +15740,7 @@ function applyWmScale(){
     var margin = Math.round(16*sc);
     var ptCanvas = (typeof ptToCanvasPx==='function') ? ptToCanvasPx(wmSize()) : wmSize();
     var ptPx   = Math.round(ptCanvas*sc);    // chosen pt → canvas px → export px (matches on-screen)
-    var lineH  = Math.round(ptPx*1.35);
+    var lineH  = Math.round(ptPx*TXT_LINE_H);
     var xAnchor= halign==='left' ? margin : halign==='center' ? Math.round(out.width/2) : out.width-margin;
     // Brand line scales with the chosen size (65%), matching the on-screen look.
     var brandPx= Math.max(7, Math.round(ptPx*0.65));
@@ -14998,7 +16086,7 @@ function applyWmScale(){
     idx = commentObjs.indexOf(obj);
     if(idx > -1){ commentObjs.splice(idx,1); renderShapeAndMeasure(); composite(); pushUndo(); return; }
     idx = markupObjs.indexOf(obj);
-    if(idx > -1){ markupObjs.splice(idx,1); renderTextObjs(); composite(); pushUndo(); return; }
+    if(idx > -1){ markupObjs.splice(idx,1); renderShapeAndMeasure(); composite(); pushUndo(); return; }
   });
 
   document.addEventListener('click', function(e){
@@ -15113,9 +16201,9 @@ window.addEventListener('orientationchange', function(){
 
 })();
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js" defer></script>
 
 </body>
 </html>
