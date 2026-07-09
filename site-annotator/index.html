@@ -4945,6 +4945,39 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
         });
         curSubs=[]; return;
       }
+      // Square / Circle annots → editable RECT / ELLIPSE shapes (not polylines).
+      // The subtype is authoritative, so we don't have to guess from geometry. A
+      // box drawn as fill-rect + stroke-rect collapses to ONE shape via the shared
+      // bounding box. (Frames that hug a note are still stripped later by the
+      // frame-dedup pass in _finishExplode.)
+      var _sub = curAnn && curAnn.subtype;
+      if(_sub==='Square' || _sub==='Circle'){
+        var _xs=[], _ys=[], _stroke=null, _fill=null, _lw=1, _dash=false, _filled=false;
+        curSubs.forEach(function(sp){
+          sp.pts.forEach(function(p){ _xs.push(p.x); _ys.push(p.y); });
+          if(sp.stroke) _stroke=sp.stroke;
+          if(sp.fill)   _fill=sp.fill;
+          _lw=Math.max(_lw, sp.lw||1);
+          if(sp.dash) _dash=true;
+          if(sp.painted==='fill' || sp.painted==='fillstroke') _filled=true;
+        });
+        if(_xs.length>=2){
+          var _bx0=Math.min.apply(null,_xs), _bx1=Math.max.apply(null,_xs);
+          var _by0=Math.min.apply(null,_ys), _by1=Math.max.apply(null,_ys);
+          var _bw=_bx1-_bx0, _bh=_by1-_by0;
+          if(_bw>=3 && _bh>=3){
+            shapeObjs.push({
+              id:Date.now()+(made++), type:(_sub==='Circle'?'ellipse':'rect'),
+              cx:_bx0+_bw/2, cy:_by0+_bh/2, w:_bw, h:_bh, angle:0,
+              color:(_stroke||'#000000'), strokeW:Math.max(1,_lw), opacity:1,
+              fill:_filled, fillColor:(_fill||'#808080'), fillOpacity:(_filled?1:0),
+              lineStyle:(_dash?'dashed':'solid'), layerIdx:activeLayerIdx, _fromExplode:true,
+              _oCx:_bx0+_bw/2, _oCy:_by0+_bh/2, _oW:_bw, _oH:_bh
+            });
+            curSubs=[]; return;
+          }
+        }
+      }
       // Everything else becomes a POLYLINE, not a pen stroke.
       //
       // drawPenOnCtx smooths its points with quadraticCurveTo — a freehand
@@ -5000,14 +5033,17 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
             }
           }
         }catch(e){}
-        // Dash comes from the annotation's declared border STYLE, not from a
-        // dashArray's presence: nearly every annot here carries dashArray [3]
-        // while style=1 (Solid). Only style=2 (Dashed) is actually dashed —
-        // reading the array alone rendered the solid conduit runs as dotted.
+        // Dash: these annots pervasively carry a bogus [3] dash array (and an
+        // unreliable border /style) while actually drawing SOLID — trusting either
+        // imported solid arrows/conduits as dotted. Honor a dash ONLY for a genuine
+        // coarse pattern (≥2 values, a gap ≥4). The appearance stream's own setDash
+        // (handled below) overrides this using the same rule, so we follow what is
+        // actually drawn rather than what the border dict claims.
         curDash=false;
         try{
           var _bs=curAnn && curAnn.borderStyle;
-          if(_bs && _bs.style===2 && _bs.dashArray && _bs.dashArray.length) curDash=true;
+          var _bd=_bs && _bs.dashArray;
+          if(_bd && _bd.length>=2 && Math.max.apply(null,_bd)>=4) curDash=true;
         }catch(e){}
         continue;
       }
@@ -5019,6 +5055,12 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
       else if(fnA===OPS.setStrokeRGBColor){ curStroke=_annC(agA,'#000000'); }
       else if(fnA===OPS.setFillRGBColor){ curFill=_annC(agA,null); }
       else if(fnA===OPS.setLineWidth){ curLW=Math.max(1,(agA||1)*sc*0.5); }
+      else if(fnA===OPS.setDash){
+        // Follow what the appearance actually draws, ignoring the [3] artifact:
+        // a real coarse dash turns it on; a fine/empty array forces solid.
+        var _da2=agA && agA[0];
+        curDash = !!(_da2 && _da2.length>=2 && Math.max.apply(null,_da2)>=4);
+      }
       // Record HOW the pending path is painted. These annots emit `stroke`, while
       // setFillRGBColor often carries a stale color that is never used — taking
       // fill-before-stroke tinted black leader lines magenta.
