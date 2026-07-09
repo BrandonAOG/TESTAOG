@@ -10149,9 +10149,23 @@ function renderSelection(){
   if(!selectedShape){
     if(selCv.width>1){ selCv.width=1; selCv.height=1; } _selPrevDirty=null; return;
   }
-  if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){
-    selCv.width=drawCv.width; selCv.height=drawCv.height; _selPrevDirty=null;
+  // Match the SAME plan-coordinate setup every other overlay uses (shCv via
+  // _sizeAnnoCanvas, renderImgSelection): backing store at eff resolution, CSS
+  // sized to the plan, context transform = eff so we draw in plan coords. This is
+  // what selectedShape.cx/cy are in. Previously selCv was sized to drawCv with NO
+  // transform (identity), so once zoomed/panned the selection chrome drew at raw
+  // pixel positions and drifted off the actual object — visible as "the element
+  // jumps when you tap edit". Setting canvas.width resets the transform, so we
+  // (re)apply it every call.
+  var _selEff = _annoEff || (typeof _computeAnnoEff==='function' ? _computeAnnoEff() : 1);
+  var _selBW = Math.max(1, Math.round(baseCv.width*_selEff));
+  var _selBH = Math.max(1, Math.round(baseCv.height*_selEff));
+  if(selCv.width!==_selBW || selCv.height!==_selBH){
+    selCv.width=_selBW; selCv.height=_selBH; _selPrevDirty=null;
   }
+  selCv.style.width  = baseCv.width+'px';
+  selCv.style.height = baseCv.height+'px';
+  selCtx.setTransform(_selEff,0,0,_selEff,0,0);
   // Keep a comment's selection chrome (dashed box + handles) locked to the note's
   // LIVE geometry. The box auto-grows to fit text while typing, snaps to fit, and
   // can be re-sized on font/import changes — any of which leaves selectedShape
