@@ -5782,6 +5782,12 @@ btnRotL.addEventListener('click',function(){ rotateCanvas(-90); });
 btnRotR.addEventListener('click',function(){ rotateCanvas(90); });
 
 function rotateCanvas(deg){
+  // Commit any in-progress text (or note) edit FIRST. The editor is a DOM overlay
+  // positioned in screen space; rotating with it still open left the textarea
+  // dangling over the wrong spot and the half-typed text uncommitted. Finalizing
+  // here bakes the text into textObjs so it rotates with the page like everything
+  // else. commitText() no-ops when no editor is open and routes note edits itself.
+  try{ if(typeof commitText==='function') commitText(); }catch(ex){ console.warn('[Rotate] commitText failed:',ex); }
   var w=baseCv.width,h=baseCv.height;
   // rotate base canvas
   var tmp=document.createElement('canvas'); tmp.width=h; tmp.height=w;
