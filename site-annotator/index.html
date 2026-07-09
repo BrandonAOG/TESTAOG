@@ -2954,6 +2954,12 @@ var _scalingRefMeasure=null; // reference line kept live while scale dialog is o
 var scaleSet=false, ppu=1, scaleUnit='m';
 var gridEnabled=false, gridSize=50, snapEnabled=false;
 var pdfDoc=null, currentPage=1, baseLoaded=false;
+// True when the user has made edits since the last load or file export. Used to
+// warn before opening a new file (which fully wipes the current work). Set only
+// by pushUndo (real user edits — the import pipeline never calls it), cleared on
+// load and on any file download. NOT cleared by autosave (doSave), whose session
+// slot is wiped by the very load we're guarding against.
+var _annotDirty=false;
 // Vector-export source: when the backdrop IS a pristine PDF page (nothing was
 // extracted/whited-out and nothing was drawn into the base), we can export the
 // original vectors instead of a flattened raster, so the survey stays infinitely
@@ -3112,6 +3118,7 @@ function pushUndo(){
     undoStack.push(snap);
     if(undoStack.length>MAX_UNDO) undoStack.shift();
     redoStack=[];
+    _annotDirty=true;
     scheduleSave();
   }catch(ex){ console.warn('pushUndo failed:',ex); }
 }
@@ -3548,6 +3555,14 @@ function clearFormFields(){
 }
 
 function loadFile(f, srcCap){
+  // Guard against silently discarding unsaved work. Opening a file fully wipes the
+  // current canvas AND its autosave slot, so if the user has un-exported edits,
+  // confirm first. (Only fires on real edits — imports don't set _annotDirty.)
+  if(baseLoaded && _annotDirty){
+    var _ok=false;
+    try{ _ok=window.confirm('You have unsaved annotations on the current plan.\n\nOpening a new file will discard them — export first if you want to keep them.\n\nOpen the new file anyway?'); }catch(e){ _ok=true; }
+    if(!_ok) return;
+  }
   clearFormFields();   // don't carry the previous job's details into a new import
   var name=(f.name||'').toLowerCase();
   var type=(f.type||'').toLowerCase();
@@ -5758,6 +5773,7 @@ function afterLoad(){
   tCtx.clearRect(0,0,tCv.width,tCv.height);
   shCtx.clearRect(0,0,shCv.width,shCv.height);
   baseLoaded=true;
+  _annotDirty=false;   // fresh document — no unsaved edits yet
   dropZone.classList.add('hidden'); document.getElementById('compass').style.display='block';
   canvasWrap.style.display='inline-block';
   subbar.classList.add('vis');
@@ -12563,6 +12579,7 @@ function pickSaveTarget(suggestedName, mimeType, description, exts){
   return Promise.resolve(null); // no picker → download fallback
 }
 function writeToTarget(handle, blob, fallbackName){
+  _annotDirty=false;   // work is being written to disk → no longer "unsaved"
   if(handle && handle.createWritable){
     return handle.createWritable().then(function(w){
       return w.write(blob).then(function(){ return w.close(); });
