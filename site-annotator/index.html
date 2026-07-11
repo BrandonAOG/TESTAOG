@@ -1745,7 +1745,23 @@ function toast(msg,type,dur){
 // Captures a structured trace of import (explode) and export so we can see
 // EXACTLY what happens to each element: extraction, white-out, suppression,
 // move-detection, vector redraw, and any patch/stamp. Dump with AOG.dumpDebug().
-var AOG_DEBUG = (function(){ try{ return /[?&]debug\b/.test(location.search) || localStorage.getItem('AOG_DEBUG')==='1'; }catch(e){ return false; } })();
+// AOG_DEBUG is a live window property: typing  AOG_DEBUG=true  (or false) in
+// the console flips tracing on/off AND persists the choice in localStorage —
+// same effect as AOG.enableDebug(), just easier to remember.
+(function(){
+  var _v=(function(){ try{ return /[?&]debug\b/.test(location.search) || localStorage.getItem('AOG_DEBUG')==='1'; }catch(e){ return false; } })();
+  try{
+    Object.defineProperty(window,'AOG_DEBUG',{
+      configurable:true,
+      get:function(){ return _v; },
+      set:function(on){
+        _v=!!on;
+        try{ localStorage.setItem('AOG_DEBUG', _v?'1':'0'); }catch(e){}
+        try{ console.log('%c[AOG] debug tracing '+(_v?'ON':'OFF'),'color:#0a0;font-weight:bold'); }catch(e){}
+      }
+    });
+  }catch(e){ window.AOG_DEBUG=_v; }
+})();
 var _dbgLog=[];
 function dbg(stage, msg, data){
   if(!AOG_DEBUG) return;
@@ -1782,7 +1798,7 @@ window.AOG.dump=function(){
   return {markups:M, pens:P};
 };
 window.AOG.redraw=function(){ renderShapeAndMeasure(); composite(); };
-window.AOG.enableDebug=function(on){ AOG_DEBUG=(on!==false); try{ localStorage.setItem('AOG_DEBUG', AOG_DEBUG?'1':'0'); }catch(e){} return AOG_DEBUG; };
+window.AOG.enableDebug=function(on){ AOG_DEBUG=(on!==false); return AOG_DEBUG; };   // kept for back-compat; AOG_DEBUG=true/false is the primary switch
 // Toggle export model: AOG.fullRedraw(true) = redraw every element as a movable
 // object (nothing memory-stuck at import position); AOG.fullRedraw(false) = keep
 // the original page pixel-perfect and only move edited elements. Re-export after.
@@ -5816,6 +5832,11 @@ function _normalizeFamily(fam){
   if(/arial|helvetica/i.test(fam)) return 'Arial';
   if(/times/i.test(fam)) return 'Times New Roman';
   if(/courier|mono/i.test(fam)) return 'Courier New';
+  // pdf.js often reports only a GENERIC family ('sans-serif','serif'). The old
+  // fallback chopped 'sans-serif' into the literal (nonexistent) family "sans",
+  // which the browser silently substitutes — map generics to real fonts instead.
+  if(/^sans(-serif)?$/i.test(fam.trim())) return 'Arial';
+  if(/^serif$/i.test(fam.trim())) return 'Times New Roman';
   return fam.split(',')[0].replace(/[-,].*$/,'').trim() || 'Arial';
 }
 
@@ -7470,7 +7491,7 @@ function onUp(e){
       // the OLD position (it was only ever shown via the selCv preview before).
       var _lns=_tt.text.split('\n');
       var _fpx=ptToCanvasPx(_tt.fontSize);
-      var _ew=measureLinesWFull(_lns,_fpx,_tt.fontFamily||'Arial',_tt.bold,_tt.italic);
+      var _ew=measureLinesWDrawn(_tt,_lns,_fpx);
       var _eh=_lns.length*_fpx*TXT_LINE_H;
       var _cs=Math.cos(selectedShape.angle), _sn=Math.sin(selectedShape.angle);
       var _lcx=_ew/2, _lcy=-_fpx+_eh/2;
@@ -8997,25 +9018,90 @@ function _rebindTextRefs(){
 function _remapFitWs(o, newText){
   try{
     if(!o || !o._fitWs) return;
-    var oldL=String(o.text||'').split('\n'), newL=String(newText||'').split('\n');
+    // Compare against the text the widths are actually indexed to (snapshotted
+    // when the edit session opened), not o.text — the live input handler keeps
+    // o.text synced to the textarea, which made this comparison always-equal.
+    var baseText=(o._fitBaseText!=null)? o._fitBaseText : o.text;
+    // Cosmetic normalization: trailing whitespace and NBSP↔space differences
+    // (textarea round-trips can introduce them) must NOT drop a line's width.
+    var norm=function(s){ return String(s).replace(/\u00a0/g,' ').replace(/\s+$/,''); };
+    var oldL=String(baseText||'').split('\n'), newL=String(newText||'').split('\n');
     var nf=[], any=false;
     for(var i=0;i<newL.length;i++){
-      var keep=(newL[i]===oldL[i]) ? o._fitWs[i] : null;
+      var keep=(norm(newL[i])===norm(oldL[i])) ? o._fitWs[i] : null;
       if(keep!=null) any=true;
       nf.push(keep==null?null:keep);
     }
     if(any){ o._fitWs=nf; } else { delete o._fitWs; delete o._fitFs; }
+    o._fitBaseText=newText;   // widths are now indexed against the new content
+    o._fitAvgKey=null; o._fitAvgR=null;   // ratio must be recomputed for the new content
   }catch(e){}
 }
 
-// Target draw width for line i of an imported text object (plan px), scaled if
-// the user changed the font size since import. Returns undefined when the line
-// doesn't meaningfully overflow its original width (never stretches, only
-// compresses — via fillText's maxWidth / a horizontal matrix in the vector PDF).
+// ── UNIFORM BLOCK SQUEEZE ─────────────────────────────────────────────────────
+// Imported blocks used PER-LINE squeeze ratios (each line compressed to its own
+// source-PDF width). But the edit overlay can only apply ONE uniform scaleX (the
+// average) — so lines whose ratio differed from the mean visibly widened or
+// tightened between edit and commit (measured: 0.902/0.902/0.874/0.874 vs the
+// 0.889 average). Fix: everything now uses the block's AVERAGE ratio — commit
+// render, box measure, hit test, raster and vector export — so edit ↔ commit is
+// pixel-identical. Deviation from exact source widths is ~1-2%: invisible.
+function _fitAvgRatio(o){
+  if(!o || !o._fitWs) return 1;
+  var key=(o.text||'')+'|'+o.fontSize+'|'+(o.fontFamily||'')+'|'+(o.bold?1:0)+(o.italic?1:0);
+  if(o._fitAvgKey===key && o._fitAvgR) return o._fitAvgR;
+  var r=1;
+  try{
+    var fpx=ptToCanvasPx(o.fontSize);
+    var c=(typeof _fmCtx!=='undefined' && _fmCtx) ? _fmCtx
+          : document.createElement('canvas').getContext('2d');
+    c.font=(o.italic?'italic ':'')+(o.bold?'bold ':'')+fpx+'px '+(o.fontFamily||'Arial')+',sans-serif';
+    var lines=String(o.text||'').split('\n');
+    var scF=o.fontSize/(o._fitFs||o.fontSize);
+    var acc=0,n=0;
+    for(var i=0;i<lines.length;i++){
+      if(o._fitWs[i]==null || !lines[i]) continue;
+      // Measure INK width (trailing spaces stripped): the stored source width
+      // was captured without trailing whitespace, and the remap keeps a line's
+      // width across trailing-space-only edits — measuring the padded line
+      // against the unpadded width skewed the ratio low and over-tightened the
+      // whole block the moment you hit spacebar at the end of a line.
+      var _ink=lines[i].replace(/\s+$/,'');
+      if(!_ink) continue;
+      var nat=c.measureText(_ink).width;
+      if(nat>0){ acc+=(o._fitWs[i]*scF)/nat; n++; }
+    }
+    if(n) r=Math.max(0.5, Math.min(1, acc/n));
+  }catch(e){ r=1; }
+  o._fitAvgKey=key; o._fitAvgR=r;
+  return r;
+}
+// Target draw width for line i of an imported text object (plan px). Uniform:
+// natural width × the block's average squeeze ratio. Applies to EVERY line of a
+// block that has fit data (including edited lines — the overlay squeezes them
+// too), so the whole block reads with one consistent letter spacing.
 function _fitLineW(obj, i, naturalW){
-  if(!obj || !obj._fitWs || obj._fitWs[i]==null) return undefined;
-  var t = obj._fitWs[i] * (obj.fontSize/(obj._fitFs||obj.fontSize));
-  return (naturalW > t*1.02) ? t : undefined;
+  if(!obj || !obj._fitWs) return undefined;
+  var r=_fitAvgRatio(obj);
+  if(r>=0.995) return undefined;
+  return naturalW*r;
+}
+
+// Width of the text block AS DRAWN. Imported lines render COMPRESSED to their
+// original source-PDF width (_fitWs, via fillText maxWidth) — so any box sized
+// from the natural (uncompressed) font metrics hangs wide of the glyphs, leaving
+// extra blank space on the RIGHT inside the edit/selection box. Measure each
+// line naturally, then clamp by its fit width, and take the max.
+function measureLinesWDrawn(o, lines, fpx){
+  var mw=0;
+  for(var i=0;i<lines.length;i++){
+    if(lines[i]==='') continue;
+    var w=measureLinesWFull([lines[i]],fpx,o.fontFamily||'Arial',o.bold,o.italic);
+    var fw=_fitLineW(o,i,w);
+    if(fw!==undefined && fw<w) w=fw;
+    if(w>mw) mw=w;
+  }
+  return mw;
 }
 
 function renderTextObjs(){
@@ -9170,7 +9256,7 @@ function findTextObjAt(x,y){
     if(o._editing) continue;
     var lines=o.text.split('\n');
     var ofpx=ptToCanvasPx(o.fontSize);
-    var estW=measureLinesWFull(lines,ofpx,o.fontFamily||'Arial',o.bold,o.italic);
+    var estW=measureLinesWDrawn(o,lines,ofpx);
     var estH=lines.length*ofpx*TXT_LINE_H;
     var pad=Math.max(8,12/zoom);
     // Rotate the click point into the label's LOCAL frame (pivot = o.x,o.y,
@@ -9616,7 +9702,9 @@ var _txtMoving=false, _txtMoveObj=null, _txtMoveStart=null;
 function _textBoxDims(o){
   var lines=o.text.split('\n');
   var fpx=ptToCanvasPx(o.fontSize);
-  var w=measureLinesWFull(lines,fpx,o.fontFamily||'Arial',o.bold,o.italic);
+  // As-drawn width: imported lines are compressed to their source widths, so
+  // the natural measure left blank space on the right inside the dashed box.
+  var w=measureLinesWDrawn(o,lines,fpx);
   var h=lines.length*fpx*TXT_LINE_H;
   // TRUE visual top of the text block relative to the first baseline (o.y).
   // The old chrome assumed the glyphs start a full font-size above the baseline
@@ -9806,6 +9894,12 @@ function _openTextEdit(o){
   // auto-fit measures the real (full) content and the box grows to show every
   // line instead of clipping to the empty default height.
   textOv.value=o.text;
+  // Snapshot the text this object's _fitWs is CURRENTLY indexed against. The
+  // live input handler mutates o.text on every keystroke, so by commit time
+  // "old vs new" comparisons against o.text are always equal and the remap was
+  // a permanent no-op — leaving original-PDF line widths glued to edited lines
+  // (wrong squeeze / dropped squeeze after edits). Remap compares against this.
+  o._fitBaseText=o.text;
   _syncTextFmtFromObj(o);
   startTextCursor(o.x, o.y);
   showTextOverlay(_ovX, _ovY);
@@ -9841,6 +9935,21 @@ function _openTextEdit(o){
     }
     textOv._fitSx=_sxE;
     if(_sxE<0.995 && typeof repositionTextOverlay==='function') repositionTextOverlay();
+  }catch(e){}
+  // ── FIT DIAGNOSTIC (open) ── prints exactly what the squeeze machinery sees.
+  // Gated like every other trace: enable with ?debug or AOG.enableDebug(true).
+  if(AOG_DEBUG) try{
+    var _dl=o.text.split('\n'), _dfpx=ptToCanvasPx(o.fontSize);
+    var _dc=(_fmCtx||document.createElement('canvas').getContext('2d'));
+    _dc.font=(o.italic?'italic ':'')+(o.bold?'bold ':'')+_dfpx+'px '+(o.fontFamily||'Arial')+',sans-serif';
+    console.log('[AOG:fit] OPEN '+JSON.stringify({family:o.fontFamily, fontSize:o.fontSize,
+      fitFs:o._fitFs, fitSx:textOv._fitSx,
+      lines:_dl.map(function(ln,i){
+        var nat=ln?_dc.measureText(ln).width:0;
+        var fw=_fitLineW(o,i,nat);
+        return {i:i, nat:Math.round(nat), fitW:(o._fitWs&&o._fitWs[i]!=null)?Math.round(o._fitWs[i]):null,
+                target:(fw!==undefined?Math.round(fw):'natural')};
+      })}));
   }catch(e){}
   renderTextCursorFrame();   // draw the box + rotate handle right away
 }
@@ -10356,6 +10465,20 @@ function commitText(){
       toast('Text deleted','',1500);
       editingObj=null; renderTextObjs(); pushUndo();
     } else {
+      _remapFitWs(editingObj,val);   // re-key imported line widths to the edited content
+      // ── FIT DIAGNOSTIC (commit) ── gated: ?debug / AOG.enableDebug(true).
+      if(AOG_DEBUG) try{
+        var _o2=editingObj, _dl2=val.split('\n'), _dfpx2=ptToCanvasPx(_o2.fontSize);
+        var _dc2=(_fmCtx||document.createElement('canvas').getContext('2d'));
+        _dc2.font=(_o2.italic?'italic ':'')+(_o2.bold?'bold ':'')+_dfpx2+'px '+(_o2.fontFamily||'Arial')+',sans-serif';
+        console.log('[AOG:fit] COMMIT '+JSON.stringify({family:_o2.fontFamily, fontSize:_o2.fontSize, fitFs:_o2._fitFs,
+          lines:_dl2.map(function(ln,i){
+            var nat=ln?_dc2.measureText(ln).width:0;
+            var fw=_fitLineW(_o2,i,nat);
+            return {i:i, nat:Math.round(nat), fitW:(_o2._fitWs&&_o2._fitWs[i]!=null)?Math.round(_o2._fitWs[i]):null,
+                    target:(fw!==undefined?Math.round(fw):'natural')};
+          })}));
+      }catch(e){}
       editingObj.text=val; editingObj.color=color;
       editingObj.fontSize=FONT_SIZE; editingObj.opacity=1;
       editingObj.fontFamily=textFontFamily; editingObj.bold=textBold;
@@ -10419,8 +10542,9 @@ function enterTextTransformMode(obj){
   var lines=obj.text.split('\n');
   var tmfpx=ptToCanvasPx(obj.fontSize);
   // Tight bounds around the actual rendered text — the selection is drawn as a
-  // rectangular text box (not an oval), so it should hug the glyphs.
-  var textW=measureLinesWFull(lines,tmfpx,obj.fontFamily||'Arial',obj.bold,obj.italic);
+  // rectangular text box (not an oval), so it should hug the glyphs. Imported
+  // text draws compressed to its source widths, so measure AS DRAWN.
+  var textW=measureLinesWDrawn(obj,lines,tmfpx);
   var textH=lines.length*tmfpx*TXT_LINE_H;
   var estW=textW;
   var estH=textH;
@@ -10736,7 +10860,9 @@ function renderSelection(){
       var talign=to.textAlign||'left';
       selCtx.textAlign=talign;
       var tlines=to.text.split('\n');
-      var tmaxW=measureLinesWFull(tlines,tofpx,tfam,to.bold,to.italic);
+      // AS-DRAWN width (imported lines are compressed to source widths) — must
+      // match enterTextTransformMode/commitSelection or the label shifts.
+      var tmaxW=measureLinesWDrawn(to,tlines,tofpx);
       var tH=tlines.length*tofpx*TXT_LINE_H;
       // local center offset (matches enterTextTransformMode): (textW/2, -fpx+textH/2)
       var lcx=tmaxW/2, lcy=-tofpx+tH/2;
@@ -10746,7 +10872,14 @@ function renderSelection(){
       selCtx.translate(ox,oy);
       selCtx.rotate(s.angle);
       var taxOff=(talign==='center'?tmaxW/2:talign==='right'?tmaxW:0);
-      tlines.forEach(function(line,i){ selCtx.fillText(line,taxOff,i*tofpx*TXT_LINE_H); });
+      tlines.forEach(function(line,i){
+        // Apply the same per-line compression as renderTextObjs so the preview
+        // matches the committed glyphs exactly.
+        var _nw=selCtx.measureText(line).width;
+        var _fw=_fitLineW(to,i,_nw);
+        if(_fw!==undefined) selCtx.fillText(line,taxOff,i*tofpx*TXT_LINE_H,_fw);
+        else selCtx.fillText(line,taxOff,i*tofpx*TXT_LINE_H);
+      });
     }
   }
   selCtx.restore();
@@ -10878,11 +11011,11 @@ function commitSelection(){
     var lines=obj.text.split('\n');
     var cmfpx=ptToCanvasPx(obj.fontSize);
     // Derive the origin (obj.x, obj.y) from the ellipse center using the SAME
-    // convention as enterTextTransformMode and the preview: full measurement,
+    // convention as enterTextTransformMode and the preview: AS-DRAWN measurement,
     // local center-offset (textW/2, -fpx+textH/2), inverse-rotated. Using a
     // matching convention everywhere is what stops the label from shifting /
     // doubling when you re-select it after committing.
-    var estW=measureLinesWFull(lines,cmfpx,obj.fontFamily||'Arial',obj.bold,obj.italic);
+    var estW=measureLinesWDrawn(obj,lines,cmfpx);
     var estH=lines.length*cmfpx*TXT_LINE_H;
     var cos=Math.cos(s.angle), sin=Math.sin(s.angle);
     var tLocalX=estW/2, tLocalY=-cmfpx+estH/2;
@@ -13622,8 +13755,12 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
   // ── Text objects (multi-line, alignment, bg, underline/strike) ─────────────
   try{ textObjs.forEach(function(obj){
     if(!visible(obj)||!obj.text) return;
-    var f = obj.bold ? (obj.italic?fonts.boldItalic:fonts.bold)
-                     : (obj.italic?fonts.italic:fonts.regular);
+    // Prefer the embedded true font for this family (Calibri→Carlito etc.);
+    // fall back to the Helvetica set when it wasn't needed or couldn't load.
+    var _famK=_customFamilyKey(obj.fontFamily);
+    var _set=(fonts.custom && _famK && fonts.custom[_famK]) ? fonts.custom[_famK] : fonts;
+    var f = obj.bold ? (obj.italic?_set.boldItalic:_set.bold)
+                     : (obj.italic?_set.italic:_set.regular);
     var efpx=ptToCanvasPx(obj.fontSize);          // canvas px per line
     var fsize=efpx/sc;                             // pt
     var lines=String(obj.text).split('\n');
@@ -13691,18 +13828,47 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
         }
         var pp=P(lx,ly);
         // Width-fit: the TARGET is the screen width (cws[i]), further compressed
-        // by any imported-text fit width. Scale Helvetica about the line's left
-        // edge so the exported run ends exactly where the on-screen one does —
-        // stretch OR compress (previously only compressed, so Helvetica-narrower-
-        // than-screen lines ended short of their screen position).
+        // by any imported-text fit width. Previously the whole glyph run was
+        // horizontally SCALED to hit the target — that squished/stretched the
+        // letterforms and made the LETTER SPACING look wrong on export. Now the
+        // glyphs stay at natural Helvetica proportions and the width difference
+        // is distributed across the gaps via PDF character spacing (Tc), exactly
+        // like tracking — so the line still starts AND ends where it does on
+        // screen, but every letter keeps its true shape.
         var _fwV=_fitLineW(obj,i,tw);
         var _target=(_fwV!==undefined? Math.min(_fwV,tw) : tw);
-        var _sxV=(twH>0)? Math.max(0.5, Math.min(2, _target/twH)) : 1;
         var tw2=_target;
-        if(Math.abs(_sxV-1)>0.01 && PDFLib.pushGraphicsState && PDFLib.concatTransformationMatrix){
+        var _nG=ln.length;
+        var _csPt=(_nG>1)? ((_target-twH)/sc)/(_nG-1) : 0;
+        // keep tracking subtle: never more than ±35% of the font size per gap
+        var _csMax=fsize*0.35;
+        if(_csPt> _csMax) _csPt= _csMax;
+        if(_csPt<-_csMax) _csPt=-_csMax;
+        // NOTE: pushOperators is a method on the PAGE, not on the PDFLib
+        // namespace — the old check (PDFLib.pushOperators) was always undefined,
+        // which silently disabled the squeeze and shipped every line at natural
+        // Helvetica width (text ran farther right on export than on screen).
+        var _useCS = Math.abs(_target-twH)>0.5 && _nG>1 &&
+                     typeof page.pushOperators==='function' &&
+                     typeof PDFLib.setCharacterSpacing==='function';
+        if(_useCS){
+          try{
+            page.pushOperators(PDFLib.setCharacterSpacing(_csPt));
+            page.drawText(ln,{x:pp.x, y:pp.y, size:fsize, font:f, color:col(obj.color), opacity:op, rotate:degrees(rotDeg)});
+            page.pushOperators(PDFLib.setCharacterSpacing(0));
+          }catch(e){
+            try{ page.pushOperators(PDFLib.setCharacterSpacing(0)); }catch(_){}
+            page.drawText(ln,{x:pp.x, y:pp.y, size:fsize, font:f, color:col(obj.color), opacity:op, rotate:degrees(rotDeg)});
+          }
+        } else if(Math.abs(_target-twH)>0.5 && twH>0 &&
+                  PDFLib.pushGraphicsState && PDFLib.concatTransformationMatrix){
+          // Fallback when Tc is unavailable: scale the glyph run about its left
+          // edge so the line still ends where it does on screen. Slightly alters
+          // letterforms, but far better than shipping the wrong line width.
+          var _sxF=Math.max(0.5, Math.min(2, _target/twH));
           try{
             page.pushOperators(PDFLib.pushGraphicsState(),
-              PDFLib.concatTransformationMatrix(_sxV,0,0,1, pp.x*(1-_sxV), 0));
+              PDFLib.concatTransformationMatrix(_sxF,0,0,1, pp.x*(1-_sxF), 0));
             page.drawText(ln,{x:pp.x, y:pp.y, size:fsize, font:f, color:col(obj.color), opacity:op, rotate:degrees(rotDeg)});
             page.pushOperators(PDFLib.popGraphicsState());
           }catch(e){
@@ -13764,6 +13930,111 @@ function _suppressVectorizedForOverlay(){
 // attachJson (string|null): when provided, the AOG editable project JSON is
 // embedded as an attachment (for "PDF✎").
 // Calls onReady(uint8Bytes) on success, or onReady(null) to fall back to raster.
+// ── TRUE-FONT EXPORT ──────────────────────────────────────────────────────────
+// The vector export historically wrote ALL text as standard Helvetica. Text that
+// is Arial on screen is fine (metric twins), but Calibri/Times/Courier text came
+// out with the wrong letterforms. These helpers fetch metric-compatible open
+// (OFL) fonts on demand — Carlito (=Calibri), Tinos (=Times New Roman), Cousine
+// (=Courier New) — register fontkit, and embed them (subsetted) so exported text
+// keeps its font type. Any failure (offline, CDN down, embed error) degrades
+// silently to Helvetica; the export never breaks because of a font.
+var _CUSTOM_FONT_SRC={
+  'Calibri':{ base:'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/carlito/',
+    files:{regular:'Carlito-Regular.ttf', bold:'Carlito-Bold.ttf',
+           italic:'Carlito-Italic.ttf',  boldItalic:'Carlito-BoldItalic.ttf'} },
+  'Times':{ base:'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/tinos/',
+    files:{regular:'Tinos-Regular.ttf', bold:'Tinos-Bold.ttf',
+           italic:'Tinos-Italic.ttf',   boldItalic:'Tinos-BoldItalic.ttf'} },
+  'Courier':{ base:'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/cousine/',
+    files:{regular:'Cousine-Regular.ttf', bold:'Cousine-Bold.ttf',
+           italic:'Cousine-Italic.ttf',   boldItalic:'Cousine-BoldItalic.ttf'} }
+};
+// Screen family → export font key. Arial/Helvetica return null on purpose: the
+// built-in Helvetica IS the right export font for them.
+function _customFamilyKey(fam){
+  fam=String(fam||'');
+  if(/calibri|carlito/i.test(fam)) return 'Calibri';
+  if(/times|tinos|serif/i.test(fam) && !/sans/i.test(fam)) return 'Times';
+  if(/courier|cousine|mono/i.test(fam)) return 'Courier';
+  return null;
+}
+var _customFontBytes={};      // key → {variant: ArrayBuffer} (fetched once per session)
+var _fontkitLoading=null;
+function _ensureFontkit(){
+  if(window.fontkit) return Promise.resolve(true);
+  if(_fontkitLoading) return _fontkitLoading;
+  _fontkitLoading=new Promise(function(res){
+    var s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js';
+    s.onload=function(){ res(!!window.fontkit); };
+    s.onerror=function(){ res(false); };
+    document.head.appendChild(s);
+    setTimeout(function(){ res(!!window.fontkit); }, 8000);  // never hang the export
+  });
+  return _fontkitLoading;
+}
+function _loadFontBytes(k){
+  if(_customFontBytes[k]) return Promise.resolve(_customFontBytes[k]);
+  var src=_CUSTOM_FONT_SRC[k]; if(!src) return Promise.resolve(null);
+  var out={}, any=false, chain=Promise.resolve();
+  Object.keys(src.files).forEach(function(v){
+    chain=chain.then(function(){
+      return fetch(src.base+src.files[v])
+        .then(function(r){ if(!r.ok) throw new Error('http '+r.status); return r.arrayBuffer(); })
+        .then(function(ab){ out[v]=ab; any=true; },
+              function(e){ console.warn('[TrueFont] fetch failed '+k+'/'+v, e); });
+    });
+  });
+  return chain.then(function(){ if(any){ _customFontBytes[k]=out; return out; } return null; });
+}
+// Embeds every custom font family actually used by current text objects into the
+// given pdf-lib document. Populates fonts.custom[key] = {regular,bold,italic,
+// boldItalic} (missing variants fall back within the family). Never rejects.
+function _embedCustomExportFonts(pdf, fonts){
+  var need={};
+  try{
+    textObjs.forEach(function(o){
+      if(!o.text) return;
+      var k=_customFamilyKey(o.fontFamily);
+      if(k && _CUSTOM_FONT_SRC[k]) need[k]=true;
+    });
+  }catch(e){}
+  var keys=Object.keys(need);
+  if(!keys.length) return Promise.resolve();
+  return _ensureFontkit().then(function(ok){
+    if(!ok){ console.warn('[TrueFont] fontkit unavailable — Helvetica fallback'); return; }
+    try{ pdf.registerFontkit(window.fontkit); }
+    catch(e){ console.warn('[TrueFont] registerFontkit failed', e); return; }
+    var chain=Promise.resolve();
+    keys.forEach(function(k){
+      chain=chain.then(function(){
+        return _loadFontBytes(k).then(function(vs){
+          if(!vs) return;
+          var set={}, c2=Promise.resolve();
+          ['regular','bold','italic','boldItalic'].forEach(function(v){
+            c2=c2.then(function(){
+              if(!vs[v]) return;
+              return pdf.embedFont(vs[v],{subset:true}).then(
+                function(f){ set[v]=f; },
+                function(e){ console.warn('[TrueFont] embed '+k+'/'+v+' failed', e); });
+            });
+          });
+          return c2.then(function(){
+            if(set.regular){
+              set.bold=set.bold||set.regular;
+              set.italic=set.italic||set.regular;
+              set.boldItalic=set.boldItalic||set.bold;
+              fonts.custom[k]=set;
+              dbg('export','true font embedded: '+k);
+            }
+          });
+        });
+      });
+    });
+    return chain;
+  }).catch(function(e){ console.warn('[TrueFont]', e); });
+}
+
 function _buildVectorPdf(attachJson, onReady){
   try{
     dbgReset('EXPORT (vector path)');
@@ -14090,7 +14361,12 @@ function _buildVectorPdf(attachJson, onReady){
                   pdf.embedFont(PDFLib.StandardFonts.HelveticaBold),
                   pdf.embedFont(PDFLib.StandardFonts.HelveticaOblique),
                   pdf.embedFont(PDFLib.StandardFonts.HelveticaBoldOblique)
-                ]).then(function(fs){ _fonts={regular:fs[0],bold:fs[1],italic:fs[2],boldItalic:fs[3]}; })
+                ]).then(function(fs){
+                  _fonts={regular:fs[0],bold:fs[1],italic:fs[2],boldItalic:fs[3],custom:{}};
+                  // True-font pass: embed Carlito/Tinos/Cousine for any text that
+                  // uses Calibri/Times/Courier on screen. Resolves even on failure.
+                  return _embedCustomExportFonts(pdf,_fonts);
+                })
                 : Promise.resolve());
               // DRAW ORDER (bottom → top): native HD images FIRST, then the
               // transparent annotation overlay (which carries shapes, text AND notes)
