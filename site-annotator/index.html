@@ -5090,11 +5090,20 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
         else if(a1.pts.length===2 && a0.pts.length>=3){ shaft=a1; head=a0; }
       }
       if(shaft && head){
-        var hx=0, hy=0;
-        head.pts.forEach(function(p){ hx+=p.x; hy+=p.y; });
-        hx/=head.pts.length; hy/=head.pts.length;
+        // WHICH END GETS THE HEAD: the old code compared each shaft endpoint to
+        // the CENTROID of the head subpath. A wide/swept head's centroid sits
+        // well behind the tip — on a short shaft it lands closer to the TAIL,
+        // the head got stamped on the wrong end, and the arrow imported
+        // pointing backwards ("upside down"). The head's tip vertex physically
+        // coincides with one shaft endpoint, so the robust test is the MINIMUM
+        // distance from each endpoint to any head point: the true tip end
+        // measures ~0, the tail end measures a full shaft length.
         var s0=shaft.pts[0], s1=shaft.pts[1];
-        var d0=Math.hypot(s0.x-hx,s0.y-hy), d1=Math.hypot(s1.x-hx,s1.y-hy);
+        var d0=Infinity, d1=Infinity;
+        head.pts.forEach(function(p){
+          var a=Math.hypot(s0.x-p.x,s0.y-p.y); if(a<d0) d0=a;
+          var b=Math.hypot(s1.x-p.x,s1.y-p.y); if(b<d1) d1=b;
+        });
         // App draws the head at (x2,y2): put the shaft end nearest the head there.
         var p1=(d0<d1)?s1:s0, p2=(d0<d1)?s0:s1;
         measureObjs.push({
