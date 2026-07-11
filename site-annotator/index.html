@@ -1745,23 +1745,7 @@ function toast(msg,type,dur){
 // Captures a structured trace of import (explode) and export so we can see
 // EXACTLY what happens to each element: extraction, white-out, suppression,
 // move-detection, vector redraw, and any patch/stamp. Dump with AOG.dumpDebug().
-// AOG_DEBUG is a live window property: typing  AOG_DEBUG=true  (or false) in
-// the console flips tracing on/off AND persists the choice in localStorage —
-// same effect as AOG.enableDebug(), just easier to remember.
-(function(){
-  var _v=(function(){ try{ return /[?&]debug\b/.test(location.search) || localStorage.getItem('AOG_DEBUG')==='1'; }catch(e){ return false; } })();
-  try{
-    Object.defineProperty(window,'AOG_DEBUG',{
-      configurable:true,
-      get:function(){ return _v; },
-      set:function(on){
-        _v=!!on;
-        try{ localStorage.setItem('AOG_DEBUG', _v?'1':'0'); }catch(e){}
-        try{ console.log('%c[AOG] debug tracing '+(_v?'ON':'OFF'),'color:#0a0;font-weight:bold'); }catch(e){}
-      }
-    });
-  }catch(e){ window.AOG_DEBUG=_v; }
-})();
+var AOG_DEBUG = (function(){ try{ return /[?&]debug\b/.test(location.search) || localStorage.getItem('AOG_DEBUG')==='1'; }catch(e){ return false; } })();
 var _dbgLog=[];
 function dbg(stage, msg, data){
   if(!AOG_DEBUG) return;
@@ -1798,7 +1782,7 @@ window.AOG.dump=function(){
   return {markups:M, pens:P};
 };
 window.AOG.redraw=function(){ renderShapeAndMeasure(); composite(); };
-window.AOG.enableDebug=function(on){ AOG_DEBUG=(on!==false); return AOG_DEBUG; };   // kept for back-compat; AOG_DEBUG=true/false is the primary switch
+window.AOG.enableDebug=function(on){ AOG_DEBUG=(on!==false); try{ localStorage.setItem('AOG_DEBUG', AOG_DEBUG?'1':'0'); }catch(e){} return AOG_DEBUG; };
 // Toggle export model: AOG.fullRedraw(true) = redraw every element as a movable
 // object (nothing memory-stuck at import position); AOG.fullRedraw(false) = keep
 // the original page pixel-perfect and only move edited elements. Re-export after.
@@ -5199,7 +5183,10 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
           strokeW:Math.max(1.5, sp.lw), opacity:1,
           lineStyle:(sp.dash||'solid'),
           layerIdx:activeLayerIdx, _fromExplode:true,
-          _oX:sp.pts[0].x, _oY:sp.pts[0].y
+          _oX:sp.pts[0].x, _oY:sp.pts[0].y,
+          // Full original-geometry snapshot: lets the export wipe the polyline's
+          // ORIGINAL footprint precisely even after vertex edits (not just moves).
+          _oPts:sp.pts.map(function(p){ return {x:p.x, y:p.y}; })
         });
       });
       curSubs=[];
@@ -9937,8 +9924,7 @@ function _openTextEdit(o){
     if(_sxE<0.995 && typeof repositionTextOverlay==='function') repositionTextOverlay();
   }catch(e){}
   // ── FIT DIAGNOSTIC (open) ── prints exactly what the squeeze machinery sees.
-  // Gated like every other trace: enable with ?debug or AOG.enableDebug(true).
-  if(AOG_DEBUG) try{
+  try{
     var _dl=o.text.split('\n'), _dfpx=ptToCanvasPx(o.fontSize);
     var _dc=(_fmCtx||document.createElement('canvas').getContext('2d'));
     _dc.font=(o.italic?'italic ':'')+(o.bold?'bold ':'')+_dfpx+'px '+(o.fontFamily||'Arial')+',sans-serif';
@@ -10466,8 +10452,8 @@ function commitText(){
       editingObj=null; renderTextObjs(); pushUndo();
     } else {
       _remapFitWs(editingObj,val);   // re-key imported line widths to the edited content
-      // ── FIT DIAGNOSTIC (commit) ── gated: ?debug / AOG.enableDebug(true).
-      if(AOG_DEBUG) try{
+      // ── FIT DIAGNOSTIC (commit) ──
+      try{
         var _o2=editingObj, _dl2=val.split('\n'), _dfpx2=ptToCanvasPx(_o2.fontSize);
         var _dc2=(_fmCtx||document.createElement('canvas').getContext('2d'));
         _dc2.font=(_o2.italic?'italic ':'')+(_o2.bold?'bold ':'')+_dfpx2+'px '+(_o2.fontFamily||'Arial')+',sans-serif';
@@ -13384,7 +13370,16 @@ function _movedExplodeObj(o){
   // point against the origin snapshot taken at import.
   if(o.pts && o._oX!=null){
     if(!o.pts.length) return true;
-    return Math.abs(o.pts[0].x-o._oX)>e || Math.abs(o.pts[0].y-o._oY)>e;
+    if(Math.abs(o.pts[0].x-o._oX)>e || Math.abs(o.pts[0].y-o._oY)>e) return true;
+    // Full-geometry compare when a snapshot exists: catches a dragged MIDDLE or
+    // END vertex, which leaves pts[0] untouched and slipped past the check above.
+    if(o._oPts){
+      if(o.pts.length!==o._oPts.length) return true;
+      for(var _pi=1; _pi<o.pts.length; _pi++){
+        if(Math.abs(o.pts[_pi].x-o._oPts[_pi].x)>e || Math.abs(o.pts[_pi].y-o._oPts[_pi].y)>e) return true;
+      }
+    }
+    return false;
   }
   if(o._oX1!=null) return Math.abs(o.x1-o._oX1)>e||Math.abs(o.y1-o._oY1)>e||Math.abs(o.x2-o._oX2)>e||Math.abs(o.y2-o._oY2)>e;
   if(o._oCx!=null) return Math.abs(o.cx-o._oCx)>e||Math.abs(o.cy-o._oCy)>e||Math.abs(o.w-o._oW)>e||Math.abs(o.h-o._oH)>e||((o.angle||0)!==0);
@@ -13443,6 +13438,9 @@ function _anyMovedExtracted(){
     if(typeof shapeObjs!=='undefined'   && shapeObjs.some(function(o){return o._fromExplode && _movedExplodeObj(o);}))   return true;
     if(typeof measureObjs!=='undefined' && measureObjs.some(function(o){return o._fromExplode && _movedExplodeObj(o);})) return true;
     if(typeof textObjs!=='undefined'    && textObjs.some(function(o){return o._fromExplode && _movedExplodeObj(o);}))    return true;
+    // Imported PolyLine/Polygon annots live in polylineObjs — a moved/vertex-edited
+    // one leaves its original in the pristine PDF, so it must trip this check too.
+    if(typeof polylineObjs!=='undefined' && polylineObjs.some(function(o){return o._fromExplode && _movedExplodeObj(o);})) return true;
     if(typeof imgOverlays!=='undefined' && imgOverlays.some(function(ov){
       if(!ov._fromPdfPage || ov._origCx==null) return false;
       var e=0.75;
@@ -13517,6 +13515,28 @@ function _stampBackdropPatches(pdf, page, sz, sc, v2p, rot){
             ctx.restore();
           });
         dbg('stamp','re-wipe moved measure',{arrow:!!m.isArrow,old:[Math.round(m._oX1),Math.round(m._oY1)]});
+      } }); }catch(e){}
+      // — polylines (imported PolyLine/Polygon annots) —
+      try{ if(typeof polylineObjs!=='undefined') polylineObjs.forEach(function(pl){ if(_movedExplodeObj(pl)){
+        // Original geometry: full snapshot when available, else reconstruct by
+        // translating the current pts back by the first-point delta (move-only).
+        var opts=pl._oPts;
+        if(!opts && pl.pts && pl.pts.length){
+          var dx=pl.pts[0].x-pl._oX, dy=pl.pts[0].y-pl._oY;
+          opts=pl.pts.map(function(p){ return {x:p.x-dx, y:p.y-dy}; });
+        }
+        if(!opts || opts.length<2) return;
+        var bx0=opts[0].x, by0=opts[0].y, bx1=bx0, by1=by0;
+        opts.forEach(function(p){ bx0=Math.min(bx0,p.x); by0=Math.min(by0,p.y); bx1=Math.max(bx1,p.x); by1=Math.max(by1,p.y); });
+        var lw=Math.max(2,(pl.strokeW||2)); var extra=Math.max(8, lw*3);
+        pushPatch(bx0-extra, by0-extra, bx1+extra, by1+extra, function(ctx,ox,oy){
+          ctx.save(); ctx.strokeStyle='#ffffff'; ctx.lineCap='round'; ctx.lineJoin='round';
+          ctx.lineWidth=lw+Math.max(6,lw*1.2);
+          ctx.beginPath(); ctx.moveTo(opts[0].x-ox, opts[0].y-oy);
+          for(var i=1;i<opts.length;i++) ctx.lineTo(opts[i].x-ox, opts[i].y-oy);
+          ctx.stroke(); ctx.restore();
+        });
+        dbg('stamp','re-wipe moved polyline',{pts:opts.length,old:[Math.round(pl._oX),Math.round(pl._oY)]});
       } }); }catch(e){}
       // — text —
       try{ textObjs.forEach(function(t){ if(_movedExplodeObj(t)){
@@ -14329,21 +14349,28 @@ function _buildVectorPdf(attachJson, onReady){
                   var _annsArr = page.node.Annots && page.node.Annots();
                   if(_annsArr && _annsArr.size && _annsArr.size()>0){
                     var _keep=[], _dropped=0;
-                    var _nmInk=PDFLib.PDFName.of('Ink'), _nmFT=PDFLib.PDFName.of('FreeText');
+                    // Import extracts these annot subtypes into editable objects
+                    // (Ink→pen, FreeText→text/notes, Line→measures, Square/Circle→
+                    // shapes, PolyLine/Polygon→polylines). Leaving the ORIGINAL
+                    // annotation objects in /Annots meant Acrobat still showed them
+                    // as clickable/selectable markups floating over the flat
+                    // redrawn copies — moving one in Acrobat left the drawn copy
+                    // behind. Strip every extracted subtype; links etc. are kept.
+                    // PDFName instances are interned singletons — identity compare
+                    // is the reliable test (string forms vary across versions).
+                    var _dropNames=['Ink','FreeText','PolyLine','Polygon','Line','Square','Circle'].map(function(n){ return PDFLib.PDFName.of(n); });
                     for(var _ai=0; _ai<_annsArr.size(); _ai++){
                       var _ref=_annsArr.get(_ai), _dict=null;
                       try{ _dict=pdf.context.lookup(_ref); }catch(e){ _dict=null; }
                       var _sub=null;
                       try{ _sub=_dict && _dict.get && _dict.get(PDFLib.PDFName.of('Subtype')); }catch(e){ _sub=null; }
-                      // PDFName instances are interned singletons — identity compare
-                      // is the reliable test (string forms vary across versions).
-                      if(_sub===_nmInk || _sub===_nmFT){ _dropped++; continue; }
+                      if(_sub && _dropNames.indexOf(_sub)!==-1){ _dropped++; continue; }
                       _keep.push(_ref);
                     }
                     if(_dropped>0){
                       var _newArr=pdf.context.obj(_keep);
                       page.node.set(PDFLib.PDFName.of('Annots'), _newArr);
-                      dbg('export','kept page: removed '+_dropped+' extracted Ink/FreeText annotations (redrawn as editable copies)');
+                      dbg('export','kept page: removed '+_dropped+' extracted markup annotations (Ink/FreeText/Line/Shape/PolyLine — redrawn as editable copies)');
                     }
                   }
                 }catch(e){ console.warn('[VectorExport] kept-page annot strip failed:',e); }
