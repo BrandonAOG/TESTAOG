@@ -4599,6 +4599,13 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
       opacity:1, layerIdx:activeLayerIdx,
       bold:!!bold, italic:!!ital, underline:false, strike:false,
       fontFamily:_normalizeFamily(first.fam), textAlign:'left', angle:first.ang, bgOpacity:0,
+      // TRUE per-line widths from the source PDF (plan px) + the font size they
+      // were captured at. Renderers compress lines that overflow these widths —
+      // the app's available fonts (and the export's Helvetica) are metrically
+      // WIDER than fonts like Calibri, which made imported text run long.
+      _fitFs:fontPt, _fitWs:P.lines.map(function(L){ return Math.max(1, L._a1 - L._a0); }),
+      _oText:text,         // content snapshot: an EDIT (not just a move) must also
+                           // force redraw on export, or the original words ship
       _fromExplode:true,   // duplicates original page text; skip on vector export
       _oX:first.x, _oY:first.y
     });
@@ -8966,6 +8973,33 @@ function _rebindTextRefs(){
 }
 
 // ── Render all text objects onto txt-cv ──────────────────────
+// Re-map an imported object's per-line fit widths after an edit: lines whose
+// content is unchanged keep their original-PDF width; edited/new lines fall
+// back to natural rendering. If nothing survives, drop the fit data entirely.
+function _remapFitWs(o, newText){
+  try{
+    if(!o || !o._fitWs) return;
+    var oldL=String(o.text||'').split('\n'), newL=String(newText||'').split('\n');
+    var nf=[], any=false;
+    for(var i=0;i<newL.length;i++){
+      var keep=(newL[i]===oldL[i]) ? o._fitWs[i] : null;
+      if(keep!=null) any=true;
+      nf.push(keep==null?null:keep);
+    }
+    if(any){ o._fitWs=nf; } else { delete o._fitWs; delete o._fitFs; }
+  }catch(e){}
+}
+
+// Target draw width for line i of an imported text object (plan px), scaled if
+// the user changed the font size since import. Returns undefined when the line
+// doesn't meaningfully overflow its original width (never stretches, only
+// compresses — via fillText's maxWidth / a horizontal matrix in the vector PDF).
+function _fitLineW(obj, i, naturalW){
+  if(!obj || !obj._fitWs || obj._fitWs[i]==null) return undefined;
+  var t = obj._fitWs[i] * (obj.fontSize/(obj._fitFs||obj.fontSize));
+  return (naturalW > t*1.02) ? t : undefined;
+}
+
 function renderTextObjs(){
   // Same self-sync as renderShapeAndMeasure: ensure the text canvas backing +
   // transform match the current zoom before drawing, so committed text doesn't
@@ -9068,7 +9102,8 @@ function renderTextObjs(){
       var axOff=(align==='center'?maxW/2:align==='right'?maxW:0);
       lines.forEach(function(line,i){
         var ly=i*fpx*TXT_LINE_H;
-        tCtx.fillText(line,axOff,ly);
+        var _fw=_fitLineW(obj,i,tCtx.measureText(line).width);
+        if(_fw!==undefined) tCtx.fillText(line,axOff,ly,_fw); else tCtx.fillText(line,axOff,ly);
         if(obj.underline){
           var lw=tCtx.measureText(line).width;
           var lx=align==='center'?axOff-lw/2:align==='right'?axOff-lw:axOff;
@@ -9087,7 +9122,8 @@ function renderTextObjs(){
     } else {
       lines.forEach(function(line,i){
         var ly=obj.y+i*fpx*TXT_LINE_H;
-        tCtx.fillText(line,ax,ly);
+        var _fw=_fitLineW(obj,i,tCtx.measureText(line).width);
+        if(_fw!==undefined) tCtx.fillText(line,ax,ly,_fw); else tCtx.fillText(line,ax,ly);
         if(obj.underline){
           var lw=tCtx.measureText(line).width;
           var lx=align==='center'?ax-lw/2:align==='right'?ax-lw:ax;
@@ -9305,8 +9341,11 @@ function _syncTextFmtFromObj(obj){
     if(textBgOpacity>0){ sw.style.background=textBgColor; sw.style.backgroundImage='none'; }
     else { sw.style.background=''; sw.style.backgroundImage='repeating-conic-gradient(#aaa 0% 25%, transparent 0% 50%)'; sw.style.backgroundSize='8px 8px'; }
   }
-  // Apply to live textarea
-  textOv.style.fontFamily  = textFontFamily;
+  // Apply to live textarea — SAME fallback stack the canvas uses. A bare
+  // unknown family (e.g. Calibri on iPad) falls back to the browser default
+  // SERIF in CSS, while the canvas falls back to sans-serif — the editor then
+  // opens in a visibly different font and the text appears to move/expand.
+  textOv.style.fontFamily  = (textFontFamily+',sans-serif');
   textOv.style.fontWeight  = textBold   ? 'bold'   : 'normal';
   textOv.style.fontStyle   = textItalic ? 'italic' : 'normal';
   textOv.style.textDecoration = (textUnderline && textStrike) ? 'underline line-through' :
@@ -9670,7 +9709,7 @@ function _textBorderAt(o,x,y){
 function _beginTextMove(o,p){
   o=_liveText(o)||o;   // guard against an orphaned clone from undo/restore
   captureState(false);
-  if(editingObj===o){ o.text=textOv.value; }
+  if(editingObj===o){ _remapFitWs(o, textOv.value); o.text=textOv.value; }
   o._editing=false; editingObj=null;
   stopTextCursor();
   if(textOv.style.display!=='none'){ textOv.style.display='none'; textOv.blur(); textOv.value=''; }
@@ -9688,7 +9727,7 @@ function _beginTextRotate(o,p){
   // Persist any in-progress edits, close the editor, show the text on canvas so
   // it can rotate live.
   captureState(false);   // vector op — snapshot for undo (no pixel copy needed)
-  if(editingObj===o){ o.text=textOv.value; }
+  if(editingObj===o){ _remapFitWs(o, textOv.value); o.text=textOv.value; }
   o._editing=false; editingObj=null;
   stopTextCursor();
   if(textOv.style.display!=='none'){ textOv.style.display='none'; textOv.blur(); textOv.value=''; }
@@ -9753,6 +9792,38 @@ function _openTextEdit(o){
   startTextCursor(o.x, o.y);
   showTextOverlay(_ovX, _ovY);
   _fitTextOv();              // size to the loaded content (all lines visible)
+  // The shared textarea auto-scrolls horizontally while typing a long leader
+  // label (white-space:pre → caret chase). That scroll survives into the NEXT
+  // edit session and slices every row at a stale offset ("…200A non se").
+  // showTextOverlay zeroes it, but focus() can re-scroll the caret into view
+  // afterwards — zero it again now AND on the next tick, and start the caret
+  // at the text start so caret-chase can't re-introduce the offset.
+  try{ textOv.setSelectionRange(0,0); }catch(e){}
+  textOv.scrollLeft=0; textOv.scrollTop=0;
+  setTimeout(function(){
+    try{ if(editingObj===o){ textOv.scrollLeft=0; textOv.scrollTop=0; } }catch(e){}
+  },0);
+  // Imported width-fit: the canvas compresses this object's lines to their
+  // original PDF widths (available fonts are wider than e.g. Calibri). Apply
+  // the same average squeeze to the edit overlay via scaleX, so CLICKING TO
+  // EDIT doesn't visually expand the text, then snap back on commit.
+  try{
+    var _sxE=1;
+    if(o._fitWs){
+      var _lnsE=o.text.split('\n'), _fpxE=ptToCanvasPx(o.fontSize), _nE=0,_accE=0;
+      var _cE=(_fmCtx || document.createElement('canvas').getContext('2d'));
+      _cE.font=(o.italic?'italic ':'')+(o.bold?'bold ':'')+_fpxE+'px '+(o.fontFamily||'Arial')+',sans-serif';
+      _lnsE.forEach(function(ln,i){
+        if(!ln) return;
+        var nat=_cE.measureText(ln).width;
+        var t=_fitLineW(o,i,nat);
+        if(t!==undefined && nat>0){ _accE+=t/nat; _nE++; }
+      });
+      if(_nE) _sxE=Math.max(0.5, Math.min(1, _accE/_nE));
+    }
+    textOv._fitSx=_sxE;
+    if(_sxE<0.995 && typeof repositionTextOverlay==='function') repositionTextOverlay();
+  }catch(e){}
   renderTextCursorFrame();   // draw the box + rotate handle right away
 }
 
@@ -9799,6 +9870,15 @@ function showTextOverlay(cx,cy){
   // Safety: ensure no leftover note rotation from a prior comment edit.
   textOv.style.transform = 'none'; textOv.style.transformOrigin = '';
   textOv._editBoxW = 0;          // new edit session — recompute wrap width
+  textOv._fitSx = 1;             // imported width-squeeze off until re-derived
+  textOv.style.width = '';       // never inherit the previous session's box
+  textOv.style.height = '';
+  textOv.style.minWidth = '';    // CRITICAL: the right-anchored leader label
+  textOv.style.maxWidth = '';    // sets min/max-width to ITS tiny box and never
+  textOv.style.minHeight = '';   // cleared them — maxWidth then silently CLAMPED
+  textOv.style.maxHeight = '';   // every later session's width (imported text cut off)
+  textOv.scrollTop = 0;
+  textOv.scrollLeft = 0;
   repositionTextOverlay(true);   // clamp on-screen ONLY for the initial placement
   // iOS: focus already called in onDown. Desktop + double-tap edit path: focus here.
   if(document.activeElement!==textOv){
@@ -9874,12 +9954,27 @@ function repositionTextOverlay(clampToView){
   // fit the remaining space on the right. If even the click point is off the
   // right edge, then (and only then) pull it back onto the canvas.
   var vpW = viewport.clientWidth, vpH = viewport.clientHeight;
+  // Angle known EARLY: the anchor + viewport clamps below reason in screen-X
+  // about an UNROTATED box. For a rotated label they shrink/shift the box
+  // wrongly (a vertical leader label clipped to the 60px minimum — "FDFC").
+  var _eAngPre = (editingObj && editingObj.angle) ? editingObj.angle : 0;
   var boxW = Math.max(200, vpW * 0.5);
+  if(_eAngPre){
+    // Rotated: size the box to CONTENT (widest line + a growth character),
+    // no screen-space clamping — it may run off-screen like any canvas object.
+    try{
+      var _rsz = Math.max(16, ptToCanvasPx(FONT_SIZE)*zoom);
+      var _mc = (typeof _fmCtx!=='undefined' && _fmCtx) ? _fmCtx : document.createElement('canvas').getContext('2d');
+      _mc.font=(textItalic?'italic ':'')+(textBold?'bold ':'')+_rsz+'px '+(textFontFamily||'Arial')+',sans-serif';
+      var _wMax=0; String(textOv.value||'').split('\n').forEach(function(ln){ var w2=_mc.measureText(ln).width; if(w2>_wMax) _wMax=w2; });
+      boxW = Math.max(60, _wMax + _rsz*0.8 + 8);
+    }catch(e){}
+  }
   // Reuse the width locked in at initial placement so the text doesn't re-wrap
   // (visually jump) when the box is repositioned during a pan/zoom.
   if(!clampToView && textOv._editBoxW) boxW = textOv._editBoxW;
   var boxH = Math.max(40, Math.max(16, FONT_PX*zoom) * 2);
-  if(_textAnchorRight){
+  if(_textAnchorRight && !_eAngPre){
     // Right-anchored (left-hanging leader label): the box's VISUAL right edge
     // (after the scale transform) sits at the anchor point and the box extends
     // LEFT, so the first letter stays put just left of the line at every zoom.
@@ -9893,7 +9988,7 @@ function repositionTextOverlay(clampToView){
       if(sx < 0){ boxW = rightEdge/_scaleV0; sx = 0; } // shrink instead of going off-screen
       if(boxW < 60) boxW = 60;
     }
-  } else if(clampToView && vpW > 0){
+  } else if(clampToView && vpW > 0 && !_eAngPre){
     if(sx < 0) sx = 0;
     if(sx > vpW - 40) sx = vpW - 40;          // keep at least a sliver on-screen
     if(sx + boxW*_scaleV0 > vpW) boxW = (vpW - sx)/_scaleV0; // shrink, don't shift
@@ -9914,7 +10009,8 @@ function repositionTextOverlay(clampToView){
   var scaleV   = screenSz / renderSz;
   textOv.style.fontSize  = renderSz+'px';
   textOv.style.lineHeight = String(TXT_LINE_H);
-  textOv.style.transform = scaleV<0.99 ? 'scale('+scaleV.toFixed(3)+')' : 'none';
+  var _fitSxT=(textOv._fitSx && textOv._fitSx<0.995)?(' scaleX('+textOv._fitSx.toFixed(4)+')'):'';
+  textOv.style.transform = (scaleV<0.99 ? 'scale('+scaleV.toFixed(3)+')' : '') + _fitSxT || 'none';
   textOv.style.transformOrigin='top left';
   // ── Rotated editing (type sideways, Adobe-style) ──────────────
   // When the text being edited is rotated, rotate the live textarea to match so
@@ -9937,7 +10033,8 @@ function repositionTextOverlay(clampToView){
     textOv.style.left = (panX + _gx*zoom) + 'px';
     textOv.style.top  = (panY + _gy*zoom) + 'px';
     textOv.style.transform = 'rotate(' + _eAng + 'rad)' +
-      (scaleV < 0.99 ? (' scale(' + scaleV.toFixed(3) + ')') : '');
+      (scaleV < 0.99 ? (' scale(' + scaleV.toFixed(3) + ')') : '') +
+      ((textOv._fitSx && textOv._fitSx<0.995) ? (' scaleX(' + textOv._fitSx.toFixed(4) + ')') : '');
     textOv.style.transformOrigin = 'top left';
     // Grow from the start when rotated; right-align would offset the text inside a
     // wider box and detach it from the pivot.
@@ -9956,12 +10053,12 @@ function repositionTextOverlay(clampToView){
   } else {
     textOv.style.background='transparent';
   }
-  // Apply text formatting
-  textOv.style.fontFamily    = textFontFamily;
+  // Apply text formatting — same fallback stack as the canvas (see above).
+  textOv.style.fontFamily    = (textFontFamily+',sans-serif');
   textOv.style.fontWeight    = textBold   ? 'bold'   : 'normal';
   textOv.style.fontStyle     = textItalic ? 'italic' : 'normal';
   textOv.style.textDecoration= (textUnderline&&textStrike)?'underline line-through':(textUnderline?'underline':(textStrike?'line-through':'none'));
-  textOv.style.textAlign     = _textAnchorRight ? 'right' : textAlign;
+  textOv.style.textAlign     = _eAng ? 'left' : (_textAnchorRight ? 'right' : textAlign);
   // Ensure textarea is wide enough to show text at any font size
   textOv.style.boxSizing = 'border-box';   // padding must not push the right edge past the anchor
   textOv.style.width   = boxW + 'px';
@@ -10208,6 +10305,17 @@ function commitText(){
   }
   _textSessionOpen = false;
   stopTextCursor();
+  // Neutralize the SHARED textarea for whoever opens it next. The leader-label
+  // session grows a narrow right-anchored box and horizontally scrolls while
+  // typing (white-space:pre caret chase); any leftover scroll/box/squeeze
+  // sliced the NEXT session's content into fragments ("200A non se").
+  try{
+    textOv.scrollLeft=0; textOv.scrollTop=0;
+    textOv._editBoxW=0; textOv._fitSx=1;
+    textOv.style.width=''; textOv.style.height='';
+    textOv.style.minWidth=''; textOv.style.maxWidth='';   // right-anchored label pins these
+    textOv.style.minHeight=''; textOv.style.maxHeight='';
+  }catch(e){}
 
   // ── COMMENT PATH: route to dedicated handler ──────────────────
   if(_editingComment){ commitCommentEdit(); return; }
@@ -12078,7 +12186,7 @@ if(fontFamilySel){
 
     // Update the live textarea immediately
     if(textOv.style.display !== 'none'){
-      textOv.style.fontFamily = textFontFamily;
+      textOv.style.fontFamily = (textFontFamily+',sans-serif');
       // Re-run repositionTextOverlay to apply all text styles consistently
       if(typeof repositionTextOverlay === 'function') repositionTextOverlay();
     }
@@ -12826,14 +12934,16 @@ function compositeExport(maxPx){
         var axOff_=align_==='center'?maxW_/2:align_==='right'?maxW_:0;
         lines_.forEach(function(line,i){
           var ly_=Math.round(i*efpx*TXT_LINE_H*scale);
-          ctx.fillText(line,axOff_,ly_);
+          var _fw=_fitLineW(obj,i,ctx.measureText(line).width/scale);
+          if(_fw!==undefined) ctx.fillText(line,axOff_,ly_,_fw*scale); else ctx.fillText(line,axOff_,ly_);
           if(obj.underline){var lw_=ctx.measureText(line).width;var lx_=align_==='center'?axOff_-lw_/2:align_==='right'?axOff_-lw_:axOff_;ctx.save();ctx.strokeStyle=obj.color;ctx.lineWidth=Math.max(1,efpx*scale*0.07);ctx.beginPath();ctx.moveTo(lx_,ly_+efpx*scale*0.12);ctx.lineTo(lx_+lw_,ly_+efpx*scale*0.12);ctx.stroke();ctx.restore();}
           if(obj.strike){var lw_=ctx.measureText(line).width;var lx_=align_==='center'?axOff_-lw_/2:align_==='right'?axOff_-lw_:axOff_;ctx.save();ctx.strokeStyle=obj.color;ctx.lineWidth=Math.max(1,efpx*scale*0.07);ctx.beginPath();ctx.moveTo(lx_,ly_-efpx*scale*0.32);ctx.lineTo(lx_+lw_,ly_-efpx*scale*0.32);ctx.stroke();ctx.restore();}
         });
       } else {
         lines_.forEach(function(line,i){
           var ly_=Math.round((obj.y+i*efpx*TXT_LINE_H)*scale);
-          ctx.fillText(line,ax_,ly_);
+          var _fw=_fitLineW(obj,i,ctx.measureText(line).width/scale);
+          if(_fw!==undefined) ctx.fillText(line,ax_,ly_,_fw*scale); else ctx.fillText(line,ax_,ly_);
           if(obj.underline){var lw_=ctx.measureText(line).width;var lx_=align_==='center'?ax_-lw_/2:align_==='right'?ax_-lw_:ax_;ctx.save();ctx.strokeStyle=obj.color;ctx.lineWidth=Math.max(1,efpx*scale*0.07);ctx.beginPath();ctx.moveTo(lx_,ly_+efpx*scale*0.12);ctx.lineTo(lx_+lw_,ly_+efpx*scale*0.12);ctx.stroke();ctx.restore();}
           if(obj.strike){var lw_=ctx.measureText(line).width;var lx_=align_==='center'?ax_-lw_/2:align_==='right'?ax_-lw_:ax_;ctx.save();ctx.strokeStyle=obj.color;ctx.lineWidth=Math.max(1,efpx*scale*0.07);ctx.beginPath();ctx.moveTo(lx_,ly_-efpx*scale*0.32);ctx.lineTo(lx_+lw_,ly_-efpx*scale*0.32);ctx.stroke();ctx.restore();}
         });
@@ -13116,6 +13226,9 @@ var _FULL_REDRAW = (function(){ try{ var v=localStorage.getItem('AOG_FULLREDRAW'
 function _movedExplodeObj(o){
   if(!o || !o._fromExplode) return false;
   var e=0.75;
+  // Text CONTENT edits count as moved: the export must patch out the original
+  // words and draw the edited copy — position alone misses in-place rewording.
+  if(o._oText!=null && o.text!==undefined && String(o.text)!==String(o._oText)) return true;
   // Pen strokes have no x/y — their position lives in pts[]. Compare the first
   // point against the origin snapshot taken at import.
   if(o.pts && o._oX!=null){
@@ -13539,9 +13652,27 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
             color:col(obj.bgColor||'#ffff00'), opacity:op*obj.bgOpacity, borderWidth:0});
         }
         var pp=P(lx,ly);
-        page.drawText(ln,{x:pp.x, y:pp.y, size:fsize, font:f, color:col(obj.color), opacity:op, rotate:degrees(rotDeg)});
-        if(obj.underline) line(lx,ly+efpx*0.12,lx+tw,ly+efpx*0.12,obj.color,Math.max(1,efpx*0.07),op);
-        if(obj.strike)    line(lx,ly-efpx*0.32,lx+tw,ly-efpx*0.32,obj.color,Math.max(1,efpx*0.07),op);
+        // Width-fit for imported text: Helvetica is metrically wider than the
+        // source font (e.g. Calibri) — compress the line horizontally about its
+        // left edge so it ends where the original PDF's text ended.
+        var _fwV=_fitLineW(obj,i,tw);
+        var _sxV=(_fwV!==undefined && tw>0) ? Math.max(0.5,_fwV/tw) : 1;
+        var tw2=Math.min(tw,(_fwV!==undefined?_fwV:tw));
+        if(_sxV<1 && PDFLib.pushGraphicsState && PDFLib.concatTransformationMatrix){
+          try{
+            page.pushOperators(PDFLib.pushGraphicsState(),
+              PDFLib.concatTransformationMatrix(_sxV,0,0,1, pp.x*(1-_sxV), 0));
+            page.drawText(ln,{x:pp.x, y:pp.y, size:fsize, font:f, color:col(obj.color), opacity:op, rotate:degrees(rotDeg)});
+            page.pushOperators(PDFLib.popGraphicsState());
+          }catch(e){
+            try{ page.pushOperators(PDFLib.popGraphicsState()); }catch(_){}
+            page.drawText(ln,{x:pp.x, y:pp.y, size:fsize, font:f, color:col(obj.color), opacity:op, rotate:degrees(rotDeg)});
+          }
+        } else {
+          page.drawText(ln,{x:pp.x, y:pp.y, size:fsize, font:f, color:col(obj.color), opacity:op, rotate:degrees(rotDeg)});
+        }
+        if(obj.underline) line(lx,ly+efpx*0.12,lx+tw2,ly+efpx*0.12,obj.color,Math.max(1,efpx*0.07),op);
+        if(obj.strike)    line(lx,ly-efpx*0.32,lx+tw2,ly-efpx*0.32,obj.color,Math.max(1,efpx*0.07),op);
       }
     });
   }); }catch(e){ console.warn('[Vec] text',e); }
