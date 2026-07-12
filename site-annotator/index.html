@@ -580,6 +580,36 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .aog-status-dot.offline{background:#E84118;box-shadow:0 0 6px #E84118;animation:none;}
 @keyframes aogPulse{0%,100%{opacity:1}50%{opacity:0.45}}
 
+/* ── VRAM / memory reader ── */
+.aog-vram-sep{width:1px;height:16px;background:var(--theme-btn-border,rgba(255,255,255,.18));margin:0 8px;flex-shrink:0;}
+#aog-vram{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.aog-vram-lbl{
+  font-family:'Share Tech Mono',monospace;font-size:9px;
+  letter-spacing:1.5px;color:var(--theme-dim);text-transform:uppercase;
+}
+.aog-vram-bar{
+  width:64px;height:7px;border-radius:4px;overflow:hidden;flex-shrink:0;
+  background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.12);
+}
+.aog-vram-fill{
+  height:100%;width:0%;border-radius:4px;
+  background:#10B981;box-shadow:0 0 6px #10B981;
+  transition:width .5s ease,background-color .4s ease,box-shadow .4s ease;
+}
+/* color codes by load */
+.aog-vram-fill.warn{background:#FBBF24;box-shadow:0 0 6px #FBBF24;}
+.aog-vram-fill.high{background:#F97316;box-shadow:0 0 6px #F97316;}
+.aog-vram-fill.crit{background:#E84118;box-shadow:0 0 8px #E84118;animation:vramCrit .9s ease-in-out infinite;}
+@keyframes vramCrit{0%,100%{opacity:1}50%{opacity:0.5}}
+.aog-vram-val{
+  font-family:'Share Tech Mono',monospace;font-size:9px;
+  letter-spacing:.5px;color:var(--theme-dim);min-width:42px;text-align:right;
+}
+.aog-vram-val.warn{color:#FBBF24;}
+.aog-vram-val.high{color:#F97316;}
+.aog-vram-val.crit{color:#E84118;}
+@media (max-width:560px){.aog-vram-lbl{display:none;}.aog-vram-bar{width:48px;}}
+
 /* Offline banner */
 #aog-offline{
   display:none;padding:7px 16px;
@@ -737,6 +767,12 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
     <span class="aog-status-dot" id="aog-dot"></span>
     <span id="aog-net-lbl">Online</span>
+  </div>
+  <div class="aog-vram-sep"></div>
+  <div id="aog-vram" title="Estimated memory / GPU usage">
+    <span class="aog-vram-lbl">VRAM</span>
+    <div class="aog-vram-bar"><div class="aog-vram-fill" id="aog-vram-fill"></div></div>
+    <span class="aog-vram-val" id="aog-vram-val">—</span>
   </div>
 </div>
 
@@ -17308,6 +17344,56 @@ function hideHint(){ panHint.classList.remove('show'); }
   window.addEventListener('online', goOnline);
   window.addEventListener('offline', goOffline);
   if(!navigator.onLine) goOffline();
+
+  // ── VRAM / canvas memory reader ───────────────────────────
+  (function(){
+    var fill = document.getElementById('aog-vram-fill');
+    var val  = document.getElementById('aog-vram-val');
+    var box  = document.getElementById('aog-vram');
+    if(!fill || !val) return;
+
+    // Budget: rough GPU/canvas memory a mobile-to-desktop browser tolerates
+    // before things get janky. 512 MB of canvas pixels is a sane "full" mark.
+    var BUDGET_MB = 512;
+
+    // The persistent on-screen canvases that hold the site photo + annotations.
+    var DOM_IDS = ['base-cv','draw-cv','img-cv','hl-cv','shapes-cv',
+                   'txt-cv','sel-cv','grid-cv'];
+
+    function mbOf(cv){
+      if(!cv || !cv.width || !cv.height) return 0;
+      return (cv.width * cv.height * 4) / 1048576; // 4 bytes/px (RGBA)
+    }
+
+    function setClass(pct){
+      var c = (pct>=90)?'crit':(pct>=75)?'high':(pct>=50)?'warn':'';
+      fill.className = 'aog-vram-fill' + (c?(' '+c):'');
+      val.className  = 'aog-vram-val'  + (c?(' '+c):'');
+    }
+
+    function read(){
+      var mb = 0;
+      // on-screen canvases
+      for(var i=0;i<DOM_IDS.length;i++){
+        mb += mbOf(document.getElementById(DOM_IDS[i]));
+      }
+      // per-layer offscreen canvases (annotation layers)
+      try{
+        if(typeof layers !== 'undefined' && layers && layers.length){
+          for(var j=0;j<layers.length;j++){ mb += mbOf(layers[j].canvas); }
+        }
+      }catch(e){}
+
+      var pct = Math.min(100, Math.round(mb / BUDGET_MB * 100));
+      fill.style.width = pct + '%';
+      val.textContent  = Math.round(mb) + 'MB';
+      setClass(pct);
+      if(box) box.title = 'Canvas memory ~' + Math.round(mb) +
+                          ' / ' + BUDGET_MB + ' MB budget (' + pct + '%)';
+    }
+    read();
+    setInterval(read, 1500);
+  })();
 
   // Intercept PDF/jsPDF feature requests when offline
   window.addEventListener('load', function(){
