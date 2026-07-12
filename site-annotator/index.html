@@ -14435,15 +14435,21 @@ function _buildVectorPdf(attachJson, onReady){
     }
     var fullImgs   = imgOverlays.slice();
     var untouched, movedAxis, complexList;
+    // ROTATED-IMAGE SHARPNESS FIX: rotated images used to be baked into the
+    // rasterized annotation overlay (capped resolution) while un-rotated ones
+    // were embedded natively at full source resolution — so any rotated image
+    // exported noticeably blurrier ("foggy") than its un-rotated neighbours.
+    // pdf-lib's drawImage supports arbitrary rotation, so we now embed rotated
+    // images natively too and compute the rotated bottom-left anchor below.
     if(_FULL_REDRAW){
       // Redraw every image at its current position; nothing kept as baked original.
       untouched  = [];
-      movedAxis  = fullImgs.filter(function(ov){ return _layerVisible(ov) && ((ov.angle||0)===0); });
-      complexList= fullImgs.filter(function(ov){ return _layerVisible(ov) && ((ov.angle||0)!==0); });
+      movedAxis  = fullImgs.filter(function(ov){ return _layerVisible(ov); });
+      complexList= [];
     } else {
       untouched  = fullImgs.filter(function(ov){ return _layerVisible(ov) && _isUntouchedPageImg(ov); });
-      movedAxis  = fullImgs.filter(function(ov){ return _layerVisible(ov) && !_isUntouchedPageImg(ov) && ((ov.angle||0)===0); });
-      complexList= fullImgs.filter(function(ov){ return _layerVisible(ov) && !_isUntouchedPageImg(ov) && ((ov.angle||0)!==0); });
+      movedAxis  = fullImgs.filter(function(ov){ return _layerVisible(ov) && !_isUntouchedPageImg(ov); });
+      complexList= [];
     }
     var nativeList = movedAxis;
     dbg('export','image classification',{mode:(_FULL_REDRAW?'full-redraw':'legacy'), total:fullImgs.length, keptOriginal:untouched.length, redrawn:movedAxis.length, rotated:complexList.length});
@@ -14759,12 +14765,19 @@ function _buildVectorPdf(attachJson, onReady){
                     var op=(ov.opacity!=null?ov.opacity:1);
                     // target center in page coords (same mapping as painter P()):
                     var tc=v2p(ov.cx/sc, VH - ov.cy/sc);
-                    var ax,ay;
-                    if(rot===0){   ax=tc.x-Wp/2; ay=tc.y-Hp/2; }
-                    else if(rot===90){  ax=tc.x+Hp/2; ay=tc.y-Wp/2; }
-                    else if(rot===180){ ax=tc.x+Wp/2; ay=tc.y+Hp/2; }
-                    else { /*270*/      ax=tc.x-Hp/2; ay=tc.y+Wp/2; }
-                    page.drawImage(im,{x:ax,y:ay,width:Wp,height:Hp,rotate:deg(rot),opacity:op});
+                    // Total rotation = page /Rotate + the image's own user rotation.
+                    // Canvas angles are CW-positive with y down; in PDF space
+                    // (y up, CCW-positive) that's the NEGATIVE of ov.angle.
+                    var thetaDeg = rot - (ov.angle||0)*180/Math.PI;
+                    var th = thetaDeg*Math.PI/180;
+                    var ct = Math.cos(th), st = Math.sin(th);
+                    // pdf-lib rotates about the anchor (bottom-left of the image),
+                    // so place the anchor where the rotated bottom-left corner
+                    // lands relative to the target CENTER: rotate the local corner
+                    // offset (-Wp/2,-Hp/2) by theta.
+                    var ax = tc.x + (-(Wp/2)*ct + (Hp/2)*st);
+                    var ay = tc.y + (-(Wp/2)*st - (Hp/2)*ct);
+                    page.drawImage(im,{x:ax,y:ay,width:Wp,height:Hp,rotate:deg(thetaDeg),opacity:op});
                   });
                 });
               });
