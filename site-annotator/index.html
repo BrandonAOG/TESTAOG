@@ -1381,7 +1381,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     <span style="flex:1"><span style="font-size:13px;color:var(--txt);font-weight:600">Everything else</span><br><span style="font-size:10px;color:var(--txt2)">Lines, arrows, boxes &amp; circles become movable</span></span>
   </label>
   <label style="display:flex;align-items:flex-start;gap:10px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;margin-bottom:16px;cursor:pointer">
-    <input type="checkbox" id="pdfopt-images" checked style="width:18px;height:18px;accent-color:var(--acc);margin-top:1px;flex-shrink:0">
+    <input type="checkbox" id="pdfopt-images" style="width:18px;height:18px;accent-color:var(--acc);margin-top:1px;flex-shrink:0">
     <span style="flex:1"><span style="font-size:13px;color:var(--txt);font-weight:600">Pictures &amp; photos</span><br><span style="font-size:10px;color:var(--txt2)">Embedded images, logos &amp; aerials become movable. Untick to lock them into the background (still visible, can't be selected or moved)</span></span>
   </label>
   <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -3792,7 +3792,7 @@ function loadPDF(f){
 // both on. When a category is off, that content stays baked in the backdrop.
 var EXPLODE_TEXT   = true;
 var EXPLODE_OTHER  = true;
-var EXPLODE_IMAGES = true;   // untick 'Pictures & photos' on import → images stay baked in the fixed backdrop (visible, not selectable)
+var EXPLODE_IMAGES = false;   // 'Pictures & photos' starts UNCHECKED: images stay baked into the fixed backdrop (visible, not selectable) unless the user ticks it
 
 // Show the pop-up every time a PDF is opened (Acrobat-style import choice).
 function _askPdfImportOptions(f){
