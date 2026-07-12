@@ -1228,7 +1228,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
       <!-- Scale -->
       <div class="prop-section">
         <div class="prop-title">Scale</div>
-        <div class="prop-row"><label>1 pixel =</label><input class="prop-input" id="ppu-in" type="number" min="0.001" step="any" value="1"><input class="prop-input" id="unit-in" type="text" value="m" style="width:36px;margin-left:2px"></div>
+        <div class="prop-row"><label>1 pixel =</label><input class="prop-input" id="ppu-in" type="number" min="0.001" step="any" value="1"><input class="prop-input" id="unit-in" type="text" value="ft" style="width:36px;margin-left:2px"></div>
         <button class="add-btn" id="btn-set-scale" style="width:100%;margin-bottom:4px">Draw Reference Line</button>
         <button class="add-btn" id="btn-recalibrate" style="width:100%;margin-bottom:4px;display:none">↺ Recalibrate Scale</button>
         <button class="add-btn" id="btn-reset-scale" style="width:100%;margin-bottom:6px;color:#f87171;border-color:rgba(239,68,68,0.4);display:none">✕ Reset Scale</button>
@@ -1376,9 +1376,13 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     <input type="checkbox" id="pdfopt-text" checked style="width:18px;height:18px;accent-color:var(--acc);margin-top:1px;flex-shrink:0">
     <span style="flex:1"><span style="font-size:13px;color:var(--txt);font-weight:600">Text</span><br><span style="font-size:10px;color:var(--txt2)">Labels become editable — retype, move, recolor</span></span>
   </label>
-  <label style="display:flex;align-items:flex-start;gap:10px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;margin-bottom:16px;cursor:pointer">
+  <label style="display:flex;align-items:flex-start;gap:10px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;margin-bottom:8px;cursor:pointer">
     <input type="checkbox" id="pdfopt-other" checked style="width:18px;height:18px;accent-color:var(--acc);margin-top:1px;flex-shrink:0">
-    <span style="flex:1"><span style="font-size:13px;color:var(--txt);font-weight:600">Everything else</span><br><span style="font-size:10px;color:var(--txt2)">Equipment images, lines, arrows, boxes &amp; circles become movable</span></span>
+    <span style="flex:1"><span style="font-size:13px;color:var(--txt);font-weight:600">Everything else</span><br><span style="font-size:10px;color:var(--txt2)">Lines, arrows, boxes &amp; circles become movable</span></span>
+  </label>
+  <label style="display:flex;align-items:flex-start;gap:10px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;margin-bottom:16px;cursor:pointer">
+    <input type="checkbox" id="pdfopt-images" checked style="width:18px;height:18px;accent-color:var(--acc);margin-top:1px;flex-shrink:0">
+    <span style="flex:1"><span style="font-size:13px;color:var(--txt);font-weight:600">Pictures &amp; photos</span><br><span style="font-size:10px;color:var(--txt2)">Embedded images, logos &amp; aerials become movable. Untick to lock them into the background (still visible, can't be selected or moved)</span></span>
   </label>
   <div style="display:flex;gap:8px;justify-content:flex-end">
     <button class="dlg-btn sec" id="pdfopt-cancel">Cancel</button>
@@ -1391,7 +1395,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 <div id="scale-dlg">
   <h3>Set Scale from Reference Line</h3>
   <p style="font-size:11px;color:var(--txt2);margin-bottom:12px">Draw a line on the plan whose real length you know, then enter the length below.</p>
-  <div class="dlg-row"><label>Real length:</label><input class="dlg-input" id="ref-len" type="number" min="0.01" step="any" placeholder="e.g. 10"><input class="dlg-input" id="ref-unit" type="text" value="m" style="max-width:40px"></div>
+  <div class="dlg-row"><label>Real length:</label><input class="dlg-input" id="ref-len" type="number" min="0.01" step="any" placeholder="e.g. 10"><input class="dlg-input" id="ref-unit" type="text" value="ft" style="max-width:40px"></div>
   <div id="ref-px-info" style="font-size:11px;color:var(--txt2);margin-bottom:12px">Draw the line first.</div>
   <div style="display:flex;gap:8px;justify-content:flex-end">
     <button class="dlg-btn sec" id="scale-reset" style="margin-right:auto;color:#f87171;border-color:rgba(239,68,68,0.4)">Reset</button>
@@ -2972,7 +2976,7 @@ function textDpiFactor(){
 // Convert a stored point size -> canvas pixels at the current plan resolution.
 function ptToCanvasPx(pt){ return (pt || 0) * textDpiFactor(); }
 var _scalingRefMeasure=null; // reference line kept live while scale dialog is open
-var scaleSet=false, ppu=1, scaleUnit='m';
+var scaleSet=false, ppu=1, scaleUnit='ft';
 var gridEnabled=false, gridSize=50, snapEnabled=false;
 var pdfDoc=null, currentPage=1, baseLoaded=false;
 // True when the user has made edits since the last load or file export. Used to
@@ -3773,8 +3777,9 @@ function loadPDF(f){
 
 // What to extract as editable objects. Set by the import-options pop-up; default
 // both on. When a category is off, that content stays baked in the backdrop.
-var EXPLODE_TEXT  = true;
-var EXPLODE_OTHER = true;
+var EXPLODE_TEXT   = true;
+var EXPLODE_OTHER  = true;
+var EXPLODE_IMAGES = true;   // untick 'Pictures & photos' on import → images stay baked in the fixed backdrop (visible, not selectable)
 
 // Show the pop-up every time a PDF is opened (Acrobat-style import choice).
 function _askPdfImportOptions(f){
@@ -3782,9 +3787,11 @@ function _askPdfImportOptions(f){
   var dlg=document.getElementById('pdfopt-dlg');
   var cbT=document.getElementById('pdfopt-text');
   var cbO=document.getElementById('pdfopt-other');
+  var cbI=document.getElementById('pdfopt-images');
   if(!ov||!dlg||!cbT||!cbO){ _loadPDFExploded(f); return; } // safety: no dialog → just explode
   // Restore last-used choices as the starting state.
   cbT.checked=EXPLODE_TEXT; cbO.checked=EXPLODE_OTHER;
+  if(cbI) cbI.checked=EXPLODE_IMAGES;
   ov.style.display='block'; dlg.style.display='block';
   function cleanup(){
     ov.style.display='none'; dlg.style.display='none';
@@ -3796,6 +3803,7 @@ function _askPdfImportOptions(f){
   var btnCancel=document.getElementById('pdfopt-cancel');
   function onOpen(){
     EXPLODE_TEXT=cbT.checked; EXPLODE_OTHER=cbO.checked;
+    if(cbI) EXPLODE_IMAGES=cbI.checked;
     cleanup();
     _loadPDFExploded(f);
   }
@@ -4276,7 +4284,11 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
   // its on-page rectangle and pull the decoded bitmap from page.objs. Make each
   // a movable overlay and white-out its rectangle from the backdrop.
   var imgCount=0;
-  if(EXPLODE_OTHER && !_denseDrawing) try{
+  // Only runs when images should become movable overlays. When "Pictures &
+  // photos" is unticked (or "Everything else" is off) the pass is skipped for
+  // images — they remain painted in the backdrop render: visible, but a fixed
+  // part of the background that can't be selected, dragged, or deleted.
+  if(EXPLODE_OTHER && EXPLODE_IMAGES && !_denseDrawing) try{
     var m=vp.transform.slice(), stack=[];
     function _mul(a,b){return [a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];}
     var fns=opList.fnArray, args=opList.argsArray;
@@ -4384,7 +4396,7 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
       }
     }
   }catch(e){ console.warn('[Explode] image pass failed:',e); }
-  _explodeLap('image pass ('+imgCount+' images)');
+  _explodeLap('image pass ('+imgCount+' images'+(EXPLODE_IMAGES?'':' — kept in backdrop')+')');
 
   // ── VECTOR PASS ──────────────────────────────────────────────────────────
   // Walk the operator list, decode each constructPath into device-space
@@ -12667,11 +12679,11 @@ function showScaleDlg(){
 
 // ── Shared scale reset — called from both the dialog and the properties panel ──
 function resetScale(){
-  ppu=1; scaleUnit='m'; scaleSet=false;
-  ppuIn.value='1'; unitIn.value='m';
+  ppu=1; scaleUnit='ft'; scaleSet=false;
+  ppuIn.value='1'; unitIn.value='ft';
   scaleStatus.textContent='Scale not set';
   document.getElementById('ref-len').value='';
-  document.getElementById('ref-unit').value='m';
+  document.getElementById('ref-unit').value='ft';
   document.getElementById('ref-px-info').textContent='Draw the line first.';
   if(_scalingRefMeasure){
     var idx=measureObjs.indexOf(_scalingRefMeasure);
@@ -12722,7 +12734,7 @@ document.getElementById('scale-redraw').addEventListener('click',function(){
 
 document.getElementById('scale-ok').addEventListener('click',function(){
   var len=parseFloat(document.getElementById('ref-len').value);
-  var unit=document.getElementById('ref-unit').value.trim()||'m';
+  var unit=document.getElementById('ref-unit').value.trim()||'ft';
   // Always read the final endpoint positions — captures any fine-tuning the user did
   if(_scalingRefMeasure){
     refLinePixels=Math.hypot(
@@ -12749,13 +12761,13 @@ document.getElementById('scale-ok').addEventListener('click',function(){
 ppuIn.addEventListener('change',function(){
   var v=parseFloat(ppuIn.value);
   if(v>0){
-    ppu=1/v; scaleUnit=unitIn.value.trim()||'m'; scaleSet=true;
+    ppu=1/v; scaleUnit=unitIn.value.trim()||'ft'; scaleSet=true;
     scaleStatus.textContent='1 px = '+v+' '+scaleUnit;
     document.getElementById('btn-recalibrate').style.display='';
     document.getElementById('btn-reset-scale').style.display='';
   }
 });
-unitIn.addEventListener('change',function(){ scaleUnit=unitIn.value.trim()||'m'; });
+unitIn.addEventListener('change',function(){ scaleUnit=unitIn.value.trim()||'ft'; });
 
 // ── Make scale dialog draggable by its header ─────────────────────────────
 (function(){
@@ -12886,70 +12898,118 @@ function applyDpiScale(parsed, dpi){
   });
 })();
 
-// ── Auto-detect scale from uploaded plan using Claude vision ───────────────
+// ── Auto-detect scale from the PDF TEXT LAYER (100% local, no API) ────────
+// CAD-exported site plans carry a real text layer. PDF.js getTextContent()
+// reads it offline in milliseconds — no network, no vision model. We group
+// text items into lines by their Y coordinate, then regex-scan for scale
+// notation. Lines containing the word "SCALE" are trusted first (that is
+// where the title block puts it); distinctive patterns like 1"=30' are also
+// accepted from anywhere on the sheet. Ratio scales (1:100) are ONLY taken
+// from a SCALE-labelled line, so "SHEET 1:3" or a timestamp can't false-fire.
+function _evalScaleLine(s){
+  // Normalize curly quotes/primes → straight, collapse whitespace
+  s=String(s).replace(/[\u201C\u201D\u2033]/g,'"').replace(/[\u2018\u2019\u2032]/g,"'").replace(/\s+/g,' ').trim();
+  if(!s) return null;
+  if(/\bN\.?\s*T\.?\s*S\.?\b|NOT\s+TO\s+SCALE/i.test(s)) return {nts:true, notation:'NTS'};
+  var m;
+  // 1) Architectural fraction:  1/8"=1'-0"   3/16" = 1'-0"   1-1/2"=1'
+  //    N inches on paper = 1 foot real  →  feet per inch = 1/inches
+  m=s.match(/(?:(\d+)\s*[- ]\s*)?(\d+)\s*\/\s*(\d+)\s*"?\s*=\s*1\s*'(?:\s*-?\s*0\s*"?)?/);
+  if(m){
+    var inches=(m[1]?parseFloat(m[1]):0)+parseFloat(m[2])/parseFloat(m[3]);
+    if(inches>0) return {fpi:1/inches, unit:'ft', notation:m[0].trim()};
+  }
+  // 2) Engineering:  1"=30'   1"=30 FT   1 IN = 30 FEET   1"=30'-0"
+  m=s.match(/1\s*(?:"|''|in\.?|inch)?\s*=\s*(\d+(?:\.\d+)?)\s*(?:'|ft\.?\b|feet\b)(?:\s*-\s*0\s*"?)?/i);
+  if(m){
+    var ft=parseFloat(m[1]);
+    if(ft>0) return {fpi:ft, unit:'ft', notation:m[0].trim()};
+  }
+  // 3) Metric:  1cm = 5m  →  1 inch = 2.54cm = 2.54×5 m
+  m=s.match(/1\s*cm\s*=\s*(\d+(?:\.\d+)?)\s*m\b/i);
+  if(m){
+    var mv=parseFloat(m[1]);
+    if(mv>0) return {fpi:2.54*mv, unit:'m', notation:m[0].trim()};
+  }
+  // 4) Ratio:  1:100  1 : 480  (unit-less — both sides same unit)
+  //    1 inch = R inches = R/12 feet. Caller must gate this on a SCALE line.
+  m=s.match(/1\s*:\s*(\d+(?:\.\d+)?)\b/);
+  if(m){
+    var R=parseFloat(m[1]);
+    if(R>1) return {fpi:R/12, unit:'ft', notation:'1:'+m[1], ratio:true};
+  }
+  return null;
+}
+
 function autoDetectScale(){
   if(!baseLoaded) return;
-  var spinner=document.getElementById('auto-scale-spinner');
   var hint=document.getElementById('auto-scale-hint');
+  var spinner=document.getElementById('auto-scale-spinner');
   var dpiStatus=document.getElementById('dpi-calc-status');
-  // If offline, skip silently and show manual hint
-  if(!navigator.onLine){
-    if(hint) hint.textContent='Offline — use DPI calculator or draw a reference line';
+  if(!pdfDoc){
+    if(hint) hint.textContent='Image import — no text layer. Use the calculator or draw a reference line.';
     return;
   }
   if(spinner) spinner.style.display='';
-  if(hint)    hint.textContent='Scanning plan for scale notation…';
+  if(hint) hint.textContent='Scanning text layer for scale notation…';
 
-  // Thumbnail the full canvas — max 1024px on longest side
-  var maxPx=1024, sw=baseCv.width, sh=baseCv.height;
-  var ts=Math.min(1,maxPx/Math.max(sw,sh));
-  var tw=Math.round(sw*ts), th=Math.round(sh*ts);
-  var tmp=document.createElement('canvas');
-  tmp.width=tw; tmp.height=th;
-  tmp.getContext('2d').drawImage(baseCv,0,0,sw,sh,0,0,tw,th);
-  var b64=tmp.toDataURL('image/jpeg',0.82).split(',')[1];
-
-  fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      model:'claude-sonnet-4-20250514',
-      max_tokens:200,
-      messages:[{role:'user',content:[
-        {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
-        {type:'text',text:'Find the drawing scale in this plan\'s title block (e.g. 1"=30\', 1:100, NTS). Reply ONLY with valid JSON, no markdown or extra text:\n{"scale":"1\\"=30\'","feet_per_inch":30,"unit":"ft"}\nFor ratio 1:R use feet_per_inch=R/12, unit="ft". If metric preferred return unit="m" and meters_per_inch=R*0.0254 in feet_per_inch field.\nIf no scale or NTS: {"scale":null}'}
-      ]}]
-    })
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(data){
+  pdfDoc.getPage(currentPage).then(function(page){
+    return page.getTextContent();
+  }).then(function(tc){
     if(spinner) spinner.style.display='none';
-    var txt=(data.content||[]).map(function(i){ return i.text||''; }).join('');
-    var result;
-    try{ result=JSON.parse(txt.replace(/```[a-z]*|```/g,'').trim()); }catch(e){ result=null; }
-    if(!result||!result.scale||!result.feet_per_inch){
-      if(hint) hint.textContent='No scale found — use calculator below or draw a reference line';
+    // Group items into visual lines by Y (3pt buckets), sort left→right.
+    var buckets={};
+    (tc.items||[]).forEach(function(it){
+      if(!it.str) return;
+      var key=Math.round((it.transform?it.transform[5]:0)/3);
+      (buckets[key]=buckets[key]||[]).push(it);
+    });
+    var lineStrs=[];
+    Object.keys(buckets).forEach(function(k){
+      var row=buckets[k].sort(function(a,b){ return (a.transform?a.transform[4]:0)-(b.transform?b.transform[4]:0); });
+      var joined=row.map(function(it){ return it.str; }).join(' ');
+      lineStrs.push(joined);
+      // CAD text is often exploded char-by-char — also try a squashed variant
+      var squashed=row.map(function(it){ return it.str; }).join('').replace(/\s+/g,'');
+      if(squashed!==joined) lineStrs.push(squashed);
+    });
+
+    var best=null, nts=false;
+    // Pass 1: lines that literally say SCALE — all patterns allowed (incl. ratio)
+    for(var i=0;i<lineStrs.length;i++){
+      if(!/SCALE/i.test(lineStrs[i])) continue;
+      var r=_evalScaleLine(lineStrs[i]);
+      if(r&&r.nts){ nts=true; continue; }
+      if(r){ best=r; break; }
+    }
+    // Pass 2: anywhere on the sheet — distinctive patterns only (no bare ratio)
+    if(!best){
+      for(var j=0;j<lineStrs.length;j++){
+        var r2=_evalScaleLine(lineStrs[j]);
+        if(r2&&!r2.nts&&!r2.ratio){ best=r2; break; }
+      }
+    }
+
+    if(!best){
+      if(hint) hint.textContent = nts
+        ? 'Sheet is marked Not To Scale — draw a reference line off a known dimension.'
+        : 'No scale text found — use the calculator or draw a reference line.';
       return;
     }
-    var notation=result.scale;
+
     var dpi=_lastLoadedDpi||150;
-    var unit=result.unit||'ft';
-    // Pre-fill calculator fields
-    document.getElementById('dpi-notation').value=notation;
-    if(!document.getElementById('dpi-value').value) document.getElementById('dpi-value').value=dpi;
-    document.getElementById('dpi-unit').value=unit;
-    // Convert feet_per_inch to the chosen unit
-    var fpi=result.feet_per_inch;
-    var unitVal=unit==='ft'?fpi:unit==='in'?fpi*12:unit==='m'?fpi*0.3048:fpi*30.48;
-    if(applyDpiScale({value:unitVal,unit:unit},dpi)){
-      if(hint) hint.textContent='✓ Detected: '+notation+' at '+dpi+' DPI';
-      if(dpiStatus) dpiStatus.textContent='Auto-set from title block';
-      toast('Scale auto-detected: '+notation+' ✓','ok',4000);
+    // Pre-fill the calculator fields so the user can see / tweak what was found
+    var notEl=document.getElementById('dpi-notation'); if(notEl) notEl.value=best.notation;
+    var dpiEl=document.getElementById('dpi-value');    if(dpiEl&&!dpiEl.value) dpiEl.value=dpi;
+    var unitEl=document.getElementById('dpi-unit');    if(unitEl) unitEl.value=best.unit;
+    if(applyDpiScale({value:best.fpi, unit:best.unit}, dpi)){
+      if(hint) hint.textContent='✓ Found in title block: '+best.notation+' @ '+dpi+' DPI';
+      if(dpiStatus) dpiStatus.textContent='Auto-set from PDF text layer';
+      toast('Scale auto-detected: '+best.notation+' ✓','ok',4000);
     }
-  })
-  .catch(function(err){
+  }).catch(function(err){
     if(spinner) spinner.style.display='none';
-    if(hint) hint.textContent='Auto-detect unavailable — use calculator or draw a reference line';
+    if(hint) hint.textContent='Could not read text layer — use calculator or draw a reference line.';
     console.warn('[autoDetectScale]',err);
   });
 }
