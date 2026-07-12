@@ -2754,7 +2754,17 @@ function drawMarkupOnCtx(ctx,m,sc,lw){
   var w=m.w*sc, h=m.h*sc;
   ctx.save();
   ctx.globalAlpha=m.opacity;
-  if(m._bakedHl||m.blend) ctx.globalCompositeOperation='multiply';  // flattened exports
+  // Multiply blending for ALL highlights (imported AND tool-drawn) so the tint
+  // darkens the text/linework underneath instead of painting an opaque box over
+  // it. Without this, a user highlight at 100% opacity fully hid the text below.
+  // Strikeout/underline stay normal (thin lines meant to sit visibly on top).
+  // EXCEPTION: when rendering the ISOLATED highlight overlay for PDF export
+  // (_hlOverlayPass), draw as a plain fill onto the transparent overlay — the PDF
+  // itself applies BlendMode Multiply against the page. Doing a canvas-op multiply
+  // against the transparent overlay backdrop is what made exported highlights come
+  // out opaque and cover the text.
+  var _isHi=(m._bakedHl||m.blend||m.type==='highlight');
+  if(_isHi && !(typeof _hlOverlayPass!=='undefined' && _hlOverlayPass)) ctx.globalCompositeOperation='multiply';
   ctx.translate(m.cx*sc, m.cy*sc);
   ctx.rotate(m.angle||0);
   if(m.type==='highlight'){
@@ -2791,6 +2801,7 @@ function drawMarkupOnCtx(ctx,m,sc,lw){
 // pen stroke) with the highlight tool → drag moves it. Press empty space →
 // draw a new highlight, exactly as before. The eraser already deletes both.
 var _mkDrag=null;   // {obj, kind:'markup'|'pen', lx, ly, moved}
+var _hlOverlayPass=false;  // true while building the isolated highlight overlay for PDF export
 var _hlSel=null;    // {obj, kind} — highlight selected by a Hilite-tool tap;
                     // the markup opacity slider & color swatch edit it live.
 function findMarkupObjAt(x,y){
@@ -2811,11 +2822,33 @@ function renderMarkupObjs(){
   // on screen even though the export put the lines on top.)
   markupObjs.forEach(function(m){
     var layer=layers[m.layerIdx]; if(layer&&!layer.visible) return;
-    // Full-alpha imported tints go to the multiply canvas (they carry the raw
-    // highlighter color); alpha-based user markups keep their classic render.
-    var _mc=(m._bakedHl||m.blend)?hlCtx:shCtx;
+    // ALL highlights render on the multiply canvas (hlCtx) so the tint darkens the
+    // page/text beneath instead of covering it — this is why an imported highlight
+    // showed text through but a tool-drawn one at 100% did not. Strikeout/underline
+    // stay on the shapes canvas (thin lines meant to sit visibly on top).
+    var _mc=(m._bakedHl||m.blend||m.type==='highlight')?hlCtx:shCtx;
     drawMarkupOnCtx(_mc, m, 1, Math.max(2,2/zoom));
   });
+  // Selection outline for the highlight currently picked with the Hilite tool, so
+  // the user can SEE which mark the color/opacity controls are editing.
+  if(typeof _hlSel!=='undefined' && _hlSel && _hlSel.obj){
+    var _o=_hlSel.obj, bx1,by1,bx2,by2;
+    if(_hlSel.kind==='pen' && _o.pts && _o.pts.length){
+      bx1=by1=Infinity; bx2=by2=-Infinity;
+      _o.pts.forEach(function(p){ if(p.x<bx1)bx1=p.x; if(p.x>bx2)bx2=p.x; if(p.y<by1)by1=p.y; if(p.y>by2)by2=p.y; });
+      var _pad=(_o.strokeW||8)/2+2;
+      bx1-=_pad; by1-=_pad; bx2+=_pad; by2+=_pad;
+    } else {
+      bx1=Math.min(_o.x1,_o.x2)-3; by1=Math.min(_o.y1,_o.y2)-3;
+      bx2=Math.max(_o.x1,_o.x2)+3; by2=Math.max(_o.y1,_o.y2)+3;
+    }
+    shCtx.save();
+    shCtx.strokeStyle='#00d4ff';
+    shCtx.lineWidth=Math.max(1.5,1.5/zoom);
+    shCtx.setLineDash([Math.max(5,5/zoom),Math.max(4,4/zoom)]);
+    shCtx.strokeRect(bx1,by1,bx2-bx1,by2-by1);
+    shCtx.restore();
+  }
 }
 // ══════════════════════════════════════════════════════════════
 // END COMMENT BOX SYSTEM
@@ -6729,7 +6762,7 @@ function onDown(e){
     }
     if(_gm||_gpen){
       captureState(false);   // vector op — undo snapshot before the move
-      _mkDrag={obj:(_gm||_gpen), kind:(_gm?'markup':'pen'), lx:_gp.x, ly:_gp.y, moved:false};
+      _mkDrag={obj:(_gm||_gpen), kind:(_gm?'markup':'pen'), lx:_gp.x, ly:_gp.y, sx:_gp.x, sy:_gp.y, moved:false};
       return;
     }
     _hlSel=null;   // tapped empty space → drop any highlight selection
@@ -6955,6 +6988,13 @@ function onMove(e){
     if(e.cancelable) e.preventDefault();
     var _mmp=getPos(e);
     var _mdx=_mmp.x-_mkDrag.lx, _mdy=_mmp.y-_mkDrag.ly;
+    // Deadband: ignore sub-threshold jitter so a plain tap reliably SELECTS the
+    // highlight (for recolor) instead of being misread as a tiny move. Only once
+    // the pointer travels past the threshold do we treat it as a drag.
+    if(!_mkDrag.moved){
+      var _tot=Math.hypot(_mmp.x-_mkDrag.sx, _mmp.y-_mkDrag.sy);
+      if(_tot < 5/zoom) return;   // still within tap tolerance — don't move yet
+    }
     _mkDrag.lx=_mmp.x; _mkDrag.ly=_mmp.y;
     if(_mdx||_mdy){
       _mkDrag.moved=true;
@@ -7284,21 +7324,40 @@ function onMove(e){
   } else if(tool==='measure'){
     // Measure preview handled by dedicated mousemove listener — nothing here
   } else if(tool==='highlight'||tool==='strikeout'||tool==='underlinemark'){
-    // Live markup preview
-    dCtx.putImageData(compositedSnap,0,0);
-    dCtx.save(); dCtx.globalAlpha=markupOpacity;
+    // Live markup preview. The base PDF text/linework lives on base-cv (a separate
+    // lower canvas), NOT in draw-cv's compositedSnap — so a multiply on draw-cv has
+    // no text to tint and the highlight looks opaque. Instead draw the highlight
+    // preview on hl-cv, whose CSS mix-blend-mode:multiply blends it against the base
+    // beneath — exactly how the committed highlight renders. Text stays readable.
     var mx2=Math.min(startX,x), mx3=Math.max(startX,x);
     var my2=Math.min(startY,y), my3=Math.max(startY,y);
     if(tool==='highlight'){
-      dCtx.fillStyle=markupColor; dCtx.fillRect(mx2,my2,mx3-mx2||2,my3-my2||8);
-    } else if(tool==='strikeout'){
-      dCtx.strokeStyle=markupColor; dCtx.lineWidth=Math.max(2,2/zoom);
-      dCtx.beginPath(); dCtx.moveTo(mx2,(my2+my3)/2); dCtx.lineTo(mx3,(my2+my3)/2); dCtx.stroke();
+      if(typeof _ensureShcvRes==='function') _ensureShcvRes();
+      // size/clear hl-cv to plan res
+      var _he=_annoEff||(typeof _computeAnnoEff==='function'?_computeAnnoEff():1);
+      var _hw=Math.max(1,Math.round(baseCv.width*_he));
+      if(hlCv.width!==_hw){ _sizeAnnoCanvas(hlCv,hlCtx,_he); }
+      else { hlCtx.setTransform(_he,0,0,_he,0,0); }
+      hlCtx.clearRect(0,0,hlCv.width,hlCv.height);
+      // repaint committed highlights so they persist during the preview
+      if(typeof renderShapeAndMeasure==='function') renderShapeAndMeasure();
+      hlCtx.save();
+      hlCtx.globalAlpha=markupOpacity;
+      hlCtx.fillStyle=markupColor;
+      hlCtx.fillRect(mx2,my2,(mx3-mx2)||2,(my3-my2)||8);
+      hlCtx.restore();
+      // keep draw-cv clean (no opaque preview there)
+      if(compositedSnap) dCtx.putImageData(compositedSnap,0,0);
     } else {
+      // strikeout / underline: thin visible lines on top (draw-cv is fine)
+      dCtx.putImageData(compositedSnap,0,0);
+      dCtx.save(); dCtx.globalAlpha=markupOpacity;
       dCtx.strokeStyle=markupColor; dCtx.lineWidth=Math.max(2,2/zoom);
-      dCtx.beginPath(); dCtx.moveTo(mx2,my3); dCtx.lineTo(mx3,my3); dCtx.stroke();
+      dCtx.beginPath();
+      if(tool==='strikeout'){ dCtx.moveTo(mx2,(my2+my3)/2); dCtx.lineTo(mx3,(my2+my3)/2); }
+      else { dCtx.moveTo(mx2,my3); dCtx.lineTo(mx3,my3); }
+      dCtx.stroke(); dCtx.restore();
     }
-    dCtx.restore();
   } else {
     // shape preview (rect/ellipse/cloud/arrow/line) on shapes-cv — ABOVE the image
     // layer, so it stays visible while dragging over a picture.
@@ -7435,6 +7494,9 @@ function onUp(e){
       }));
       renderShapeAndMeasure(); // markups render in the shape pass now
       pushUndo();
+    } else {
+      // Too small to commit — repaint so any live hl-cv/draw-cv preview is erased.
+      if(typeof renderShapeAndMeasure==='function') renderShapeAndMeasure();
     }
     return;
   }
@@ -12597,14 +12659,22 @@ if(markupClrInput){
   markupClrInput.addEventListener('change', applyMarkupClr); // iOS dismiss
 }
 if(markupOpSl){
+  var _mkOpRaf=null;
+  var _mkOpRender=function(){
+    _mkOpRaf=null;
+    if(_hlSel && _hlSel.obj){ renderShapeAndMeasure(); composite(); }
+  };
   var applyMarkupOp=function(v){
     markupOpacity=Math.round(v)/100;
     markupOpValEl.textContent=Math.round(v)+'%';
     // A highlight selected via a Hilite-tool tap re-fades live. Works for both
     // rect markups and imported highlighter pen strokes (multiply canvas).
+    // Coalesce rapid slider events into ONE render per animation frame — calling
+    // renderShapeAndMeasure()+composite() on every input event made the slider
+    // stick/lag on dense plans.
     if(_hlSel && _hlSel.obj){
       _hlSel.obj.opacity=markupOpacity;
-      renderShapeAndMeasure(); composite();
+      if(!_mkOpRaf) _mkOpRaf=requestAnimationFrame(_mkOpRender);
     }
   };
   markupOpSl.addEventListener('input',function(e){ applyMarkupOp(parseInt(e.target.value)); });
@@ -14142,8 +14212,12 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
 // transparent raster overlay, where drawMarkupOnCtx renders them exactly as on
 // screen.
 function _rasterOnlyHl(m){
-  return m.type==='highlight' &&
-    ((m.poly && m.poly.length) || Math.abs(m.angle||0)>0.001);
+  // ALL highlights ride the multiply raster overlay (embedded with PDF BlendMode
+  // Multiply) so the tint darkens the text/linework beneath instead of covering it.
+  // Previously only poly/rotated tints did; a plain rectangular tool highlight was
+  // painted as an opaque vector rectangle that hid the text in the exported PDF.
+  // Strikeout/underline are NOT highlights and stay as crisp vectors.
+  return m.type==='highlight';
 }
 function _suppressVectorizedForOverlay(){
   var saved={
@@ -14390,8 +14464,10 @@ function _buildVectorPdf(attachJson, onReady){
       _restHl();
       if(_hadHl){
         var _restHl2=_swapHl('only');
+        _hlOverlayPass=true;   // draw highlights as plain fills; PDF blend does multiply
         try{ compHl=compositeExport(_ovPx); }catch(e){ compHl=null; }
         if(!compHl){ try{ compHl=compositeExport(0); }catch(e){ compHl=null; } }
+        _hlOverlayPass=false;
         _restHl2();
       }
     }catch(e){ comp=comp||null; }
