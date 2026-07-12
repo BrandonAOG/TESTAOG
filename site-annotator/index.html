@@ -5146,7 +5146,7 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
           // Viewers composite InkHighlight with the Multiply blend mode, which is
           // what makes a full-alpha highlighter still show the text through it.
           blend:(isHl?'multiply':undefined),
-          layerIdx:activeLayerIdx, _fromExplode:true, _inkHl:isHl,
+          layerIdx:activeLayerIdx, _fromExplode:true, _fromAnnot:true, _inkHl:isHl,
           // Origin snapshot (first point) — the ink annot still lives in the
           // pristine PDF, so a moved stroke must force the flattened export.
           _oX:pts[0].x, _oY:pts[0].y
@@ -5256,7 +5256,7 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
           id:Date.now()+(made++), x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y,
           color:shaft.stroke||'#000000', strokeW:Math.max(1,shaft.lw), opacity:1,
           lineStyle:(shaft.dash||'solid'), layerIdx:activeLayerIdx,
-          showLabel:false, isArrow:true, _editing:false, _fromExplode:true,
+          showLabel:false, isArrow:true, _editing:false, _fromExplode:true, _fromAnnot:true,
           _oX1:p1.x,_oY1:p1.y,_oX2:p2.x,_oY2:p2.y
         });
         curSubs=[]; return;
@@ -5269,7 +5269,7 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
           x1:_lp.pts[0].x, y1:_lp.pts[0].y, x2:_lp.pts[1].x, y2:_lp.pts[1].y,
           color:_lp.stroke||'#000000', strokeW:Math.max(1,_lp.lw), opacity:1,
           lineStyle:(_lp.dash||'solid'), layerIdx:activeLayerIdx,
-          showLabel:false, isArrow:false, _editing:false, _fromExplode:true,
+          showLabel:false, isArrow:false, _editing:false, _fromExplode:true, _fromAnnot:true,
           _oX1:_lp.pts[0].x,_oY1:_lp.pts[0].y,_oX2:_lp.pts[1].x,_oY2:_lp.pts[1].y
         });
         curSubs=[]; return;
@@ -5300,7 +5300,7 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
               cx:_bx0+_bw/2, cy:_by0+_bh/2, w:_bw, h:_bh, angle:0,
               color:(_stroke||'#000000'), strokeW:Math.max(1,_lw), opacity:1,
               fill:_filled, fillColor:(_fill||'#808080'), fillOpacity:(_filled?1:0),
-              lineStyle:(_dash||'solid'), layerIdx:activeLayerIdx, _fromExplode:true,
+              lineStyle:(_dash||'solid'), layerIdx:activeLayerIdx, _fromExplode:true, _fromAnnot:true,
               _oCx:_bx0+_bw/2, _oCy:_by0+_bh/2, _oW:_bw, _oH:_bh
             });
             curSubs=[]; return;
@@ -5328,7 +5328,7 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
           color:(useFill?(sp.fill||sp.stroke):(sp.stroke||sp.fill))||'#000000',
           strokeW:Math.max(1.5, sp.lw), opacity:1,
           lineStyle:(sp.dash||'solid'),
-          layerIdx:activeLayerIdx, _fromExplode:true,
+          layerIdx:activeLayerIdx, _fromExplode:true, _fromAnnot:true,
           _oX:sp.pts[0].x, _oY:sp.pts[0].y,
           // Full original-geometry snapshot: lets the export wipe the polyline's
           // ORIGINAL footprint precisely even after vertex edits (not just moves).
@@ -13921,15 +13921,32 @@ function _anyMovedExtracted(){
     // the native path would leave the original behind (moved) or keep showing it
     // (erased), so fall back to the flattened composite, whose backdrop already
     // has the tint stripped and reflects every edit.
-    if(typeof markupObjs!=='undefined' && markupObjs.some(function(m){return m._fromExplode && _movedExplodeObj(m);})) return true;
-    if(typeof penObjs!=='undefined'    && penObjs.some(function(p){return p._fromExplode && _movedExplodeObj(p);}))    return true;
+    // A moved extracted object only forces the flattened composite if its ORIGINAL
+    // will still be in the exported page. That depends entirely on WHERE it came from:
+    //
+    //   • ANNOTATION-derived (_fromAnnot: Ink/Line/Square/Circle/PolyLine/FreeText)
+    //     — the kept-page export DELETES these from /Annots, so the original is gone.
+    //     Moving one CANNOT leave a ghost, and bailing to raster just blurs the whole
+    //     sheet for nothing. This is what made "edit any imported polyline → blurry
+    //     export" happen. Let them go vector.
+    //
+    //   • CONTENT-STREAM-derived (page text, vector-pass linework, _bakedHl tints)
+    //     — these live in the page's content stream, which we cannot strip. Moving one
+    //     really would leave the original behind, so it still forces the composite.
+    function _ghostRisk(o){
+      if(!o || !o._fromExplode) return false;
+      if(o._fromAnnot && !o._bakedHl) return false;   // original is stripped → safe
+      return _movedExplodeObj(o);
+    }
+    if(typeof markupObjs!=='undefined' && markupObjs.some(_ghostRisk)) return true;
+    if(typeof penObjs!=='undefined'    && penObjs.some(_ghostRisk))    return true;
     if(_explodedMarkupsDeleted()) return true;
-    if(typeof shapeObjs!=='undefined'   && shapeObjs.some(function(o){return o._fromExplode && _movedExplodeObj(o);}))   return true;
-    if(typeof measureObjs!=='undefined' && measureObjs.some(function(o){return o._fromExplode && _movedExplodeObj(o);})) return true;
-    if(typeof textObjs!=='undefined'    && textObjs.some(function(o){return o._fromExplode && _movedExplodeObj(o);}))    return true;
+    if(typeof shapeObjs!=='undefined'   && shapeObjs.some(_ghostRisk))   return true;
+    if(typeof measureObjs!=='undefined' && measureObjs.some(_ghostRisk)) return true;
+    if(typeof textObjs!=='undefined'    && textObjs.some(_ghostRisk))    return true;
     // Imported PolyLine/Polygon annots live in polylineObjs — a moved/vertex-edited
     // one leaves its original in the pristine PDF, so it must trip this check too.
-    if(typeof polylineObjs!=='undefined' && polylineObjs.some(function(o){return o._fromExplode && _movedExplodeObj(o);})) return true;
+    if(typeof polylineObjs!=='undefined' && polylineObjs.some(_ghostRisk)) return true;
     if(typeof imgOverlays!=='undefined' && imgOverlays.some(function(ov){
       if(!ov._fromPdfPage || ov._origCx==null) return false;
       var e=0.75;
@@ -14568,31 +14585,6 @@ function _buildVectorPdf(attachJson, onReady){
     // page is to paint over them — a hack. Instead, fall back to the clean flattened
     // composite: the on-screen backdrop already has every extracted object erased, so
     // the export reflects the moves exactly, with nothing painted over.
-    // ── ROTATED PAGE → FLATTENED COMPOSITE (deliberate) ───────────────────────
-    // When the page is KEPT, the exporter strips the extracted markup annots from
-    // /Annots and relies on _paintVectorAnnotations to redraw them. But that painter
-    // SKIPS any _fromExplode object it considers "unmoved" (it assumes the original
-    // is still in the page). Stripped + skipped = the object vanishes. Rotation used
-    // to mask this by making everything look "moved"; with the snapshots now rotated
-    // correctly, the gap is exposed and polylines/arrows/lines/rects/ellipses drop
-    // out of a rotated export entirely.
-    //
-    // Losing linework is far worse than losing a little crispness, so a rotated page
-    // takes the flattened composite, which reproduces every object exactly as drawn.
-    // This is no longer the soft path it used to be: rotateCanvas now re-renders the
-    // backdrop losslessly from the source PDF instead of resampling the bitmap, so
-    // the composite is sharp — it was the repeated resampling, not the raster path,
-    // that caused the original blur.
-    try{
-      var _ur=(typeof _userRotDeg!=='undefined'&&_userRotDeg)?_userRotDeg:0;
-      var _pr=(typeof _pdfPageRot!=='undefined'&&_pdfPageRot)?_pdfPageRot:0;
-      if(((_ur+_pr)%360+360)%360 !== 0){
-        dbg('export','page rotated ('+_ur+'° user + '+_pr+'° page) → flattened composite; '
-                   + 'the vector painter drops unmoved extracted objects on a stripped page');
-        onReady(null); return;
-      }
-    }catch(_e){}
-
     if(!_shouldWhiteCoverPage() && _anyMovedExtracted()){
       // DIAGNOSTIC: this branch is the #1 cause of a "why is my export blurry"
       // report — it silently abandons the vector path for the flattened raster.
