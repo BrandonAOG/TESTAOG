@@ -6259,7 +6259,31 @@ var layerTmps=layers.map(function(l){
   // re-rasterize the page from the source at the NEW orientation, at full render
   // resolution. Lossless every time, no matter how many turns.
   try{
-    if(_vectorBackdropOK && typeof pdfDoc!=='undefined' && pdfDoc && _vecPageNum){
+    // Re-rendering restores the PRISTINE page. Annotations we can switch off, but
+    // content-stream material (page text, vector linework, baked highlight tints)
+    // that import extracted-and-whited-out would come straight back as a ghost
+    // under the editable copy. There's no render flag for that — so if any
+    // CONTENT-derived object was extracted, keep the old bitmap resample instead.
+    // It's softer, but it preserves the whiteout. Annot-only pages (the common
+    // case) get the lossless re-render.
+    var _contentExtracted = (function(){
+      function any(arr){
+        if(typeof arr==='undefined' || !arr) return false;
+        return arr.some(function(o){ return o && o._fromExplode && (!o._fromAnnot || o._bakedHl); });
+      }
+      try{
+        return any(typeof textObjs!=='undefined'?textObjs:null) ||
+               any(typeof shapeObjs!=='undefined'?shapeObjs:null) ||
+               any(typeof measureObjs!=='undefined'?measureObjs:null) ||
+               any(typeof penObjs!=='undefined'?penObjs:null) ||
+               any(typeof markupObjs!=='undefined'?markupObjs:null) ||
+               any(typeof polylineObjs!=='undefined'?polylineObjs:null);
+      }catch(e){ return true; }   // unsure → don't risk resurrecting content
+    })();
+    if(_contentExtracted){
+      dbg('rotate','content-stream objects were extracted → keeping bitmap resample (re-render would un-whiteout them)');
+    }
+    if(!_contentExtracted && _vectorBackdropOK && typeof pdfDoc!=='undefined' && pdfDoc && _vecPageNum){
       var _rw0=baseCv.width, _rh0=baseCv.height;
       pdfDoc.getPage(_vecPageNum).then(function(page){
         var _base=((page.rotate||0)%360+360)%360;
@@ -6274,7 +6298,14 @@ var layerTmps=layers.map(function(l){
         bCtx.setTransform(1,0,0,1,0,0);
         bCtx.clearRect(0,0,_rw0,_rh0);
         bCtx.restore();
-        page.render({canvasContext:bCtx, viewport:vp}).promise.then(function(){
+        // ANNOTATIONS OFF. The source PDF still contains the original Ink/Line/
+        // Square/Circle/PolyLine annots that import extracted into editable objects
+        // and WHITED OUT on the backdrop. Re-rendering the pristine page painted
+        // them straight back, so after a rotate you saw the uploaded original
+        // ghosting underneath the copy you were dragging. Render page content only.
+        var _AM = (window.pdfjsLib && pdfjsLib.AnnotationMode && pdfjsLib.AnnotationMode.DISABLE !== undefined)
+                  ? pdfjsLib.AnnotationMode.DISABLE : 0;
+        page.render({canvasContext:bCtx, viewport:vp, annotationMode:_AM}).promise.then(function(){
           if(typeof composite==='function') composite();
           dbg('rotate','base re-rendered from PDF at '+_rot+'° (lossless, no resample blur)');
         }).catch(function(e){ console.warn('[Rotate] base re-render failed, keeping resample:',e); });
