@@ -748,6 +748,9 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   <label>Address</label>
   <input class="cust-input" id="cust-addr" type="text" placeholder="Job address…" maxlength="80" style="max-width:280px;flex:2;">
   <div class="cust-sep"></div>
+  <label for="wm-brand">Brand</label>
+  <input class="cust-input" id="wm-brand" type="text" placeholder="Company name…" maxlength="60" value="Always On Generators" title="Watermark brand line — leave blank for none" style="max-width:180px;">
+  <div class="cust-sep"></div>
   <label for="wm-pos-sel">Mark</label>
   <select id="wm-pos-sel" class="cust-input" title="Watermark position" style="max-width:140px;cursor:pointer;">
     <option value="tl">Top Left</option>
@@ -1204,7 +1207,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
         <div id="wm-canvas">
           <div class="wm-name" id="wm-name-el"></div>
           <div class="wm-addr" id="wm-addr-el"></div>
-          <div class="wm-brand">Always On Generators</div>
+          <div class="wm-brand" id="wm-brand-el">Always On Generators</div>
         </div>
       </div>
     </div>
@@ -17144,6 +17147,13 @@ function toggleTheme(){
 // ── WATERMARK UPDATE ──────────────────────────────────────────
 function wmPos(){ var s=document.getElementById('wm-pos-sel'); return (s&&s.value)||'br'; }
 function wmSize(){ var s=document.getElementById('wm-size-sel'); var v=s?parseInt(s.value):20; return (v>=8&&v<=72)?v:20; }
+// Editable brand line ("Always On Generators" by default). Stored in
+// localStorage so a changed company name sticks across sessions; blank hides
+// the brand line entirely (on screen AND in exports).
+function wmBrand(){
+  var b=document.getElementById('wm-brand');
+  return b ? b.value.trim() : 'Always On Generators';
+}
 function updateWatermark(){
   var nm=document.getElementById('cust-name');
   var ad=document.getElementById('cust-addr');
@@ -17151,6 +17161,9 @@ function updateWatermark(){
   var adEl=document.getElementById('wm-addr-el');
   if(nmEl) nmEl.textContent=nm?nm.value:'';
   if(adEl) adEl.textContent=ad?ad.value:'';
+  var brEl=document.getElementById('wm-brand-el');
+  if(brEl){ var bv=wmBrand(); brEl.textContent=bv; brEl.style.display=bv?'':'none'; }
+  try{ localStorage.setItem('aog_wm_brand', wmBrand()); }catch(e){}
   var wm=document.getElementById('wm-canvas');
   if(wm){
     wm.setAttribute('data-pos', wmPos());
@@ -17171,6 +17184,11 @@ function applyWmScale(){
   var ad=document.getElementById('cust-addr');
   var ps=document.getElementById('wm-pos-sel');
   var sz=document.getElementById('wm-size-sel');
+  var br=document.getElementById('wm-brand');
+  // Restore the saved brand BEFORE the initial updateWatermark below, so a
+  // customized company name shows immediately on load.
+  try{ var _sb=localStorage.getItem('aog_wm_brand'); if(br && _sb!==null) br.value=_sb; }catch(e){}
+  if(br){ br.addEventListener('input',updateWatermark); br.addEventListener('mousedown',function(e){e.stopPropagation();}); br.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true}); }
   if(nm){ nm.addEventListener('input',updateWatermark); nm.addEventListener('mousedown',function(e){e.stopPropagation();}); nm.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true}); }
   if(ad){ ad.addEventListener('input',updateWatermark); ad.addEventListener('mousedown',function(e){e.stopPropagation();}); ad.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true}); }
   if(ps){ ps.addEventListener('change',updateWatermark); ps.addEventListener('mousedown',function(e){e.stopPropagation();}); ps.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true}); }
@@ -17186,7 +17204,8 @@ function applyWmScale(){
     if(!out) return out;
     var nmVal = (document.getElementById('cust-name')||{}).value||'';
     var adVal = (document.getElementById('cust-addr')||{}).value||'';
-    if(!nmVal && !adVal) return out;
+    var brVal = (typeof wmBrand==='function') ? wmBrand() : 'Always On Generators';
+    if(!nmVal && !adVal) return out;   // same rule as before: no customer info → no burn
     var ctx = out.getContext('2d');
     var sc = out.width / (baseCv.width||out.width);
     // 20pt text, pink, 90% opacity. Position chosen by the toolbar selector.
@@ -17203,7 +17222,8 @@ function applyWmScale(){
     var rows=[];
     if(nmVal) rows.push({t:nmVal, f:'bold '+ptPx+'px "Orbitron",monospace',         px:ptPx});
     if(adVal) rows.push({t:adVal, f:'bold '+ptPx+'px "Share Tech Mono",monospace',   px:ptPx});
-    rows.push({t:'Always On Generators', f:brandPx+'px "Share Tech Mono",monospace', px:brandPx, brand:true});
+    if(brVal) rows.push({t:brVal, f:brandPx+'px "Share Tech Mono",monospace', px:brandPx, brand:true});
+    if(!rows.length){ return out; }
     // Visual block height (textBaseline is 'top'): one line-advance per row
     // except the last, plus the last row's own glyph height. This makes the
     // bottom of the stack land exactly on the bottom margin for bottom-anchored
