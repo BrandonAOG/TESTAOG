@@ -2269,9 +2269,7 @@ function _syncCommentPickers(c){
 // ── Select a comment: show handles, sync pickers, NO textOv ──────
 function enterCommentSelectMode(c){
   _syncCommentPickers(c);
-  if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){
-    selCv.width=drawCv.width; selCv.height=drawCv.height;
-  }
+  _sizeSelCvRaw();
   selectedShape={
     type:'comment', _commentObj:c,
     cx:c.cx, cy:c.cy, w:c.w, h:c.h, angle:c.angle||0,
@@ -3575,6 +3573,10 @@ function clearFormFields(){
 }
 
 function loadFile(f, srcCap){
+  // Commit ANY in-progress edit/selection FIRST (open text editor, half-drawn
+  // polyline, live selection). Without this, an open text edit survived the
+  // import and later committed the OLD document's text into the NEW one.
+  try{ if(typeof commitAllForExport==='function') commitAllForExport(); }catch(e){}
   // Guard against silently discarding unsaved work. Opening a file fully wipes the
   // current canvas AND its autosave slot, so if the user has un-exported edits,
   // confirm first. (Only fires on real edits — imports don't set _annotDirty.)
@@ -5940,6 +5942,11 @@ function resize(w,h){
   baseCv.height=drawCv.height=gridCv.height=tCv.height=shCv.height=hlCv.height=h;
   if(typeof imgCv!=='undefined'){ imgCv.height=h; }
   selCv.width=1; selCv.height=1;
+  // CSS size must track the new canvas too. The text-chrome paths size selCv's
+  // BACKING store but not its CSS box; after importing a different-sized file
+  // the stale CSS scaled the dashed text box off the text. Reset it here so any
+  // leftover from the previous document can't survive a load.
+  selCv.style.width=w+'px'; selCv.style.height=h+'px';
   canvasWrap.style.width=w+'px'; canvasWrap.style.height=h+'px';
   // Render the TEXT/markup AND shape/note layers at device-pixel resolution so
   // committed text and notes stay crisp on hi-DPI / Retina screens AND when zoomed
@@ -5973,6 +5980,17 @@ function _sizeAnnoCanvas(cv, ctx, eff){
   cv.style.width  = w+'px';
   cv.style.height = h+'px';
   ctx.setTransform(eff,0,0,eff,0,0);                    // draw in plan coords, render at eff
+}
+// Size selCv 1:1 with the plan canvas for the raw-coordinate chrome paths
+// (text box/caret, measure/leader chrome). Backing = drawCv px, identity
+// transform, AND CSS pinned to the plan size — the CSS half was missing, so
+// after importing a different-sized file the stale CSS box scaled all text
+// chrome (dashed box, rotate handle, caret) off the actual text.
+function _sizeSelCvRaw(){
+  if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){ selCv.width=drawCv.width; selCv.height=drawCv.height; }
+  selCv.style.width  = baseCv.width+'px';
+  selCv.style.height = baseCv.height+'px';
+  selCtx.setTransform(1,0,0,1,0,0);
 }
 function _setAnnoRes(force){
   var w = baseCv.width, h = baseCv.height;
@@ -6017,6 +6035,14 @@ function afterLoad(){
   _movingComment=null; _moveCmtStart=null; _cmtHandleObj=null;
   imgOverlays=[]; selImg=null; selImgDrag=null; selImgHandle=-1;
   selectedShape=null; selHandle=-1; selDragStart=null;
+  // Belt-and-suspenders: if any load path skipped the pre-import commit, force
+  // the shared text editor closed WITHOUT committing (its content belongs to the
+  // previous document) and clear every tool-in-progress state.
+  try{ _textSessionOpen=false; }catch(e){}
+  try{ if(typeof textOv!=='undefined' && textOv){ textOv.style.display='none'; textOv.value=''; textOv.blur(); } }catch(e){}
+  try{ if(typeof stopTextCursor==='function') stopTextCursor(); }catch(e){}
+  try{ leaderStep=0; _leaderDragPlacing=false; }catch(e){}
+  try{ _hlSel=null; _mkDrag=null; plDrag=null; _dragText=null; }catch(e){}
   if(selCv.width>1){ selCv.width=1; selCv.height=1; }
   tCtx.clearRect(0,0,tCv.width,tCv.height);
   shCtx.clearRect(0,0,shCv.width,shCv.height);
@@ -6929,7 +6955,7 @@ function onMove(e){
     _txtMoveObj.x=_txtMoveStart.ox+(_mp.x-_txtMoveStart.px);
     _txtMoveObj.y=_txtMoveStart.oy+(_mp.y-_txtMoveStart.py);
     renderTextObjs();
-    if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){ selCv.width=drawCv.width; selCv.height=drawCv.height; }
+    _sizeSelCvRaw();
     selCtx.clearRect(0,0,selCv.width,selCv.height);
     _drawTextChrome(_txtMoveObj);
     return;
@@ -6952,7 +6978,7 @@ function onMove(e){
     _txtRotObj.x=_txtRotStart.cx-(_lcx*_ca-_lcy*_sa);
     _txtRotObj.y=_txtRotStart.cy-(_lcx*_sa+_lcy*_ca);
     renderTextObjs();
-    if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){ selCv.width=drawCv.width; selCv.height=drawCv.height; }
+    _sizeSelCvRaw();
     selCtx.clearRect(0,0,selCv.width,selCv.height);
     _drawTextChrome(_txtRotObj);
     // Live degree readout (0–359°, where 0° = upright).
@@ -8217,9 +8243,7 @@ function getMeasureHandleAt(m, x, y, isTouch){
 // Draw selection overlay for the selected measure object
 function renderMeasureSelection(){
   if(!selectedMeasure){ return; }
-  if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){
-    selCv.width=drawCv.width; selCv.height=drawCv.height;
-  }
+  _sizeSelCvRaw();
   selCtx.clearRect(0,0,selCv.width,selCv.height);
   var m=selectedMeasure;
   var isPlainLine=m.showLabel===false;
@@ -8313,9 +8337,7 @@ function getLeaderHandleAt(o, x, y, isTouch){
 // Draw selection overlay for the selected leader on selCv (handles + highlight).
 function renderLeaderSelection(){
   if(!selectedLeader){ return; }
-  if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){
-    selCv.width=drawCv.width; selCv.height=drawCv.height;
-  }
+  _sizeSelCvRaw();
   selCtx.clearRect(0,0,selCv.width,selCv.height);
   var o=selectedLeader;
   // Draw the leader itself live here (it's skipped on shCv while selected).
@@ -9356,10 +9378,7 @@ function drawTextCursorAt(x, y, alpha){
 
 function renderTextCursorFrame(){
   // Ensure sel-cv is canvas-sized
-  if(selCv.width !== drawCv.width || selCv.height !== drawCv.height){
-    selCv.width  = drawCv.width;
-    selCv.height = drawCv.height;
-  }
+  _sizeSelCvRaw();
   selCtx.clearRect(0,0,selCv.width,selCv.height);
   // Dashed box + rotate handle around the text being edited (redrawn every
   // blink frame so it persists with the caret).
@@ -9446,10 +9465,7 @@ function _syncTextFmtFromObj(obj){
 
 // ── Hover indicator — faint cursor following mouse when text tool selected
 function showTextHover(x, y){
-  if(selCv.width !== drawCv.width || selCv.height !== drawCv.height){
-    selCv.width  = drawCv.width;
-    selCv.height = drawCv.height;
-  }
+  _sizeSelCvRaw();
   selCtx.clearRect(0,0,selCv.width,selCv.height);
   var overExisting = findTextObjAt(x, y);
   if(overExisting){
@@ -9810,7 +9826,7 @@ function _beginTextMove(o,p){
   renderTextObjs();
   _txtMoveObj=o; _txtMoving=true;
   _txtMoveStart={px:p.x,py:p.y,ox:o.x,oy:o.y};
-  if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){ selCv.width=drawCv.width; selCv.height=drawCv.height; }
+  _sizeSelCvRaw();
   selCtx.clearRect(0,0,selCv.width,selCv.height);
   _drawTextChrome(o);
 }
@@ -9829,7 +9845,7 @@ function _beginTextRotate(o,p){
   var c=_textCenter(o);
   _txtRotObj=o; _txtRotating=true;
   _txtRotStart={cx:c.x, cy:c.y, off:Math.atan2(p.y-c.y,p.x-c.x)-(o.angle||0)};
-  if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){ selCv.width=drawCv.width; selCv.height=drawCv.height; }
+  _sizeSelCvRaw();
   selCtx.clearRect(0,0,selCv.width,selCv.height);
   _drawTextChrome(o);
 }
@@ -11694,9 +11710,7 @@ function endPolylineDrag(){
 // Draw a selection highlight + vertex dots for the selected polyline.
 function renderPolylineSelection(){
   if(!selectedPolyline){ return; }
-  if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){
-    selCv.width=drawCv.width; selCv.height=drawCv.height;
-  }
+  _sizeSelCvRaw();
   selCtx.clearRect(0,0,selCv.width,selCv.height);
   var pl=selectedPolyline;
   if(!pl.pts||pl.pts.length<2) return;
@@ -13301,6 +13315,11 @@ function _downloadBlob(blob, name){
 // which the export pipeline ignores — so a still-selected element silently went
 // missing until the user manually deselected. Calling the proper commit for
 // whatever is active (no early returns: handle them all) fixes that.
+// ALSO called before opening a NEW file/project: an open text editor or live
+// selection otherwise survived the import and leaked the previous document's
+// content (e.g. an open text edit committed itself into the freshly imported
+// file's textObjs). Committing first pins everything to the OLD document, which
+// afterLoad() then wipes cleanly.
 function commitAllForExport(){
   try{ if(typeof textOv!=='undefined' && textOv && textOv.style.display!=='none' && typeof commitText==='function') commitText(); }catch(e){}
   // Drop any stray empty text objects (e.g. a text edit interrupted by an app kill
@@ -13316,6 +13335,17 @@ function commitAllForExport(){
   try{ if(typeof plActive!=='undefined' && plActive && typeof closePolyline==='function') closePolyline(); }catch(e){}
   try{ if(typeof polyActive!=='undefined' && polyActive && typeof closePolygon==='function') closePolygon(); }catch(e){}
   try{ if(typeof selectedShape!=='undefined' && selectedShape && typeof commitSelection==='function') commitSelection(); }catch(e){}
+  // Half-placed leader (first point down, second pending): a 1-point leader
+  // can't be finished — abandon it so its rubber-band preview doesn't linger.
+  try{ if(typeof leaderStep!=='undefined' && leaderStep>0){ leaderStep=0; _leaderDragPlacing=false; } }catch(e){}
+  // Highlight-tool selection and any half-finished drag references: these hold
+  // pointers into the CURRENT document's objects; clear them so they can't act
+  // on the next document's objects after an import swap.
+  try{ if(typeof _hlSel!=='undefined') _hlSel=null; }catch(e){}
+  try{ if(typeof _mkDrag!=='undefined') _mkDrag=null; }catch(e){}
+  try{ if(typeof plDrag!=='undefined') plDrag=null; }catch(e){}
+  try{ if(typeof _dragText!=='undefined') _dragText=null; }catch(e){}
+  try{ if(typeof _dragComment!=='undefined') _dragComment=null; }catch(e){}
   // Clear the selection overlay so nothing left on it bleeds into a capture.
   try{ if(typeof selCv!=='undefined' && selCv && selCv.width>1){ selCv.width=1; selCv.height=1; } }catch(e){}
 }
@@ -14672,6 +14702,7 @@ function _projFileName(ext){
 
 if(btnSaveProj) btnSaveProj.addEventListener('click', function(){
   if(!baseLoaded){ toast('Open a file first','warn'); return; }
+  commitAllForExport();   // open text edits / selections must land in the saved record
   var name=_projFileName('aogplan');
   // Open the Save-As panel within the click gesture, then build the record.
   pickSaveTarget(name, 'application/json', 'AOG Project', ['.aogplan','.json']).then(function(handle){
@@ -14689,6 +14720,9 @@ if(btnSaveProj) btnSaveProj.addEventListener('click', function(){
 // Restore from a parsed project record (shared by Open Project + editable-PDF open)
 function loadProjectRecord(rec){
   if(!rec || !rec.baseData){ toast('Not a valid project file','err',4000); return false; }
+  // Same guard as loadFile: pin any open editor/selection to the old document
+  // before the restore wipes state, so nothing leaks into the opened project.
+  try{ if(typeof commitAllForExport==='function') commitAllForExport(); }catch(e){}
   try{ doRestore(rec); return true; }
   catch(ex){ console.warn('[Project] restore failed:',ex); toast('Could not open project','err',4000); return false; }
 }
