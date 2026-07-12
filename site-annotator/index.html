@@ -7229,11 +7229,18 @@ function onMove(e){
   }
   var lc=lctx();
   if(tool==='comment'&&compositedSnap){
-    // Live preview of comment box being drawn
-    dCtx.putImageData(compositedSnap,0,0);
+    // Live preview of comment box being drawn.
+    // NOTE: this must render on shCv (shapes-cv), NOT dCtx (draw-cv). draw-cv sits
+    // BELOW the inserted-image canvas, so a preview drawn there is hidden behind any
+    // picture until release. shCv sits above images, matching where the committed
+    // note lands, so the box is visible while dragging over a photo.
+    dCtx.putImageData(compositedSnap,0,0);      // keep draw-cv clean underneath
+    if(typeof _ensureShcvRes==='function') _ensureShcvRes();
+    shCtx.clearRect(0,0,shCv.width,shCv.height);
+    if(typeof renderShapeAndMeasure==='function') renderShapeAndMeasure(); // repaint committed shapes/notes
     var pw=Math.abs(x-startX), ph=Math.abs(y-startY);
     if(pw>8&&ph>20){
-      drawCommentBox(dCtx,{
+      drawCommentBox(shCtx,{
         cx:(startX+x)/2, cy:(startY+y)/2,
         w:pw, h:Math.max(ph,60),
         bgColor:_cBgColor, textColor:_cTxtColor,
@@ -7246,13 +7253,12 @@ function onMove(e){
   }
   if(tool==='pen'){
     penPathPoints.push({x:x,y:y});
-    // Preview on the display canvas only — NOT burned to the layer.
-    // Restore the pre-stroke snapshot and stroke the WHOLE path ONCE, with the
-    // same renderer the committed stroke uses. The old per-segment strokes
-    // stacked alpha at every overlapping round cap, so a 10%-opacity pen
-    // previewed near-opaque and then "snapped" to 10% on release.
-    if(compositedSnap) dCtx.putImageData(compositedSnap,0,0);
-    drawPenOnCtx(dCtx,{pts:penPathPoints,color:color,strokeW:strokeW,opacity:opacity,lineStyle:lineStyle},1);
+    // Preview on shapes-cv (ABOVE the image layer) so the stroke is visible while
+    // drawing over a picture. Repaint committed shapes first, then stroke the WHOLE
+    // path ONCE with the committed renderer (per-segment strokes stacked alpha at
+    // every overlapping round cap, making a 10% pen preview near-opaque).
+    var _pc=_prepShcvPreview();
+    drawPenOnCtx(_pc,{pts:penPathPoints,color:color,strokeW:strokeW,opacity:opacity,lineStyle:lineStyle},1);
     lastPenX=x; lastPenY=y;
   } else if(tool==='eraser'){
     // Erase baked pixels on EVERY visible layer (not just the active one) so
@@ -7294,9 +7300,10 @@ function onMove(e){
     }
     dCtx.restore();
   } else {
-    // shape preview on display canvas
-    dCtx.putImageData(compositedSnap,0,0);
-    previewShape(dCtx,startX,startY,x,y);
+    // shape preview (rect/ellipse/cloud/arrow/line) on shapes-cv — ABOVE the image
+    // layer, so it stays visible while dragging over a picture.
+    var _pc=_prepShcvPreview();
+    previewShape(_pc,startX,startY,x,y);
   }
 }
 
@@ -7392,7 +7399,8 @@ function onUp(e){
       showTextOverlay(textX, textY);
       pushUndo();
     } else {
-      composite();       // a mere tap: cancel placement, wipe the dashed preview
+      renderShapeAndMeasure(); // erase the dashed preview drawn on shapes-cv
+      composite();             // a mere tap: cancel placement, wipe the dashed preview
     }
     leaderStep=0;
     _suppressLeaderPlaceUntil=Date.now()+700;  // swallow the trailing/synthetic click
@@ -7455,6 +7463,9 @@ function onUp(e){
       composite();
       openCommentEditor(nc);
       pushUndo();
+    } else {
+      // Drag too small — no note created. Repaint shCv to erase the live preview box.
+      if(typeof renderShapeAndMeasure==='function') renderShapeAndMeasure();
     }
     return;
   }
@@ -7665,6 +7676,7 @@ function onUp(e){
     var spx=Math.hypot(p.x-startX,p.y-startY);
     if(spx>4){
       dCtx.putImageData(compositedSnap,0,0);
+      renderShapeAndMeasure();   // erase the live shCv preview before committing
       var _committed=drawFinalShape(lc,startX,startY,p.x,p.y, !!(e.changedTouches&&e.changedTouches.length));
       composite();
       // On touch, drawFinalShape → commitSelection() already ran composite() +
@@ -7673,8 +7685,10 @@ function onUp(e){
       // (undo would then need two presses to remove the shape).
       if(!_committed) pushUndo();
     } else {
-      // Tap with no drag → place nothing, leave the canvas untouched.
+      // Tap with no drag → place nothing. Restore draw-cv and repaint shapes-cv so
+      // the discarded live preview is erased.
       if(compositedSnap) dCtx.putImageData(compositedSnap,0,0);
+      renderShapeAndMeasure();
       composite();
     }
     return;
@@ -7956,6 +7970,16 @@ function renderMeasureObjs(){
   // We share shCv/shCtx — renderShapeObjs also draws there.
   // Re-render everything together.
   renderShapeAndMeasure();
+}
+
+// Prepare shapes-cv (which sits ABOVE the inserted-image canvas) to receive a
+// live drag preview, so previews for rect/ellipse/cloud/arrow/line/pen/leader are
+// visible while dragging over a picture instead of being hidden behind it. Repaints
+// the already-committed shapes/notes first, then leaves shCtx ready to draw on top.
+function _prepShcvPreview(){
+  if(compositedSnap) dCtx.putImageData(compositedSnap,0,0); // keep draw-cv clean underneath
+  renderShapeAndMeasure();                                   // repaint committed shapes/notes on shCv
+  return shCtx;
 }
 
 function renderShapeAndMeasure(){
@@ -8726,10 +8750,12 @@ drawCv.addEventListener('dblclick',function(e){
 
 drawCv.addEventListener('mousemove',function(e){
   if(tool==='leader'&&leaderStep===1){
-    composite();
     var pos=getPos(e);
-    dCtx.save(); dCtx.strokeStyle=color; dCtx.lineWidth=strokeW; dCtx.setLineDash([4,3]); dCtx.globalAlpha=0.6;
-    dCtx.beginPath(); dCtx.moveTo(leaderP1x,leaderP1y); dCtx.lineTo(pos.x,pos.y); dCtx.stroke(); dCtx.restore();
+    // Preview on shapes-cv (ABOVE the image layer) so the leader rubber-band is
+    // visible while dragging over a picture. Repaint committed shapes first.
+    renderShapeAndMeasure();
+    shCtx.save(); shCtx.strokeStyle=color; shCtx.lineWidth=strokeW; shCtx.setLineDash([4,3]); shCtx.globalAlpha=0.6;
+    shCtx.beginPath(); shCtx.moveTo(leaderP1x,leaderP1y); shCtx.lineTo(pos.x,pos.y); shCtx.stroke(); shCtx.restore();
   }
   // Path measure live preview
   if(tool==='pathmeasure'&&pmActive&&pmPoints.length>=1){
