@@ -285,8 +285,8 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .markup-btn:hover{background:var(--surf2);color:var(--txt)}
 .markup-btn.active{border-color:var(--acc);color:var(--acc2);background:rgba(108,99,255,.15)}
 /* SELECTION OVERLAY CANVAS */
-#img-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;z-index:1}
-#hl-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;z-index:3;mix-blend-mode:multiply}
+#hl-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;z-index:2;mix-blend-mode:multiply}
+#img-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;z-index:3}
 #shapes-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;z-index:3}
 #txt-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;z-index:11}
 #sel-cv{position:absolute;top:0;left:0;display:block;pointer-events:none;z-index:12}
@@ -2623,12 +2623,18 @@ function commitCommentEdit(keepSize){
   if(!_preOp) captureState(false);
   pushUndo();
   if(selectedShape) renderSelection();
-  // A pasted color was adopted for THIS note only — restore the picker default
-  // so the next note starts from the user's own text color.
+  // A pasted color was applied to THIS note only. Restore the previous note
+  // defaults so the NEXT note starts from the user's normal note color. The
+  // shared drawing color (arrow/line/etc.) is intentionally left on the pasted
+  // color — that's the one meant to persist across tools.
   if(_aogNoteColRestore!==null){
-    _cTxtColor=_aogNoteColRestore; _aogNoteColRestore=null;
+    _cTxtColor    = _aogNoteColRestore.txt;
+    _cBorderColor = _aogNoteColRestore.bd;
+    _aogNoteColRestore=null;
     var _rs=document.getElementById('cmt-txt-swatch'); if(_rs) _rs.style.background=_cTxtColor;
     var _ri=document.getElementById('cmt-txt-input');  if(_ri) _ri.value=_cTxtColor;
+    var _bs=document.getElementById('cmt-bd-swatch');  if(_bs) _bs.style.background=_cBorderColor;
+    var _bi=document.getElementById('cmt-bd-input');   if(_bi) _bi.value=_cBorderColor;
   }
 }
 
@@ -10420,7 +10426,7 @@ window.AOG_lastTextClip = null;
 // One-shot restores: when a paste adopts a copied color, remember what the
 // tool/picker color was BEFORE, and put it back when that box commits — so the
 // NEXT box starts from the user's own defaults instead of inheriting the red.
-var _aogNoteColRestore = null;   // previous _cTxtColor (note text picker)
+var _aogNoteColRestore = null;   // saved {txt,bd} note defaults to restore after a color-matched paste
 var _aogTextColRestore = null;   // previous global draw color (text tool)
 // Extract a usable text color from the clipboard's HTML flavor (Word, Excel,
 // web pages and some PDF viewers include one; plain text never does).
@@ -10492,10 +10498,24 @@ textOv.addEventListener('paste', function(ev){
       if(_editingComment !== c) return;     // user moved on — bail
       c.text = textOv.value;
       if(_wasEmpty && _pasteCol){
-        if(_aogNoteColRestore===null && _cTxtColor!==_pasteCol) _aogNoteColRestore=_cTxtColor;
-        c.textColor = _pasteCol;
+        // Apply the pasted text color to THIS note's text AND border.
+        c.textColor   = _pasteCol;
+        c.borderColor = _pasteCol;
+        // Temporarily reflect it in the note pickers while this note is active, but
+        // remember the previous note defaults so they revert on commit — the NEXT
+        // note must start from the user's normal note color, not this pasted one.
+        if(_aogNoteColRestore===null) _aogNoteColRestore={txt:_cTxtColor, bd:_cBorderColor};
+        _cTxtColor    = _pasteCol;
+        _cBorderColor = _pasteCol;
+        if(selectedShape && selectedShape._commentObj===c) selectedShape.color=_pasteCol;
         textOv.style.color = c.textColor;                     // live editor color
-        if(typeof _syncCommentPickers==='function') _syncCommentPickers(c); // pickers + _cTxtColor
+        if(typeof _syncCommentPickers==='function') _syncCommentPickers(c); // note pickers
+        // Push the pasted color to the SHARED drawing color used by arrow/line/etc.
+        // so that switching to those tools continues in this color. This is what
+        // persists across tools (the note default does not).
+        color = _pasteCol;
+        if(typeof clrSwatch!=='undefined' && clrSwatch) clrSwatch.style.background=color;
+        if(typeof clrInput!=='undefined'  && clrInput)  clrInput.value=color;
         toast('Matched copied text color','ok',1500);
       }
       growCommentBothWays(c);               // sizes box (W+H) and resyncs editor
@@ -13131,15 +13151,8 @@ function compositeExport(maxPx){
     if(!l.visible) return;
     try{ ctx.drawImage(l.canvas,0,0,w,h); }catch(e){ console.warn('[Export] layer:',e); }
   });
-  // Inserted images (img-cv sits above the layers, below shapes/text on screen).
-  // These were missing from export — the cause of "the site plan / my images are
-  // gone, only my drawings remain." Drawn in plan coords scaled to the export size.
-  try{
-    if(typeof imgOverlays!=='undefined') imgOverlays.forEach(function(ov){
-      var L=layers[ov.layerIdx]; if(L&&!L.visible) return;
-      ctx.save(); ctx.scale(scale,scale); _drawImgOv(ctx, ov); ctx.restore();
-    });
-  }catch(ex){ console.warn('[Export] imgOverlays:',ex); }
+  // Inserted images are drawn LAST (see end of this function) so they sit on top
+  // of every annotation, matching the on-screen stacking order.
   // Markup objects (highlight / strikethrough / underline markup) — drawn EARLY so
   // they sit UNDERNEATH shapes, comments (notes) and text, matching the intent that
   // annotations never obscure notes/text. (Previously drawn last, which put a
@@ -13323,6 +13336,14 @@ function compositeExport(maxPx){
   try{ polygonObjs.forEach(function(o){ var L=layers[o.layerIdx]; if(L&&!L.visible) return; drawPolygonOnCtx(ctx,o,scale); }); }catch(ex){ console.warn('[Export] polygonObjs:',ex); }
   try{ leaderObjs.forEach(function(o){ var L=layers[o.layerIdx]; if(L&&!L.visible) return; drawLeaderOnCtx(ctx,o,scale); }); }catch(ex){ console.warn('[Export] leaderObjs:',ex); }
   try{ stampObjs.forEach(function(o){ var L=layers[o.layerIdx]; if(L&&!L.visible) return; drawStampObjOnCtx(ctx,o,scale); }); }catch(ex){ console.warn('[Export] stampObjs:',ex); }
+  // Inserted images — above highlights, pen strokes, shapes and text, but BELOW
+  // notes/comments (drawn next) so a note is never hidden behind a picture.
+  try{
+    if(typeof imgOverlays!=='undefined') imgOverlays.forEach(function(ov){
+      var L=layers[ov.layerIdx]; if(L&&!L.visible) return;
+      ctx.save(); ctx.scale(scale,scale); _drawImgOv(ctx, ov); ctx.restore();
+    });
+  }catch(ex){ console.warn('[Export] imgOverlays:',ex); }
   // Comment objects
   try{
     commentObjs.forEach(function(c){
