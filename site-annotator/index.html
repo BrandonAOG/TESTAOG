@@ -1225,6 +1225,13 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   <div id="props-panel" class="side-panel right collapsed">
     <div class="panel-hdr"><span>Properties</span></div>
     <div class="panel-body">
+      <!-- Loaded page info -->
+      <div class="prop-section" id="loaded-info-sec" style="display:none">
+        <div class="prop-title">Loaded page</div>
+        <div class="prop-row"><label>Resolution</label><span class="prop-input" id="li-dpi" style="text-align:right;border:none;background:none;color:var(--txt)">—</span></div>
+        <div class="prop-row"><label>Pixel size</label><span class="prop-input" id="li-px" style="text-align:right;border:none;background:none;color:var(--txt);width:110px">—</span></div>
+        <div class="prop-row"><label>Page size</label><span class="prop-input" id="li-in" style="text-align:right;border:none;background:none;color:var(--txt);width:110px">—</span></div>
+      </div>
       <!-- Scale -->
       <div class="prop-section">
         <div class="prop-title">Scale</div>
@@ -3015,6 +3022,24 @@ var _lastLoadedDpi = 0; // DPI of the most recently loaded file (set by PDF load
 // than the same point size in Adobe. Using 72 makes "13 pt" a true 13 pt on
 // paper at any render DPI, matching Acrobat and the size selector's numbers.
 var TEXT_REF_DPI = 72;
+// Populate the "Loaded page" readout in the Properties panel. dpi = render DPI of
+// the loaded page; w,h = pixel dimensions. Physical size = px / dpi (inches).
+function _setLoadedInfo(dpi, w, h){
+  try{
+    var sec=document.getElementById('loaded-info-sec'); if(!sec) return;
+    if(!dpi || !w || !h){ sec.style.display='none'; return; }
+    sec.style.display='';
+    var dEl=document.getElementById('li-dpi');
+    var pEl=document.getElementById('li-px');
+    var iEl=document.getElementById('li-in');
+    if(dEl) dEl.textContent=Math.round(dpi)+' DPI';
+    if(pEl) pEl.textContent=Math.round(w)+' × '+Math.round(h)+' px';
+    if(iEl){
+      var wi=w/dpi, hi=h/dpi;
+      iEl.textContent=wi.toFixed(1)+'" × '+hi.toFixed(1)+'"';
+    }
+  }catch(e){}
+}
 function textDpiFactor(){
   var d = _lastLoadedDpi || TEXT_REF_DPI;
   return d / TEXT_REF_DPI;
@@ -3746,6 +3771,16 @@ function loadImageBlob(blob, _retried, srcCap){
     // size instead of the tiny 72-DPI fallback (factor 1.0). Without this,
     // _lastLoadedDpi stayed 0 and every label came out ~half size after a convert.
     _lastLoadedDpi = IS_IPHONE ? 150 : IS_IPAD ? 200 : 300;
+    // Image (not a PDF page): show pixel size only. It has no true page DPI/physical
+    // size, so those stay blank rather than implying a false paper dimension.
+    try{
+      var _ls=document.getElementById('loaded-info-sec');
+      if(_ls){ _ls.style.display='';
+        var _d=document.getElementById('li-dpi'); if(_d) _d.textContent='image';
+        var _p=document.getElementById('li-px');  if(_p) _p.textContent=w+' × '+h+' px';
+        var _i=document.getElementById('li-in');  if(_i) _i.textContent='—';
+      }
+    }catch(e){}
 
     // ── BLANK CANVAS CHECK ──────────────────────────────────
     // img.onload fired but canvas is still empty — common with HEIC
@@ -3953,7 +3988,12 @@ function _loadPDFExploded(f){
 //
 // Clamp the scale so w*h stays under CANVAS_MAX_AREA, keeping the page's aspect
 // ratio exactly (no letterboxing, no whitespace).
-var CANVAS_MAX_AREA = IS_IPHONE ? 4.2e6 : (IS_IPAD ? 8e6 : 12e6);
+// Desktop Safari silently BLANKS canvases larger than ~16.7 MP (same family of
+// limit as iOS). Detect it so the desktop area budget stays safely under that,
+// while Chrome/Firefox/Edge get the full high-res budget.
+var IS_DESKTOP_SAFARI = !IS_IOS &&
+  /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(navigator.userAgent);
+var CANVAS_MAX_AREA = IS_IPHONE ? 4.2e6 : (IS_IPAD ? 8e6 : (IS_DESKTOP_SAFARI ? 16e6 : 20e6));
 function _clampScaleToArea(scale, pw, ph){
   var area = (pw*scale) * (ph*scale);
   if(area <= CANVAS_MAX_AREA) return scale;
@@ -5895,6 +5935,7 @@ function _finishExplode(n, w, h, sc, flattened, imgCount, txtCount, vecCount){
   btnPrev.disabled=n<=1; btnNext.disabled=n>=pdfDoc.numPages;
   var dpiIn=document.getElementById('dpi-value');
   if(dpiIn) dpiIn.value=Math.round(sc*72);
+  _setLoadedInfo(Math.round(sc*72), w, h);
   renderImgOverlays();
   renderTextObjs();
   if(typeof renderShapeAndMeasure==='function') renderShapeAndMeasure();
@@ -5975,7 +6016,7 @@ function renderPDFPage(n){
     // PDFs are 72 pts/inch at scale:1. Target DPI per device, always capped by IOS_MAX_PX.
     // iPhone: 150 DPI (2.08×) — memory constrained, still 2× sharper than before
     // iPad:   200 DPI (2.78×) — good balance of quality vs memory
-    // Desktop:400 DPI (5.56×) — high print quality + zoom headroom
+    // Desktop:400 DPI (5.56×) — high print sharpness + zoom headroom
     var targetDpi = IS_IPHONE ? 150 : IS_IPAD ? 200 : 400;
     var dpiScale  = targetDpi / 72;
     var sc = Math.min(dpiScale, IOS_MAX_PX / Math.max(vp1.width, vp1.height));
@@ -5992,6 +6033,7 @@ function renderPDFPage(n){
       _lastLoadedDpi = actualDpi;
       var dpiIn = document.getElementById('dpi-value');
       if(dpiIn) dpiIn.value = actualDpi;
+      _setLoadedInfo(actualDpi, w, h);
       toast('PDF loaded at '+actualDpi+' DPI · '+w+'×'+h+' px','ok',3000);
     });
   });
@@ -15529,6 +15571,15 @@ function doRestore(rec){
             // Scale-locked text: restore the plan DPI so point sizes render at
             // the same physical size. Legacy saves (no flag) keep factor 1.0.
             _lastLoadedDpi = rec.textScaleLocked ? (rec.loadedDpi||0) : 0;
+            if(_lastLoadedDpi) _setLoadedInfo(_lastLoadedDpi, w, h);
+            else if(typeof _setLoadedInfo==='function'){
+              var _ls2=document.getElementById('loaded-info-sec');
+              if(_ls2){ _ls2.style.display='';
+                var _p2=document.getElementById('li-px'); if(_p2) _p2.textContent=w+' × '+h+' px';
+                var _d2=document.getElementById('li-dpi'); if(_d2) _d2.textContent='—';
+                var _i2=document.getElementById('li-in'); if(_i2) _i2.textContent='—';
+              }
+            }
             // Restore scale
             if(rec.textObjs){ textObjs=rec.textObjs; _rebindTextRefs(); renderTextObjs(); }
             if(rec.shapeObjs){ shapeObjs=rec.shapeObjs; renderShapeObjs(); }
