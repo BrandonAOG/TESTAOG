@@ -42,22 +42,25 @@ html{position:fixed;width:100%;height:100%;overflow:hidden;overscroll-behavior:n
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,sans-serif;height:100%;width:100%;display:flex;flex-direction:column;overflow:hidden;overscroll-behavior:none;position:fixed;touch-action:none;-webkit-overflow-scrolling:none}
 /* TOOLBAR */
-#tb{height:68px;background:var(--surf);border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:2px;padding:0 8px;flex-shrink:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;touch-action:pan-x;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;transform:translateZ(0);contain:layout style;position:relative;z-index:5}
+#tb{height:54px;background:var(--surf);border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:2px;padding:0 8px;flex-shrink:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;touch-action:pan-x;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;transform:translateZ(0);contain:layout style;position:relative;z-index:5}
 #tb::-webkit-scrollbar{display:none}
 /* ── PROPERTIES ROW ────────────────────────────────────────────────────────
    The tool buttons used to share one row with every property control, so the
    bar was long and — worse — the TOOLS SHIFTED SIDEWAYS whenever a control
    appeared or vanished. Now the tools hold a fixed row, and the options for
    the active tool get their own. Empty tools (Pan, Erase) hide the row. */
-#tb2{height:44px;background:var(--surf2);border-bottom:1px solid var(--b1);
-  display:flex;align-items:center;gap:2px;padding:0 8px;flex-shrink:0;
+/* Sized to match #sb (the Save / Open / JPG / PDF / Print row) exactly:
+   same 42px height, same 4px gap, same 5px/10px padding — so the two bands read
+   as a matched pair rather than two near-misses. */
+#tb2{min-height:42px;height:42px;background:var(--surf2);border-bottom:1px solid var(--b1);
+  display:flex;align-items:center;gap:4px;padding:5px 10px;flex-shrink:0;box-sizing:border-box;
   overflow-x:auto;overflow-y:hidden;scrollbar-width:none;touch-action:pan-x;
   -webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;
   contain:layout style;position:relative;z-index:4}
 #tb2::-webkit-scrollbar{display:none}
 #tb2.empty{display:none}
-#tb2 .sep{height:24px}
-#tb2 .tb-btn{height:32px;min-width:32px}
+#tb2 .sep{height:22px}
+#tb2 .tb-btn{height:30px;min-width:30px}
 #tb2 .tb-btn .lbl{display:none}
 #tb2-label{font-size:8px;letter-spacing:1px;color:var(--txt2);text-transform:uppercase;
   flex-shrink:0;margin-right:6px;min-width:52px}
@@ -73,7 +76,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,sans
   border-top:6px solid var(--surf);transform:translateX(-50%);
   transition:left .16s ease;pointer-events:none}
 .sep{width:1px;height:36px;background:var(--b2);margin:0 3px;flex-shrink:0}
-.tb-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:42px;height:56px;border-radius:var(--rad);border:1.5px solid transparent;background:transparent;color:var(--txt2);cursor:pointer;flex-shrink:0;transition:background-color .15s,border-color .15s,color .15s;padding:0 4px;gap:1px}
+.tb-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:42px;height:44px;border-radius:var(--rad);border:1.5px solid transparent;background:transparent;color:var(--txt2);cursor:pointer;flex-shrink:0;transition:background-color .15s,border-color .15s,color .15s;padding:0 4px;gap:1px}
 @media (hover:hover){.tb-btn:hover{background:var(--surf2);color:var(--txt)}}
 .tb-btn.active{background:rgba(108,99,255,.2);border-color:var(--acc);color:var(--acc2)}
 .tb-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none;flex-shrink:0}
@@ -558,7 +561,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 /* Right cluster — save dot · online dot · theme toggle */
 #nav-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
 #aog-net-lbl{
-  font-family:'Share Tech Mono',monospace;font-size:9px;
+  font-family:'Share Tech Mono',monospace;font-size:11px;
   letter-spacing:1.5px;color:var(--theme-dim);text-transform:uppercase;
 }
 
@@ -579,24 +582,24 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   width:100%;
   background:var(--theme-bg-nav);
   border-bottom:1px solid var(--theme-border);
-  padding:6px max(8px, env(safe-area-inset-right)) 6px max(8px, env(safe-area-inset-left));
-  display:flex;align-items:center;justify-content:flex-start;gap:10px;
+  padding:1px max(8px, env(safe-area-inset-right)) 1px max(8px, env(safe-area-inset-left));
+  display:flex;align-items:center;justify-content:flex-start;gap:12px;
   box-sizing:border-box;
 }
 #brand-bar img{
-  width:28px;height:28px;object-fit:contain;flex-shrink:0;
+  width:36px;height:36px;object-fit:contain;flex-shrink:0;
   filter:drop-shadow(0 0 7px rgba(251,191,36,0.65));
 }
 [data-theme="light"] #brand-bar img{filter:drop-shadow(0 0 4px rgba(180,130,20,0.4));}
 #brand-bar-text{display:flex;flex-direction:column;line-height:1.2;}
 .brand-company{
-  font-family:'Orbitron',monospace;font-size:10px;font-weight:900;
+  font-family:'Orbitron',monospace;font-size:14px;font-weight:900;
   letter-spacing:2.5px;white-space:nowrap;
   background:linear-gradient(135deg,#FBBF24,#F97316);
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
 }
 .brand-sub{
-  font-family:'Share Tech Mono',monospace;font-size:8px;
+  font-family:'Share Tech Mono',monospace;font-size:10px;
   letter-spacing:3px;text-transform:uppercase;color:#00D4FF;
   white-space:nowrap;margin-top:1px;
 }
@@ -605,18 +608,18 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 /* ── PERF CHIPS (MEM / GPU) — sit beside the Online dot in the brand bar ── */
 #aog-perf{display:flex;align-items:center;gap:6px;flex-shrink:0;margin-right:4px;}
 .perf-chip{
-  display:flex;align-items:center;gap:4px;
-  padding:2px 7px;height:20px;box-sizing:border-box;
+  display:flex;align-items:center;gap:5px;
+  padding:2px 9px;height:26px;box-sizing:border-box;
   border:1px solid var(--theme-border);border-radius:3px;
   background:var(--theme-btn-bg);
   clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%);
   font-family:'Share Tech Mono',monospace;white-space:nowrap;
 }
-.perf-k{font-size:8px;letter-spacing:1.5px;color:var(--theme-dim);text-transform:uppercase;}
-.perf-v{font-size:9px;letter-spacing:0.5px;color:#00D4FF;}
+.perf-k{font-size:10px;letter-spacing:1.5px;color:var(--theme-dim);text-transform:uppercase;}
+.perf-v{font-size:11px;letter-spacing:0.5px;color:#00D4FF;}
 [data-theme="light"] .perf-v{color:#0284C7;}
 .perf-bar{
-  width:34px;height:4px;border-radius:2px;overflow:hidden;
+  width:40px;height:5px;border-radius:2px;overflow:hidden;
   background:var(--theme-border);flex-shrink:0;
 }
 .perf-bar > i{
@@ -661,11 +664,34 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 @media print{#aog-nav,#brand-bar,#customer-bar{display:none!important;}}
 
 /* Customer bar — second row */
+/* ── HEADER WIDTH ──────────────────────────────────────────────────────────
+   The bands are width:100%, so on a wide monitor the logo was pinned hard left,
+   the status chips hard right, and a big dead gap sat between them — the header
+   read as stretched and unanchored rather than as one block.
+   Rather than restructure the DOM, grow the horizontal PADDING with the viewport:
+   the bar's background and border still span edge to edge, but its CONTENT is
+   held in a centred column no wider than --hdr-max. Below that width the max()
+   collapses to the normal 8px padding, so narrow/mobile layouts are untouched.
+   Tune --hdr-max to taste — 1500px keeps the toolbar comfortable without letting
+   the header sprawl on an ultrawide. */
+:root{ --hdr-max: 1500px; }
+#brand-bar, #customer-bar, #tb, #tb2, #sb{
+  padding-left:  max(8px, env(safe-area-inset-left),  calc((100% - var(--hdr-max)) / 2)) !important;
+  padding-right: max(8px, env(safe-area-inset-right), calc((100% - var(--hdr-max)) / 2)) !important;
+}
+@media(max-width:600px){
+  /* No centring column on phones — every pixel of width is needed for scrolling. */
+  #brand-bar, #customer-bar, #tb, #tb2, #sb{
+    padding-left:  max(6px, env(safe-area-inset-left))  !important;
+    padding-right: max(6px, env(safe-area-inset-right)) !important;
+  }
+}
+
 #customer-bar{
   flex-shrink:0;
   width:100%;
-  display:flex;align-items:center;gap:6px;
-  padding:3px max(8px, env(safe-area-inset-right)) 3px max(8px, env(safe-area-inset-left));
+  display:flex;align-items:center;gap:8px;
+  padding:9px max(8px, env(safe-area-inset-right)) 9px max(8px, env(safe-area-inset-left));
   background:var(--theme-bg-nav);
   border-bottom:1px solid var(--theme-border);
   box-sizing:border-box;
@@ -677,6 +703,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 }
 .cust-input{
   flex:1;min-width:60px;max-width:240px;
+  height:30px;                       /* was implicit + tiny — give the job fields real presence */
   background:var(--theme-input-bg);
   border:1px solid var(--theme-input-border);
   color:var(--theme-input-color);
@@ -12486,7 +12513,20 @@ function _alignPropsRow(){
       // offsetLeft — offsetLeft ignores scroll and would drift once the bar scrolls.
       var tbRect  = btn.getBoundingClientRect();
       var rowRect = row.getBoundingClientRect();
-      var toolLeft   = tbRect.left - rowRect.left + row.scrollLeft;
+
+      // MEASURE FROM THE CONTENT BOX, NOT THE BORDER BOX.
+      // The header-width cap gives #tb2 a large padding-left —
+      // max(8px, (100% - --hdr-max)/2) — and getBoundingClientRect().left is the
+      // BORDER-box edge, which sits OUTSIDE that padding. The spacer, though,
+      // begins where the padding ends. Measuring against the border box therefore
+      // added the gap ON TOP OF the padding: a double offset that pushed the
+      // options to the right of their tool. And because the padding is derived from
+      // (100% - hdr-max)/2, the error scaled with viewport width — which is why it
+      // looked different at every zoom level.
+      var rowPadL = parseFloat(getComputedStyle(row).paddingLeft) || 0;
+      var rowContentLeft = rowRect.left + rowPadL;
+
+      var toolLeft   = tbRect.left - rowContentLeft + row.scrollLeft;
       var toolCentre = toolLeft + tbRect.width/2;
 
       // Width of everything we're centring (label + visible groups), gap excluded.
@@ -12507,13 +12547,17 @@ function _alignPropsRow(){
       // twice. Anchoring the left edge means the first control is always right
       // under your cursor, and the group just grows rightward from there.
       var want = toolLeft;
-      var max  = Math.max(0, row.scrollWidth - content - 16);
-      var left = Math.max(8, Math.min(want, max));
+      var rowPadR = parseFloat(getComputedStyle(row).paddingRight) || 0;
+      var avail   = row.clientWidth - rowPadL - rowPadR;      // usable content width
+      var max     = Math.max(0, avail - content);
+      var left    = Math.max(0, Math.min(want, max));
       gap.style.width = left + 'px';
       gap.style.flexBasis = left + 'px';   // belt and braces — flex-basis wins over width
 
       if(car){
-        car.style.left = toolCentre + 'px';
+        // position:absolute resolves against the padding box, so add the padding
+        // back in — the caret is not inside the content flow like the spacer is.
+        car.style.left = (toolCentre + rowPadL) + 'px';
         car.style.opacity = '1';
       }
     }catch(e){ /* cosmetic only — never break the toolbar over alignment */ }
