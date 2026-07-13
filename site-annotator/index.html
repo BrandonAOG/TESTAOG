@@ -249,6 +249,37 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   #tb{height:auto;min-height:54px;align-items:center;padding:6px 6px}
   .tb-btn{height:52px;min-width:42px}
 }
+
+/* ── NARROW DEVICES (<600px): ONE SCROLLING ROW, NEVER WRAP ────────────────
+   The tools must stay on a single line and scroll horizontally. If they wrap,
+   the toolbar grows a second and third line, tool positions move every time a
+   different set is shown, and the plan loses another 60px each time.
+   flex-wrap:nowrap is the default, but it is stated EXPLICITLY here because a
+   stray `flex-wrap:wrap` anywhere up the cascade would silently reintroduce it. */
+@media(max-width:600px){
+  #tb, #tb2{
+    flex-wrap:nowrap !important;
+    overflow-x:auto;
+    overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;      /* momentum scroll on iOS */
+    touch-action:pan-x;                     /* horizontal drag scrolls, doesn't pan the plan */
+    overscroll-behavior-x:contain;          /* don't chain to the page / trigger back-swipe */
+    scroll-behavior:smooth;
+  }
+  /* Nothing in either row may shrink — a shrunk button is an unhittable button.
+     They keep full size and go off-screen, where scrolling reaches them. */
+  #tb > *, #tb2 > *{flex-shrink:0 !important;}
+  #tb{gap:1px;padding:6px 4px;}
+  #tb2{gap:2px;padding:0 4px;}
+  /* The row is already anchored to the tool by scrolling, so the alignment
+     spacer would only push the controls off the right edge. */
+  #tb2-gap{display:none;}
+  #tb2-label{min-width:0;margin-right:4px;}
+  #tb2-caret{display:none;}
+  /* A soft fade at the right edge, so it's obvious there's more to scroll to. */
+  #tb::after, #tb2::after{content:'';position:sticky;right:0;flex:0 0 18px;height:100%;
+    background:linear-gradient(to right, transparent, var(--surf));pointer-events:none}
+}
 /* labels always visible */
 
 
@@ -12385,6 +12416,26 @@ function closePolyline(){
 
 // ── TOOLBAR VISIBILITY PER TOOL ───────────────────────────────
 // Slide the properties row so its controls sit centred under the ACTIVE tool button.
+// Keep the ACTIVE tool on screen. On a narrow device the tool row scrolls, so the
+// tool you just picked (or restored from a saved session) can easily be off to the
+// right where you can't see what's selected. Nudge it into view — but only if it's
+// actually out of view, so we never yank a row the user is mid-scroll on.
+function _scrollActiveToolIntoView(){
+  try{
+    var tb  = document.getElementById('tb');
+    var btn = tb && tb.querySelector('.tb-btn.active');
+    if(!tb || !btn) return;
+    if(tb.scrollWidth <= tb.clientWidth) return;      // nothing to scroll
+    var b = btn.getBoundingClientRect(), r = tb.getBoundingClientRect();
+    var pad = 12;
+    if(b.left < r.left + pad){
+      tb.scrollLeft += (b.left - r.left) - pad;
+    } else if(b.right > r.right - pad){
+      tb.scrollLeft += (b.right - r.right) + pad;
+    }
+  }catch(e){}
+}
+
 function _alignPropsRow(){
   requestAnimationFrame(function(){
     try{
@@ -12395,6 +12446,17 @@ function _alignPropsRow(){
       var car = document.getElementById('tb2-caret');
       var btn = tb && tb.querySelector('.tb-btn.active');
       if(!tb || !row || !gap || !btn) return;
+
+      _scrollActiveToolIntoView();
+
+      // NARROW SCREENS: there isn't room to slide the options under the tool — doing
+      // so would just push them off the right edge. The row scrolls instead, and the
+      // CSS above hides the spacer. Reset it and leave the row alone.
+      if(window.matchMedia('(max-width:600px)').matches){
+        gap.style.width='0px'; gap.style.flexBasis='0px';
+        row.scrollLeft = 0;
+        return;
+      }
 
       // Where the tool button sits, in the ROW's coordinate space. The tool row can
       // be scrolled horizontally, so go through bounding rects rather than
