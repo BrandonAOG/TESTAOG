@@ -110,9 +110,22 @@ input[type=range]{-webkit-appearance:none;appearance:none;width:56px;height:4px;
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--acc);cursor:pointer}
 input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--acc);cursor:pointer;border:none}
 /* SUBBAR */
-#sb{min-height:42px;background:var(--surf);border-bottom:1px solid var(--b1);display:none;align-items:center;flex-wrap:wrap;gap:4px;padding:5px 10px;flex-shrink:0}
+/* SUBBAR — single scrolling row, never wraps.
+   This was flex-wrap:wrap, so on a narrow screen the zoom/layer/export controls
+   stacked onto a second and third line and ate the plan. Same treatment as the
+   toolbar: one line, horizontal scroll, nothing shrinks (a squeezed button is an
+   unhittable button — it goes off-screen instead, where scrolling reaches it).
+   #sb is already exempt from the global passive:false touchmove preventDefault
+   and is in the fast-scroll stopPropagation zone, so momentum works on iOS. */
+#sb{min-height:42px;height:42px;background:var(--surf);border-bottom:1px solid var(--b1);
+  display:none;align-items:center;flex-wrap:nowrap;gap:4px;padding:5px 10px;flex-shrink:0;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;touch-action:pan-x;overscroll-behavior-x:contain}
+#sb::-webkit-scrollbar{display:none}
 #sb.vis{display:flex}
-.sb-group{display:flex;align-items:center;gap:3px}
+#sb > *{flex-shrink:0}
+#sb::after{content:'';flex:0 0 10px}
+.sb-group{display:flex;align-items:center;gap:3px;flex-shrink:0}
 .ic-btn{width:30px;height:30px;border-radius:7px;border:1px solid var(--b2);background:var(--surf2);color:var(--txt);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0}
 .ic-btn:hover{background:var(--b2)}
 .ic-btn:disabled{opacity:.3;cursor:default}
@@ -257,7 +270,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
    flex-wrap:nowrap is the default, but it is stated EXPLICITLY here because a
    stray `flex-wrap:wrap` anywhere up the cascade would silently reintroduce it. */
 @media(max-width:600px){
-  #tb, #tb2{
+  #tb, #tb2, #sb{
     flex-wrap:nowrap !important;
     overflow-x:auto;
     overflow-y:hidden;
@@ -269,7 +282,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   }
   /* Nothing in either row may shrink — a shrunk button is an unhittable button.
      They keep full size and go off-screen, where scrolling reaches them. */
-  #tb > *, #tb2 > *{flex-shrink:0 !important;}
+  #tb > *, #tb2 > *, #sb > *{flex-shrink:0 !important;}
   #tb{gap:1px;padding:6px 4px;}
   #tb2{gap:2px;padding:0 4px;}
   /* The row is already anchored to the tool by scrolling, so the alignment
@@ -280,7 +293,8 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   /* No sticky pseudo-element inside the scroller — position:sticky in a
      horizontally scrolling flex row is a well-known jank/stick source on iOS
      Safari. A plain trailing spacer gives the same "there's more" hint for free. */
-  #tb::after, #tb2::after{content:'';flex:0 0 10px;}
+  #tb::after, #tb2::after, #sb::after{content:'';flex:0 0 10px;}
+  #sb{padding:5px 6px;}
 }
 /* labels always visible */
 
