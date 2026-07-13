@@ -14908,7 +14908,38 @@ function _buildVectorPdf(attachJson, onReady){
     _annotsStripped = false;
     dbg('export','_buildVectorPdf start',{vectorOK:_vectorBackdropOK, pdfBytes:(_pdfBytes?_pdfBytes.byteLength:0), hasPDFLib:(typeof window.PDFLib!=='undefined'),
       shapes:shapeObjs.length, measures:measureObjs.length, text:textObjs.length, images:imgOverlays.length});
-    if(!_vectorBackdropOK || !_pdfBytes || typeof window.PDFLib==='undefined'){ dbg('export','FALLBACK to raster — vector path unavailable',{vectorOK:_vectorBackdropOK, pdfBytes:!!_pdfBytes, pdflib:typeof window.PDFLib}); onReady(null); return; }
+    if(!_vectorBackdropOK || !_pdfBytes || typeof window.PDFLib==='undefined'){
+      // Name the exact failing condition. "FALLBACK to raster" alone sent us chasing
+      // the wrong thing for a long time — say WHY, and what would fix it.
+      var _why=[];
+      if(!_vectorBackdropOK) _why.push('_vectorBackdropOK=false (the backdrop is not a pristine PDF page — '
+        + 'image import, blank canvas, or a restore that did not recover the source)');
+      if(!_pdfBytes)         _why.push('_pdfBytes=null (the original PDF bytes are not in memory — '
+        + 'not imported this session, and not recovered from the IndexedDB cache)');
+      if(typeof window.PDFLib==='undefined') _why.push('PDFLib failed to load');
+      console.error('[AOG:export] ✖ RASTER FALLBACK. Vector export needs the pristine source PDF.\n  '
+                  + _why.join('\n  '));
+      dbg('export','FALLBACK to raster — vector path unavailable',
+          {vectorOK:_vectorBackdropOK, pdfBytes:(_pdfBytes?_pdfBytes.byteLength:0),
+           pdflib:typeof window.PDFLib, vecPage:(typeof _vecPageNum!=='undefined'?_vecPageNum:'?'),
+           reasons:_why});
+      // Is the cache even there? This distinguishes "never written" from "not read".
+      try{
+        if(typeof _saveDb!=='undefined' && _saveDb){
+          _saveDb.transaction(SAVE_STORE,'readonly').objectStore(SAVE_STORE).get(PDFSRC_KEY)
+            .onsuccess=function(e){
+              var r=e.target.result;
+              console.error('[AOG:export]   IndexedDB PDF cache: '
+                + (r && r.bytes ? ('PRESENT ('+r.bytes.byteLength+' bytes, page '+r.pageNum+') '
+                    + '→ it was SAVED but never LOADED back into _pdfBytes. The restore path is the bug.')
+                  : 'ABSENT → it was never SAVED. The import/persist path is the bug.'));
+            };
+        } else {
+          console.error('[AOG:export]   IndexedDB not open (_saveDb is null) — cannot cache or recover the PDF.');
+        }
+      }catch(_e){ console.warn('[AOG:export] cache probe failed:', _e); }
+      onReady(null); return;
+    }
 
     // No white cover-ups. If the page is KEPT (its own content isn't reconstructed
     // from extracted objects) but the user MOVED extracted content, the pristine
@@ -15585,14 +15616,34 @@ function _buildVectorPdf(attachJson, onReady){
 // outward into adjacent fully-transparent pixels (alpha stays 0, so nothing
 // becomes visible) — interpolation then blends color-with-color. Two passes
 // cover the ~2px reach of bilinear sampling. In-place on the canvas.
-function _bleedOverlayAlpha(cnv){
+// ── HOW WIDE MUST THE BLEED BE? ──────────────────────────────────────────────
+// A canvas's transparent pixels are RGBA(0,0,0,0) — transparent, but BLACK. PDF
+// keeps colour and alpha in SEPARATE channels (a non-premultiplied /SMask), and a
+// viewer resamples them INDEPENDENTLY. Downsampling therefore averages that hidden
+// black into the edges of the paint, so annotation colours read darker — by a
+// different amount at each zoom, because each zoom uses a different kernel. This is
+// the same bug as the highlight overlay, and it hits the RASTER export path too
+// (the annotations-only transparent PNG in _layeredRasterUrls).
+//
+// We cannot simply write white under the transparent pixels: canvas 2D stores
+// PREMULTIPLIED alpha, so RGBA(255,255,255,0) collapses back to (0,0,0,0) on store.
+// The only cure available on a canvas is to DILATE the colour outward far enough
+// that the resample kernel never reaches unpainted black.
+//
+// 2 passes (the old value) is nowhere near enough: a ~5000px overlay shown at ~800px
+// is a 6:1 downsample, so the kernel spans 6+ source pixels and reaches straight past
+// a 2px skirt into the black. BLEED_PASSES is sized to cover that with margin.
+var BLEED_PASSES = 12;
+
+function _bleedOverlayAlpha(cnv, passes){
   try{
     var w=cnv.width, h=cnv.height;
     if(!w||!h) return;
-    var ctx=cnv.getContext('2d');
+    var _P = (passes|0) || BLEED_PASSES;
+    var ctx=cnv.getContext('2d', {willReadFrequently:true});
     var im=ctx.getImageData(0,0,w,h), d=im.data;
     var a32=new Uint32Array(d.buffer);           // fast alpha!=0 test via full px
-    for(var pass=0; pass<2; pass++){
+    for(var pass=0; pass<_P; pass++){
       var grew=[];                               // [idx, r,g,b] to apply after scan
       for(var y=0;y<h;y++){
         var row=y*w;
