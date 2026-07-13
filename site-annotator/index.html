@@ -3140,7 +3140,7 @@ document.addEventListener('touchmove', function(e){
 })();
 
 // ── APP STATE ──
-var tool='pan', color='#ef4444', strokeW=5, opacity=1, lineStyle='solid', fillShape=false;
+var tool='none', color='#ef4444', strokeW=5, opacity=1, lineStyle='solid', fillShape=false;
 // ── Per-tool stroke width memory ──
 // Each tool keeps its OWN thickness. Changing it for one tool never affects
 // another, and switching tools restores that tool's last value (or its default).
@@ -12644,12 +12644,19 @@ function closePolyline(){
 // right where you can't see what's selected. Nudge it into view — but only if it's
 // actually out of view, so we never yank a row the user is mid-scroll on.
 var _tbUserScrolling = false;
+// Once the user drags the tool row by hand, we must NOT keep yanking it back to
+// centre the active button — that's the "scroll to the front and it snaps back
+// because Pan is selected" bug. This latch is set on manual scroll and only
+// cleared when a tool is actually (re)selected, which is the one moment we DO
+// want to bring the chosen button into view.
+var _tbUserMovedManually = false;
 function _scrollActiveToolIntoView(){
   try{
     var tb  = document.getElementById('tb');
     var btn = tb && tb.querySelector('.tb-btn.active');
     if(!tb || !btn) return;
     if(_tbUserScrolling) return;                      // hands off — the user is dragging
+    if(_tbUserMovedManually) return;                  // user chose their own scroll spot — leave it
     if(tb.scrollWidth <= tb.clientWidth) return;      // nothing to scroll
     var b = btn.getBoundingClientRect(), r = tb.getBoundingClientRect();
     var pad = 12;
@@ -12757,7 +12764,7 @@ document.addEventListener('DOMContentLoaded', function(){
   // So: skip entirely on touch/narrow (where the spacer is hidden anyway), and
   // on desktop coalesce to one rAF and only touch the SPACER, never scrollLeft.
   // While a finger is down on the bar, no code may move it.
-  tb.addEventListener('touchstart', function(){ _tbUserScrolling=true; }, {passive:true});
+  tb.addEventListener('touchstart', function(){ _tbUserScrolling=true; _tbUserMovedManually=true; }, {passive:true});
   tb.addEventListener('touchend',   function(){
     setTimeout(function(){ _tbUserScrolling=false; }, 350);   // let momentum finish first
   }, {passive:true});
@@ -12948,12 +12955,46 @@ document.querySelectorAll('.tb-btn[data-tool]').forEach(function(btn){
     }
     document.querySelectorAll('.tb-btn[data-tool]').forEach(function(b){ b.classList.remove('active'); });
     btn.classList.add('active');
+    // A deliberate tool selection is the one time we DO want to bring the active
+    // button into view — release the manual-scroll latch so alignment runs.
+    _tbUserMovedManually = false;
     updateToolbarForTool(tool);
     var cur=tool==='none'?'default':tool==='text'?'text':tool==='eraser'?'cell':tool==='pan'?'grab':tool==='stamp'?'copy':tool==='image'?'move':'crosshair';
     drawCv.style.cursor=cur;
     if(tool==='stamp'){ openStampPicker(); return; }
   });
 });
+
+// ── TOOL-BUTTON SCROLL FIX (iPad) ─────────────────────────────────────────
+// PROBLEM: to reach a tool at the far end of the row (or the Open/Save tools),
+// you drag across the toolbar to scroll it. But if your finger starts ON a
+// button, iOS still fires that button's `click` on release — so instead of
+// scrolling you accidentally select whatever tool you touched, and the row
+// feels like it "won't scroll past" the buttons.
+// FIX: track finger travel from touchstart. If it moved more than a few px it
+// was a SCROLL — swallow the click so nothing is selected. A near-static tap
+// selects normally. Applies to every horizontally-scrolling button row:
+// #tb (tools), #tb2 (properties), #sb (Save/Open/JPG/PDF/Print).
+(function(){
+  var _tsx=0,_tsy=0,_moved=false;
+  var TAP_SLOP=8; // px of travel allowed before a touch counts as a scroll
+  ['#tb','#tb2','#sb'].forEach(function(sel){
+    var row=document.querySelector(sel);
+    if(!row) return;
+    row.addEventListener('touchstart',function(e){
+      if(e.touches.length!==1){ _moved=true; return; }
+      _tsx=e.touches[0].clientX; _tsy=e.touches[0].clientY; _moved=false;
+    },{passive:true});
+    row.addEventListener('touchmove',function(e){
+      if(!e.touches.length) return;
+      if(Math.hypot(e.touches[0].clientX-_tsx, e.touches[0].clientY-_tsy) > TAP_SLOP) _moved=true;
+    },{passive:true});
+    // capture:true → intercept the click BEFORE the button's own handler runs.
+    row.addEventListener('click',function(e){
+      if(_moved){ e.stopPropagation(); e.preventDefault(); _moved=false; }
+    },true);
+  });
+})();
 
 // Set initial toolbar state
 updateToolbarForTool(tool);
