@@ -44,6 +44,23 @@ body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,sans
 /* TOOLBAR */
 #tb{height:68px;background:var(--surf);border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:2px;padding:0 8px;flex-shrink:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;touch-action:pan-x;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;transform:translateZ(0);contain:layout style;position:relative;z-index:5}
 #tb::-webkit-scrollbar{display:none}
+/* ── PROPERTIES ROW ────────────────────────────────────────────────────────
+   The tool buttons used to share one row with every property control, so the
+   bar was long and — worse — the TOOLS SHIFTED SIDEWAYS whenever a control
+   appeared or vanished. Now the tools hold a fixed row, and the options for
+   the active tool get their own. Empty tools (Pan, Erase) hide the row. */
+#tb2{height:44px;background:var(--surf2);border-bottom:1px solid var(--b1);
+  display:flex;align-items:center;gap:2px;padding:0 8px;flex-shrink:0;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;touch-action:pan-x;
+  -webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;
+  contain:layout style;position:relative;z-index:4}
+#tb2::-webkit-scrollbar{display:none}
+#tb2.empty{display:none}
+#tb2 .sep{height:24px}
+#tb2 .tb-btn{height:32px;min-width:32px}
+#tb2 .tb-btn .lbl{display:none}
+#tb2-label{font-size:8px;letter-spacing:1px;color:var(--txt2);text-transform:uppercase;
+  flex-shrink:0;margin-right:6px;min-width:52px}
 .sep{width:1px;height:36px;background:var(--b2);margin:0 3px;flex-shrink:0}
 .tb-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:42px;height:56px;border-radius:var(--rad);border:1.5px solid transparent;background:transparent;color:var(--txt2);cursor:pointer;flex-shrink:0;transition:background-color .15s,border-color .15s,color .15s;padding:0 4px;gap:1px}
 @media (hover:hover){.tb-btn:hover{background:var(--surf2);color:var(--txt)}}
@@ -891,6 +908,16 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   <button class="tb-btn active" data-tool="pan"><svg viewBox="0 0 24 24"><path d="M18 11V8a2 2 0 0 0-4 0v3"/><path d="M14 11V6a2 2 0 0 0-4 0v5"/><path d="M10 11V5a2 2 0 0 0-4 0v9"/><path d="M6 14a4 4 0 0 0 3.67 4h2.5c1.74 0 3.83-.82 3.83-4v-3"/></svg><span class="lbl">Pan</span></button>
   <div class="sep"></div>
   <!-- TEXT FORMAT ZONE — shown for Text + Leader tools (moved right of Pan for a cleaner tool row) -->
+  <button class="tb-btn" id="btn-undo"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg><span class="lbl">Undo</span></button>
+  <button class="tb-btn" id="btn-redo"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.5"/></svg><span class="lbl">Redo</span></button>
+  <button class="tb-btn" id="btn-clear"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg><span class="lbl">Clear</span></button>
+</div>
+
+<!-- PROPERTIES ROW — contextual: only the controls the ACTIVE TOOL uses.
+     updateToolbarForTool() already show/hides each group; this just gives them
+     their own row so the TOOL BUTTONS never shift position as controls appear
+     and disappear. The whole row hides when the active tool has no options. -->
+<div id="tb2"><span id="tb2-label">Pan</span>
   <div id="tb-textfmt-sep" class="sep" style="display:none"></div>
   <div id="tb-font-size-grp"><select id="font-size-sel" title="Font size">
     <option value="6">6</option><option value="7">7</option>
@@ -1067,9 +1094,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     <span id="op-val">100%</span>
   </div>
   <div class="sep" id="tb-op-sep"></div>
-  <button class="tb-btn" id="btn-undo"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg><span class="lbl">Undo</span></button>
-  <button class="tb-btn" id="btn-redo"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.5"/></svg><span class="lbl">Redo</span></button>
-  <button class="tb-btn" id="btn-clear"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg><span class="lbl">Clear</span></button>
+</div>
 </div>
 
 <!-- SUBBAR -->
@@ -12436,6 +12461,39 @@ function updateToolbarForTool(t){
   if(ids.swSep) ids.swSep.style.display = (isShape || isStroke) ? '' : 'none';
   shFlex(ids.opGrp, isShape || isStroke);
   if(ids.opSep) ids.opSep.style.display = (isShape || isStroke) ? '' : 'none';
+
+  // ── PROPERTIES ROW: hide it entirely when the tool has no options ─────────
+  // Every group above has just been shown or hidden. Rather than maintain a
+  // second list of "which tools have options" (which would drift out of sync the
+  // moment a tool changes), ASK THE ROW: if nothing inside it is visible, there
+  // is nothing to show, so collapse it and give the height back to the plan.
+  try{
+    var row = document.getElementById('tb2');
+    if(row){
+      var anyVisible = false;
+      var kids = row.children;
+      for(var i=0;i<kids.length;i++){
+        var el = kids[i];
+        if(el.id === 'tb2-label') continue;
+        if(el.classList && el.classList.contains('sep')) continue;   // separators don't count
+        if(el.offsetParent !== null || (el.style.display === 'contents' && el.children.length)){
+          anyVisible = true; break;
+        }
+      }
+      row.classList.toggle('empty', !anyVisible);
+
+      // Name the tool the options belong to, so the row never looks orphaned.
+      var lab = document.getElementById('tb2-label');
+      if(lab){
+        var NAMES = {pen:'Pen', line:'Line', arrow:'Arrow', polyline:'Polyline',
+          rect:'Rect', ellipse:'Ellipse', cloud:'Cloud', measure:'Measure',
+          pathmeasure:'Path dist', polygon:'Area', leader:'Leader', text:'Text',
+          comment:'Note', highlight:'Hilite', image:'Image', eraser:'Erase',
+          pan:'Pan', stamp:'Stamp'};
+        lab.textContent = NAMES[t] || t || '';
+      }
+    }
+  }catch(e){ /* row stays visible — never break the toolbar over a cosmetic */ }
 }
 // ── END TOOLBAR VISIBILITY ─────────────────────────────────────
 
@@ -14902,12 +14960,31 @@ function _embedCustomExportFonts(pdf, fonts){
   }).catch(function(e){ console.warn('[TrueFont]', e); });
 }
 
+var _vecRetried = false;   // one cache-recovery attempt per export, never a loop
 function _buildVectorPdf(attachJson, onReady){
   try{
-    dbgReset('EXPORT (vector path)');
+    if(!_vecRetried) dbgReset('EXPORT (vector path)');
     _annotsStripped = false;
     dbg('export','_buildVectorPdf start',{vectorOK:_vectorBackdropOK, pdfBytes:(_pdfBytes?_pdfBytes.byteLength:0), hasPDFLib:(typeof window.PDFLib!=='undefined'),
       shapes:shapeObjs.length, measures:measureObjs.length, text:textObjs.length, images:imgOverlays.length});
+    // ── SELF-HEAL: recover the source PDF at EXPORT time ──────────────────────
+    // The vector path only needs _pdfBytes. Whether they were lost to a refresh, a
+    // crash-restore, or a race between the async f.arrayBuffer() and the async
+    // IndexedDB open, the cure is identical: go get them from the cache. Doing it
+    // HERE — at the moment of use — means the export no longer depends on every
+    // restore path having remembered to re-arm the flag. One retry, then decide.
+    if((!_pdfBytes || !_vectorBackdropOK) && typeof window.PDFLib!=='undefined'
+       && typeof _loadPdfSource==='function' && !_vecRetried){
+      _vecRetried = true;
+      dbg('export','no PDF in memory → attempting recovery from the IndexedDB cache');
+      _loadPdfSource(function(ok){
+        if(ok) dbg('export','recovered → retrying the VECTOR path');
+        else   dbg('export','nothing cached → raster');
+        _buildVectorPdf(attachJson, onReady);    // re-enter, now armed (or not)
+      });
+      return;
+    }
+
     if(!_vectorBackdropOK || !_pdfBytes || typeof window.PDFLib==='undefined'){
       // Name the exact failing condition. "FALLBACK to raster" alone sent us chasing
       // the wrong thing for a long time — say WHY, and what would fix it.
@@ -15758,6 +15835,7 @@ btnPdf.addEventListener('click',function(){
     if(handle==='cancelled'){ toast('Save cancelled'); return; }
     toast('Preparing PDF…','',0);
     // Preferred path: keep the original PDF vectors crisp, stamp annotations on top.
+    _vecRetried = false;   // fresh export → allow one recovery attempt
     _buildVectorPdf(null, function(vbytes){
       if(vbytes){
         var pdfBlob=new Blob([vbytes],{type:'application/pdf'});
@@ -15878,6 +15956,7 @@ if(btnPdfEdit) btnPdfEdit.addEventListener('click', function(){
       if(!rec){ toast('Editable PDF failed — try again','err',4000); return; }
       var json; try{ json=JSON.stringify(_recordForJson(rec)); }catch(ex){ toast('Project too large to embed','err',4000); return; }
       // Preferred: keep original PDF vectors crisp + annotations on top + JSON attached.
+    _vecRetried = false;   // fresh export → allow one recovery attempt
       _buildVectorPdf(json, function(vbytes){
         if(vbytes){
           var outBlob=new Blob([vbytes],{type:'application/pdf'});
