@@ -969,7 +969,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   <!-- MARKUP TOOL: Highlight (color + opacity) -->
   <button class="tb-btn" data-tool="image" title="Image — select, move, resize, rotate or flip an inserted picture"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.6"/><path d="M21 17l-5-5L7 20"/></svg><span class="lbl">Image</span></button>
   <button class="tb-btn" data-tool="eraser"><svg viewBox="0 0 24 24"><path d="M20 20H7L3 16l10-10 7 7-3 3"/><path d="M6 10l8 8"/></svg><span class="lbl">Erase</span></button>
-  <button class="tb-btn active" data-tool="pan"><svg viewBox="0 0 24 24"><path d="M18 11V8a2 2 0 0 0-4 0v3"/><path d="M14 11V6a2 2 0 0 0-4 0v5"/><path d="M10 11V5a2 2 0 0 0-4 0v9"/><path d="M6 14a4 4 0 0 0 3.67 4h2.5c1.74 0 3.83-.82 3.83-4v-3"/></svg><span class="lbl">Pan</span></button>
+  <button class="tb-btn" data-tool="pan"><svg viewBox="0 0 24 24"><path d="M18 11V8a2 2 0 0 0-4 0v3"/><path d="M14 11V6a2 2 0 0 0-4 0v5"/><path d="M10 11V5a2 2 0 0 0-4 0v9"/><path d="M6 14a4 4 0 0 0 3.67 4h2.5c1.74 0 3.83-.82 3.83-4v-3"/></svg><span class="lbl">Pan</span></button>
   <div class="sep"></div>
   <!-- TEXT FORMAT ZONE — shown for Text + Leader tools (moved right of Pan for a cleaner tool row) -->
   <button class="tb-btn" id="btn-undo"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg><span class="lbl">Undo</span></button>
@@ -6994,6 +6994,9 @@ function selectShapeDirect(hit){
 
 function onDown(e){
   if(!baseLoaded||pinching) return;
+  // No tool selected (app loads in this neutral state): a press on the canvas
+  // does nothing — no draw, no pan. The user must pick a tool first.
+  if(tool==='none') return;
   if(tool==='pan'){
     // ── Tap-to-edit (Pan tool) ───────────────────────────────────────────
     // Imported PDF vectors (arrows, lines, rects, ellipses) land while the
@@ -11901,7 +11904,7 @@ var HANDLE_CURSORS=['nw-resize','n-resize','ne-resize','e-resize',
                     'grab','grab','grab','grab']; // 8-11 = rotate
 
 function updateSelCursor(x,y){
-  if(!selectedShape){ drawCv.style.cursor='crosshair'; return; }
+  if(!selectedShape){ drawCv.style.cursor = (tool==='none') ? 'default' : 'crosshair'; return; }
   var h=getHandleAt(x,y,false);
   if(h>=0){
     // Comments: side-center handles are axis-locked (top/bottom = vertical,
@@ -12946,7 +12949,7 @@ document.querySelectorAll('.tb-btn[data-tool]').forEach(function(btn){
     document.querySelectorAll('.tb-btn[data-tool]').forEach(function(b){ b.classList.remove('active'); });
     btn.classList.add('active');
     updateToolbarForTool(tool);
-    var cur=tool==='text'?'text':tool==='eraser'?'cell':tool==='pan'?'grab':tool==='stamp'?'copy':tool==='image'?'move':'crosshair';
+    var cur=tool==='none'?'default':tool==='text'?'text':tool==='eraser'?'cell':tool==='pan'?'grab':tool==='stamp'?'copy':tool==='image'?'move':'crosshair';
     drawCv.style.cursor=cur;
     if(tool==='stamp'){ openStampPicker(); return; }
   });
@@ -12954,6 +12957,9 @@ document.querySelectorAll('.tb-btn[data-tool]').forEach(function(btn){
 
 // Set initial toolbar state
 updateToolbarForTool(tool);
+// App loads with NO tool selected — neutral cursor, no panning/drawing until
+// the user picks a tool from the toolbar.
+if(typeof drawCv!=='undefined' && drawCv) drawCv.style.cursor='default';
 
 // Helper to switch tool programmatically (mirrors the button click logic)
 function switchTool(name){
