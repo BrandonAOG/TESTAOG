@@ -264,7 +264,8 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     -webkit-overflow-scrolling:touch;      /* momentum scroll on iOS */
     touch-action:pan-x;                     /* horizontal drag scrolls, doesn't pan the plan */
     overscroll-behavior-x:contain;          /* don't chain to the page / trigger back-swipe */
-    scroll-behavior:smooth;
+    /* NO scroll-behavior:smooth — on iOS it hijacks momentum: every programmatic
+       nudge cancels the fling, and the bar stutters and sticks under the finger. */
   }
   /* Nothing in either row may shrink — a shrunk button is an unhittable button.
      They keep full size and go off-screen, where scrolling reaches them. */
@@ -276,9 +277,10 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   #tb2-gap{display:none;}
   #tb2-label{min-width:0;margin-right:4px;}
   #tb2-caret{display:none;}
-  /* A soft fade at the right edge, so it's obvious there's more to scroll to. */
-  #tb::after, #tb2::after{content:'';position:sticky;right:0;flex:0 0 18px;height:100%;
-    background:linear-gradient(to right, transparent, var(--surf));pointer-events:none}
+  /* No sticky pseudo-element inside the scroller — position:sticky in a
+     horizontally scrolling flex row is a well-known jank/stick source on iOS
+     Safari. A plain trailing spacer gives the same "there's more" hint for free. */
+  #tb::after, #tb2::after{content:'';flex:0 0 10px;}
 }
 /* labels always visible */
 
@@ -3059,6 +3061,9 @@ document.addEventListener('touchmove', function(e){
   if(e.target && typeof e.target.closest === 'function'){
     if(e.target.closest('.panel-body')) return; // panel vertical scroll
     if(e.target.closest('#tb')) return;          // toolbar horizontal scroll
+    if(e.target.closest('#tb2')) return;         // PROPERTIES row — same deal. Without
+                                                 // this the passive:false preventDefault()
+                                                 // below kills its scroll outright.
     if(e.target.closest('#sb')) return;          // subbar horizontal scroll
     if(e.target.closest('input[type=range]')) return;
     if(e.target.closest('#text-ov')) return;     // text input — let iOS handle it
@@ -3072,7 +3077,9 @@ document.addEventListener('touchmove', function(e){
 // Fix: intercept touchmove on scrollable zones with a passive:true listener that
 // stopPropagation()s, so the event never reaches the slow document handler.
 (function(){
-  var zones=['#tb','#sb','.panel-body','#shortcuts-box','#print-scroll'];
+  // #tb2 must be here too, or its touchmove reaches the slow passive:false document
+  // handler and momentum dies — the row scrolls, but in sticky lurches.
+  var zones=['#tb','#tb2','#sb','.panel-body','#shortcuts-box','#print-scroll'];
   function addFastScroll(selector){
     var els=document.querySelectorAll(selector);
     els.forEach(function(el){
@@ -12420,11 +12427,13 @@ function closePolyline(){
 // tool you just picked (or restored from a saved session) can easily be off to the
 // right where you can't see what's selected. Nudge it into view — but only if it's
 // actually out of view, so we never yank a row the user is mid-scroll on.
+var _tbUserScrolling = false;
 function _scrollActiveToolIntoView(){
   try{
     var tb  = document.getElementById('tb');
     var btn = tb && tb.querySelector('.tb-btn.active');
     if(!tb || !btn) return;
+    if(_tbUserScrolling) return;                      // hands off — the user is dragging
     if(tb.scrollWidth <= tb.clientWidth) return;      // nothing to scroll
     var b = btn.getBoundingClientRect(), r = tb.getBoundingClientRect();
     var pad = 12;
@@ -12501,7 +12510,32 @@ function _alignPropsRow(){
 window.addEventListener('resize', function(){ _alignPropsRow(); });
 document.addEventListener('DOMContentLoaded', function(){
   var tb=document.getElementById('tb');
-  if(tb) tb.addEventListener('scroll', function(){ _alignPropsRow(); }, {passive:true});
+  if(!tb) return;
+  // ── WHY THIS IS NOT JUST _alignPropsRow ──────────────────────────────────
+  // The old handler called _alignPropsRow() on every scroll event, and that
+  // function calls _scrollActiveToolIntoView(), which WRITES scrollLeft. So on
+  // every frame of a drag the code yanked the scroll position back under the
+  // user's finger — momentum died and the bar felt like it was sticking. A
+  // scroll handler must never move the thing being scrolled.
+  //
+  // It also did getBoundingClientRect() + style writes per event: a forced
+  // synchronous reflow on every frame, which is its own source of jank on iOS.
+  //
+  // So: skip entirely on touch/narrow (where the spacer is hidden anyway), and
+  // on desktop coalesce to one rAF and only touch the SPACER, never scrollLeft.
+  // While a finger is down on the bar, no code may move it.
+  tb.addEventListener('touchstart', function(){ _tbUserScrolling=true; }, {passive:true});
+  tb.addEventListener('touchend',   function(){
+    setTimeout(function(){ _tbUserScrolling=false; }, 350);   // let momentum finish first
+  }, {passive:true});
+
+  var pending=false;
+  tb.addEventListener('scroll', function(){
+    if(window.matchMedia('(max-width:600px)').matches) return;   // nothing to align
+    if(pending) return;
+    pending=true;
+    requestAnimationFrame(function(){ pending=false; _alignPropsRow(); });
+  }, {passive:true});
 });
 
 function updateToolbarForTool(t){
