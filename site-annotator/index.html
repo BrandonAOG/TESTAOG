@@ -556,6 +556,16 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 /* Chrome-only API: if memory isn't reported, hide the MEM chip entirely. */
 #perf-mem.unsupported{display:none;}
 
+/* EXPORT chip — VECTOR (sharp) vs RASTER (flattened). This is the single most
+   useful readout in the app: every "why is my export blurry" is really "the
+   exporter silently fell back to raster". Now it says so BEFORE you export. */
+#perf-exp .perf-v{font-weight:700;}
+#perf-exp.vec  .perf-v{color:#10B981;}
+#perf-exp.vec  {border-color:rgba(16,185,129,.45);}
+#perf-exp.rast .perf-v{color:#FBBF24;}
+#perf-exp.rast {border-color:rgba(251,191,36,.55);}
+#perf-exp.none .perf-v{color:var(--theme-dim);}
+
 /* ── RESPONSIVE ── */
 @media(max-width:480px){
   #aog-nav{padding-top:max(6px, env(safe-area-inset-top));padding-left:max(4px,env(safe-area-inset-left));padding-right:max(4px,env(safe-area-inset-right));gap:4px;}
@@ -769,6 +779,9 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   </div>
   <div style="flex:1"></div>
   <div id="aog-perf">
+    <span class="perf-chip" id="perf-exp" title="How the next PDF export will be built">
+      <span class="perf-k">EXPORT</span><span class="perf-v" id="perf-exp-v">—</span>
+    </span>
     <span class="perf-chip" id="perf-mem" title="Canvas pixel memory — the pool that actually grows at 600 DPI">
       <span class="perf-k">VRAM</span><span class="perf-v" id="perf-mem-v">—</span>
       <span class="perf-bar"><i id="perf-mem-fill"></i></span>
@@ -2271,7 +2284,19 @@ function findCommentObjAt(x,y,isTouch){
        py>=c.cy-c.h/2-pad&&py<=c.cy+c.h/2+pad) return c;
   }
   if(typeof AOG_DEBUG!=='undefined' && AOG_DEBUG && commentObjs.length){
-    try{ console.log('[AOG:noteclick] findCommentObjAt MISS at ('+Math.round(x)+','+Math.round(y)+'); notes:', commentObjs.map(function(c){return '['+Math.round(c.cx-c.w/2)+','+Math.round(c.cy-c.h/2)+' to '+Math.round(c.cx+c.w/2)+','+Math.round(c.cy+c.h/2)+']';}).join(' ')); }catch(e){}
+    // This fires on EVERY pointermove — a pen stroke produced ~80 of these in one
+    // drag, each one building a string and mapping over every note. That's a real
+    // cost on the drag path, not just console noise. Gate it behind the debug flag
+    // and throttle it so it stays useful without taxing every mouse move.
+    try{
+      if(window._AOG_DEBUG_NOTECLICK){
+        var _now=Date.now();
+        if(!window._noteMissT || _now-window._noteMissT > 400){
+          window._noteMissT=_now;
+          console.log('[AOG:noteclick] findCommentObjAt MISS at ('+Math.round(x)+','+Math.round(y)+'); notes:', commentObjs.map(function(c){return '['+Math.round(c.cx-c.w/2)+','+Math.round(c.cy-c.h/2)+' to '+Math.round(c.cx+c.w/2)+','+Math.round(c.cy+c.h/2)+']';}).join(' '));
+        }
+      }
+    }catch(e){}
   }
   return null;
 }
@@ -3131,7 +3156,7 @@ function initLayers(w,h){
   layers=[];
   defs.forEach(function(d){
     var c=document.createElement('canvas');
-    c.width=w; c.height=h;
+    c.width=0; c.height=0;   // lazy — materialised by ensureLayer() on first draw
     layers.push({name:d.name,color:d.color,visible:true,canvas:c,ctx:c.getContext('2d',{willReadFrequently:true})});
   });
   activeLayerIdx=0;
@@ -3140,17 +3165,29 @@ function initLayers(w,h){
 
 function resizeLayers(w,h){
   layers.forEach(function(l){
-    var tmp=document.createElement('canvas'); tmp.width=w; tmp.height=h;
-    try{ tmp.getContext('2d').drawImage(l.canvas,0,0); }catch(ex){}
-    l.canvas.width=w; l.canvas.height=h;
-    try{ l.ctx.drawImage(tmp,0,0); }catch(ex){}
+    if(!layerAllocated(l)) return;   // empty layer → nothing to preserve, stay at 0x0
+    var tw=Math.max(1,Math.round(w*LAYER_RES)), th=Math.max(1,Math.round(h*LAYER_RES));
+    var tmp=document.createElement('canvas'); tmp.width=tw; tmp.height=th;
+    try{ tmp.getContext('2d').drawImage(l.canvas,0,0,tw,th); }catch(ex){}
+    l.canvas.width=tw; l.canvas.height=th;
+    if(LAYER_RES!==1) l.ctx.setTransform(LAYER_RES,0,0,LAYER_RES,0,0);
+    try{
+      l.ctx.save(); l.ctx.setTransform(1,0,0,1,0,0);
+      l.ctx.drawImage(tmp,0,0); l.ctx.restore();
+    }catch(ex){}
     releaseCanvas(tmp);
   });
 }
 
 function composite(){
   dCtx.clearRect(0,0,drawCv.width,drawCv.height);
-  layers.forEach(function(l){ if(l.visible) dCtx.drawImage(l.canvas,0,0); });
+  // A 0x0 canvas is an illegal drawImage source (InvalidStateError), and an
+  // unallocated layer has nothing to show anyway — skip it.
+  layers.forEach(function(l){
+    if(!l.visible || !layerAllocated(l)) return;
+    if(LAYER_RES===1) dCtx.drawImage(l.canvas,0,0);
+    else              dCtx.drawImage(l.canvas,0,0,drawCv.width,drawCv.height);
+  });
   // shapes-cv and txt-cv render on their own canvases above draw-cv — no need to blit here
   // (they are separate absolutely-positioned canvases in the DOM)
 }
@@ -3184,7 +3221,48 @@ function scheduleShapeRender(extra){
   });
 }
 
-function lctx(){ return layers[activeLayerIdx].ctx; }
+// ══ LAZY LAYER CANVASES ═══════════════════════════════════════════════════════
+// A layer canvas holds ONLY freehand pen strokes — shapes, text and images each
+// render on their own dedicated canvas. So in a typical file most layers are
+// completely EMPTY, yet each one was allocating a full-page bitmap up front:
+// at 400 DPI that's ~34 MB apiece, and a 16-layer sheet burned ~550 MB on
+// canvases that never had a pixel drawn into them.
+//
+// Now a layer starts at 0x0 (zero bitmap memory) and only materialises the
+// moment something actually draws on it. Empty layers cost nothing.
+//
+// LAYER_RES additionally lets a layer's bitmap be smaller than the base page.
+// 1.0 = pixel-parity with the page (default; strokes stay perfectly crisp).
+// 0.5 = quarter the memory, at the cost of softer freehand strokes — worth it
+// only if you're memory-bound. Everything else on the page is unaffected either
+// way, since nothing but pen strokes lives here.
+var LAYER_RES = 1.0;
+
+function _layerTargetSize(){
+  var w = Math.max(1, Math.round((baseCv.width  || 1) * LAYER_RES));
+  var h = Math.max(1, Math.round((baseCv.height || 1) * LAYER_RES));
+  return {w:w, h:h};
+}
+
+// Materialise a layer's bitmap if it hasn't been already. Safe to call often.
+function ensureLayer(l){
+  if(!l || !l.canvas) return l;
+  if(l.canvas.width > 0 && l.canvas.height > 0) return l;   // already allocated
+  var t = _layerTargetSize();
+  l.canvas.width = t.w; l.canvas.height = t.h;
+  // Draw in PAGE coordinates regardless of the layer's internal resolution, so
+  // no call site has to know or care that LAYER_RES exists.
+  if(LAYER_RES !== 1) l.ctx.setTransform(LAYER_RES, 0, 0, LAYER_RES, 0, 0);
+  return l;
+}
+function layerAllocated(l){ return !!(l && l.canvas && l.canvas.width > 0); }
+function allocatedLayerCount(){
+  var n=0; layers.forEach(function(l){ if(layerAllocated(l)) n++; }); return n;
+}
+
+// Any drawing goes through lctx(), so this is the single choke point where an
+// empty layer becomes a real one.
+function lctx(){ return ensureLayer(layers[activeLayerIdx]).ctx; }
 
 // ── PRE-OPERATION SNAPSHOT ──────────────────────────────────
 // captureState() is called BEFORE any operation changes state.
@@ -3207,6 +3285,7 @@ function captureState(includePixels){
     // which makes later readbacks cheap.)
     var snaps = includePixels ? layers.map(function(l){
       if(!l.canvas.width||!l.canvas.height) return null;
+      if(!layerAllocated(l)) return null;   // empty layer → nothing to snapshot
       return l.ctx.getImageData(0,0,l.canvas.width,l.canvas.height);
     }) : null;
     _preOp={
@@ -3237,6 +3316,7 @@ function pushUndo(){
         snap={
           layerData: layers.map(function(l){
             if(!l.canvas.width||!l.canvas.height) return null;
+            if(!layerAllocated(l)) return null;   // empty layer → nothing to snapshot
             return l.ctx.getImageData(0,0,l.canvas.width,l.canvas.height);
           }),
           activeIdx:  activeLayerIdx,
@@ -3266,15 +3346,15 @@ function applySnap(snap){
   // New format: {layerData:[...], activeIdx, textObjs, shapeObjs}
   // Legacy format (array of ImageData) used by very old saves
   if(Array.isArray(snap)){
-    snap.forEach(function(d,i){ if(layers[i]&&d){ layers[i].ctx.clearRect(0,0,layers[i].canvas.width,layers[i].canvas.height); layers[i].ctx.putImageData(d,0,0); } });
+    snap.forEach(function(d,i){ if(layers[i]&&d){ ensureLayer(layers[i]); layers[i].ctx.clearRect(0,0,layers[i].canvas.width,layers[i].canvas.height); layers[i].ctx.putImageData(d,0,0); } });
   } else if(snap&&snap.layerData){
     snap.layerData.forEach(function(d,i){
-      if(layers[i]&&d){ layers[i].ctx.clearRect(0,0,layers[i].canvas.width,layers[i].canvas.height); try{ layers[i].ctx.putImageData(d,0,0); }catch(ex){} }
+      if(layers[i]&&d){ ensureLayer(layers[i]); layers[i].ctx.clearRect(0,0,layers[i].canvas.width,layers[i].canvas.height); try{ layers[i].ctx.putImageData(d,0,0); }catch(ex){} }
     });
   } else if(snap&&snap.idx!=null&&snap.data){
     // Old single-layer format
     var lc=layers[snap.idx];
-    if(lc){ lc.ctx.clearRect(0,0,lc.canvas.width,lc.canvas.height); lc.ctx.putImageData(snap.data,0,0); }
+    if(lc){ ensureLayer(lc); lc.ctx.clearRect(0,0,lc.canvas.width,lc.canvas.height); lc.ctx.putImageData(snap.data,0,0); }
   }
   composite();
 }
@@ -3283,6 +3363,7 @@ function _snapCurrentState(){
   return {
     layerData: layers.map(function(l){
       if(!l.canvas.width||!l.canvas.height) return null;
+      if(!layerAllocated(l)) return null;   // empty layer → nothing to snapshot
       try{ return l.ctx.getImageData(0,0,l.canvas.width,l.canvas.height); }catch(ex){ return null; }
     }),
     activeIdx:  activeLayerIdx,
@@ -3310,10 +3391,10 @@ function undoFn(){
     // Restore pre-op state
     if(snap.layerData){
       snap.layerData.forEach(function(d,i){
-        if(layers[i]&&d){ layers[i].ctx.clearRect(0,0,layers[i].canvas.width,layers[i].canvas.height); try{ layers[i].ctx.putImageData(d,0,0); }catch(ex){} }
+        if(layers[i]&&d){ ensureLayer(layers[i]); layers[i].ctx.clearRect(0,0,layers[i].canvas.width,layers[i].canvas.height); try{ layers[i].ctx.putImageData(d,0,0); }catch(ex){} }
       });
     } else if(snap.idx!=null&&snap.data){
-      var lc=layers[snap.idx]; if(lc){ lc.ctx.clearRect(0,0,lc.canvas.width,lc.canvas.height); lc.ctx.putImageData(snap.data,0,0); }
+      var lc=layers[snap.idx]; if(lc){ ensureLayer(lc); lc.ctx.clearRect(0,0,lc.canvas.width,lc.canvas.height); lc.ctx.putImageData(snap.data,0,0); }
     }
     if(snap.textObjs!==undefined){ textObjs=snap.textObjs; _rebindTextRefs(); renderTextObjs(); }
     if(snap.shapeObjs!==undefined){ shapeObjs=snap.shapeObjs; renderShapeObjs(); }
@@ -3339,10 +3420,10 @@ function redoFn(){
     if(undoStack.length>MAX_UNDO) undoStack.shift();
     if(snap.layerData){
       snap.layerData.forEach(function(d,i){
-        if(layers[i]&&d){ layers[i].ctx.clearRect(0,0,layers[i].canvas.width,layers[i].canvas.height); try{ layers[i].ctx.putImageData(d,0,0); }catch(ex){} }
+        if(layers[i]&&d){ ensureLayer(layers[i]); layers[i].ctx.clearRect(0,0,layers[i].canvas.width,layers[i].canvas.height); try{ layers[i].ctx.putImageData(d,0,0); }catch(ex){} }
       });
     } else if(snap.idx!=null&&snap.data){
-      var lc=layers[snap.idx]; if(lc){ lc.ctx.clearRect(0,0,lc.canvas.width,lc.canvas.height); lc.ctx.putImageData(snap.data,0,0); }
+      var lc=layers[snap.idx]; if(lc){ ensureLayer(lc); lc.ctx.clearRect(0,0,lc.canvas.width,lc.canvas.height); lc.ctx.putImageData(snap.data,0,0); }
     }
     if(snap.textObjs!==undefined){ textObjs=snap.textObjs; _rebindTextRefs(); renderTextObjs(); }
     if(snap.shapeObjs!==undefined){ shapeObjs=snap.shapeObjs; renderShapeObjs(); }
@@ -3366,6 +3447,7 @@ function clearFn(){
   captureState();
   pushUndo();
   // Clear active layer canvas pixels
+  if(!layerAllocated(layers[activeLayerIdx])) return;   // already empty — nothing to clear
   lctx().clearRect(0,0,layers[activeLayerIdx].canvas.width,layers[activeLayerIdx].canvas.height);
   // Also remove shapes and text belonging to the active layer
   shapeObjs = shapeObjs.filter(function(s){ return s.layerIdx!==activeLayerIdx; });
@@ -3452,7 +3534,7 @@ addLayerBtn.addEventListener('click',function(){
   var cols=['#ef4444','#f59e0b','#3b82f6','#22c55e','#a855f7','#ec4899','#06b6d4'];
   var col=cols[layers.length%cols.length];
   var l=makeLayer('Layer '+(layers.length+1),col);
-  l.canvas.width=baseCv.width||1; l.canvas.height=baseCv.height||1;
+  l.canvas.width=0; l.canvas.height=0;   // lazy — costs nothing until drawn on
   layers.forEach(function(x){ x.visible=true; }); _soloIdx=-1;
   layers.push(l); activeLayerIdx=layers.length-1;
   color=l.color; clrSwatch.style.background=color; clrInput.value=color;
@@ -6241,13 +6323,22 @@ function rotateCanvas(deg){
   // Save old canvases for release after rotation
 var oldLayerCanvases=layers.map(function(l){ return l.canvas; });
 var layerTmps=layers.map(function(l){
-    var t=document.createElement('canvas'); t.width=h; t.height=w;
-    var tc2=t.getContext('2d'); tc2.translate(h/2,w/2); tc2.rotate(deg*Math.PI/180); tc2.drawImage(l.canvas,-w/2,-h/2);
+    if(!layerAllocated(l)) return null;   // empty layer → stays empty, no bitmap to spin
+    var lw=l.canvas.width, lh=l.canvas.height;
+    var t=document.createElement('canvas'); t.width=lh; t.height=lw;
+    var tc2=t.getContext('2d'); tc2.translate(lh/2,lw/2); tc2.rotate(deg*Math.PI/180); tc2.drawImage(l.canvas,-lw/2,-lh/2);
     return t;
   });
   resize(h,w);
   bCtx.drawImage(tmp,0,0);
-  layers.forEach(function(l,i){ l.canvas.width=h; l.canvas.height=w; l.ctx.drawImage(layerTmps[i],0,0); });
+  layers.forEach(function(l,i){
+    if(!layerTmps[i]) return;   // was never allocated → leave it at 0x0
+    l.canvas.width=layerTmps[i].width; l.canvas.height=layerTmps[i].height;
+    if(LAYER_RES!==1) l.ctx.setTransform(LAYER_RES,0,0,LAYER_RES,0,0);
+    l.ctx.save(); l.ctx.setTransform(1,0,0,1,0,0);
+    l.ctx.drawImage(layerTmps[i],0,0);
+    l.ctx.restore();
+  });
   // ── BASE PAGE: RE-RENDER, DON'T RESAMPLE ───────────────────────────────────
   // The bitmap rotate above is a LOSSY resample of baseCv. Every turn softens
   // the page again, and the damage is cumulative — rotate right then left, or a
@@ -6313,7 +6404,7 @@ var layerTmps=layers.map(function(l){
     }
   }catch(ex){ console.warn('[Rotate] base re-render skipped:',ex); }
   // Release old layer canvases on iOS
-  if(IS_IOS){ oldLayerCanvases.forEach(function(c){ releaseCanvas(c); }); layerTmps.forEach(function(c){ releaseCanvas(c); }); }
+  if(IS_IOS){ oldLayerCanvases.forEach(function(c){ if(c) releaseCanvas(c); }); layerTmps.forEach(function(c){ if(c) releaseCanvas(c); }); }
   // ── Rotate every VECTOR object so it matches the rotated bitmap layers ──
   // After resize(h,w) the canvas dims are swapped: rw = NEW width (= original
   // height), rh = NEW height (= original width). The bitmap layers above were
@@ -13449,7 +13540,7 @@ function compositeExport(maxPx){
   try{ ctx.drawImage(baseCv,0,0,w,h); }catch(e){ console.warn('[Export] base:',e); }
   // Layer canvases
   layers.forEach(function(l){
-    if(!l.visible) return;
+    if(!l.visible || !layerAllocated(l)) return;   // empty layer → nothing to composite
     try{ ctx.drawImage(l.canvas,0,0,w,h); }catch(e){ console.warn('[Export] layer:',e); }
   });
   // Inserted images are drawn LAST (see end of this function) so they sit on top
@@ -14188,6 +14279,15 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
     // When the page IS white-covered, draw every extracted object so they reproduce
     // the erased content.
     // Only treat the original as "still in the page" if we did NOT strip it.
+    // HIGHLIGHTS BELONG TO THE RASTER OVERLAY, ALWAYS.
+    // _rasterOnlyHl() routes every highlight into the transparent overlay so it can
+    // carry PDF BlendMode Multiply and darken the linework beneath instead of hiding
+    // it. If the painter ALSO emits it as a vector, the two translucent fills stack:
+    // the tint comes out too dark, and because a viewer resamples the raster copy
+    // differently at each zoom level, the shade visibly SHIFTS as you zoom.
+    // The overlay owns highlights exclusively — never double-paint them.
+    if(typeof _rasterOnlyHl==='function' && _rasterOnlyHl(o)){ _dbgCnt.skippedExplode++; return false; }
+
     var _keepOriginal = !_shouldWhiteCoverPage() && !_annotsStripped;
     if(o._fromExplode){
       if(_keepOriginal && !movedExplode(o)){ _dbgCnt.skippedExplode++; return false; }
@@ -14292,6 +14392,90 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
   //    To avoid double lines, leaders are fully handled in raster (skip here). ──
 
   // ── Markups: highlight (fill rect), strikeout/underline (line) ─────────────
+  // ── NOTES / COMMENT BOXES → TRUE VECTORS ───────────────────────────────────
+  // Notes used to ride the transparent raster overlay. Adobe renders a blended /
+  // alpha-masked IMAGE progressively: it shows a cached, downsampled tile first and
+  // only refines on a repaint. That is exactly the reported symptom — the tint reads
+  // a different shade at each zoom level, then "corrects itself" after a few clicks
+  // (the clicks force the repaint). The PDF was never wrong; the raster was being
+  // resampled. Drawing the note as real vector geometry removes the bitmap entirely,
+  // so there is nothing to resample and the colour is identical at every zoom.
+  //
+  // Mirrors drawCommentBox(): rounded fill (bgOpacity) → full-opacity border → the
+  // same word-wrapped, same-padded text, rotated rigidly about the note's centre.
+  try{ if(typeof commentObjs!=='undefined') commentObjs.forEach(function(c){
+    if(!visible(c)) return;
+    var cw=c.w, ch=c.h;
+    if(!(cw>0 && ch>0)) return;
+    var bgCol=c.bgColor||'#FBBF24';
+    var bdCol=c.borderColor||darkenHex(bgCol,0.35);
+    var fillA=(c.bgOpacity!==undefined?c.bgOpacity:0.9);
+    var noteA=(c.opacity==null?1:c.opacity);
+
+    // Page-space rotation: page rotation plus the note's own angle (canvas is
+    // clockwise/y-down, PDF counter-clockwise/y-up → the note's angle is negated).
+    var thDeg = rotDeg - ((c.angle||0)*180/Math.PI);
+    var th=thDeg*Math.PI/180, ct=Math.cos(th), st=Math.sin(th);
+    var Wp=W(cw), Hp=W(ch);
+    var ctr=P(c.cx, c.cy);
+    // pdf-lib rotates a rectangle about its bottom-left anchor, so put the anchor
+    // where the rotated bottom-left corner lands relative to the centre.
+    var ax=ctr.x + (-(Wp/2)*ct + (Hp/2)*st);
+    var ay=ctr.y + (-(Wp/2)*st - (Hp/2)*ct);
+
+    page.drawRectangle({
+      x:ax, y:ay, width:Wp, height:Hp, rotate:degrees(thDeg),
+      color:col(bgCol), opacity:fillA*noteA,
+      borderColor:col(bdCol), borderWidth:W(Math.max(1,(c.borderStrokeW||2))),
+      borderOpacity:noteA
+    });
+
+    // ── Body text: identical wrap + padding to the canvas, so the exported layout
+    // matches what the user positioned on screen. ──
+    if(c.text && String(c.text).trim()){
+      var fsPx=Math.max(8, Math.round(cmtEffFontSize(c)));   // canvas px
+      var pad=cmtInnerPad(c,'snap');
+      var maxW=cw-2*pad;
+      var lineH=fsPx*CMT_LINE_H;
+      var halfLead=(lineH-fsPx)/2;
+      // cmtWrapLines() measures with a canvas 2D context — hand it one configured
+      // exactly as the on-screen renderer does, so the break points are the same.
+      var _mc=document.createElement('canvas').getContext('2d');
+      _mc.font=cmtCtxFont(c, fsPx);
+      var lines=cmtWrapLines(_mc, c.text, maxW);
+
+      var _famK=_customFamilyKey(c.fontFamily);
+      var _set=(fonts.custom && _famK && fonts.custom[_famK]) ? fonts.custom[_famK] : fonts;
+      var f = c.bold ? (c.italic?_set.boldItalic:_set.bold)
+                     : (c.italic?_set.italic:_set.regular);
+      var fsize=W(fsPx);   // page units
+
+      // Local (unrotated) note frame: origin at the note's top-left corner.
+      var lx=c.cx-cw/2, ly=c.cy-ch/2;
+      lines.forEach(function(line,i){
+        if(!line) return;
+        var ty=ly+pad+halfLead+i*lineH;
+        if(ty+fsPx > ly+ch-pad+halfLead+0.5) return;   // overflow → clipped, as on screen
+        // Canvas y is the TOP of the glyph box; PDF y is the baseline. Shift down by
+        // the ascent so the text sits where the user sees it.
+        var bx=lx+pad, by=ty+fsPx*0.80;
+        var pp=P(bx,by);
+        // Re-anchor around the note centre so the text turns WITH the box.
+        var dx=pp.x-ctr.x, dy=pp.y-ctr.y;
+        // P() already applied the PAGE rotation; apply only the note's own spin here.
+        var na=-((c.angle||0));
+        var nc2=Math.cos(na), ns2=Math.sin(na);
+        var rx=ctr.x + dx*nc2 - dy*ns2;
+        var ry=ctr.y + dx*ns2 + dy*nc2;
+        try{
+          page.drawText(line, {x:rx, y:ry, size:fsize, font:f,
+            color:col(c.textColor||'#1a1a2e'), opacity:noteA,
+            rotate:degrees(thDeg)});
+        }catch(_te){}
+      });
+    }
+  }); }catch(e){ console.warn('[Vec] notes',e); }
+
   try{ if(typeof markupObjs!=='undefined') markupObjs.forEach(function(m){
     if(!visible(m)) return;
     if(_rasterOnlyHl(m)) return;   // poly/rotated tints -> raster overlay
@@ -14300,9 +14484,32 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
     var y1=Math.min(m.y1,m.y2), y2=Math.max(m.y1,m.y2);
     var h=(y2-y1)||6, w=(x2-x1)||20, midY=(y1+y2)/2;
     if(m.type==='highlight'){
-      var hp=P(x1,y2);   // canvas bottom-left corner → page point
-      page.drawRectangle({x:hp.x, y:hp.y, width:W(w), height:W(h),
-        rotate:degrees(rotDeg), color:col(m.color), opacity:op, borderWidth:0});
+      var Wp=W(w), Hp=W(h);
+      // Total rotation = page rotation + the mark's own angle. Canvas angles are
+      // clockwise with y down; PDF is counter-clockwise with y up, so the mark's
+      // angle enters NEGATED.
+      var thDeg = rotDeg - ((m.angle||0)*180/Math.PI);
+      var th=thDeg*Math.PI/180, ct=Math.cos(th), st=Math.sin(th);
+      // drawRectangle rotates about its (x,y) anchor = bottom-left, so place the
+      // anchor where the rotated bottom-left corner lands relative to the CENTRE.
+      var hc=P((x1+x2)/2, (y1+y2)/2);
+      var ax=hc.x + (-(Wp/2)*ct + (Hp/2)*st);
+      var ay=hc.y + (-(Wp/2)*st - (Hp/2)*ct);
+      var _rectOpts={x:ax, y:ay, width:Wp, height:Hp,
+        rotate:degrees(thDeg), color:col(m.color), opacity:op, borderWidth:0};
+      // MULTIPLY is what makes a vector tint darken the linework beneath instead of
+      // painting an opaque slab over it. Without this the highlight hides the plan.
+      if(PDFLib.BlendMode && PDFLib.BlendMode.Multiply) _rectOpts.blendMode=PDFLib.BlendMode.Multiply;
+      page.drawRectangle(_rectOpts);
+      try{
+        (window._hlTrace=window._hlTrace||[]).push({
+          path:'VECTOR', color:m.color, opacity:op, angle:+(m.angle||0).toFixed(3),
+          canvas:{x1:+x1.toFixed(1), y1:+y1.toFixed(1), w:+w.toFixed(1), h:+h.toFixed(1)},
+          pdf:{x:+ax.toFixed(1), y:+ay.toFixed(1), w:+Wp.toFixed(1), h:+Hp.toFixed(1),
+               rotate:+thDeg.toFixed(2)},
+          blend:(_rectOpts.blendMode?'Multiply':'NONE — will paint OPAQUE and hide the plan')
+        });
+      }catch(_e){}
     } else if(m.type==='strikeout'){
       line(x1,midY,x2,midY,m.color,2,op);
     } else if(m.type==='underlinemark'){
@@ -14442,6 +14649,26 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
     });
   }); }catch(e){ console.warn('[Vec] text',e); }
   _dbgCnt.annotsStripped=_annotsStripped;
+  try{
+    // Which highlights went VECTOR vs stayed RASTER, and why. A tint that shows two
+    // shades with a hard seam is riding a bitmap; a vector one cannot.
+    var _rasterHl=[];
+    if(typeof markupObjs!=='undefined') markupObjs.forEach(function(m){
+      if(m.type==='highlight' && _rasterOnlyHl(m))
+        _rasterHl.push({path:'RASTER', reason:'has point list (freeform/polygon) — not a rotated rect',
+                        color:m.color, opacity:(m.opacity==null?1:m.opacity), pts:(m.pts?m.pts.length:0)});
+    });
+    var _all=(window._hlTrace||[]).concat(_rasterHl);
+    if(_all.length){
+      console.warn('[AOG:export] HIGHLIGHT TRACE — '+_all.length+' mark(s)');
+      if(console.table) console.table(_all.map(function(h){
+        return {path:h.path, color:h.color, opacity:h.opacity,
+                blend:h.blend||'-', reason:h.reason||'-'};
+      }));
+      dbg('export','highlight trace', _all);
+    }
+    window._hlTrace=[];
+  }catch(_e){}
   if(_annotsStripped && _dbgCnt.skippedExplode>0){
     console.warn('[AOG:export] '+_dbgCnt.skippedExplode+' extracted objects were SKIPPED by the painter '
                + 'even though their originals were stripped from the page — they will be MISSING from the export.');
@@ -14459,19 +14686,28 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
 // transparent raster overlay, where drawMarkupOnCtx renders them exactly as on
 // screen.
 function _rasterOnlyHl(m){
-  // ALL highlights ride the multiply raster overlay (embedded with PDF BlendMode
-  // Multiply) so the tint darkens the text/linework beneath instead of covering it.
-  // Previously only poly/rotated tints did; a plain rectangular tool highlight was
-  // painted as an opaque vector rectangle that hid the text in the exported PDF.
-  // Strikeout/underline are NOT highlights and stay as crisp vectors.
-  return m.type==='highlight';
+  // Highlights USED to all ride the raster overlay, because the vector branch drew
+  // them as an OPAQUE rectangle that hid the text underneath. The overlay solved
+  // that (PDF BlendMode Multiply) but created a worse problem: a semi-transparent
+  // BITMAP is resampled by the viewer at every zoom level, so the tint visibly
+  // changes shade as you zoom in and out.
+  //
+  // pdf-lib 1.17.1 supports blendMode on drawRectangle, so a highlight can now be a
+  // TRUE VECTOR with Multiply blending — it darkens the linework beneath AND holds
+  // one exact shade at every zoom. Only a freeform/polygon tint (one carrying a
+  // point list, which isn't expressible as a rotated rectangle) still needs raster.
+  return m.type==='highlight' && !!(m.pts && m.pts.length);
 }
 function _suppressVectorizedForOverlay(){
   var saved={
     shapeObjs:shapeObjs, measureObjs:measureObjs, textObjs:textObjs,
     polylineObjs:(typeof polylineObjs!=='undefined'?polylineObjs:null),
-    markupObjs:(typeof markupObjs!=='undefined'?markupObjs:null)
+    markupObjs:(typeof markupObjs!=='undefined'?markupObjs:null),
+    commentObjs:(typeof commentObjs!=='undefined'?commentObjs:null)
   };
+  // Notes are painted as TRUE VECTORS now — keep them out of the raster overlay or
+  // they'd be drawn twice (and the bitmap copy is the one that shifts shade on zoom).
+  if(saved.commentObjs!==null) commentObjs = [];
   // Keep ONLY the cloud shapes in the raster overlay (rect/ellipse are vectorized).
   shapeObjs = shapeObjs.filter(function(s){ return s.type==='cloud'; });
   measureObjs = [];
@@ -14485,6 +14721,7 @@ function _suppressVectorizedForOverlay(){
     _rebindTextRefs();
     if(saved.polylineObjs!==null) polylineObjs=saved.polylineObjs;
     if(saved.markupObjs!==null) markupObjs=saved.markupObjs;
+    if(saved.commentObjs!==null) commentObjs=saved.commentObjs;
   };
 }
 
@@ -14755,18 +14992,90 @@ function _buildVectorPdf(attachJson, onReady){
       var _budget = IS_IPHONE ? 0 : (IS_IPAD ? 12e6 : 16e6);   // max overlay pixels
       var _ss = _budget>0 ? Math.min(2, Math.sqrt(_budget/Math.max(1,_bw*_bh))) : 1;
       var _ovPx = _ss>1.05 ? Math.round(Math.max(_bw,_bh)*_ss) : 0;
+      // ── OVERLAY TRACE ────────────────────────────────────────────────────────
+      // A hard straight edge cutting a highlight into two shades means the overlay
+      // bitmap it rides on is not covering the whole page: it was clamped, silently
+      // blanked past the browser's per-canvas ceiling, or fell back to unsupersampled
+      // (_ovPx=0) for one pass but not the other. Then part of the tint multiplies
+      // against real pixels and part against nothing. Log every number in that chain.
+      function _ovStats(c,label){
+        if(!c) return {label:label, canvas:null};
+        var o={label:label, w:c.width, h:c.height,
+               mp:+((c.width*c.height)/1e6).toFixed(2),
+               aspect:+(c.width/Math.max(1,c.height)).toFixed(4)};
+        try{
+          // Sample the four corners + centre. An all-zero alpha in a region that
+          // should hold paint is the signature of a blanked/clamped canvas.
+          var cx=c.getContext('2d');
+          function a(x,y){ try{ return cx.getImageData(x,y,1,1).data[3]; }catch(e){ return -1; } }
+          o.alpha={tl:a(1,1), tr:a(c.width-2,1), bl:a(1,c.height-2),
+                   br:a(c.width-2,c.height-2), mid:a(c.width>>1, c.height>>1)};
+          // Sample a coarse grid rather than reading back the whole ~20MP bitmap.
+          // The full getImageData was costing real time on every export (Chrome
+          // warns about it) — and a blanked canvas shows up just as clearly in a
+          // 32x32 sample as in 20 million pixels.
+          var N=32, nz=0, tot=0;
+          for(var gy=0; gy<N; gy++){
+            for(var gx=0; gx<N; gx++){
+              var sx=Math.min(c.width-1,  Math.floor((gx+0.5)*c.width /N));
+              var sy=Math.min(c.height-1, Math.floor((gy+0.5)*c.height/N));
+              if(a(sx,sy)>0) nz++;
+              tot++;
+            }
+          }
+          o.paintedPctSampled=+((nz/tot)*100).toFixed(2);
+        }catch(e){ o.sampleErr=String(e); }
+        return o;
+      }
+
       var _restHl=_swapHl('without');
       try{ comp=compositeExport(_ovPx); }catch(e){ comp=null; }
-      if(!comp){ try{ comp=compositeExport(0); }catch(e){ comp=null; } }
+      var _compFellBack=false;
+      if(!comp){ _compFellBack=true; try{ comp=compositeExport(0); }catch(e){ comp=null; } }
       _restHl();
+      var _compHlFellBack=false;
       if(_hadHl){
         var _restHl2=_swapHl('only');
         _hlOverlayPass=true;   // draw highlights as plain fills; PDF blend does multiply
         try{ compHl=compositeExport(_ovPx); }catch(e){ compHl=null; }
-        if(!compHl){ try{ compHl=compositeExport(0); }catch(e){ compHl=null; } }
+        if(!compHl){ _compHlFellBack=true; try{ compHl=compositeExport(0); }catch(e){ compHl=null; } }
         _hlOverlayPass=false;
         _restHl2();
       }
+
+      try{
+        var _t={
+          base:{w:_bw, h:_bh, mp:+((_bw*_bh)/1e6).toFixed(2)},
+          budgetMP:+(_budget/1e6).toFixed(1),
+          supersample:+_ss.toFixed(3),
+          ovPxRequested:_ovPx,
+          canvasCapMP:+((typeof CANVAS_MAX_AREA!=='undefined'?CANVAS_MAX_AREA:0)/1e6).toFixed(1),
+          hadHighlights:_hadHl,
+          // If these two DISAGREE, the main overlay and the highlight overlay are at
+          // DIFFERENT resolutions — they will not line up, and a highlight will show a
+          // hard seam exactly where one bitmap ends.
+          mainOverlay:_ovStats(comp,'comp'),
+          hlOverlay:_ovStats(compHl,'compHl'),
+          mainFellBackToUnscaled:_compFellBack,
+          hlFellBackToUnscaled:_compHlFellBack,
+          blendModeAvailable: !!(window.PDFLib && PDFLib.BlendMode && PDFLib.BlendMode.Multiply),
+          pageRot:(typeof _pdfPageRot!=='undefined'?_pdfPageRot:0),
+          userRot:(typeof _userRotDeg!=='undefined'?_userRotDeg:0)
+        };
+        var _mis = comp && compHl && (comp.width!==compHl.width || comp.height!==compHl.height);
+        _t.OVERLAY_SIZE_MISMATCH = !!_mis;
+        dbg('export','OVERLAY TRACE', _t);
+        console.warn('[AOG:export] OVERLAY TRACE', _t);
+        if(_mis){
+          console.error('[AOG:export] ✖ main overlay '+comp.width+'x'+comp.height
+            +' but highlight overlay '+compHl.width+'x'+compHl.height
+            +' — mismatched bitmaps. This is the hard seam / two-tone highlight.');
+        }
+        if(_compFellBack !== _compHlFellBack){
+          console.error('[AOG:export] ✖ one overlay supersampled and the other did not '
+            +'(comp fellback='+_compFellBack+', compHl fellback='+_compHlFellBack+').');
+        }
+      }catch(_e){ console.warn('[AOG:export] overlay trace failed:',_e); }
     }catch(e){ comp=comp||null; }
     try{ if(saved) bCtx.putImageData(saved,0,0); }catch(e){}    // restore real backdrop
     _restoreVec();                                              // restore full anno arrays
@@ -14868,14 +15177,68 @@ function _buildVectorPdf(attachJson, onReady){
     }
 
     // 3) Read the overlay PNG(s), then assemble the PDF from original vectors.
+    //
+    // ══ THE ZOOM-DEPENDENT SHADE BUG ══════════════════════════════════════════
+    // A canvas's transparent pixels are RGBA(0,0,0,0): transparent, but BLACK
+    // underneath. A PDF stores colour and alpha SEPARATELY (a non-premultiplied
+    // /SMask), and Adobe resamples the RGB channel and the SMask INDEPENDENTLY at
+    // each zoom level. Bilinear filtering therefore bleeds that black out of the
+    // transparent region and into the edges of the paint. Under /BM /Multiply,
+    // black × anything = black, so the tint darkens — by a different amount at each
+    // zoom, because each zoom uses a different resample kernel. Clicking forces a
+    // full-resolution repaint (no bleed), which is why it "corrected itself".
+    //
+    // _bleedOverlayAlpha() only grows colour 2px into the transparent area. Adobe
+    // downsamples a ~5000px overlay to ~800px on screen — averaging 6+ pixels — so
+    // it reaches straight past that bleed and finds the black anyway.
+    //
+    // FIX: WHITE is the identity for Multiply (white × X = X). So the highlight
+    // overlay is flattened onto an OPAQUE WHITE background and embedded with NO
+    // alpha channel at all. No /SMask → nothing to resample independently → no
+    // black bleed → one exact shade at every zoom.
+    function _flattenOnWhite(cnv){
+      var f=document.createElement('canvas');
+      f.width=cnv.width; f.height=cnv.height;
+      var fx=f.getContext('2d');
+      fx.fillStyle='#ffffff';
+      fx.fillRect(0,0,f.width,f.height);
+      fx.drawImage(cnv,0,0);
+      return f;
+    }
+    // ── WHY THE NORMAL-BLEND OVERLAY CANNOT BE FIXED THE SAME WAY ─────────────
+    // The obvious symmetric fix would be: leave `comp`'s alpha alone, but write
+    // WHITE into the RGB of its fully-transparent pixels, so any resample bleed
+    // averages toward white (invisible) instead of black (a dark halo).
+    //
+    // That is IMPOSSIBLE on a <canvas>. Canvas 2D stores its backing store with
+    // PREMULTIPLIED alpha. Writing RGBA(255,255,255,0) via putImageData is
+    // premultiplied on store — 255 * 0 = 0 — and collapses straight back to
+    // (0,0,0,0). The colour under a fully transparent pixel is simply not
+    // representable; it is destroyed the moment it is written. A _whitenTransparent()
+    // helper WAS implemented here and silently did nothing: the exported PDF still
+    // read `mean RGB where alpha==0 = [0,0,0]`. Removed rather than left to mislead.
+    //
+    // The MULTIPLY overlay dodges this entirely by having no alpha at all
+    // (_flattenOnWhite above → opaque, no /SMask → nothing to resample separately).
+    //
+    // If dark halos ever show up around content that legitimately lives in THIS
+    // overlay (pen strokes, clouds, stamps — everything else is vector now), the
+    // real fix is to stop letting canvas own the alpha: flatten the RGB onto white,
+    // build the alpha as a SEPARATE 8-bit grayscale /SMask stream, and attach it to
+    // the image XObject directly. Then white sits under the transparency by
+    // construction and canvas premultiplication never gets a say.
     if(typeof _bleedOverlayAlpha==='function'){
       _bleedOverlayAlpha(comp);                        // kill dark edge halos at zoom
       if(compHl) _bleedOverlayAlpha(compHl);
     }
+
     var _encodeHl=function(cb){                        // → Uint8Array | null
       if(!compHl){ cb(null); return; }
       try{
-        compHl.toBlob(function(hb){
+        // OPAQUE white-matted highlight overlay: no alpha, no SMask, no bleed.
+        var flat=_flattenOnWhite(compHl);
+        flat.toBlob(function(hb){
+          try{ if(typeof releaseCanvas==='function') releaseCanvas(flat); }catch(e){}
           if(!hb){ cb(null); return; }
           var hfr=new FileReader();
           hfr.onerror=function(){ cb(null); };
@@ -14899,6 +15262,37 @@ function _buildVectorPdf(attachJson, onReady){
               var pages=pdf.getPages();
               if(idx>=pages.length) idx=0;
               var page=pages[idx];
+
+              // ══ PAGE TRANSPARENCY GROUP ══════════════════════════════════════
+              // This page uses blend modes (/BM /Multiply for the highlight overlay).
+              // A PDF page that does that MUST declare a transparency group, or the
+              // backdrop the blend composites against is undefined. Acrobat's response
+              // to an undefined backdrop is to draw a correct first pass and then
+              // RE-COMPOSITE during progressive refinement — multiplying the page
+              // content into itself. That is precisely the reported symptom: the
+              // highlight is the right colour for a split second, then goes dark.
+              //
+              // Other renderers (pdf.js, MuPDF, Preview) assume a sane default backdrop
+              // and look fine, which is why the exported file measured CORRECT
+              // (green = 0,255,0 at every zoom) while Acrobat still showed it wrong.
+              //
+              // Declaring /Group << /S /Transparency /CS /DeviceRGB >> makes the
+              // compositing backdrop well-defined, so the first render IS the final one.
+              try{
+                var _ctx=pdf.context;
+                page.node.set(
+                  PDFLib.PDFName.of('Group'),
+                  _ctx.obj({
+                    Type: PDFLib.PDFName.of('Group'),
+                    S:    PDFLib.PDFName.of('Transparency'),
+                    CS:   PDFLib.PDFName.of('DeviceRGB'),
+                    I:    false,   // non-isolated: blend against the page beneath
+                    K:    false    // non-knockout
+                  })
+                );
+                dbg('export','page transparency group added (/S /Transparency /CS /DeviceRGB) — '
+                          + 'defines the blend backdrop so Acrobat cannot re-composite darker');
+              }catch(_ge){ console.warn('[Export] could not set page /Group:',_ge); }
               var rot=0; try{ rot=((page.getRotation().angle||0)%360+360)%360; }catch(e){ rot=0; }
               // USER-ROTATED CANVAS FIX: rotateCanvas() spins the on-screen bitmap
               // and every vector object, but this reloaded page still has the
@@ -15636,7 +16030,7 @@ function buildProjectRecord(quality, cb){
         try{
           record.layers.push({
             name:layers[i].name, color:layers[i].color, visible:layers[i].visible,
-            data:layers[i].canvas.toDataURL('image/png')
+            data:(layerAllocated(layers[i]) ? layers[i].canvas.toDataURL('image/png') : '')
           });
         }catch(ex){
           record.layers.push({name:layers[i].name,color:layers[i].color,visible:layers[i].visible,data:''});
@@ -15726,7 +16120,7 @@ function encodeLayerSequential(i, record){
         name:    layers[i].name,
         color:   layers[i].color,
         visible: layers[i].visible,
-        data:    layers[i].canvas.toDataURL('image/png')
+        data:    (layerAllocated(layers[i]) ? layers[i].canvas.toDataURL('image/png') : '')
       });
     } catch(ex){
       // If a layer fails to encode (memory), store empty and continue
@@ -15849,13 +16243,22 @@ function doRestore(rec){
       layers=[];
       var pending=rec.layers.length;
       rec.layers.forEach(function(ld,i){
-        var c=document.createElement('canvas'); c.width=w; c.height=h;
-        var lc=c.getContext('2d');
+        var c=document.createElement('canvas');
+        var lc=c.getContext('2d',{willReadFrequently:true});
+        c.width=w; c.height=h;
         var li=new Image();
         li.onload=function(){
-          lc.globalCompositeOperation='source-over';
-          lc.clearRect(0,0,w,h);
-          lc.drawImage(li,0,0,w,h);
+          if(!ld.data){
+            // Empty layer (never drawn on). Decode a 1x1 stub so onload still fires
+            // and the loader's `pending` countdown completes — an Image with src=''
+            // never loads and would hang the restore — then drop it back to 0x0 so
+            // it costs no memory until something actually draws on it.
+            c.width=0; c.height=0;
+          } else {
+            lc.globalCompositeOperation='source-over';
+            lc.clearRect(0,0,w,h);
+            lc.drawImage(li,0,0,w,h);
+          }
           layers[i]={name:ld.name,color:ld.color,visible:ld.visible,canvas:c,ctx:lc};
           pending--;
           if(pending===0){
@@ -15941,7 +16344,8 @@ function doRestore(rec){
           pending--;
           if(pending===0){ composite(); renderLayers(); }
         };
-        li.src=ld.data;
+        // 1x1 transparent PNG stub for never-drawn layers (see onload above)
+        li.src = ld.data || 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
       });
     } else {
       afterLoad();
@@ -17593,6 +17997,43 @@ function hideHint(){ panHint.classList.remove('show'); }
     if(tip) gpuChip.title='GPU renderer: '+tip;
   })();
 
+  // ── EXPORT: will the next PDF be VECTOR (sharp) or RASTER (flattened)? ──
+  // This mirrors the real decision tree in _buildVectorPdf(), so it can't drift
+  // from the truth. Every "why is my export blurry" in this app is really "the
+  // exporter quietly bailed to the flattened composite". Surface it BEFORE the
+  // export, with the reason, instead of leaving you to guess afterwards.
+  var expChip = document.getElementById('perf-exp');
+  var expVal  = document.getElementById('perf-exp-v');
+  function expTick(){
+    if(!expChip) return;
+    var mode='—', why='', cls='none';
+    try{
+      if(typeof _vectorBackdropOK==='undefined' || !_vectorBackdropOK ||
+         !(typeof _pdfBytes!=='undefined' && _pdfBytes) ||
+         typeof window.PDFLib==='undefined'){
+        mode='RASTER'; cls='rast';
+        why='No pristine PDF page behind the canvas (blank canvas, image import, or a '
+          + 'restored project), so there are no vectors to keep. Everything is flattened.';
+      } else if(typeof _anyMovedExtracted==='function' &&
+                typeof _shouldWhiteCoverPage==='function' &&
+                !_shouldWhiteCoverPage() && _anyMovedExtracted()){
+        mode='RASTER'; cls='rast';
+        why='An extracted object whose original lives in the PAGE CONTENT STREAM '
+          + '(imported text, vector linework, or a baked highlight tint) was moved or '
+          + 'deleted. That original cannot be stripped, so the export flattens the sheet '
+          + 'rather than ship a ghost. Undo that edit to get a vector export.';
+      } else {
+        mode='VECTOR'; cls='vec';
+        why='Page stays vector; annotations are redrawn as true vectors. Sharp at any zoom.';
+      }
+    }catch(e){ mode='—'; cls='none'; why='Could not determine export path: '+e; }
+    if(expVal.textContent!==mode){ expVal.textContent=mode; }
+    expChip.className='perf-chip '+cls;
+    expChip.title='Next PDF export: '+mode+'\n\n'+why;
+  }
+  expTick();
+  setInterval(expTick, 1200);
+
   // ── MEM: TWO different pools, and only one of them matters here. ──
   // performance.memory reports the JS HEAP only. Canvas backing stores are
   // allocated by the renderer OUTSIDE that heap, so loading a 600 DPI page can
@@ -17647,6 +18088,13 @@ function hideHint(){ panHint.classList.remove('show'); }
 
       var tip='Canvas pixels: '+fmt(used)+' across '+cv.count+' canvases ('
             + cv.mp.toFixed(1)+' MP total)';
+      try{
+        var _tot=layers.length, _al=allocatedLayerCount(), _empty=_tot-_al;
+        var _per=(baseCv.width*baseCv.height*4*LAYER_RES*LAYER_RES)/1048576;
+        tip += '\nLayers: '+_al+' of '+_tot+' allocated'
+             + (_empty>0 ? '  ('+_empty+' empty × '+fmt(_per)+' saved = '+fmt(_empty*_per)+')' : '');
+        if(LAYER_RES!==1) tip += '\nLAYER_RES '+LAYER_RES+' → layer bitmaps at '+Math.round(LAYER_RES*100)+'% of page';
+      }catch(e){}
       if(pm && pm.jsHeapSizeLimit){
         tip += '\nJS heap: '+fmt(mb(pm.usedJSHeapSize))+' / '+fmt(mb(pm.jsHeapSizeLimit));
       }
