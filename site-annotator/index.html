@@ -14484,7 +14484,15 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
     var y1=Math.min(m.y1,m.y2), y2=Math.max(m.y1,m.y2);
     var h=(y2-y1)||6, w=(x2-x1)||20, midY=(y1+y2)/2;
     if(m.type==='highlight'){
-      var Wp=W(w), Hp=W(h);
+      // USE THE ORIENTED MODEL, NOT THE BOUNDING BOX.
+      // x1..y2 is the AXIS-ALIGNED BOUNDING BOX, which _markupSyncAABB() recomputes
+      // from the oriented rect after every canvas rotate. For a rotated highlight the
+      // AABB is already swapped/expanded — so deriving w/h from it and THEN applying
+      // the mark's angle transforms it twice, and the tint exports unrotated (or
+      // skewed). _markupInit() guarantees the true local model: centre + size + angle.
+      if(typeof _markupInit==='function') _markupInit(m);
+      var mw=(m.w||w||20), mh=(m.h||h||6);
+      var Wp=W(mw), Hp=W(mh);
       // Total rotation = page rotation + the mark's own angle. Canvas angles are
       // clockwise with y down; PDF is counter-clockwise with y up, so the mark's
       // angle enters NEGATED.
@@ -14492,7 +14500,7 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
       var th=thDeg*Math.PI/180, ct=Math.cos(th), st=Math.sin(th);
       // drawRectangle rotates about its (x,y) anchor = bottom-left, so place the
       // anchor where the rotated bottom-left corner lands relative to the CENTRE.
-      var hc=P((x1+x2)/2, (y1+y2)/2);
+      var hc=P((m.cx!=null?m.cx:(x1+x2)/2), (m.cy!=null?m.cy:(y1+y2)/2));
       var ax=hc.x + (-(Wp/2)*ct + (Hp/2)*st);
       var ay=hc.y + (-(Wp/2)*st - (Hp/2)*ct);
       var _rectOpts={x:ax, y:ay, width:Wp, height:Hp,
@@ -14510,10 +14518,23 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
           blend:(_rectOpts.blendMode?'Multiply':'NONE — will paint OPAQUE and hide the plan')
         });
       }catch(_e){}
-    } else if(m.type==='strikeout'){
-      line(x1,midY,x2,midY,m.color,2,op);
-    } else if(m.type==='underlinemark'){
-      line(x1,y2,x2,y2,m.color,2,op);
+    } else if(m.type==='strikeout' || m.type==='underlinemark'){
+      // Same AABB trap as the highlight above: after a canvas rotate, x1..y2 is the
+      // bounding box, so a rule drawn along its midline/bottom stays axis-aligned and
+      // no longer follows the rotated text. Build the rule in the mark's LOCAL frame
+      // (centre + size + angle) and rotate its endpoints into canvas space.
+      if(typeof _markupInit==='function') _markupInit(m);
+      var mw2=(m.w||w||20), mh2=(m.h||h||6);
+      var cx2=(m.cx!=null?m.cx:(x1+x2)/2), cy2=(m.cy!=null?m.cy:(y1+y2)/2);
+      var a2=(m.angle||0), ca2=Math.cos(a2), sa2=Math.sin(a2);
+      // Local y: 0 = centre (strikeout), +h/2 = bottom edge (underline).
+      var ly = (m.type==='strikeout') ? 0 : (mh2/2);
+      function _lp(lx, lyy){
+        return { x: cx2 + lx*ca2 - lyy*sa2,
+                 y: cy2 + lx*sa2 + lyy*ca2 };
+      }
+      var pA=_lp(-mw2/2, ly), pB=_lp(mw2/2, ly);
+      line(pA.x, pA.y, pB.x, pB.y, m.color, 2, op);
     }
   }); }catch(e){ console.warn('[Vec] markups',e); }
 
