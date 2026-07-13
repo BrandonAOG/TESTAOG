@@ -3671,20 +3671,190 @@ function updateLegend(){
 // ── ZOOM/PAN ──
 function applyTransform(){ scene.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if(typeof _setAnnoRes==='function') _setAnnoRes(false); if(typeof _setImgRes==='function') _setImgRes(false); if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); }
 
+// ── PAN LIMITS ────────────────────────────────────────────────────────────────
+// The old rule only guaranteed that 80px of canvas stayed on screen:
+//     panX = clamp(panX, 80-cw, vw-80)
+// So whenever the page was smaller than the viewport you could shove it almost
+// entirely off to either side and be left staring at a screen of black, with the
+// plan clinging to one edge. That is the "invisible barrier" — it sits far out in
+// empty space, nowhere near the drawing.
+//
+// The rule that actually matches how every map/CAD viewer behaves:
+//   • content SMALLER than the viewport → there is nothing to pan to. Lock it
+//     centred on that axis.
+//   • content LARGER than the viewport  → you may pan, but not past its edges.
+//     A little overscroll is allowed so the edge isn't glued to the frame.
+var PAN_OVERSCROLL = 0.12;   // fraction of the visible area you may drag past an edge
+
+// ── THE VISIBLE AREA IS NOT ALWAYS THE VIEWPORT ───────────────────────────────
+// On DESKTOP the side panels (layers, labels, properties) are flex SIBLINGS of
+// #viewport — they take their width out of the row, so viewport.clientWidth has
+// already excluded them. Nothing to do.
+//
+// Under 700px those same panels become position:fixed bottom SHEETS (42vh) that
+// OVERLAY the canvas. The viewport still reports full height, but the bottom
+// chunk of it is hidden behind the sheet. Centring against the full height would
+// park the drawing underneath the panel — and clamping against it would refuse to
+// let you pan it back out. (This is what the old 80px slack was really for: a
+// blunt way to always leave SOMETHING draggable. It worked, at the cost of letting
+// you fling the plan off-screen on desktop, where no panel overlays anything.)
+//
+// So: measure the area that is actually visible, and pan/centre against THAT.
+function _visibleVP(){
+  var w = viewport.clientWidth, h = viewport.clientHeight, top = 0;
+  try{
+    var vr = viewport.getBoundingClientRect();
+    var panels = document.querySelectorAll('.side-panel');
+    for(var i=0;i<panels.length;i++){
+      var p = panels[i];
+      if(p.classList.contains('collapsed')) continue;
+      var cs = getComputedStyle(p);
+      if(cs.position !== 'fixed') continue;          // in-flow panel → already excluded
+      var pr = p.getBoundingClientRect();
+      if(!pr.width || !pr.height) continue;
+      var overlap = Math.max(0, vr.bottom - pr.top); // sheet rises from the bottom
+      if(overlap > 0 && overlap < h) h -= overlap;
+    }
+  }catch(e){}
+  return {w:w, h:h, top:top};
+}
+
 function clampPan(){
-  var vw=viewport.clientWidth,vh=viewport.clientHeight;
-  var cw=baseCv.width*zoom,ch=baseCv.height*zoom;
-  panX=Math.max(Math.min(80-cw,0),Math.min(Math.max(vw-80,0),panX));
-  panY=Math.max(Math.min(80-ch,0),Math.min(Math.max(vh-80,0),panY));
+  var vp = _visibleVP();
+  var vw = vp.w, vh = vp.h;
+  var cw = baseCv.width*zoom, ch = baseCv.height*zoom;
+
+  if(cw <= vw){
+    panX = Math.round((vw - cw)/2);           // smaller than the visible area → centred
+  } else {
+    var slackX = vw * PAN_OVERSCROLL;
+    panX = Math.min(slackX, Math.max(vw - cw - slackX, panX));
+  }
+
+  if(ch <= vh){
+    panY = Math.round((vh - ch)/2);
+  } else {
+    var slackY = vh * PAN_OVERSCROLL;
+    panY = Math.min(slackY, Math.max(vh - ch - slackY, panY));
+  }
+}
+
+// ── WHERE IS THE ACTUAL DRAWING? ──────────────────────────────────────────────
+// The canvas is the PDF PAGE, and fit() centres it perfectly. But a scanned survey
+// rarely has its artwork centred on the paper — there's more blank margin on one
+// side than the other. Centring the PAGE therefore leaves the DRAWING off-centre,
+// and clampPan() then stops you at the edge of the paper rather than the edge of
+// the ink (the "invisible barrier": you're panning into blank margin).
+//
+// So find the ink. Downsample the base canvas hard (a few hundred px wide is plenty
+// — we only need a bounding box, not detail), then walk it for non-white pixels.
+// Cached per base render: this is a readback, not something to do on every fit.
+var _inkBox = null;      // {x,y,w,h} in BASE CANVAS pixels
+function _findInkBox(){
+  if(_inkBox) return _inkBox;
+  try{
+    var W = baseCv.width, H = baseCv.height;
+    if(!W || !H) return null;
+    var SW = 400, SH = Math.max(1, Math.round(H * (SW/W)));
+    var c = document.createElement('canvas'); c.width=SW; c.height=SH;
+    var x = c.getContext('2d', {willReadFrequently:true});
+    x.drawImage(baseCv, 0,0, SW,SH);
+    var d = x.getImageData(0,0,SW,SH).data;
+    var minX=SW, minY=SH, maxX=-1, maxY=-1;
+    // "Ink" = anything meaningfully darker than paper. Scans are noisy and grey,
+    // so 236 rather than a strict 255 — a hard threshold would catch JPEG speckle
+    // in the margin and defeat the whole point.
+    for(var yy=0; yy<SH; yy++){
+      for(var xx=0; xx<SW; xx++){
+        var i=(yy*SW+xx)*4;
+        if(d[i+3] < 8) continue;                     // transparent → not ink
+        if(d[i]<236 || d[i+1]<236 || d[i+2]<236){
+          if(xx<minX) minX=xx;
+          if(xx>maxX) maxX=xx;
+          if(yy<minY) minY=yy;
+          if(yy>maxY) maxY=yy;
+        }
+      }
+    }
+    if(maxX < 0) return null;                        // blank page → nothing to fit
+    var k = W/SW;                                    // back to base-canvas pixels
+    var pad = 6;                                     // a little breathing room
+    var bx = Math.max(0, (minX-pad)*k), by = Math.max(0, (minY-pad)*k);
+    var bw = Math.min(W-bx, (maxX-minX+1+pad*2)*k);
+    var bh = Math.min(H-by, (maxY-minY+1+pad*2)*k);
+    // If the ink already fills nearly the whole page there's nothing to gain —
+    // fall back to the page so behaviour is unchanged on a well-cropped plan.
+    if(bw > W*0.97 && bh > H*0.97) return null;
+    _inkBox = {x:bx, y:by, w:bw, h:bh};
+    console.warn('[AOG:fit] ink box '+Math.round(bw)+'x'+Math.round(bh)
+      +' at '+Math.round(bx)+','+Math.round(by)
+      +'  (page is '+W+'x'+H+' — fitting to the DRAWING, not the paper)');
+    return _inkBox;
+  }catch(e){ return null; }
 }
 
 function fitToVP(){
-  var vw=viewport.clientWidth-48,vh=viewport.clientHeight-48;
+  var _vp = _visibleVP();                     // not the raw viewport — see clampPan()
+  var vw=_vp.w-48, vh=_vp.h-48;
   var cw=baseCv.width,ch=baseCv.height; if(!cw||!ch) return;
+
+  // Fit the ARTWORK if we can find it; fall back to the whole page if not.
+  var box = _findInkBox();
+  if(box){
+    zoom = Math.max(0.05, Math.min(1, vw/box.w, vh/box.h));
+    panX = Math.round(_vp.w/2 - (box.x + box.w/2)*zoom);
+    panY = Math.round(_vp.h/2 - (box.y + box.h/2)*zoom);
+    applyTransform();
+    return;
+  }
+
   zoom=Math.max(0.05,Math.min(1,vw/cw,vh/ch));
-  panX=Math.round((viewport.clientWidth-cw*zoom)/2);
-  panY=Math.round((viewport.clientHeight-ch*zoom)/2);
+  panX=Math.round((_vp.w-cw*zoom)/2);
+  panY=Math.round((_vp.h-ch*zoom)/2);
   applyTransform();
+
+  // ── SELF-CORRECTING CENTRE ────────────────────────────────────────────────
+  // The maths above assumes the scene's on-screen box is exactly baseCv scaled,
+  // sitting at panX/panY inside the viewport. If ANYTHING else contributes to
+  // horizontal layout — a border, a scrollbar, a collapsed rail, a wrap that is
+  // wider than base-cv — the page lands off-centre, and no amount of arithmetic
+  // up here will notice.
+  //
+  // So don't argue with the layout: MEASURE it. Ask the browser where the page
+  // actually rendered, compare that to where the viewport's centre actually is,
+  // and shift by the difference. Self-correcting, whatever the cause.
+  requestAnimationFrame(function(){
+    try{
+      var wrap = document.getElementById('canvas-wrap') || baseCv;
+      var w = wrap.getBoundingClientRect();
+      var v = viewport.getBoundingClientRect();
+      if(!w.width || !w.height) return;
+      var dx = (v.left + v.width/2)  - (w.left + w.width/2);
+      var dy = (v.top  + v.height/2) - (w.top  + w.height/2);
+      // Report UNCONDITIONALLY (console.warn, not dbg — dbg is gated behind
+      // AOG_DEBUG, so "no log appeared" told us nothing at all).
+      // The two numbers that settle where the dead space lives:
+      //   canvas aspect vs page aspect — if the CANVAS is wider than the artwork,
+      //   then centring the canvas cannot centre what you can see, and the fix is
+      //   upstream in how the page was rasterised, not in fit().
+      var ar = (baseCv.width/baseCv.height);
+      console.warn('[AOG:fit] canvas '+baseCv.width+'x'+baseCv.height
+        +'  (aspect '+ar.toFixed(3)+')'
+        +'   viewport '+Math.round(v.width)+'x'+Math.round(v.height)
+        +'   zoom '+(zoom*100).toFixed(1)+'%'
+        +'   wrap on screen '+Math.round(w.width)+'x'+Math.round(w.height)
+        +'   off-centre by dx='+dx.toFixed(1)+' dy='+dy.toFixed(1));
+      if(Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5){
+        console.warn('[AOG:fit] The CANVAS is centred. If the drawing still looks '
+          +'off-centre, the empty margin is INSIDE the canvas — baseCv is bigger than '
+          +'the artwork — so fit() is not the bug.');
+        return;
+      }
+      panX += Math.round(dx);
+      panY += Math.round(dy);
+      applyTransform();
+    }catch(e){}
+  });
 }
 
 function zoomAt(f,cx,cy){
@@ -6414,6 +6584,7 @@ function afterLoad(){
   drawGrid();
   fitToVP();
   toast('File loaded — '+(IS_IPHONE?'iPhone cap applied':'ready to annotate'),'ok',2000);
+  _inkBox=null;   // new document → recompute where the drawing is
   clearSave(); _clearPdfSource(); scheduleSave(); // start fresh save for this file
   // Auto-detect scale from title block (non-blocking)
   setTimeout(autoDetectScale, 100);
@@ -6462,6 +6633,7 @@ var layerTmps=layers.map(function(l){
   });
   resize(h,w);
   bCtx.drawImage(tmp,0,0);
+  _inkBox=null;   // base canvas rotated → its ink bounding box is stale
   layers.forEach(function(l,i){
     if(!layerTmps[i]) return;   // was never allocated → leave it at 0x0
     l.canvas.width=layerTmps[i].width; l.canvas.height=layerTmps[i].height;
