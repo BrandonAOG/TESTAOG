@@ -4027,7 +4027,15 @@ function _loadPDFRasterized(f){
   // gate cleanly (→ correct raster fallback) until the new bytes are ready; the
   // render code re-enables the vector path with the new page.
   _pdfBytes=null;
-  try{ f.arrayBuffer().then(function(b){ _pdfBytes=b; }).catch(function(){ _pdfBytes=null; }); }catch(e){ _pdfBytes=null; }
+  try{ f.arrayBuffer().then(function(b){
+        _pdfBytes=b;
+        // _pdfBytes lands ASYNCHRONOUSLY. Any autosave that fired before this point
+        // recorded "no PDF" — so cache the bytes the moment they arrive, and kick a
+        // save so the session record agrees. Without this the FIRST refresh after an
+        // import still came back raster.
+        try{ _persistPdfSource(); }catch(e){}
+        try{ if(typeof scheduleSave==='function') scheduleSave(); }catch(e){}
+      }).catch(function(){ _pdfBytes=null; }); }catch(e){ _pdfBytes=null; }
   // pdf.js 3.x REQUIRES a worker source. The original code set this in a
   // guard that executed before the library loaded, so it was never applied
   // and PDFs failed to open. Set it lazily here, once, now that pdfjsLib exists.
@@ -4089,7 +4097,15 @@ function _loadPDFExploded(f){
   if(typeof pdfjsLib==='undefined'){ toast('PDF support requires an internet connection.','warn'); return; }
   // Invalidate previous file's bytes synchronously (see _loadPDFRasterized note).
   _pdfBytes=null;
-  try{ f.arrayBuffer().then(function(b){ _pdfBytes=b; }).catch(function(){ _pdfBytes=null; }); }catch(e){ _pdfBytes=null; }
+  try{ f.arrayBuffer().then(function(b){
+        _pdfBytes=b;
+        // _pdfBytes lands ASYNCHRONOUSLY. Any autosave that fired before this point
+        // recorded "no PDF" — so cache the bytes the moment they arrive, and kick a
+        // save so the session record agrees. Without this the FIRST refresh after an
+        // import still came back raster.
+        try{ _persistPdfSource(); }catch(e){}
+        try{ if(typeof scheduleSave==='function') scheduleSave(); }catch(e){}
+      }).catch(function(){ _pdfBytes=null; }); }catch(e){ _pdfBytes=null; }
   if(pdfjsLib.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc){
     pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   }
@@ -6283,7 +6299,7 @@ function afterLoad(){
   drawGrid();
   fitToVP();
   toast('File loaded — '+(IS_IPHONE?'iPhone cap applied':'ready to annotate'),'ok',2000);
-  clearSave(); scheduleSave(); // start fresh save for this file
+  clearSave(); _clearPdfSource(); scheduleSave(); // start fresh save for this file
   // Auto-detect scale from title block (non-blocking)
   setTimeout(autoDetectScale, 100);
 }
@@ -15983,6 +15999,44 @@ function initSaveDB(cb){
 // We never call requestPermission() here — `startIn` only needs the handle for
 // its directory, not read access — so the user sees no extra permission dialog.
 var HANDLE_KEY='last-opened-handle';
+var PDFSRC_KEY='pdf-source';   // the pristine PDF, written once per import
+
+// Persist the source PDF exactly once, so a REFRESH can still export vector.
+function _persistPdfSource(){
+  try{
+    if(!_saveDb || typeof _pdfBytes==='undefined' || !_pdfBytes) return;
+    var tx=_saveDb.transaction(SAVE_STORE,'readwrite');
+    tx.objectStore(SAVE_STORE).put({
+      id:PDFSRC_KEY, bytes:_pdfBytes.slice(0),
+      pageNum:(typeof _vecPageNum!=='undefined'?_vecPageNum:1),
+      pageRot:(typeof _pdfPageRot!=='undefined'?_pdfPageRot:0),
+      at:Date.now()
+    });
+    dbg('save','pristine PDF cached ('+_pdfBytes.byteLength+' bytes) → refresh keeps VECTOR export');
+  }catch(e){ console.warn('[Save] could not cache PDF source:',e); }
+}
+function _clearPdfSource(){
+  try{ if(_saveDb) _saveDb.transaction(SAVE_STORE,'readwrite').objectStore(SAVE_STORE).delete(PDFSRC_KEY); }catch(e){}
+}
+// Re-arm the vector path from the cached bytes after a refresh/restore.
+function _loadPdfSource(cb){
+  try{
+    if(!_saveDb){ cb&&cb(false); return; }
+    var rq=_saveDb.transaction(SAVE_STORE,'readonly').objectStore(SAVE_STORE).get(PDFSRC_KEY);
+    rq.onsuccess=function(e){
+      var r=e.target.result;
+      if(r && r.bytes && r.bytes.byteLength){
+        _pdfBytes=r.bytes;
+        _vecPageNum=r.pageNum||1;
+        if(typeof _pdfPageRot!=='undefined') _pdfPageRot=r.pageRot||0;
+        _vectorBackdropOK=true;
+        dbg('restore','pristine PDF recovered from cache → export stays VECTOR');
+        cb&&cb(true);
+      } else { cb&&cb(false); }
+    };
+    rq.onerror=function(){ cb&&cb(false); };
+  }catch(e){ cb&&cb(false); }
+}
 function saveLastOpenedHandle(handle){
   try{
     if(!_saveDb || !handle) return;
@@ -16139,6 +16193,16 @@ function doSave(){
     id:             'session',
     ts:             Date.now(),
     baseData:       null,
+    // doSave() builds its OWN record (it does NOT go through buildProjectRecord()),
+    // and this is the record a page REFRESH restores from. It needs to know the
+    // source PDF exists — but NOT carry it: doSave is debounced and fires on every
+    // change, and re-cloning a multi-megabyte ArrayBuffer into IndexedDB on each one
+    // is pure write amplification. The bytes never change, so they're written ONCE
+    // under their own key (PDFSRC_KEY) at import; the session record just records
+    // the page metadata and lets doRestore() fetch them.
+    pdfPageNum:     (typeof _vecPageNum!=='undefined' ? _vecPageNum : 1),
+    pdfPageRot:     (typeof _pdfPageRot!=='undefined' ? _pdfPageRot : 0),
+    userRotDeg:     (typeof _userRotDeg!=='undefined' ? _userRotDeg : 0),
     layers:         [],
     activeLayerIdx: activeLayerIdx,
     scaleSet:       scaleSet,
@@ -16321,8 +16385,16 @@ function doRestore(rec){
       _vectorBackdropOK = true;
       dbg('restore','pristine PDF restored ('+_pdfBytes.byteLength+' bytes, page '
                   + _vecPageNum + ') → exports stay VECTOR');
-    } else {
-      dbg('restore','no PDF source in this save (older project or image import) → raster export');
+    } else if(typeof _loadPdfSource==='function'){
+      // No inline bytes (this is the refresh/autosave path — the session record
+      // deliberately doesn't carry the PDF). Pull it from the one-shot cache.
+      _loadPdfSource(function(ok){
+        if(ok){
+          if(typeof _userRotDeg!=='undefined') _userRotDeg = rec.userRotDeg || 0;
+        } else {
+          dbg('restore','no cached PDF source (older project or image import) → raster export');
+        }
+      });
     }
   }catch(e){
     console.warn('[Restore] could not restore PDF source:',e);
