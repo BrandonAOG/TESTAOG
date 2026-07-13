@@ -16051,22 +16051,41 @@ function initSaveDB(cb){
 // its directory, not read access — so the user sees no extra permission dialog.
 var HANDLE_KEY='last-opened-handle';
 var PDFSRC_KEY='pdf-source';   // the pristine PDF, written once per import
+var _pdfSrcCached=false;       // has it actually landed in IndexedDB for THIS file?
 
 // Persist the source PDF exactly once, so a REFRESH can still export vector.
 function _persistPdfSource(){
   try{
-    if(!_saveDb || typeof _pdfBytes==='undefined' || !_pdfBytes) return;
+    // THE RACE THAT BROKE THIS: _pdfBytes arrives from f.arrayBuffer() asynchronously,
+    // and IndexedDB opens asynchronously too. Whichever loses the race, this used to
+    // return silently — the cache was never written, so a refresh had nothing to
+    // recover and every restored session fell back to raster. Now it reports, and
+    // doSave() retries until it actually lands (see below).
+    if(typeof _pdfBytes==='undefined' || !_pdfBytes){ return false; }
+    if(!_saveDb){
+      dbg('save','PDF cache deferred — IndexedDB not open yet; doSave() will retry');
+      return false;
+    }
     var tx=_saveDb.transaction(SAVE_STORE,'readwrite');
-    tx.objectStore(SAVE_STORE).put({
+    var rq=tx.objectStore(SAVE_STORE).put({
       id:PDFSRC_KEY, bytes:_pdfBytes.slice(0),
       pageNum:(typeof _vecPageNum!=='undefined'?_vecPageNum:1),
       pageRot:(typeof _pdfPageRot!=='undefined'?_pdfPageRot:0),
       at:Date.now()
     });
-    dbg('save','pristine PDF cached ('+_pdfBytes.byteLength+' bytes) → refresh keeps VECTOR export');
-  }catch(e){ console.warn('[Save] could not cache PDF source:',e); }
+    rq.onsuccess=function(){
+      _pdfSrcCached=true;
+      dbg('save','pristine PDF cached ('+_pdfBytes.byteLength+' bytes) → refresh/crash-restore keeps VECTOR export');
+    };
+    rq.onerror=function(e){
+      _pdfSrcCached=false;
+      console.warn('[Save] PDF cache write FAILED (quota?):', rq.error||e);
+    };
+    return true;
+  }catch(e){ console.warn('[Save] could not cache PDF source:',e); return false; }
 }
 function _clearPdfSource(){
+  _pdfSrcCached=false;
   try{ if(_saveDb) _saveDb.transaction(SAVE_STORE,'readwrite').objectStore(SAVE_STORE).delete(PDFSRC_KEY); }catch(e){}
 }
 // Re-arm the vector path from the cached bytes after a refresh/restore.
@@ -16081,7 +16100,8 @@ function _loadPdfSource(cb){
         _vecPageNum=r.pageNum||1;
         if(typeof _pdfPageRot!=='undefined') _pdfPageRot=r.pageRot||0;
         _vectorBackdropOK=true;
-        dbg('restore','pristine PDF recovered from cache → export stays VECTOR');
+        _pdfSrcCached=true;   // already in the DB — don't rewrite it on the next save
+        dbg('restore','pristine PDF recovered from cache ('+_pdfBytes.byteLength+' bytes) → export stays VECTOR');
         cb&&cb(true);
       } else { cb&&cb(false); }
     };
@@ -16239,6 +16259,15 @@ function doSave(){
   // Don't save while user is actively drawing or pinching (memory already high)
   if(drawing||pinching) { scheduleSave(); return; }
   setSaveStatus('saving');
+
+  // RELIABLE CACHE POINT. Reaching here PROVES IndexedDB is open, so this is where
+  // the pristine PDF actually gets written — not in the import handler, which can
+  // (and did) fire before the DB was ready and then never retry. Written once per
+  // file; the bytes never change, so autosave doesn't rewrite megabytes on every
+  // debounce. This is what makes a refresh OR a crash-restore still export VECTOR.
+  if(!_pdfSrcCached && typeof _pdfBytes!=='undefined' && _pdfBytes){
+    _persistPdfSource();
+  }
 
   var record = {
     id:             'session',
@@ -16434,6 +16463,8 @@ function doRestore(rec){
       if(typeof _pdfPageRot!=='undefined') _pdfPageRot = rec.pdfPageRot || 0;
       if(typeof _userRotDeg!=='undefined') _userRotDeg = rec.userRotDeg || 0;
       _vectorBackdropOK = true;
+      _pdfSrcCached = false;   // came from the FILE, not the DB — cache it so a
+      try{ _persistPdfSource(); }catch(e){}   // refresh/crash after this still works
       dbg('restore','pristine PDF restored ('+_pdfBytes.byteLength+' bytes, page '
                   + _vecPageNum + ') → exports stay VECTOR');
     } else if(typeof _loadPdfSource==='function'){
