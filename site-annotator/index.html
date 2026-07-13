@@ -14598,6 +14598,32 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
         var ry0 = i*lineH;
         var rx = obj.x + rx0*ca - ry0*sa;
         var ry = obj.y + rx0*sa + ry0*ca;
+
+        // ── BACKGROUND HIGHLIGHT — ROTATED CASE ────────────────────────────────
+        // This used to be drawn ONLY in the else-branch below (the unrotated path),
+        // so a label's highlight silently vanished from the export the moment the
+        // object had any angle. And rotateCanvas folds the page rotation into EVERY
+        // text object's angle — so one canvas rotate set a!==0 on every label and
+        // dropped every text highlight from the PDF. Draw it here too, in the
+        // rotated frame, before the glyphs so it sits BEHIND them.
+        if(obj.bgOpacity && obj.bgOpacity>0){
+          var ascR=fsize*TXT_ASC_F, descR=fsize*TXT_DESC_F, padXR=2/sc, padYR=1.5/sc;
+          // Bottom-left of the bg box in the LABEL'S LOCAL frame (same offsets the
+          // unrotated branch uses), then rotated about (obj.x,obj.y) like the glyphs.
+          var bx0 = rx0 - padXR*sc;
+          var by0 = ry0 + (descR+padYR)*sc;
+          var bxr = obj.x + bx0*ca - by0*sa;
+          var byr = obj.y + bx0*sa + by0*ca;
+          var bpR = P(bxr, byr);
+          page.drawRectangle({
+            x:bpR.x, y:bpR.y,
+            width:W(tw)+padXR*2, height:(ascR+descR)+padYR*2,
+            rotate:degrees(-a*180/Math.PI + rotDeg),   // same total spin as the text
+            color:col(obj.bgColor||'#ffff00'),
+            opacity:op*obj.bgOpacity, borderWidth:0
+          });
+        }
+
         var tp=P(rx,ry);
         page.drawText(ln,{x:tp.x, y:tp.y, size:fsize, font:f, color:col(obj.color),
           opacity:op, rotate:degrees(-a*180/Math.PI + rotDeg)});
@@ -15732,7 +15758,7 @@ if(btnSaveProj) btnSaveProj.addEventListener('click', function(){
     toast('Saving project…','',0);
     buildProjectRecord(0.92, function(rec){
       if(!rec){ toast('Project save failed — try again','err',4000); return; }
-      var json; try{ json=JSON.stringify(rec); }catch(ex){ toast('Project too large to serialize','err',4000); return; }
+      var json; try{ json=JSON.stringify(_recordForJson(rec)); }catch(ex){ toast('Project too large to serialize','err',4000); return; }
       var blob=new Blob([json],{type:'application/json'});
       writeToTarget(handle, blob, name).then(function(){ toast('Project saved ✓','ok',2500); });
     });
@@ -15783,7 +15809,7 @@ if(btnPdfEdit) btnPdfEdit.addEventListener('click', function(){
     // Build the editable record first; we embed it as a PDF attachment either way.
     buildProjectRecord(0.92, function(rec){
       if(!rec){ toast('Editable PDF failed — try again','err',4000); return; }
-      var json; try{ json=JSON.stringify(rec); }catch(ex){ toast('Project too large to embed','err',4000); return; }
+      var json; try{ json=JSON.stringify(_recordForJson(rec)); }catch(ex){ toast('Project too large to embed','err',4000); return; }
       // Preferred: keep original PDF vectors crisp + annotations on top + JSON attached.
       _buildVectorPdf(json, function(vbytes){
         if(vbytes){
@@ -15987,6 +16013,32 @@ var JPEG_QUALITY   = 0.99; // JPEG at max visual quality on screen (session save
 // canvases are encoded one at a time to avoid iOS memory spikes.
 //   quality : JPEG quality for the base image (layers always PNG for alpha)
 //   cb(record) : called with the finished record, or null on failure
+// The project record travels two very different roads:
+//   • IndexedDB  → structured clone, an ArrayBuffer survives as-is (compact).
+//   • JSON       → project file + PDF embed. An ArrayBuffer JSON.stringify()s to
+//                  `{}` — SILENTLY. Storing the raw buffer alone would quietly
+//                  corrupt every saved .aogplan file and every embedded project.
+// So: IndexedDB keeps the raw bytes, and the JSON paths get a base64 string.
+function _ab2b64(buf){
+  var b=new Uint8Array(buf), s='', CH=0x8000;
+  for(var i=0;i<b.length;i+=CH) s+=String.fromCharCode.apply(null, b.subarray(i,i+CH));
+  return btoa(s);
+}
+function _b642ab(str){
+  var bin=atob(str), n=bin.length, out=new Uint8Array(n);
+  for(var i=0;i<n;i++) out[i]=bin.charCodeAt(i);
+  return out.buffer;
+}
+// Swap the raw ArrayBuffer for base64 so the record can be JSON.stringify()d.
+function _recordForJson(rec){
+  var j={};
+  for(var k in rec) if(Object.prototype.hasOwnProperty.call(rec,k)) j[k]=rec[k];
+  try{
+    j.pdfSource = (rec.pdfSource && rec.pdfSource.byteLength) ? _ab2b64(rec.pdfSource) : null;
+    j.pdfSourceB64 = !!j.pdfSource;
+  }catch(e){ j.pdfSource=null; j.pdfSourceB64=false; }
+  return j;
+}
 function buildProjectRecord(quality, cb){
   if(!baseLoaded){ cb&&cb(null); return; }
   var q = (quality!==undefined?quality:JPEG_QUALITY);
@@ -15995,6 +16047,21 @@ function buildProjectRecord(quality, cb){
     ts:             Date.now(),
     fmt:            'aogplan-1',          // format tag for project files / PDF embed
     baseData:       null,
+    // ══ THE PRISTINE SOURCE PDF ══════════════════════════════════════════════
+    // Without this, a restored project can ONLY export raster. The vector path
+    // works by re-loading the ORIGINAL PDF and stamping annotations onto its real
+    // page — so it needs the source bytes. Previously we saved only baseData (a
+    // flattened PNG of the page), and doRestore() therefore had to set
+    // `_vectorBackdropOK=false; _pdfBytes=null`. That is why refreshing and
+    // reopening a plan you had already worked on silently downgraded every export
+    // to a flattened raster: the vectors weren't lost, the SOURCE was.
+    //
+    // IndexedDB stores structured clones, so the ArrayBuffer goes in as-is — no
+    // base64 (which would inflate it ~33%). Costs the size of the original PDF.
+    pdfSource:      (typeof _pdfBytes!=='undefined' && _pdfBytes) ? _pdfBytes.slice(0) : null,
+    pdfPageNum:     (typeof _vecPageNum!=='undefined' ? _vecPageNum : 1),
+    pdfPageRot:     (typeof _pdfPageRot!=='undefined' ? _pdfPageRot : 0),
+    userRotDeg:     (typeof _userRotDeg!=='undefined' ? _userRotDeg : 0),
     layers:         [],
     activeLayerIdx: activeLayerIdx,
     scaleSet:       scaleSet,
@@ -16239,7 +16306,28 @@ function _scaleRecord(rec,k){
   if(typeof rec.gridSize==='number') rec.gridSize*=k;
 }
 function doRestore(rec){
-  _vectorBackdropOK=false; _pdfBytes=null;  // restored from a flattened project, no PDF vectors
+  // Bring the pristine source PDF back, so a reopened project still exports VECTOR.
+  // Older saves (fmt before pdfSource existed) simply have no bytes — those stay on
+  // the raster path, which is correct: there is genuinely no page to stamp onto.
+  _vectorBackdropOK=false; _pdfBytes=null;
+  try{
+    var _src = rec.pdfSource;
+    if(typeof _src === 'string' && _src.length){ _src = _b642ab(_src); }   // came from JSON
+    if(_src && _src.byteLength){
+      _pdfBytes = _src;
+      _vecPageNum = rec.pdfPageNum || 1;
+      if(typeof _pdfPageRot!=='undefined') _pdfPageRot = rec.pdfPageRot || 0;
+      if(typeof _userRotDeg!=='undefined') _userRotDeg = rec.userRotDeg || 0;
+      _vectorBackdropOK = true;
+      dbg('restore','pristine PDF restored ('+_pdfBytes.byteLength+' bytes, page '
+                  + _vecPageNum + ') → exports stay VECTOR');
+    } else {
+      dbg('restore','no PDF source in this save (older project or image import) → raster export');
+    }
+  }catch(e){
+    console.warn('[Restore] could not restore PDF source:',e);
+    _vectorBackdropOK=false; _pdfBytes=null;
+  }
   var img=new Image();
   img.onload=function(){
     var scale=Math.min(1,IOS_MAX_PX/Math.max(img.width,img.height));
