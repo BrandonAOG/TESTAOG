@@ -6497,9 +6497,23 @@ function _computeAnnoEff(){
   if(!w || !h) return 1;
   var devicePR = window.devicePixelRatio || 1;
   var eff = Math.max(1, devicePR * Math.max(1, zoom));   // cover device px at zoom
-  eff = Math.min(eff, 3);                                // hard ceiling
-  var _CAP = (IS_IPHONE ? 5e6 : 12e6);                  // per-canvas device-px ceiling
+  // Resolution ceiling. Desktop gets a higher cap (4×) so vector annotations
+  // (text, shapes, highlights) keep re-rendering sharp as you zoom past 300%
+  // instead of magnifying, while leaving comfortable memory headroom. iOS stays
+  // at 3× — its per-canvas budget is far tighter.
+  eff = Math.min(eff, IS_IOS ? 3 : 4);                   // hard ceiling (desktop 4, iOS 3)
+  // Per-canvas device-px AREA ceiling. Kept modest on desktop for breathing
+  // room — big enough to reach ~4× on normal pages, not so big that three anno
+  // canvases balloon total canvas memory. iPad/iPhone unchanged.
+  var _CAP = (IS_IPHONE ? 5e6 : (IS_IPAD ? 12e6 : 24e6));
   if(w*h*eff*eff > _CAP) eff = Math.max(1, Math.sqrt(_CAP/(w*h)));
+  // HARD PER-SIDE DIMENSION GUARD. Browsers refuse to allocate a canvas whose
+  // width OR height exceeds ~32767px and silently hand back a BLANK canvas —
+  // the opposite of crisp. Clamp eff so neither side of the backing store passes
+  // a safe 16384px limit even at max zoom on a large sheet.
+  var MAX_SIDE = IS_IOS ? 8192 : 16384;
+  var sideCap = Math.min(MAX_SIDE / w, MAX_SIDE / h);
+  if(eff > sideCap) eff = Math.max(1, sideCap);
   return Math.round(eff*4)/4;                            // bucket to 0.25 steps
 }
 function _sizeAnnoCanvas(cv, ctx, eff){
@@ -17238,11 +17252,19 @@ function _computeImgEff(){
   if(!w || !h) return 1;
   var devicePR = window.devicePixelRatio || 1;
   var eff = Math.max(1, devicePR * Math.max(1, zoom));
-  eff = Math.min(eff, 8);                                 // higher ceiling than text/shapes (3)
-  // Per-canvas budget. iOS Safari hard-caps a single canvas around ~16.7MP and
-  // silently corrupts/blanks anything bigger — keep iPad well under that.
-  var _CAP = (IS_IPHONE ? 8e6 : (IS_IPAD ? 12e6 : 24e6));
+  eff = Math.min(eff, IS_IOS ? 8 : 5);                   // ceiling (desktop 5, iOS 8-then-capped)
+  // Per-canvas AREA budget. iOS Safari hard-caps a single canvas around ~16.7MP
+  // and silently corrupts/blanks anything bigger — keep iPad/iPhone well under.
+  // Desktop set to 36MP: enough to reach ~5× on normal pages while leaving
+  // memory headroom (the image canvas alone was pushing total VRAM past 1GB).
+  var _CAP = (IS_IPHONE ? 8e6 : (IS_IPAD ? 12e6 : 36e6));
   if(w*h*eff*eff > _CAP) eff = Math.max(1, Math.sqrt(_CAP/(w*h)));
+  // HARD PER-SIDE GUARD. Browsers blank a canvas whose width OR height passes
+  // ~32767px. Clamp eff so neither side of the backing store crosses a safe
+  // limit — a blank image is the opposite of crisp.
+  var MAX_SIDE = IS_IOS ? 8192 : 16384;
+  var _sideCap = Math.min(MAX_SIDE / w, MAX_SIDE / h);
+  if(eff > _sideCap) eff = Math.max(1, _sideCap);
   // Don't exceed what the placed images' source resolution can supply.
   var maxNative = 1;
   if(typeof imgOverlays!=='undefined'){
@@ -17748,6 +17770,15 @@ function handleImgPointerMove(e, sp){
     var spanW = cursorLocal.x - fx;
     var spanH = cursorLocal.y - fy;
 
+    // MINIMUM RESIZE SIZE — scale-aware.
+    // The old flat floor of 20 canvas-units blocked sizing objects (e.g. a
+    // generator that must be exactly 2ft x 4ft) whenever the scale made those
+    // real dimensions smaller than 20px. When a scale IS set, use a real-world
+    // minimum of 1 ft (converted to canvas units via ppu) — small enough for any
+    // real object, large enough to prevent an accidental shrink to nothing.
+    // With no scale set, keep the 20px screen-pixel guard.
+    var MIN_SIDE = (scaleSet && ppu > 0) ? Math.max(1, 1 / ppu) : 20;
+
     var isVEdge = (hi===1 || hi===5); // top/bottom centre → only HEIGHT changes
     var isHEdge = (hi===3 || hi===7); // left/right middle → only WIDTH changes
 
@@ -17757,13 +17788,13 @@ function handleImgPointerMove(e, sp){
       // Width is locked; the locked axis stays centred on the fixed point (fx=0),
       // so the image must NOT shift sideways.
       newW = d.w;
-      newH = Math.max(20, Math.abs(spanH));
+      newH = Math.max(MIN_SIDE, Math.abs(spanH));
       newCx_local = fx;                 // = 0 → no horizontal drift
       newCy_local = fy + spanH/2;
     } else if(isHEdge){
       // Height is locked; keep vertical position fixed → no vertical drift.
       newH = d.h;
-      newW = Math.max(20, Math.abs(spanW));
+      newW = Math.max(MIN_SIDE, Math.abs(spanW));
       newCx_local = fx + spanW/2;
       newCy_local = fy;                 // = 0 → no vertical drift
     } else {
@@ -17774,7 +17805,7 @@ function handleImgPointerMove(e, sp){
       var ar = (d.h !== 0) ? (d.w / d.h) : 1;
       var sW = Math.abs(spanW), sH = Math.abs(spanH);
       var scale = (sW / d.w > sH / d.h) ? (sW / d.w) : (sH / d.h);
-      var minScale = Math.max(20 / d.w, 20 / d.h);
+      var minScale = Math.max(MIN_SIDE / d.w, MIN_SIDE / d.h);
       if(scale < minScale) scale = minScale;
       newW = d.w * scale;
       newH = d.h * scale;
