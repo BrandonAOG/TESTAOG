@@ -2148,6 +2148,46 @@ function measureLinesWFull(lines, fontSize, family, bold, italic){
   tCtx.restore();
   return maxW;
 }
+// ── Word-wrap support for text objects ─────────────────────────────
+// obj.wrapW (stored in POINTS, like fontSize, so it stays scale-locked) is an
+// optional wrap width set by dragging a SIDE resize handle (ML/MR). When set,
+// the text reflows to that width: widen the box and words pull UP onto the
+// previous row; narrow it and they wrap DOWN. Single \n breaks become SOFT
+// (they reflow); a blank line (\n\n) is kept as a hard paragraph break.
+function canvasPxToPt(px){ var f=textDpiFactor(); return f ? (px||0)/f : (px||0); }
+function wrapLinesToWidth(text, maxW, fontSize, family, bold, italic){
+  tCtx.save();
+  var w_=(bold?'bold ':'')||'', s_=(italic?'italic ':'')||'';
+  tCtx.font=s_+w_+fontSize+'px '+(family||'Arial')+',sans-serif';
+  var out=[];
+  // Paragraphs = runs separated by blank lines. Inside a paragraph, single
+  // newlines are treated as spaces so rows can merge when the box widens.
+  String(text).split(/\n\s*\n/).forEach(function(par,pi){
+    if(pi>0) out.push('');                       // preserve the blank line
+    var words=par.replace(/\n/g,' ').split(/ +/).filter(function(w){return w!=='';});
+    if(!words.length){ out.push(''); return; }
+    var cur='';
+    for(var i=0;i<words.length;i++){
+      var t=cur? cur+' '+words[i] : words[i];
+      if(cur && tCtx.measureText(t).width>maxW){ out.push(cur); cur=words[i]; }
+      else cur=t;
+    }
+    out.push(cur);
+  });
+  tCtx.restore();
+  return out.length?out:[''];
+}
+// Canonical "display lines" for a text object: wrapped when obj.wrapW is set,
+// else the raw hard lines. Imported width-fit labels (o._fitWs — their per-line
+// squeeze table is indexed by ORIGINAL line numbers) and right-anchored leader
+// labels never wrap, so their anchor math stays untouched.
+function getTextLines(o, fpx){
+  if(o && o.wrapW && o.text && !o._anchorRight){
+    return wrapLinesToWidth(o.text, ptToCanvasPx(o.wrapW), fpx,
+                            o.fontFamily||'Arial', o.bold, o.italic);
+  }
+  return String(o&&o.text!=null?o.text:'').split('\n');
+}
 // Factor by which the ellipse semi-axes exceed the text bounding box,
 // so that text corners (at ±textW/2, ±textH/2) fall inside the ellipse.
 // For text to fit inside ellipse: (textW/2/a)^2+(textH/2/b)^2 <= 1
@@ -3786,9 +3826,6 @@ function _findInkBox(){
     // fall back to the page so behaviour is unchanged on a well-cropped plan.
     if(bw > W*0.97 && bh > H*0.97) return null;
     _inkBox = {x:bx, y:by, w:bw, h:bh};
-    console.warn('[AOG:fit] ink box '+Math.round(bw)+'x'+Math.round(bh)
-      +' at '+Math.round(bx)+','+Math.round(by)
-      +'  (page is '+W+'x'+H+' — fitting to the DRAWING, not the paper)');
     return _inkBox;
   }catch(e){ return null; }
 }
@@ -3838,18 +3875,7 @@ function fitToVP(){
       //   then centring the canvas cannot centre what you can see, and the fix is
       //   upstream in how the page was rasterised, not in fit().
       var ar = (baseCv.width/baseCv.height);
-      console.warn('[AOG:fit] canvas '+baseCv.width+'x'+baseCv.height
-        +'  (aspect '+ar.toFixed(3)+')'
-        +'   viewport '+Math.round(v.width)+'x'+Math.round(v.height)
-        +'   zoom '+(zoom*100).toFixed(1)+'%'
-        +'   wrap on screen '+Math.round(w.width)+'x'+Math.round(w.height)
-        +'   off-centre by dx='+dx.toFixed(1)+' dy='+dy.toFixed(1));
-      if(Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5){
-        console.warn('[AOG:fit] The CANVAS is centred. If the drawing still looks '
-          +'off-centre, the empty margin is INSIDE the canvas — baseCv is bigger than '
-          +'the artwork — so fit() is not the bug.');
-        return;
-      }
+      if(Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
       panX += Math.round(dx);
       panY += Math.round(dy);
       applyTransform();
@@ -7632,6 +7658,32 @@ function onMove(e){
     updatePolylineDrag(_pdp.x,_pdp.y);
     return;
   }
+  // ── Resizing a text's wrap width by its side edge (Acrobat-style reflow) ──
+  if(_txtSizing && _txtSizeObj){
+    if(e.cancelable) e.preventDefault();
+    var _sp=getPos(e), _so=_txtSizeObj, _ss=_txtSizeStart;
+    var _sfpx=ptToCanvasPx(_so.fontSize);
+    var _ca2=Math.cos(-_ss.ang), _sa2=Math.sin(-_ss.ang);
+    var _minW=_sfpx*1.2;   // never below ~1 glyph wide
+    if(_ss.side==='R'){
+      // Left edge (o.x) stays pinned; the cursor's local x IS the wrap width.
+      var _lx=(_sp.x-_ss.ox)*_ca2-(_sp.y-_ss.oy)*_sa2;
+      _so.wrapW=canvasPxToPt(Math.max(_minW,_lx));
+    } else {
+      // Keep the RIGHT edge pinned; wrap width measured back from it.
+      var _lxr=(_sp.x-_ss.rx)*_ca2-(_sp.y-_ss.ry)*_sa2;   // ≤0 left of the edge
+      _so.wrapW=canvasPxToPt(Math.max(_minW,-_lxr));
+      var _wl2=getTextLines(_so,_sfpx);
+      var _w2=measureLinesWDrawn(_so,_wl2,_sfpx);
+      _so.x=_ss.rx-_w2*Math.cos(_ss.ang);
+      _so.y=_ss.ry-_w2*Math.sin(_ss.ang);
+    }
+    renderTextObjs();
+    _sizeSelCvRaw();
+    selCtx.clearRect(0,0,selCv.width,selCv.height);
+    _drawTextChrome(_so);
+    return;
+  }
   // ── Moving a text by its dashed border ──
   if(_txtMoving && _txtMoveObj){
     if(e.cancelable) e.preventDefault();
@@ -7838,14 +7890,36 @@ function onMove(e){
       // If resizing a text object, scale fontSize with height AND keep the
       // selection box tight to the rendered text (rectangular text-box style).
       if(selectedShape.type==='text'&&selectedShape._textObj&&selDragStart.origFontSize&&selDragStart.origH>0){
-        var ratio=selectedShape.h/selDragStart.origH;
-        var newFs=Math.max(6,Math.round(selDragStart.origFontSize*ratio));
-        selectedShape._textObj.fontSize=newFs;
-        var _tlines=selectedShape._textObj.text.split('\n');
-        var _newTextW=measureLinesW(_tlines,newFs);
-        var _newTextH=_tlines.length*newFs*TXT_LINE_H;
-        selectedShape.w=Math.max(_newTextW,40);
-        selectedShape.h=Math.max(_newTextH,newFs*1.5);
+        var _to=selectedShape._textObj;
+        if((selHandle===3||selHandle===7) && !_to._anchorRight){
+          if(_to._fitWs){ delete _to._fitWs; delete _to._fitFs; delete _to._fitBaseText; }
+          // SIDE handles reflow instead of rescale: the dragged width becomes a
+          // word-wrap width — widen and words pull UP from the row below,
+          // narrow and they wrap DOWN. Font size stays put.
+          _to.fontSize=selDragStart.origFontSize;
+          var _wfpx=ptToCanvasPx(_to.fontSize);
+          var _wrapPx=Math.max(_wfpx*1.2, nw);   // never below ~1 glyph wide
+          _to.wrapW=canvasPxToPt(_wrapPx);
+          var _wl=getTextLines(_to,_wfpx);
+          var _wDrawn=measureLinesWDrawn(_to,_wl,_wfpx);
+          selectedShape.w=Math.max(_wDrawn,40);
+          selectedShape.h=Math.max(_wl.length*_wfpx*TXT_LINE_H,_wfpx*1.5);
+          // Keep the ANCHORED edge (opposite the dragged handle) pinned now that
+          // w snapped to the wrapped text instead of the raw cursor width.
+          var _hwO=orig.w/2, _axL=(selHandle===3? -_hwO : _hwO); // anchor x, local
+          var _clx2=(selHandle===3? _axL+selectedShape.w/2 : _axL-selectedShape.w/2);
+          var _wc=Math.cos(orig.angle), _ws=Math.sin(orig.angle);
+          selectedShape.cx=orig.cx+_clx2*_wc; selectedShape.cy=orig.cy+_clx2*_ws;
+        } else {
+          var ratio=selectedShape.h/selDragStart.origH;
+          var newFs=Math.max(6,Math.round(selDragStart.origFontSize*ratio));
+          _to.fontSize=newFs;
+          var _tlines=getTextLines(_to,ptToCanvasPx(newFs));
+          var _newTextW=measureLinesW(_tlines,newFs);
+          var _newTextH=_tlines.length*newFs*TXT_LINE_H;
+          selectedShape.w=Math.max(_newTextW,40);
+          selectedShape.h=Math.max(_newTextH,newFs*1.5);
+        }
         renderTextObjs();
       }
     }
@@ -8011,6 +8085,26 @@ function onUp(e){
   if(plDrag){
     if(e.cancelable) e.preventDefault();
     endPolylineDrag();
+    return;
+  }
+  // ── Text wrap-resize release: persist the new wrap width ──
+  if(_txtSizing){
+    if(e.cancelable) e.preventDefault();
+    var _rsObj=_txtSizeObj;
+    _txtSizing=false; _txtSizeObj=null; _txtSizeStart=null;
+    renderTextObjs();
+    if(selCv.width>1) selCtx.clearRect(0,0,selCv.width,selCv.height);
+    selCv.width=1; selCv.height=1;
+    pushUndo();
+    // Acrobat behaviour: the box was being edited when the side handle was
+    // grabbed — drop straight back into editing so the live caret + the
+    // handles chrome coexist across the whole interaction.
+    if(_txtSizeReedit && _rsObj){
+      _txtSizeReedit=false;
+      var _rlive=_liveText(_rsObj)||_rsObj;
+      _openTextEdit(_rlive);
+    }
+    _txtSizeReedit=false;
     return;
   }
   // ── Text move release: persist new position, show the moved text ──
@@ -8219,8 +8313,8 @@ function onUp(e){
       // so derive obj.x/obj.y from the selection center using the SAME inverse-
       // rotation math as commitSelection. Without this the static copy redrew at
       // the OLD position (it was only ever shown via the selCv preview before).
-      var _lns=_tt.text.split('\n');
       var _fpx=ptToCanvasPx(_tt.fontSize);
+      var _lns=getTextLines(_tt,_fpx);
       var _ew=measureLinesWDrawn(_tt,_lns,_fpx);
       var _eh=_lns.length*_fpx*TXT_LINE_H;
       var _cs=Math.cos(selectedShape.angle), _sn=Math.sin(selectedShape.angle);
@@ -9888,7 +9982,7 @@ function renderTextObjs(){
     var style_=(obj.italic?'italic ':'')||'';
     var fpx=ptToCanvasPx(obj.fontSize); // scale-locked: pt -> canvas px at plan DPI
     tCtx.font=style_+weight+fpx+'px '+family+',sans-serif';
-    var lines=obj.text.split('\n');
+    var lines=getTextLines(obj,fpx);
     var align=obj.textAlign||'left';
     tCtx.textAlign=align;
     var maxW=measureLinesWFull(lines,fpx,family,obj.bold,obj.italic);
@@ -9995,8 +10089,8 @@ function findTextObjAt(x,y){
   for(var i=textObjs.length-1;i>=0;i--){
     var o=textObjs[i];
     if(o._editing) continue;
-    var lines=o.text.split('\n');
     var ofpx=ptToCanvasPx(o.fontSize);
+    var lines=getTextLines(o,ofpx);
     var estW=measureLinesWDrawn(o,lines,ofpx);
     var estH=lines.length*ofpx*TXT_LINE_H;
     var pad=Math.max(8,12/zoom);
@@ -10203,8 +10297,8 @@ function showTextHover(x, y){
   if(overExisting){
     // Highlight existing text object with edit indicator
     drawCv.style.cursor='text';
-    var lines=overExisting.text.split('\n');
     var oefpx=ptToCanvasPx(overExisting.fontSize);
+    var lines=getTextLines(overExisting,oefpx);
     var estW=measureLinesW(lines,oefpx);
     var estH=lines.length*oefpx*TXT_LINE_H;
     var pad=6/zoom;
@@ -10435,8 +10529,10 @@ var _txtRotating=false, _txtRotStart=null, _txtRotObj=null;
 var _txtMoving=false, _txtMoveObj=null, _txtMoveStart=null;
 
 function _textBoxDims(o){
-  var lines=o.text.split('\n');
   var fpx=ptToCanvasPx(o.fontSize);
+  // Wrapped display lines — so the dashed box + handles TRACK the reflow live
+  // while a side handle is being dragged, instead of freezing at the raw size.
+  var lines=getTextLines(o,fpx);
   // As-drawn width: imported lines are compressed to their source widths, so
   // the natural measure left blank space on the right inside the dashed box.
   var w=measureLinesWDrawn(o,lines,fpx);
@@ -10468,6 +10564,23 @@ function _drawTextChrome(o){
   selCtx.strokeStyle='rgba(0,212,255,0.9)'; selCtx.lineWidth=lw;
   selCtx.setLineDash([5/zoom,3/zoom]); selCtx.globalAlpha=1;
   selCtx.strokeRect(-pad,d.top-pad,d.w+pad*2,d.h+pad*2);
+  // Acrobat-style circular handles: corners + edge midpoints on the dashed box.
+  // Left/right handles (and corners, which sit in the side bands) drag the wrap
+  // width; the text reflows live. Drawn while the caret is still active.
+  selCtx.setLineDash([]);
+  var _hr=Math.max(4.5,HANDLE_SIZE*0.62/zoom);
+  var _hxL=-pad, _hxR=d.w+pad, _hxC=d.w/2;
+  var _hyT=d.top-pad, _hyB=d.top+d.h+pad, _hyM=d.top+d.h/2;
+  var _hps=[[_hxL,_hyT],[_hxC,_hyT],[_hxR,_hyT],[_hxR,_hyM],
+            [_hxR,_hyB],[_hxC,_hyB],[_hxL,_hyB],[_hxL,_hyM]];
+  selCtx.fillStyle='#fff'; selCtx.strokeStyle='rgba(0,150,255,0.95)';
+  selCtx.lineWidth=1.4/zoom;
+  for(var _hi=0;_hi<_hps.length;_hi++){
+    selCtx.beginPath();
+    selCtx.arc(_hps[_hi][0],_hps[_hi][1],_hr,0,Math.PI*2);
+    selCtx.fill(); selCtx.stroke();
+  }
+  selCtx.setLineDash([5/zoom,3/zoom]);
   // Connector + rotate handle above top-center
   var topx=d.w/2, topy=d.top-pad, hubx=topx, huby=topy-ro;
   selCtx.setLineDash([2/zoom,2/zoom]);
@@ -10545,6 +10658,80 @@ function _textBorderAt(o,x,y){
   if(lx<L-band||lx>R+band||ly<T-band||ly>B+band) return false;   // outside box+band
   if(lx>L+band&&lx<R-band&&ly>T+band&&ly<B-band) return false;   // deep interior → not border
   return true;
+}
+// Which SIDE edge of the dashed box (x,y) sits on: 'L' | 'R' | null. Only the
+// vertical side bands count — hovering one flips the cursor to ↔ and grabbing
+// it starts an Acrobat-style wrap-width resize (text reflows: widen and words
+// pull up from the row below, narrow and they wrap down). Imported width-fit
+// labels and right-anchored leader labels are excluded (their per-line fit
+// tables / anchors would desync), so they return null and keep move behavior.
+function _textSideAt(o,x,y){
+  if(!o || o._fitWs || o._anchorRight) return null;
+  var d=_textBoxDims(o);
+  var pad=6/zoom, band=Math.max(14,18/zoom);
+  var ang=o.angle||0, ca=Math.cos(-ang), sa=Math.sin(-ang);
+  var dx=x-o.x, dy=y-o.y;
+  var lx=dx*ca-dy*sa, ly=dx*sa+dy*ca;
+  var L=-pad, R=d.w+pad, T=d.top-pad, B=d.top+d.h+pad;
+  if(ly<T-band||ly>B+band) return null;
+  if(Math.abs(lx-L)<=band) return 'L';
+  if(Math.abs(lx-R)<=band) return 'R';
+  return null;
+}
+// The 8 chrome handle positions in the label's LOCAL frame — must match the
+// circles drawn by _drawTextChrome. 0=TL 1=TC 2=TR 3=MR 4=BR 5=BC 6=BL 7=ML.
+function _textHandlePts(o){
+  var d=_textBoxDims(o), pad=6/zoom;
+  var xL=-pad, xC=d.w/2, xR=d.w+pad;
+  var yT=d.top-pad, yM=d.top+d.h/2, yB=d.top+d.h+pad;
+  return [[xL,yT],[xC,yT],[xR,yT],[xR,yM],[xR,yB],[xC,yB],[xL,yB],[xL,yM]];
+}
+// Which chrome handle (x,y) is on: 0-7 or -1. ON a handle = stretch;
+// BETWEEN handles (the dashed line) falls through to _textBorderAt = move.
+function _textHandleAt(o,x,y){
+  if(!o) return -1;
+  var ang=o.angle||0, ca=Math.cos(-ang), sa=Math.sin(-ang);
+  var dx=x-o.x, dy=y-o.y;
+  var lx=dx*ca-dy*sa, ly=dx*sa+dy*ca;
+  var pts=_textHandlePts(o), r=Math.max(12,16/zoom);
+  for(var i=0;i<8;i++){
+    if(Math.hypot(lx-pts[i][0],ly-pts[i][1])<=r) return i;
+  }
+  return -1;
+}
+// True when handle h stretches the wrap width (corners + side mids).
+// Top/bottom-center handles and the dashed line between handles = move.
+function _textHandleStretches(o,h){
+  if(h<0||h===1||h===5) return false;
+  if(!o||o._anchorRight) return false;   // leader labels keep their anchor math
+  return true;
+}
+function _textHandleSide(h){ return (h===0||h===6||h===7)?'L':'R'; }
+// Grabbing a side edge → live wrap-width resize while the label reflows.
+var _txtSizing=false, _txtSizeObj=null, _txtSizeStart=null, _txtSizeReedit=false;
+function _beginTextWrapResize(o,p,side){
+  o=_liveText(o)||o;   // guard against an orphaned clone from undo/restore
+  captureState(false);
+  if(editingObj===o){ _remapFitWs(o, textOv.value); o.text=textOv.value; }
+  // Imported labels carry per-line PDF width targets (_fitWs) indexed by the
+  // ORIGINAL line numbers — meaningless once the text reflows. The user is
+  // explicitly re-wrapping, so shed the import fit and let the label behave
+  // like a normal text box from here on (undo restores it).
+  if(o._fitWs){ delete o._fitWs; delete o._fitFs; delete o._fitBaseText; }
+  o._editing=false; editingObj=null;
+  stopTextCursor();
+  if(textOv.style.display!=='none'){ textOv.style.display='none'; textOv.blur(); textOv.value=''; }
+  _textSessionOpen=false;
+  renderTextObjs();
+  var d=_textBoxDims(o), ang=o.angle||0;
+  _txtSizeObj=o; _txtSizing=true;
+  _txtSizeStart={side:side, ang:ang, ox:o.x, oy:o.y,
+    // world position of the RIGHT edge so an L-side drag can keep it pinned
+    rx:o.x+d.w*Math.cos(ang), ry:o.y+d.w*Math.sin(ang)};
+  drawCv.style.cursor='ew-resize';
+  _sizeSelCvRaw();
+  selCtx.clearRect(0,0,selCv.width,selCv.height);
+  _drawTextChrome(o);
 }
 // Grab the dashed border and start moving the whole label.
 function _beginTextMove(o,p){
@@ -10628,6 +10815,12 @@ function _openTextEdit(o){
   // Load the text + formatting BEFORE showing/sizing the overlay, so the
   // auto-fit measures the real (full) content and the box grows to show every
   // line instead of clipping to the empty default height.
+  // Wrapped labels: materialize the current soft wrap into the editor so the
+  // dashed edit box shows the SAME rows as the canvas. Single \n is treated as
+  // a SOFT break by the wrapper, so this round-trips losslessly on commit.
+  if(o.wrapW && !o._anchorRight){
+    o.text=getTextLines(o,ptToCanvasPx(o.fontSize)).join('\n');
+  }
   textOv.value=o.text;
   // Snapshot the text this object's _fitWs is CURRENTLY indexed against. The
   // live input handler mutates o.text on every keystroke, so by commit time
@@ -10671,20 +10864,6 @@ function _openTextEdit(o){
     textOv._fitSx=_sxE;
     if(_sxE<0.995 && typeof repositionTextOverlay==='function') repositionTextOverlay();
   }catch(e){}
-  // ── FIT DIAGNOSTIC (open) ── prints exactly what the squeeze machinery sees.
-  try{
-    var _dl=o.text.split('\n'), _dfpx=ptToCanvasPx(o.fontSize);
-    var _dc=(_fmCtx||document.createElement('canvas').getContext('2d'));
-    _dc.font=(o.italic?'italic ':'')+(o.bold?'bold ':'')+_dfpx+'px '+(o.fontFamily||'Arial')+',sans-serif';
-    console.log('[AOG:fit] OPEN '+JSON.stringify({family:o.fontFamily, fontSize:o.fontSize,
-      fitFs:o._fitFs, fitSx:textOv._fitSx,
-      lines:_dl.map(function(ln,i){
-        var nat=ln?_dc.measureText(ln).width:0;
-        var fw=_fitLineW(o,i,nat);
-        return {i:i, nat:Math.round(nat), fitW:(o._fitWs&&o._fitWs[i]!=null)?Math.round(o._fitWs[i]):null,
-                target:(fw!==undefined?Math.round(fw):'natural')};
-      })}));
-  }catch(e){}
   renderTextCursorFrame();   // draw the box + rotate handle right away
 }
 
@@ -10696,6 +10875,18 @@ function handleText(e){
     if(e.cancelable) e.preventDefault();
     _beginTextRotate(editingObj,p);
     return;
+  }
+  // Grabbing a chrome HANDLE of the text being edited → stretch its wrap width
+  // (Acrobat-style: the text reflows to the new width). Only the round handles
+  // stretch; the dashed line BETWEEN handles falls through to the move grab.
+  if(editingObj){
+    var _th=_textHandleAt(editingObj,p.x,p.y);
+    if(_textHandleStretches(editingObj,_th)){
+      if(e.cancelable) e.preventDefault();
+      _txtSizeReedit=true;               // Acrobat-style: caret returns on release
+      _beginTextWrapResize(editingObj,p,_textHandleSide(_th));
+      return;
+    }
   }
   // Grabbing the dashed border of the text being edited → move the whole label.
   if(editingObj && _textBorderAt(editingObj,p.x,p.y)){
@@ -11048,6 +11239,23 @@ if(window.visualViewport){
 // Presses in the middle still place the caret normally.
 var _textOvFwdTouch=false;
 function _textOvEdgeGrab(e){
+  // ── TEXT label being edited: pressing near the textarea's LEFT/RIGHT edge
+  // starts an Acrobat-style wrap-width resize (the block that used to swallow
+  // these presses was the stopPropagation below — text never got the comment
+  // treatment). The caret comes back automatically when the drag releases.
+  if(editingObj && !_editingComment){
+    var tt=(e.touches&&e.touches[0])||e;
+    if(tt.clientX===undefined) return false;
+    var pp=getPos(tt);
+    var hh=_textHandleAt(editingObj,pp.x,pp.y);
+    if(_textHandleStretches(editingObj,hh)){
+      if(e.cancelable) e.preventDefault();
+      _txtSizeReedit=true;                   // reopen the caret on release
+      _beginTextWrapResize(editingObj,pp,_textHandleSide(hh));
+      return true;                           // forward the rest of the gesture
+    }
+    return false;
+  }
   if(!_editingComment) return false;
   var t=(e.touches&&e.touches[0])||e;
   if(t.clientX===undefined) return false;
@@ -11070,6 +11278,15 @@ function _textOvEdgeGrab(e){
 textOv.addEventListener('mousedown', function(e){
   if(_textOvEdgeGrab(e)) return;                 // forwarded — textOv now hidden,
   e.stopPropagation();                           // mousemoves reach the canvas
+});
+// Hovering the textarea's own left/right edges while editing a text label
+// shows the ↔ resize cursor (Acrobat-style) — the canvas hover can't fire
+// there because the textarea sits on top of the border zone.
+textOv.addEventListener('mousemove', function(e){
+  if(!editingObj || _editingComment){ textOv.style.cursor=''; return; }
+  var p=getPos(e);
+  var h=_textHandleAt(editingObj,p.x,p.y);
+  textOv.style.cursor = _textHandleStretches(editingObj,h) ? 'ew-resize' : 'text';
 });
 // Touch events keep firing at the element where the touch STARTED, even after
 // the textarea is hidden — forward the rest of the gesture explicitly.
@@ -11293,19 +11510,6 @@ function commitText(){
       editingObj=null; renderTextObjs(); pushUndo(); _aogRestoreTextCol();
     } else {
       _remapFitWs(editingObj,val);   // re-key imported line widths to the edited content
-      // ── FIT DIAGNOSTIC (commit) ──
-      try{
-        var _o2=editingObj, _dl2=val.split('\n'), _dfpx2=ptToCanvasPx(_o2.fontSize);
-        var _dc2=(_fmCtx||document.createElement('canvas').getContext('2d'));
-        _dc2.font=(_o2.italic?'italic ':'')+(_o2.bold?'bold ':'')+_dfpx2+'px '+(_o2.fontFamily||'Arial')+',sans-serif';
-        console.log('[AOG:fit] COMMIT '+JSON.stringify({family:_o2.fontFamily, fontSize:_o2.fontSize, fitFs:_o2._fitFs,
-          lines:_dl2.map(function(ln,i){
-            var nat=ln?_dc2.measureText(ln).width:0;
-            var fw=_fitLineW(_o2,i,nat);
-            return {i:i, nat:Math.round(nat), fitW:(_o2._fitWs&&_o2._fitWs[i]!=null)?Math.round(_o2._fitWs[i]):null,
-                    target:(fw!==undefined?Math.round(fw):'natural')};
-          })}));
-      }catch(e){}
       editingObj.text=val; editingObj.color=color;
       editingObj.fontSize=FONT_SIZE; editingObj.opacity=1;
       editingObj.fontFamily=textFontFamily; editingObj.bold=textBold;
@@ -11366,8 +11570,8 @@ function enterTextTransformMode(obj){
   // Render text on txt-cv immediately (keep visible at all times)
   obj._editing=false;
   renderTextObjs();
-  var lines=obj.text.split('\n');
   var tmfpx=ptToCanvasPx(obj.fontSize);
+  var lines=getTextLines(obj,tmfpx);
   // Tight bounds around the actual rendered text — the selection is drawn as a
   // rectangular text box (not an oval), so it should hug the glyphs. Imported
   // text draws compressed to its source widths, so measure AS DRAWN.
@@ -11686,7 +11890,7 @@ function renderSelection(){
       selCtx.font=tst+twt+tofpx+'px '+tfam+',sans-serif';
       var talign=to.textAlign||'left';
       selCtx.textAlign=talign;
-      var tlines=to.text.split('\n');
+      var tlines=getTextLines(to,tofpx);
       // AS-DRAWN width (imported lines are compressed to source widths) — must
       // match enterTextTransformMode/commitSelection or the label shifts.
       var tmaxW=measureLinesWDrawn(to,tlines,tofpx);
@@ -11835,8 +12039,8 @@ function commitSelection(){
   // ── Text object: sync position+angle back to the text object ──
   if(s.type==='text' && s._textObj){
     var obj=s._textObj;
-    var lines=obj.text.split('\n');
     var cmfpx=ptToCanvasPx(obj.fontSize);
+    var lines=getTextLines(obj,cmfpx);
     // Derive the origin (obj.x, obj.y) from the ellipse center using the SAME
     // convention as enterTextTransformMode and the preview: AS-DRAWN measurement,
     // local center-offset (textW/2, -fpx+textH/2), inverse-rotated. Using a
@@ -11952,6 +12156,21 @@ function updateSelCursor(x,y){
 
 drawCv.addEventListener('mousemove',function(e){
   var p=getPos(e);
+  // Editing a text: Acrobat-style cursors on the dashed box — side edges show
+  // the ↔ wrap-resize cursor, the rest of the border shows move, and the
+  // rotate handle shows grab. (Interior events go to the textarea itself.)
+  if(tool==='text' && editingObj && !_txtMoving && !_txtRotating && !_txtSizing){
+    if(_textRotHandleAt(editingObj,p.x,p.y)){ drawCv.style.cursor='grab'; }
+    else{
+      var _eh=_textHandleAt(editingObj,p.x,p.y);
+      if(_textHandleStretches(editingObj,_eh)){
+        drawCv.style.cursor=(typeof rotatedResizeCursor==='function')
+          ? rotatedResizeCursor(_eh, editingObj.angle||0) : 'ew-resize';
+      }
+      else if(_textBorderAt(editingObj,p.x,p.y)) drawCv.style.cursor='move';
+      else drawCv.style.cursor='text';
+    }
+  }
   if(tool==='text'&&!_txtCursorActive&&!selectedShape&&baseLoaded){ showTextHover(p.x,p.y); }
   else if(tool!=='text'){ clearTextHover(); }
   if(selectedMeasure&&measureDragHandle===-1){
@@ -12192,6 +12411,7 @@ function _abortActiveDrag(){
   if(typeof selImgDrag!=='undefined' && selImgDrag){ selImgDrag=null; dirty=true; }
   if(typeof selImgHandle!=='undefined') selImgHandle=-1;
   if(typeof _txtMoving!=='undefined' && _txtMoving){ _txtMoving=false; _txtMoveObj=null; _txtMoveStart=null; dirty=true; }
+  if(typeof _txtSizing!=='undefined' && _txtSizing){ _txtSizing=false; _txtSizeObj=null; _txtSizeStart=null; dirty=true; }
   if(typeof _txtRotating!=='undefined' && _txtRotating){ _txtRotating=false; _txtRotObj=null; dirty=true; }
   if(typeof measureDragHandle!=='undefined' && measureDragHandle!==-1){ measureDragHandle=-1; measureDragStart=null; dirty=true; }
   if(typeof _leaderDragPlacing!=='undefined' && _leaderDragPlacing){ _leaderDragPlacing=false; dirty=true; }
@@ -14139,7 +14359,7 @@ function compositeExport(maxPx){
       var itl=obj.italic?'italic ':'';
       var efpx=ptToCanvasPx(obj.fontSize); // scale-locked canvas px
       ctx.font=itl+bld+Math.round(efpx*scale)+'px '+fam+',sans-serif';
-      var lines_=obj.text.split('\n');
+      var lines_=getTextLines(obj,efpx); // wrap measured at screen size → same breaks
       var align_=obj.textAlign||'left';
       ctx.textAlign=align_;
       var maxW_=measureLinesWFull(lines_,Math.round(efpx*scale),fam,obj.bold,obj.italic);
@@ -15095,7 +15315,7 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
                      : (obj.italic?_set.italic:_set.regular);
     var efpx=ptToCanvasPx(obj.fontSize);          // canvas px per line
     var fsize=efpx/sc;                             // pt
-    var lines=String(obj.text).split('\n');
+    var lines=getTextLines(obj,efpx);   // same wrap breaks as the screen render
     var align=obj.textAlign||'left';
     var op=(obj.opacity==null?1:obj.opacity);
     var a=(obj.angle||0);
@@ -16758,7 +16978,11 @@ function buildProjectRecord(quality, cb){
       wmPos:  (document.getElementById('wm-pos-sel')||{}).value||'',
       wmSize: (document.getElementById('wm-size-sel')||{}).value||''
     },
-    textObjs:       JSON.parse(JSON.stringify(textObjs)),
+    // Strip the transient _editing flag: a text open in the editor at save time
+    // was persisted with _editing:true, and renderTextObjs skips _editing
+    // objects — so after a reload the label existed but never drew ("selected
+    // text disappears on reload").
+    textObjs:       JSON.parse(JSON.stringify(textObjs.map(function(o){ var c=Object.assign({},o); delete c._editing; return c; }))),
     shapeObjs:      JSON.parse(JSON.stringify(shapeObjs)),
     measureObjs:    JSON.parse(JSON.stringify(measureObjs)),
     pathMeasureObjs:JSON.parse(JSON.stringify(pathMeasureObjs)),
@@ -16851,7 +17075,11 @@ function doSave(){
       wmPos:  (document.getElementById('wm-pos-sel')||{}).value||'',
       wmSize: (document.getElementById('wm-size-sel')||{}).value||''
     },
-    textObjs:       JSON.parse(JSON.stringify(textObjs)),
+    // Strip the transient _editing flag: a text open in the editor at save time
+    // was persisted with _editing:true, and renderTextObjs skips _editing
+    // objects — so after a reload the label existed but never drew ("selected
+    // text disappears on reload").
+    textObjs:       JSON.parse(JSON.stringify(textObjs.map(function(o){ var c=Object.assign({},o); delete c._editing; return c; }))),
     shapeObjs:      JSON.parse(JSON.stringify(shapeObjs)),
     measureObjs:    JSON.parse(JSON.stringify(measureObjs)),
     pathMeasureObjs:JSON.parse(JSON.stringify(pathMeasureObjs)),
@@ -17091,7 +17319,13 @@ function doRestore(rec){
               }
             }
             // Restore scale
-            if(rec.textObjs){ textObjs=rec.textObjs; _rebindTextRefs(); renderTextObjs(); }
+            if(rec.textObjs){
+              textObjs=rec.textObjs;
+              // Older autosaves may carry _editing:true from a label that was
+              // open when the save fired — clear it or the label never renders.
+              textObjs.forEach(function(o){ o._editing=false; });
+              _rebindTextRefs(); renderTextObjs();
+            }
             if(rec.shapeObjs){ shapeObjs=rec.shapeObjs; renderShapeObjs(); }
             if(rec.measureObjs){ measureObjs=rec.measureObjs; }
             if(rec.pathMeasureObjs){ pathMeasureObjs=rec.pathMeasureObjs; }
