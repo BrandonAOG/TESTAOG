@@ -6704,10 +6704,18 @@ function _sizeAnnoCanvas(cv, ctx, eff){
   // keeps drawing in plan coordinates untouched.
   var rx=0, ry=0, w=baseCv.width, h=baseCv.height;
   if(_vpRegion){ rx=_vpRegion.x0; ry=_vpRegion.y0; w=_vpRegion.w; h=_vpRegion.h; }
-  cv.width  = Math.max(1, Math.round(w*eff));
-  cv.height = Math.max(1, Math.round(h*eff));
-  cv.style.width  = w+'px';
-  cv.style.height = h+'px';
+  var bw = Math.max(1, Math.round(w*eff));
+  var bh = Math.max(1, Math.round(h*eff));
+  cv.width  = bw;
+  cv.height = bh;
+  // Derive the CSS size back from the ROUNDED backing store instead of using w/h
+  // directly. Rounding makes bw ≠ w*eff by up to half a pixel, so a CSS box of
+  // exactly w would scale the canvas by w/bw rather than 1/eff — a sub-pixel
+  // scale error that shifts the layer against the base plan, and shifts it by a
+  // DIFFERENT amount every time eff changes. That's the slight drift on zoom.
+  // bw/eff makes the mapping exactly 1/eff, so plan coords land pixel-perfect.
+  cv.style.width  = (bw/eff)+'px';
+  cv.style.height = (bh/eff)+'px';
   cv.style.left   = rx+'px';
   cv.style.top    = ry+'px';
   ctx.setTransform(eff,0,0,eff, -rx*eff, -ry*eff);      // draw in plan coords, render at eff
@@ -7183,6 +7191,18 @@ var DRAW_STRICT={line:1,arrow:1,polyline:1,measure:1,pathmeasure:1,polygon:1,lea
 function selectShapeDirect(hit){
   if(!hit) return false;
   try{
+    // COMMIT the outgoing selection before adopting the new one. The live pose of
+    // a move/resize/rotate lives ONLY in selectedShape (a detached copy) until
+    // commitSelection() writes it back into the real object. This path used to
+    // just clear the old object's _editing flag, which threw the pending drag
+    // away — select an ellipse, move it, click another ellipse, and the first one
+    // SNAPPED BACK to where it started. (Clicking a different shape TYPE happened
+    // to survive because the tool switch routed through a branch that committed.)
+    // Skip when re-selecting the same object, and never commit the hit itself.
+    if(typeof selectedShape!=='undefined' && selectedShape &&
+       editShapeObj!==hit && typeof commitSelection==='function'){
+      commitSelection();     // writes pose back (or pushes a freshly drawn shape)
+    }
     // Clear any shape already in edit state so it doesn't stay invisible
     // (renderShapeAndMeasure skips _editing shapes). Without this, selecting a
     // second shape leaves the first one flagged editing → it "disappears".
@@ -11984,8 +12004,12 @@ function renderSelection(){
   if(selCv.width!==_selBW || selCv.height!==_selBH){
     selCv.width=_selBW; selCv.height=_selBH; _selPrevDirty=null;
   }
-  selCv.style.width  = _sW+'px';
-  selCv.style.height = _sH+'px';
+  // CSS size derived from the ROUNDED backing store (see _sizeAnnoCanvas):
+  // using the raw region size makes the browser scale by w/bw instead of
+  // exactly 1/eff, and that sub-pixel error changes every time eff changes —
+  // which is what made the layer drift slightly against the plan on zoom.
+  selCv.style.width  = (_selBW/_selEff)+'px';
+  selCv.style.height = (_selBH/_selEff)+'px';
   selCv.style.left   = _sRX+'px';
   selCv.style.top    = _sRY+'px';
   selCtx.setTransform(_selEff,0,0,_selEff, -_sRX*_selEff, -_sRY*_selEff);
@@ -17748,7 +17772,11 @@ function syncImgCv(){
   var eff = (typeof _computeImgEff==='function') ? _computeImgEff() : 1;
   var bw=Math.max(1,Math.round(w*eff)), bh=Math.max(1,Math.round(h*eff));
   if(imgCv.width!==bw||imgCv.height!==bh){ imgCv.width=bw; imgCv.height=bh; }
-  imgCv.style.width=w+'px'; imgCv.style.height=h+'px';
+  // CSS size derived from the ROUNDED backing store (see _sizeAnnoCanvas):
+  // using the raw region size makes the browser scale by w/bw instead of
+  // exactly 1/eff, and that sub-pixel error changes every time eff changes —
+  // which is what made the layer drift slightly against the plan on zoom.
+  imgCv.style.width=(bw/eff)+'px'; imgCv.style.height=(bh/eff)+'px';
   imgCv.style.left=rx+'px'; imgCv.style.top=ry+'px';
   imgCtx.setTransform(eff,0,0,eff, -rx*eff, -ry*eff);
   imgCv._eff=eff;
@@ -17938,7 +17966,11 @@ function renderImgSelection(){
   if(_vpRegion){ _rX=_vpRegion.x0; _rY=_vpRegion.y0; _rW=_vpRegion.w; _rH=_vpRegion.h; }
   var bw=Math.max(1,Math.round(_rW*eff)), bh=Math.max(1,Math.round(_rH*eff));
   if(selCv.width!==bw||selCv.height!==bh){ selCv.width=bw; selCv.height=bh; }
-  selCv.style.width=_rW+'px'; selCv.style.height=_rH+'px';
+  // CSS size derived from the ROUNDED backing store (see _sizeAnnoCanvas):
+  // using the raw region size makes the browser scale by w/bw instead of
+  // exactly 1/eff, and that sub-pixel error changes every time eff changes —
+  // which is what made the layer drift slightly against the plan on zoom.
+  selCv.style.width=(bw/eff)+'px'; selCv.style.height=(bh/eff)+'px';
   selCv.style.left=_rX+'px'; selCv.style.top=_rY+'px';
   selCtx.setTransform(eff,0,0,eff, -_rX*eff, -_rY*eff);
   _clearCv(selCtx,selCv);
@@ -18389,8 +18421,14 @@ function _drawImgGhost(cx, cy){
     selCv.width  = _gw;
     selCv.height = _gh;
   }
-  selCv.style.width  = drawCv.width  + 'px';
-  selCv.style.height = drawCv.height + 'px';
+  // CSS from the ROUNDED backing store (same reason as _sizeAnnoCanvas): a raw
+  // drawCv.width box scales by drawCv.width/_gw rather than exactly 1/_ge, so the
+  // ghost drifted a sub-pixel against the plan and shifted again on every zoom.
+  selCv.style.width  = (_gw/_ge) + 'px';
+  selCv.style.height = (_gh/_ge) + 'px';
+  // Full-plan canvas — drop any viewport-region offset left on the element by a
+  // previous selection render, or the ghost draws displaced by the region origin.
+  selCv.style.left='0px'; selCv.style.top='0px';
   selCtx.setTransform(_ge,0,0,_ge,0,0);
   _clearCv(selCtx,selCv);
   if(!_pendingImg) return;
