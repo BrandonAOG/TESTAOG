@@ -6676,6 +6676,26 @@ function _computeAnnoEffFull(){
   if(eff > sideCap) eff = Math.max(1, sideCap);
   return Math.round(eff*4)/4;                            // bucket to 0.25 steps
 }
+// Wipe an ENTIRE canvas regardless of the transform currently on its context.
+//
+// Every full-clear used to be clearRect(0,0,cv.width,cv.height) — coordinates in
+// the context's transformed (plan) space, sized in BACKING pixels. That happened
+// to work when the transform was a pure scale: clearing from plan origin 0,0 for
+// planW*eff units always overshot the canvas. But the viewport region transform
+// adds a -x0,-y0 offset, so a clear anchored at plan 0,0 lands OFF the region
+// whenever the region's origin exceeds the cleared span — the canvas keeps its
+// previous frame and the live preview paints on top of it, over and over. That's
+// the smeared/repeated arrowheads, and the reason Clear appeared to do nothing
+// until a zoom forced a resize.
+//
+// Reset to identity, clear the raw backing store, restore. Always correct.
+function _clearCv(ctx, cv){
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.restore();
+}
+
 function _sizeAnnoCanvas(cv, ctx, eff){
   // In viewport sharp mode the canvas covers only the visible region: backing
   // store = region×eff, CSS box = region plan-px positioned at the region
@@ -6766,8 +6786,8 @@ function afterLoad(){
   try{ leaderStep=0; _leaderDragPlacing=false; }catch(e){}
   try{ _hlSel=null; _mkDrag=null; plDrag=null; _dragText=null; }catch(e){}
   if(selCv.width>1){ selCv.width=1; selCv.height=1; }
-  tCtx.clearRect(0,0,tCv.width,tCv.height);
-  shCtx.clearRect(0,0,shCv.width,shCv.height);
+  _clearCv(tCtx,tCv);
+  _clearCv(shCtx,shCv);
   baseLoaded=true;
   _annotDirty=false;   // fresh document — no unsaved edits yet
   dropZone.classList.add('hidden'); document.getElementById('compass').style.display='block';
@@ -7101,7 +7121,7 @@ var layerTmps=layers.map(function(l){
   // linger at the note's old position, then redraw at the new geometry.
   try{
     if(typeof selCv!=='undefined' && selCv && selCv.width>1){
-      selCtx.clearRect(0,0,selCv.width,selCv.height);
+      _clearCv(selCtx,selCv);
     }
     if(typeof selectedShape!=='undefined' && selectedShape){
       if(_editingComment && selectedShape._commentObj===_editingComment){
@@ -7833,7 +7853,7 @@ function onMove(e){
     }
     renderTextObjs();
     _sizeSelCvRaw();
-    selCtx.clearRect(0,0,selCv.width,selCv.height);
+    _clearCv(selCtx,selCv);
     _drawTextChrome(_so);
     return;
   }
@@ -7845,7 +7865,7 @@ function onMove(e){
     _txtMoveObj.y=_txtMoveStart.oy+(_mp.y-_txtMoveStart.py);
     renderTextObjs();
     _sizeSelCvRaw();
-    selCtx.clearRect(0,0,selCv.width,selCv.height);
+    _clearCv(selCtx,selCv);
     _drawTextChrome(_txtMoveObj);
     return;
   }
@@ -7868,7 +7888,7 @@ function onMove(e){
     _txtRotObj.y=_txtRotStart.cy-(_lcx*_sa+_lcy*_ca);
     renderTextObjs();
     _sizeSelCvRaw();
-    selCtx.clearRect(0,0,selCv.width,selCv.height);
+    _clearCv(selCtx,selCv);
     _drawTextChrome(_txtRotObj);
     // Live degree readout (0–359°, where 0° = upright).
     var _deg=((Math.round(_na*180/Math.PI)%360)+360)%360;
@@ -8119,7 +8139,7 @@ function onMove(e){
     // note lands, so the box is visible while dragging over a photo.
     dCtx.putImageData(compositedSnap,0,0);      // keep draw-cv clean underneath
     if(typeof _ensureShcvRes==='function') _ensureShcvRes();
-    shCtx.clearRect(0,0,shCv.width,shCv.height);
+    _clearCv(shCtx,shCv);
     if(typeof renderShapeAndMeasure==='function') renderShapeAndMeasure(); // repaint committed shapes/notes
     var pw=Math.abs(x-startX), ph=Math.abs(y-startY);
     if(pw>8&&ph>20){
@@ -8181,7 +8201,7 @@ function onMove(e){
       var _hw=_annoWantW(_he);
       if(hlCv.width!==_hw){ _sizeAnnoCanvas(hlCv,hlCtx,_he); }
       else { _annoXf(hlCtx,_he); }
-      hlCtx.clearRect(0,0,hlCv.width,hlCv.height);
+      _clearCv(hlCtx,hlCv);
       // repaint committed highlights so they persist during the preview
       if(typeof renderShapeAndMeasure==='function') renderShapeAndMeasure();
       hlCtx.save();
@@ -8246,7 +8266,7 @@ function onUp(e){
     var _rsObj=_txtSizeObj;
     _txtSizing=false; _txtSizeObj=null; _txtSizeStart=null;
     renderTextObjs();
-    if(selCv.width>1) selCtx.clearRect(0,0,selCv.width,selCv.height);
+    if(selCv.width>1) _clearCv(selCtx,selCv);
     selCv.width=1; selCv.height=1;
     pushUndo();
     // Acrobat behaviour: the box was being edited when the side handle was
@@ -8265,7 +8285,7 @@ function onUp(e){
     if(e.cancelable) e.preventDefault();
     _txtMoving=false; _txtMoveObj=null; _txtMoveStart=null;
     renderTextObjs();
-    if(selCv.width>1) selCtx.clearRect(0,0,selCv.width,selCv.height);
+    if(selCv.width>1) _clearCv(selCtx,selCv);
     selCv.width=1; selCv.height=1;
     pushUndo();
     return;
@@ -8276,7 +8296,7 @@ function onUp(e){
     _txtRotating=false; _txtRotObj=null; _txtRotStart=null;
     renderTextObjs();
     // Clear the chrome — the rotated text is now shown committed on the canvas.
-    if(selCv.width>1) selCtx.clearRect(0,0,selCv.width,selCv.height);
+    if(selCv.width>1) _clearCv(selCtx,selCv);
     selCv.width=1; selCv.height=1;
     pushUndo();
     return;
@@ -8921,8 +8941,8 @@ function renderShapeAndMeasure(){
   else { _annoXf(shCtx, _eff); }
   if(hlCv.width !== _wantW){ _sizeAnnoCanvas(hlCv, hlCtx, _eff); }
   else { _annoXf(hlCtx, _eff); }
-  shCtx.clearRect(0,0,shCv.width,shCv.height);
-  hlCtx.clearRect(0,0,hlCv.width,hlCv.height);
+  _clearCv(shCtx,shCv);
+  _clearCv(hlCtx,hlCv);
   // Markups first → they underlie everything drawn below (matches export).
   renderMarkupObjs();
   // Shape objects
@@ -9221,7 +9241,7 @@ function getMeasureHandleAt(m, x, y, isTouch){
 function renderMeasureSelection(){
   if(!selectedMeasure){ return; }
   _sizeSelCvRaw();
-  selCtx.clearRect(0,0,selCv.width,selCv.height);
+  _clearCv(selCtx,selCv);
   var m=selectedMeasure;
   var isPlainLine=m.showLabel===false;
   // Draw highlighted line
@@ -9315,7 +9335,7 @@ function getLeaderHandleAt(o, x, y, isTouch){
 function renderLeaderSelection(){
   if(!selectedLeader){ return; }
   _sizeSelCvRaw();
-  selCtx.clearRect(0,0,selCv.width,selCv.height);
+  _clearCv(selCtx,selCv);
   var o=selectedLeader;
   // Draw the leader itself live here (it's skipped on shCv while selected).
   drawLeaderOnCtx(selCtx, o, 1);
@@ -9727,7 +9747,7 @@ drawCv.addEventListener('mousemove',function(e){
     // Draw live preview on shCv so it's visible above draw-cv
   _ensureShcvRes();  // keep shapes/notes canvas at hi-res (was: force to plan size)
     // Re-render committed shapes/measures, then overlay live preview
-    shCtx.clearRect(0,0,shCv.width,shCv.height);
+    _clearCv(shCtx,shCv);
     // Redraw committed shape+measure objects underneath
     shapeObjs.forEach(function(s){
       if(s._editing) return;
@@ -10100,7 +10120,7 @@ function renderTextObjs(){
   var _wantW = _annoWantW(_eff);
   if(tCv.width !== _wantW){ _sizeAnnoCanvas(tCv, tCtx, _eff); }
   else { _annoXf(tCtx, _eff); }
-  tCtx.clearRect(0,0,tCv.width,tCv.height);
+  _clearCv(tCtx,tCv);
   // Identify the text object currently being transformed so we can hide its
   // STATIC copy while the live preview is drawn on selCv. We match by several
   // identities to be robust against reference churn (undo clones, re-selects):
@@ -10358,7 +10378,7 @@ function drawTextCursorAt(x, y, alpha){
 function renderTextCursorFrame(){
   // Ensure sel-cv is canvas-sized
   _sizeSelCvRaw();
-  selCtx.clearRect(0,0,selCv.width,selCv.height);
+  _clearCv(selCtx,selCv);
   // Dashed box + rotate handle around the text being edited (redrawn every
   // blink frame so it persists with the caret).
   if(editingObj) _drawTextChrome(editingObj);
@@ -10445,7 +10465,7 @@ function _syncTextFmtFromObj(obj){
 // ── Hover indicator — faint cursor following mouse when text tool selected
 function showTextHover(x, y){
   _sizeSelCvRaw();
-  selCtx.clearRect(0,0,selCv.width,selCv.height);
+  _clearCv(selCtx,selCv);
   var overExisting = findTextObjAt(x, y);
   if(overExisting){
     // Highlight existing text object with edit indicator
@@ -10883,7 +10903,7 @@ function _beginTextWrapResize(o,p,side){
     rx:o.x+d.w*Math.cos(ang), ry:o.y+d.w*Math.sin(ang)};
   drawCv.style.cursor='ew-resize';
   _sizeSelCvRaw();
-  selCtx.clearRect(0,0,selCv.width,selCv.height);
+  _clearCv(selCtx,selCv);
   _drawTextChrome(o);
 }
 // Grab the dashed border and start moving the whole label.
@@ -10899,7 +10919,7 @@ function _beginTextMove(o,p){
   _txtMoveObj=o; _txtMoving=true;
   _txtMoveStart={px:p.x,py:p.y,ox:o.x,oy:o.y};
   _sizeSelCvRaw();
-  selCtx.clearRect(0,0,selCv.width,selCv.height);
+  _clearCv(selCtx,selCv);
   _drawTextChrome(o);
 }
 // Grab the rotate handle of the text currently being edited and start rotating.
@@ -10918,7 +10938,7 @@ function _beginTextRotate(o,p){
   _txtRotObj=o; _txtRotating=true;
   _txtRotStart={cx:c.x, cy:c.y, off:Math.atan2(p.y-c.y,p.x-c.x)-(o.angle||0)};
   _sizeSelCvRaw();
-  selCtx.clearRect(0,0,selCv.width,selCv.height);
+  _clearCv(selCtx,selCv);
   _drawTextChrome(o);
 }
 // (Re)open the inline editor for o — caret + dashed box + rotate handle.
@@ -12001,7 +12021,7 @@ function renderSelection(){
   } else {
     // First frame of a drag (or any non-comment-drag render): prior canvas
     // content is unknown → full clear, exactly as before. Conservative.
-    selCtx.clearRect(0,0,selCv.width,selCv.height);
+    _clearCv(selCtx,selCv);
   }
   _selPrevDirty=_dirtyNow;
 
@@ -12916,7 +12936,7 @@ function endPolylineDrag(){
 function renderPolylineSelection(){
   if(!selectedPolyline){ return; }
   _sizeSelCvRaw();
-  selCtx.clearRect(0,0,selCv.width,selCv.height);
+  _clearCv(selCtx,selCv);
   var pl=selectedPolyline;
   if(!pl.pts||pl.pts.length<2) return;
   // Glow highlight under the line
@@ -17763,7 +17783,7 @@ function _setImgRes(force){
 function renderImgOverlays(){
   syncImgCv();
   // clearRect in plan coords (transform is set); cover the whole plan area.
-  imgCtx.clearRect(0,0,baseCv.width,baseCv.height);
+  _clearCv(imgCtx,imgCv);
   imgOverlays.forEach(function(ov){
     if(ov===selImg) return; // selected one drawn on selCv
     var L=layers[ov.layerIdx]; if(L && !L.visible) return; // hide if its layer is hidden
@@ -17919,7 +17939,7 @@ function renderImgSelection(){
   selCv.style.width=_rW+'px'; selCv.style.height=_rH+'px';
   selCv.style.left=_rX+'px'; selCv.style.top=_rY+'px';
   selCtx.setTransform(eff,0,0,eff, -_rX*eff, -_rY*eff);
-  selCtx.clearRect(0,0,drawCv.width,drawCv.height);
+  _clearCv(selCtx,selCv);
   // Draw image itself
   _drawImgOv(selCtx, selImg);
   // Dashed bounding box
@@ -18370,7 +18390,7 @@ function _drawImgGhost(cx, cy){
   selCv.style.width  = drawCv.width  + 'px';
   selCv.style.height = drawCv.height + 'px';
   selCtx.setTransform(_ge,0,0,_ge,0,0);
-  selCtx.clearRect(0, 0, drawCv.width, drawCv.height);
+  _clearCv(selCtx,selCv);
   if(!_pendingImg) return;
   try{ selCtx.imageSmoothingEnabled=true; selCtx.imageSmoothingQuality='high'; }catch(e){}
 
@@ -18433,7 +18453,7 @@ function _clearImgGhost(){
   if(selCv.width > 1){
     selCtx.save();
     selCtx.setTransform(1,0,0,1,0,0);           // clear in raw device pixels —
-    selCtx.clearRect(0, 0, selCv.width, selCv.height); // the ghost may have an eff transform
+    _clearCv(selCtx,selCv); // the ghost may have an eff transform
     selCtx.restore();
   }
 }
