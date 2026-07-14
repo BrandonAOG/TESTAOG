@@ -3709,7 +3709,7 @@ function updateLegend(){
 }
 
 // ── ZOOM/PAN ──
-function applyTransform(){ scene.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if(typeof _setAnnoRes==='function') _setAnnoRes(false); if(typeof _setImgRes==='function') _setImgRes(false); if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); }
+function applyTransform(){ scene.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if(typeof _vpUpdate==='function') _vpUpdate(); if(typeof _setAnnoRes==='function') _setAnnoRes(false); if(typeof _setImgRes==='function') _setImgRes(false); if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); }
 
 // ── PAN LIMITS ────────────────────────────────────────────────────────────────
 // The old rule only guaranteed that 80px of canvas stayed on screen:
@@ -6492,6 +6492,11 @@ function renderPDFPage(n){
 }
 
 function resize(w,h){
+  // New document / rotation → any viewport-sharp region belongs to the OLD
+  // geometry. Drop it and pull every layer back to the plan origin before the
+  // full-plan sizing below, or stale CSS offsets displace whole layers.
+  _vpRegion=null;
+  if(typeof _vpResetCss==='function'){ try{ _vpResetCss(); }catch(e){} }
   baseCv.width=drawCv.width=gridCv.width=tCv.width=shCv.width=hlCv.width=w;
   if(typeof imgCv!=='undefined'){ imgCv.width=w; }
   baseCv.height=drawCv.height=gridCv.height=tCv.height=shCv.height=hlCv.height=h;
@@ -6518,7 +6523,111 @@ function resize(w,h){
 // Both are display-only (never read back) and overlay at w×h via CSS, so this is
 // safe. Capped for mobile canvas-area / memory limits.
 var _annoEff = 0;     // effective scale currently baked into the anno canvases
+
+// ═════════ VIEWPORT SHARP MODE (unlimited-zoom crispness) ═══════════════════
+// Classic mode renders each annotation layer as ONE canvas covering the whole
+// plan, so its resolution is capped by canvas-size/memory limits and zoom goes
+// soft past ~3-4×. Viewport mode instead rasterizes ONLY the visible region
+// (plus margin) at full device resolution — the backing store stays roughly
+// screen-sized no matter how deep the zoom, so vector content (text, shapes,
+// measures, leaders, pen, highlights, stamps) and images re-render pixel-sharp
+// at ANY zoom level. This is how map apps / PDF viewers do infinite-zoom.
+//
+// _vpRegion == null  → classic full-plan mode (zoom ≤ where full-plan is sharp)
+// _vpRegion != null  → {x0,y0,w,h,zoomAt} plan-px window the layers now cover.
+// All renderers keep drawing in PLAN coordinates; the region offset lives in
+// the canvas CSS position + context transform, so no renderer needed changes.
+var _vpRegion = null;
+var _VP_MARGIN = 0.35;   // extra region per side, fraction of the visible size
+var _VP_GUARD  = 0.08;   // rebuild when view gets this close (×view) to an edge
+
+function _vpEffFor(r){
+  var dpr = window.devicePixelRatio || 1;
+  var eff = Math.max(1, dpr * Math.max(1, zoom));   // full device res — NO zoom ceiling
+  // Area budget applies to the (small) region, not the plan — this is the whole
+  // trick. Guard anyway: huge monitors × dpr can still get big.
+  var CAP = (IS_IPHONE ? 8e6 : (IS_IPAD ? 12e6 : 30e6));
+  if(r.w*r.h*eff*eff > CAP) eff = Math.max(1, Math.sqrt(CAP/(r.w*r.h)));
+  var MAX_SIDE = IS_IOS ? 8192 : 16384;
+  var sideCap = Math.min(MAX_SIDE/r.w, MAX_SIDE/r.h);
+  if(eff > sideCap) eff = Math.max(1, sideCap);
+  return Math.round(eff*4)/4;
+}
+// Backing width the anno canvases should have right now (region- or plan-wide).
+function _annoWantW(eff){
+  return Math.max(1, Math.round((_vpRegion?_vpRegion.w:baseCv.width)*eff));
+}
+// The one true draw transform: plan coords → backing px, incl. region offset.
+function _annoXf(ctx, eff){
+  if(_vpRegion) ctx.setTransform(eff,0,0,eff, -_vpRegion.x0*eff, -_vpRegion.y0*eff);
+  else          ctx.setTransform(eff,0,0,eff,0,0);
+}
+function _vpResetCss(){
+  [tCv,shCv,hlCv,(typeof imgCv!=='undefined'?imgCv:null),selCv].forEach(function(cv){
+    if(cv){ cv.style.left='0px'; cv.style.top='0px'; }
+  });
+}
+// rAF-batched re-render of every region-aware layer after the region moves.
+// Vector layers (text/shapes/highlights) redraw immediately — they're cheap at
+// region size. Images debounce ~60ms like classic _setImgRes: the progressive
+// step-down resample is the expensive part, and mid-pinch the old (correctly
+// plan-anchored) image canvas keeps displaying until zooming settles.
+var _vpRAF=false, _vpImgTimer=null;
+function _vpRerenderAll(){
+  if(_vpImgTimer){ clearTimeout(_vpImgTimer); }
+  _vpImgTimer=setTimeout(function(){
+    _vpImgTimer=null;
+    if(typeof renderImgOverlays==='function' && typeof imgOverlays!=='undefined' && imgOverlays.length) renderImgOverlays();
+    if(typeof selImg!=='undefined' && selImg && typeof renderImgSelection==='function') renderImgSelection();
+  }, 60);
+  if(_vpRAF) return; _vpRAF=true;
+  requestAnimationFrame(function(){
+    _vpRAF=false;
+    _setAnnoRes(true);   // sizes tCv/shCv/hlCv to the region + redraws text/shapes
+  });
+}
+// Called from applyTransform on every pan/zoom. Decides which mode we're in and
+// whether the region needs rebuilding (zoom changed, or view neared its edge).
+function _vpUpdate(){
+  if(!baseLoaded || !baseCv.width || !baseCv.height) return;
+  var dpr = window.devicePixelRatio || 1;
+  var need = dpr * Math.max(1, zoom);
+  // Enter viewport mode only when classic full-plan rendering can no longer
+  // supply device resolution (its capped eff falls short of what zoom needs).
+  var wantRegion = zoom > 1.02 && need > _computeAnnoEffFull() + 0.26;
+  if(!wantRegion){
+    if(_vpRegion){ _vpRegion=null; _vpResetCss(); _vpRerenderAll(); }
+    return;
+  }
+  var vw = Math.max(1, viewport.clientWidth), vh = Math.max(1, viewport.clientHeight);
+  var vx = (-panX)/zoom, vy = (-panY)/zoom, vwp = vw/zoom, vhp = vh/zoom; // visible plan rect
+  if(_vpRegion){
+    var r=_vpRegion, gx=vwp*_VP_GUARD, gy=vhp*_VP_GUARD;
+    // Guards collapse at plan edges — there is nothing further to render there.
+    var gL=(r.x0>0.5)?gx:0, gT=(r.y0>0.5)?gy:0;
+    var gR=(r.x0+r.w<baseCv.width -0.5)?gx:0;
+    var gB=(r.y0+r.h<baseCv.height-0.5)?gy:0;
+    var inside = vx>=r.x0+gL-0.01 && vy>=r.y0+gT-0.01 &&
+                 (vx+vwp)<=r.x0+r.w-gR+0.01 && (vy+vhp)<=r.y0+r.h-gB+0.01;
+    if(inside && Math.abs(zoom-r.zoomAt) <= r.zoomAt*0.02) return;  // region still good
+  }
+  var mX=vwp*_VP_MARGIN, mY=vhp*_VP_MARGIN;
+  var x0=Math.max(0, vx-mX),                y0=Math.max(0, vy-mY);
+  var x1=Math.min(baseCv.width, vx+vwp+mX), y1=Math.min(baseCv.height, vy+vhp+mY);
+  if(x1-x0<2 || y1-y0<2) return;
+  _vpRegion={x0:x0, y0:y0, w:x1-x0, h:y1-y0, zoomAt:zoom};
+  _vpRerenderAll();
+}
+// ═════════ end viewport sharp mode core ═════════════════════════════════════
 function _computeAnnoEff(){
+  // Viewport sharp mode: resolution derives from the small visible region, so
+  // there is no zoom ceiling — the backing store stays ~screen-sized.
+  if(_vpRegion) return _vpEffFor(_vpRegion);
+  return _computeAnnoEffFull();
+}
+// Classic full-plan formula (also used by _vpUpdate to decide when full-plan
+// rendering stops being able to deliver device resolution).
+function _computeAnnoEffFull(){
   var w = baseCv.width, h = baseCv.height;
   if(!w || !h) return 1;
   var devicePR = window.devicePixelRatio || 1;
@@ -6543,12 +6652,20 @@ function _computeAnnoEff(){
   return Math.round(eff*4)/4;                            // bucket to 0.25 steps
 }
 function _sizeAnnoCanvas(cv, ctx, eff){
-  var w = baseCv.width, h = baseCv.height;
+  // In viewport sharp mode the canvas covers only the visible region: backing
+  // store = region×eff, CSS box = region plan-px positioned at the region
+  // origin (inside the scale(zoom)'d scene, plan-px CSS lands exactly right),
+  // and the context transform carries the -origin offset so every renderer
+  // keeps drawing in plan coordinates untouched.
+  var rx=0, ry=0, w=baseCv.width, h=baseCv.height;
+  if(_vpRegion){ rx=_vpRegion.x0; ry=_vpRegion.y0; w=_vpRegion.w; h=_vpRegion.h; }
   cv.width  = Math.max(1, Math.round(w*eff));
   cv.height = Math.max(1, Math.round(h*eff));
   cv.style.width  = w+'px';
   cv.style.height = h+'px';
-  ctx.setTransform(eff,0,0,eff,0,0);                    // draw in plan coords, render at eff
+  cv.style.left   = rx+'px';
+  cv.style.top    = ry+'px';
+  ctx.setTransform(eff,0,0,eff, -rx*eff, -ry*eff);      // draw in plan coords, render at eff
 }
 // Size selCv 1:1 with the plan canvas for the raw-coordinate chrome paths
 // (text box/caret, measure/leader chrome). Backing = drawCv px, identity
@@ -6559,6 +6676,9 @@ function _sizeSelCvRaw(){
   if(selCv.width!==drawCv.width||selCv.height!==drawCv.height){ selCv.width=drawCv.width; selCv.height=drawCv.height; }
   selCv.style.width  = baseCv.width+'px';
   selCv.style.height = baseCv.height+'px';
+  // This raw mode is full-plan by definition — undo any viewport-region offset
+  // left on the element or the text chrome draws displaced by the region origin.
+  selCv.style.left='0px'; selCv.style.top='0px';
   selCtx.setTransform(1,0,0,1,0,0);
 }
 function _setAnnoRes(force){
@@ -6581,8 +6701,9 @@ function _setAnnoRes(force){
 // forced it back to plan size).
 function _ensureShcvRes(){
   var eff = _annoEff || _computeAnnoEff();
-  var want = Math.max(1, Math.round(baseCv.width*eff));
+  var want = _annoWantW(eff);
   if(shCv.width !== want){ _sizeAnnoCanvas(shCv, shCtx, eff); }
+  else { _annoXf(shCtx, eff); }
 }
 
 function afterLoad(){
@@ -8025,9 +8146,9 @@ function onMove(e){
       if(typeof _ensureShcvRes==='function') _ensureShcvRes();
       // size/clear hl-cv to plan res
       var _he=_annoEff||(typeof _computeAnnoEff==='function'?_computeAnnoEff():1);
-      var _hw=Math.max(1,Math.round(baseCv.width*_he));
+      var _hw=_annoWantW(_he);
       if(hlCv.width!==_hw){ _sizeAnnoCanvas(hlCv,hlCtx,_he); }
-      else { hlCtx.setTransform(_he,0,0,_he,0,0); }
+      else { _annoXf(hlCtx,_he); }
       hlCtx.clearRect(0,0,hlCv.width,hlCv.height);
       // repaint committed highlights so they persist during the preview
       if(typeof renderShapeAndMeasure==='function') renderShapeAndMeasure();
@@ -8763,11 +8884,11 @@ function renderShapeAndMeasure(){
   // in the wrong spot" until a re-zoom re-synced the canvas. Setting it here
   // makes placement correct immediately, every time.
   var _eff = _annoEff || (typeof _computeAnnoEff==='function' ? _computeAnnoEff() : 1);
-  var _wantW = Math.max(1, Math.round(baseCv.width*_eff));
+  var _wantW = _annoWantW(_eff);
   if(shCv.width !== _wantW){ _sizeAnnoCanvas(shCv, shCtx, _eff); }
-  else { shCtx.setTransform(_eff,0,0,_eff,0,0); }
+  else { _annoXf(shCtx, _eff); }
   if(hlCv.width !== _wantW){ _sizeAnnoCanvas(hlCv, hlCtx, _eff); }
-  else { hlCtx.setTransform(_eff,0,0,_eff,0,0); }
+  else { _annoXf(hlCtx, _eff); }
   shCtx.clearRect(0,0,shCv.width,shCv.height);
   hlCtx.clearRect(0,0,hlCv.width,hlCv.height);
   // Markups first → they underlie everything drawn below (matches export).
@@ -9944,9 +10065,9 @@ function renderTextObjs(){
   // transform match the current zoom before drawing, so committed text doesn't
   // land at the wrong scale/offset at certain zoom levels.
   var _eff = _annoEff || (typeof _computeAnnoEff==='function' ? _computeAnnoEff() : 1);
-  var _wantW = Math.max(1, Math.round(baseCv.width*_eff));
+  var _wantW = _annoWantW(_eff);
   if(tCv.width !== _wantW){ _sizeAnnoCanvas(tCv, tCtx, _eff); }
-  else { tCtx.setTransform(_eff,0,0,_eff,0,0); }
+  else { _annoXf(tCtx, _eff); }
   tCtx.clearRect(0,0,tCv.width,tCv.height);
   // Identify the text object currently being transformed so we can hide its
   // STATIC copy while the live preview is drawn on selCv. We match by several
@@ -11800,14 +11921,21 @@ function renderSelection(){
   // jumps when you tap edit". Setting canvas.width resets the transform, so we
   // (re)apply it every call.
   var _selEff = _annoEff || (typeof _computeAnnoEff==='function' ? _computeAnnoEff() : 1);
-  var _selBW = Math.max(1, Math.round(baseCv.width*_selEff));
-  var _selBH = Math.max(1, Math.round(baseCv.height*_selEff));
+  // Viewport sharp mode: selCv covers only the region too. Sizing the FULL plan
+  // at the region eff would blow past the canvas limits and silently blank the
+  // selection chrome at high zoom.
+  var _sRX=0, _sRY=0, _sW=baseCv.width, _sH=baseCv.height;
+  if(_vpRegion){ _sRX=_vpRegion.x0; _sRY=_vpRegion.y0; _sW=_vpRegion.w; _sH=_vpRegion.h; }
+  var _selBW = Math.max(1, Math.round(_sW*_selEff));
+  var _selBH = Math.max(1, Math.round(_sH*_selEff));
   if(selCv.width!==_selBW || selCv.height!==_selBH){
     selCv.width=_selBW; selCv.height=_selBH; _selPrevDirty=null;
   }
-  selCv.style.width  = baseCv.width+'px';
-  selCv.style.height = baseCv.height+'px';
-  selCtx.setTransform(_selEff,0,0,_selEff,0,0);
+  selCv.style.width  = _sW+'px';
+  selCv.style.height = _sH+'px';
+  selCv.style.left   = _sRX+'px';
+  selCv.style.top    = _sRY+'px';
+  selCtx.setTransform(_selEff,0,0,_selEff, -_sRX*_selEff, -_sRY*_selEff);
   // Keep a comment's selection chrome (dashed box + handles) locked to the note's
   // LIVE geometry. The box auto-grows to fit text while typing, snaps to fit, and
   // can be re-sized on font/import changes — any of which leaves selectedShape
@@ -17505,11 +17633,15 @@ function _rasterizeImg(img){
 // resolution the placed images can actually supply — going past native wastes
 // memory without adding detail.
 function _computeImgEff(){
-  var w = baseCv.width, h = baseCv.height;
+  // Viewport sharp mode: the image canvas covers only the visible region, so
+  // drop the zoom ceiling entirely — area/side caps below use region dims and
+  // the maxNative cap still stops us past the photos' real resolution.
+  var _vr=_vpRegion;
+  var w = _vr ? _vr.w : baseCv.width, h = _vr ? _vr.h : baseCv.height;
   if(!w || !h) return 1;
   var devicePR = window.devicePixelRatio || 1;
   var eff = Math.max(1, devicePR * Math.max(1, zoom));
-  eff = Math.min(eff, IS_IOS ? 8 : 5);                   // ceiling (desktop 5, iOS 8-then-capped)
+  if(!_vr) eff = Math.min(eff, IS_IOS ? 8 : 5);          // ceiling (desktop 5, iOS 8-then-capped)
   // Per-canvas AREA budget. iOS Safari hard-caps a single canvas around ~16.7MP
   // and silently corrupts/blanks anything bigger — keep iPad/iPhone well under.
   // Desktop set to 36MP: enough to reach ~5× on normal pages while leaving
@@ -17539,15 +17671,20 @@ function _computeImgEff(){
 
 // Sync img-cv size whenever canvas changes
 function syncImgCv(){
-  var w=baseCv.width||1, h=baseCv.height||1;
   // Size the image overlay canvas at its own effective resolution (see
   // _computeImgEff) so images stay crisp when zoomed instead of being CSS-stretched
   // from a stale low-res backing store. Draw in plan coords via the eff transform.
+  // In viewport sharp mode the canvas covers only the visible region (see
+  // _sizeAnnoCanvas — same geometry: CSS box at the region origin, transform
+  // carries the offset), which is what removes the zoom resolution ceiling.
+  var rx=0, ry=0, w=baseCv.width||1, h=baseCv.height||1;
+  if(_vpRegion){ rx=_vpRegion.x0; ry=_vpRegion.y0; w=_vpRegion.w; h=_vpRegion.h; }
   var eff = (typeof _computeImgEff==='function') ? _computeImgEff() : 1;
   var bw=Math.max(1,Math.round(w*eff)), bh=Math.max(1,Math.round(h*eff));
   if(imgCv.width!==bw||imgCv.height!==bh){ imgCv.width=bw; imgCv.height=bh; }
   imgCv.style.width=w+'px'; imgCv.style.height=h+'px';
-  imgCtx.setTransform(eff,0,0,eff,0,0);
+  imgCv.style.left=rx+'px'; imgCv.style.top=ry+'px';
+  imgCtx.setTransform(eff,0,0,eff, -rx*eff, -ry*eff);
   imgCv._eff=eff;
   _imgEff=eff;
 }
@@ -17723,10 +17860,15 @@ function renderImgSelection(){
   // same image looked the moment it was deselected.
   var eff = (typeof _computeImgEff==='function') ? _computeImgEff()
           : ((typeof _computeAnnoEff==='function') ? _computeAnnoEff() : 1);
-  var bw=Math.max(1,Math.round(drawCv.width*eff)), bh=Math.max(1,Math.round(drawCv.height*eff));
+  // Viewport sharp mode: cover only the region (full plan × region eff would
+  // exceed the canvas limits and blank the selected image at high zoom).
+  var _rX=0, _rY=0, _rW=drawCv.width, _rH=drawCv.height;
+  if(_vpRegion){ _rX=_vpRegion.x0; _rY=_vpRegion.y0; _rW=_vpRegion.w; _rH=_vpRegion.h; }
+  var bw=Math.max(1,Math.round(_rW*eff)), bh=Math.max(1,Math.round(_rH*eff));
   if(selCv.width!==bw||selCv.height!==bh){ selCv.width=bw; selCv.height=bh; }
-  selCv.style.width=drawCv.width+'px'; selCv.style.height=drawCv.height+'px';
-  selCtx.setTransform(eff,0,0,eff,0,0);
+  selCv.style.width=_rW+'px'; selCv.style.height=_rH+'px';
+  selCv.style.left=_rX+'px'; selCv.style.top=_rY+'px';
+  selCtx.setTransform(eff,0,0,eff, -_rX*eff, -_rY*eff);
   selCtx.clearRect(0,0,drawCv.width,drawCv.height);
   // Draw image itself
   _drawImgOv(selCtx, selImg);
