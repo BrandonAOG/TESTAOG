@@ -1,6 +1,6 @@
 // ============================================================
 //  Always On Generators – Field Hub
-//  Service Worker  |  sw.js  |  Version: aog-forms-v3.6.11
+//  Service Worker  |  sw.js  |  Version: aog-forms-v2.5.0
 //  Scope: root (../)
 //
 //  ⚠ WHEN YOU UPDATE ANY TOOL:
@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-v2.4.7';
+var CACHE_NAME = 'aog-forms-vTest2.4.8';
 var DEV_MODE   = false;
 
 // Tracks whether this SW instance has already run a precache repair pass
@@ -23,13 +23,11 @@ var cacheProgress = { percent: 0, label: '', done: false }; // ← SET TRUE duri
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  '⚡ Conduit Fill now recalculates instantly when you switch between Raceway and Nipple.',
-  '🔔 Update notices like this one now appear on every form, not just a few.',
-  '🐞 Added a Report a Bug button — pick the form with the problem and it emails Brandon with your device details attached automatically.',
-  '💡 Added a Suggestions button — send ideas for any form, or pitch a brand new one.',
-  '📣 You can now add your name and choose to be credited in the update banner when you report a bug or send a suggestion.',
-  '🔗 Added a Share App button — sends the hub link straight from your share sheet.',
-  '🎚️ Added Sound to app with settings that has 166 tone styles — up to 25 per sound type, including 13 fireworks and a Random Mix thunder.',
+  '📋 Site Annotator: right-click Copy & Paste now works on rectangles and ellipses (Ctrl+C / Ctrl+V too).',
+  '🗑️ Site Annotator: deleting a selected picture or shape now removes it instantly — no more clicking out first.',
+  '📐 Site Annotator: leader arrows now export as true vectors — crystal clear at any zoom in the PDF.',
+  '📶 Offline upgrade: photo import (HEIC) and PDF export fonts now work with no signal — their libraries are cached like everything else.',
+  '🔧 Fixed a caching bug that quietly kept some fonts and libraries from saving for offline use.',
 ];
 // 
 // ============================================================
@@ -72,6 +70,22 @@ var PRECACHE_CDN = [
   'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
+  // Site Annotator: true-font PDF export (Calibri/Times/Courier metric twins)
+  'https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js',
+  'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/carlito/Carlito-Regular.ttf',
+  'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/carlito/Carlito-Bold.ttf',
+  'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/carlito/Carlito-Italic.ttf',
+  'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/carlito/Carlito-BoldItalic.ttf',
+  'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/tinos/Tinos-Regular.ttf',
+  'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/tinos/Tinos-Bold.ttf',
+  'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/tinos/Tinos-Italic.ttf',
+  'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/tinos/Tinos-BoldItalic.ttf',
+  'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/cousine/Cousine-Regular.ttf',
+  'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/cousine/Cousine-Bold.ttf',
+  'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/cousine/Cousine-Italic.ttf',
+  'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/cousine/Cousine-BoldItalic.ttf',
+  // Site Annotator: HEIC (iPhone photo) import — page tries jsdelivr, then unpkg
+  'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js',
 ];
 
 // Google Fonts CSS URLs — cached on install so fonts load offline
@@ -82,6 +96,8 @@ var PRECACHE_FONTS = [
   'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap',
   'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap',
   'https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Share+Tech+Mono&display=swap',
+  // Site Annotator's exact font CSS (URL must match verbatim to hit the cache)
+  'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600&display=swap',
 ];
 
 var CACHE_CDN = [
@@ -187,12 +203,15 @@ self.addEventListener('activate', function(event) {
   );
 });
 
-// Re-add any PRECACHE_URLS entries missing from the current cache.
+// Re-add any precache entries missing from the current cache — core pages AND
+// the CDN libraries/fonts (a library that failed to cache on install is exactly
+// the "PDF export doesn't work offline" failure, so repair those too).
 // Safe to run repeatedly; only fetches what's absent.
 function ensurePrecached() {
   return caches.open(CACHE_NAME).then(function(cache) {
     var scope = self.registration.scope;
-    return Promise.all(PRECACHE_URLS.map(function(url) {
+    var all = PRECACHE_URLS.concat(PRECACHE_CDN).concat(PRECACHE_FONTS);
+    return Promise.all(all.map(function(url) {
       var absUrl = url.startsWith('http') ? url : new URL(url, scope).href;
       return cache.match(absUrl).then(function(hit) {
         if (hit) return;
@@ -227,6 +246,8 @@ self.addEventListener('fetch', function(event) {
   var isAllowedCDN = url.hostname.includes('fonts.googleapis.com') ||
                      url.hostname.includes('fonts.gstatic.com')    ||
                      url.hostname.includes('cdnjs.cloudflare.com') ||
+                     url.hostname.includes('cdn.jsdelivr.net')     ||
+                     url.hostname.includes('unpkg.com')            ||
                      url.hostname.includes('mapbox.com')           ||
                      url.hostname.includes('mapbox.cn');
   if (!isSameOrigin && !isAllowedCDN) return;
@@ -266,10 +287,19 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  if (url.hostname.includes('fonts.googleapis.com') ||
-      url.hostname.includes('fonts.gstatic.com')    ||
-      url.hostname.includes('cdnjs.cloudflare.com')) {
+  // Google Fonts CSS can change server-side (UA-dependent) — keep it SWR.
+  if (url.hostname.includes('fonts.googleapis.com')) {
     event.respondWith(staleWhileRevalidate(request));
+    return;
+  }
+  // Versioned/immutable CDN files (cdnjs, jsdelivr, unpkg, gstatic woff2):
+  // the URL changes when the version does, so cache-first is safe and avoids
+  // re-downloading megabytes of libraries on every online visit over LTE.
+  if (url.hostname.includes('fonts.gstatic.com')    ||
+      url.hostname.includes('cdnjs.cloudflare.com') ||
+      url.hostname.includes('cdn.jsdelivr.net')     ||
+      url.hostname.includes('unpkg.com')) {
+    event.respondWith(cacheFirst(request));
     return;
   }
 
@@ -312,13 +342,24 @@ self.addEventListener('fetch', function(event) {
 //  STRATEGY: Network Race — network wins only if faster than timeoutMs,
 //  otherwise cached copy is served and the network refreshes cache silently
 // ============================================================
+
+// Is this response worth caching? `res.ok` alone REJECTED every no-cors
+// cross-origin response: a CDN <script> or a font file referenced from CSS
+// comes back as type "opaque" with status 0, so ok===false — the runtime
+// cache silently never stored the gstatic woff2 files, fontkit, heic2any,
+// or the export TTFs, and they all broke offline. Opaque responses cache
+// and replay fine; accept them for the CDN hosts we route through here.
+function _cacheable(res) {
+  return !!res && (res.ok || res.type === 'opaque' || res.type === 'opaqueredirect');
+}
+
 function networkRace(request, timeoutMs) {
   return caches.open(CACHE_NAME).then(function(cache) {
     return cache.match(request).then(function(hit) {
       return hit || caches.match(request);
     }).then(function(cached) {
       var networkFetch = fetch(request).then(function(res) {
-        if (res && res.ok) {
+        if (_cacheable(res)) {
           caches.open(CACHE_NAME).then(function(c) { c.put(request, res.clone()); });
         }
         return res;
@@ -342,7 +383,7 @@ function networkRace(request, timeoutMs) {
 function networkFirst(request) {
   return fetch(request)
     .then(function(networkResponse) {
-      if (networkResponse && networkResponse.ok) {
+      if (_cacheable(networkResponse)) {
         var responseClone = networkResponse.clone();
         caches.open(CACHE_NAME).then(function(cache) {
           cache.put(request, responseClone);
@@ -400,7 +441,7 @@ function staleWhileRevalidate(request) {
       return hit || caches.match(request);
     }).then(function(cachedResponse) {
       var networkFetch = fetch(request).then(function(networkResponse) {
-        if (networkResponse && networkResponse.ok) {
+        if (_cacheable(networkResponse)) {
           cache.put(request, networkResponse.clone());
         }
         return networkResponse;
@@ -429,7 +470,7 @@ function cacheFirst(request) {
   return caches.match(request).then(function(cachedResponse) {
     if (cachedResponse) return cachedResponse;
     return fetch(request).then(function(networkResponse) {
-      if (networkResponse && networkResponse.ok) {
+      if (_cacheable(networkResponse)) {
         var responseClone = networkResponse.clone();
         caches.open(CACHE_NAME).then(function(cache) {
           cache.put(request, responseClone);
