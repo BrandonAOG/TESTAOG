@@ -3052,7 +3052,7 @@ function renderMarkupObjs(){
     // showed text through but a tool-drawn one at 100% did not. Strikeout/underline
     // stay on the shapes canvas (thin lines meant to sit visibly on top).
     var _mc=(m._bakedHl||m.blend||m.type==='highlight')?hlCtx:shCtx;
-    drawMarkupOnCtx(_mc, m, 1, Math.max(2,2/zoom));
+    drawMarkupOnCtx(_mc, m, 1, 2/zoom);
   });
   // Selection outline for the highlight currently picked with the Hilite tool, so
   // the user can SEE which mark the color/opacity controls are editing.
@@ -3069,8 +3069,8 @@ function renderMarkupObjs(){
     }
     shCtx.save();
     shCtx.strokeStyle='#00d4ff';
-    shCtx.lineWidth=Math.max(1.5,1.5/zoom);
-    shCtx.setLineDash([Math.max(5,5/zoom),Math.max(4,4/zoom)]);
+    shCtx.lineWidth=1.5/zoom;
+    shCtx.setLineDash([5/zoom,4/zoom]);
     shCtx.strokeRect(bx1,by1,bx2-bx1,by2-by1);
     shCtx.restore();
   }
@@ -8215,7 +8215,7 @@ function onMove(e){
       // strikeout / underline: thin visible lines on top (draw-cv is fine)
       dCtx.putImageData(compositedSnap,0,0);
       dCtx.save(); dCtx.globalAlpha=markupOpacity;
-      dCtx.strokeStyle=markupColor; dCtx.lineWidth=Math.max(2,2/zoom);
+      dCtx.strokeStyle=markupColor; dCtx.lineWidth=2/zoom;
       dCtx.beginPath();
       if(tool==='strikeout'){ dCtx.moveTo(mx2,(my2+my3)/2); dCtx.lineTo(mx3,(my2+my3)/2); }
       else { dCtx.moveTo(mx2,my3); dCtx.lineTo(mx3,my3); }
@@ -9223,7 +9223,7 @@ function findMeasureObjAt(x,y,isTouch){
 // Determine which handle of a selected measure is near x,y:
 // returns 0 (p1), 1 (p2), -2 (body/move), or -1 (miss)
 function getMeasureHandleAt(m, x, y, isTouch){
-  var slop=isTouch?Math.max(14,20/zoom):Math.max(8,10/zoom);
+  var slop=(isTouch?20:10)/zoom;
   if(Math.hypot(x-m.x1,y-m.y1)<slop) return 0;
   if(Math.hypot(x-m.x2,y-m.y2)<slop) return 1;
   // check body
@@ -9247,7 +9247,7 @@ function renderMeasureSelection(){
   // Draw highlighted line
   drawMeasureObjOnCtx(selCtx, m, !isPlainLine);
   // Endpoint drag handles
-  var hs=Math.max(8,10/zoom);
+  var hs=10/zoom;
   if(isPlainLine){
     // Plain line: simple white square handles, no P1/P2 labels
     [[m.x1,m.y1],[m.x2,m.y2]].forEach(function(pt){
@@ -9278,7 +9278,7 @@ function renderMeasureSelection(){
       // Label: P1 / P2
       selCtx.shadowBlur=0;
       selCtx.fillStyle='#fff';
-      selCtx.font='bold '+(Math.max(9,10/zoom))+'px Arial,sans-serif';
+      selCtx.font='bold '+(10/zoom)+'px Arial,sans-serif';
       selCtx.textAlign='center'; selCtx.textBaseline='middle';
       selCtx.fillText(idx===0?'P1':'P2',pt[0],pt[1]);
       selCtx.restore();
@@ -9287,7 +9287,7 @@ function renderMeasureSelection(){
   // Commit/cancel hint
   selCtx.save();
   selCtx.fillStyle=isPlainLine?'rgba(157,151,255,0.8)':'rgba(0,212,255,0.8)';
-  selCtx.font=(Math.max(10,11/zoom))+'px Arial,sans-serif';
+  selCtx.font=(11/zoom)+'px Arial,sans-serif';
   selCtx.textAlign='center'; selCtx.textBaseline='top';
   var midX=(m.x1+m.x2)/2, midY=Math.min(m.y1,m.y2)-20/zoom;
   selCtx.fillText('Drag endpoints · Release to drop',midX,midY);
@@ -9314,7 +9314,7 @@ function cancelMeasureSelection(){
 // Returns which leader control is under (x,y): 0=arrow tip, 1=elbow,
 // 2=shoulder end, -2=on a segment (move whole), -1=none.
 function getLeaderHandleAt(o, x, y, isTouch){
-  var slop=isTouch?Math.max(14,20/zoom):Math.max(8,10/zoom);
+  var slop=(isTouch?20:10)/zoom;
   var _se=leaderShoulderEnd(o);
   var sx=_se.x, sy=_se.y; // shoulder end
   if(Math.hypot(x-o.x1,y-o.y1)<slop) return 0;   // arrow tip
@@ -9341,7 +9341,7 @@ function renderLeaderSelection(){
   drawLeaderOnCtx(selCtx, o, 1);
   var _se=leaderShoulderEnd(o);
   var sx=_se.x, sy=_se.y;
-  var hs=Math.max(8,10/zoom);
+  var hs=10/zoom;
   // Handles: tip (cyan), elbow (amber), shoulder end (purple)
   [[o.x1,o.y1,'#00D4FF'],[o.x2,o.y2,'#FBBF24'],[sx,sy,'#9d97ff']].forEach(function(pt){
     selCtx.save();
@@ -9359,7 +9359,7 @@ function renderLeaderSelection(){
   // Hint
   selCtx.save();
   selCtx.fillStyle='rgba(0,212,255,0.8)';
-  selCtx.font=(Math.max(10,11/zoom))+'px Arial,sans-serif';
+  selCtx.font=(11/zoom)+'px Arial,sans-serif';
   selCtx.textAlign='center'; selCtx.textBaseline='top';
   selCtx.fillText('Drag handles · change color/width in toolbar', (o.x1+sx)/2, Math.min(o.y1,o.y2)-20/zoom);
   selCtx.restore();
@@ -9560,17 +9560,18 @@ function redrawPathMeasurePreview(mouseX,mouseY){
   if(mouseX!=null){
     var liveLabel=(scaleSet?formatLength(runTotal):(Math.round(runTotal)+'px'));
     shCtx.globalAlpha=1;
-    shCtx.font='bold 13px Arial,sans-serif';
+    var _z=zoom||1;
+    shCtx.font='bold '+(13/_z)+'px Arial,sans-serif';
     shCtx.textAlign='left';
     var tw=shCtx.measureText(liveLabel).width;
     shCtx.fillStyle='rgba(0,0,0,0.7)';
-    shCtx.fillRect(mouseX+12,mouseY-18,tw+10,20);
+    shCtx.fillRect(mouseX+12/_z,mouseY-18/_z,tw+10/_z,20/_z);
     shCtx.fillStyle=color;
-    shCtx.fillText(liveLabel,mouseX+17,mouseY-3);
+    shCtx.fillText(liveLabel,mouseX+17/_z,mouseY-3/_z);
     // Hint
-    shCtx.font='10px Arial,sans-serif';
+    shCtx.font=(10/_z)+'px Arial,sans-serif';
     shCtx.fillStyle='rgba(255,255,255,0.6)';
-    shCtx.fillText('Dbl-click or Enter to finish',mouseX+12,mouseY+14);
+    shCtx.fillText('Dbl-click or Enter to finish',mouseX+12/_z,mouseY+14/_z);
   }
   shCtx.restore();
 }
@@ -9904,7 +9905,7 @@ function handleLeaderClick(x,y,e){
 function handleStamp(e){
   captureState(false); // vector op — save before stamp is placed
   var p=snapPt(getPos(e).x,getPos(e).y);
-  var sz=Math.max(20,Math.min(60,40/zoom));
+  var sz=40/zoom;
   stampObjs.push({
     id:Date.now(), type:stampType, x:p.x, y:p.y, s:sz,
     color:color, strokeW:strokeW, opacity:opacity, layerIdx:activeLayerIdx
@@ -10266,7 +10267,7 @@ function findTextObjAt(x,y){
     var lines=getTextLines(o,ofpx);
     var estW=measureLinesWDrawn(o,lines,ofpx);
     var estH=lines.length*ofpx*TXT_LINE_H;
-    var pad=Math.max(8,12/zoom);
+    var pad=12/zoom;
     // Rotate the click point into the label's LOCAL frame (pivot = o.x,o.y,
     // the same origin the text is drawn about). Without this, a rotated label's
     // clickable area stayed axis-aligned and the click missed — falling through
@@ -10342,8 +10343,8 @@ function drawTextCursorAt(x, y, alpha){
   // Serifs, stroke, and glow used fixed SCREEN sizes (7/zoom, 4/zoom blur) —
   // zoomed out on a phone they dwarfed both the bar and the text, reading as a
   // giant blob at the tap point. Cap them relative to the caret height.
-  var sw  = Math.min(Math.max(1.5, 2/zoom), Math.max(1, h*0.12));   // stroke width
-  var ss  = Math.min(Math.max(4, 7/zoom),  Math.max(2, h*0.45));    // serif width
+  var sw  = Math.min(2/zoom, Math.max(1, h*0.12));   // stroke width
+  var ss  = Math.min(7/zoom,  Math.max(2, h*0.45));    // serif width
   var col = color;
 
   selCtx.save();
@@ -10488,7 +10489,7 @@ function showTextHover(x, y){
     selCtx.strokeRect(-pad, _topH-pad, estW+pad*2, estH+pad*2);
     // Edit pencil icon hint
     selCtx.setLineDash([]); selCtx.globalAlpha=0.8;
-    selCtx.font='bold '+(Math.max(10,11/zoom))+'px Arial,sans-serif';
+    selCtx.font='bold '+(11/zoom)+'px Arial,sans-serif';
     selCtx.fillStyle=color; selCtx.textAlign='left';
     selCtx.fillText('✎ edit', 0, _topH-8/zoom);
     selCtx.restore();
@@ -10497,7 +10498,7 @@ function showTextHover(x, y){
     drawTextCursorAt(x, y, 0.35);
     selCtx.save();
     selCtx.globalAlpha=0.45;
-    selCtx.font='bold '+(Math.max(10,11/zoom))+'px Arial,sans-serif';
+    selCtx.font='bold '+(11/zoom)+'px Arial,sans-serif';
     selCtx.fillStyle=color; selCtx.textAlign='left';
     selCtx.fillText('T', x + 8/zoom, y - ptToCanvasPx(FONT_SIZE)*1.1); // true rendered height, not points-as-px
     selCtx.restore();
@@ -10741,7 +10742,7 @@ function _drawTextChrome(o){
   // Left/right handles (and corners, which sit in the side bands) drag the wrap
   // width; the text reflows live. Drawn while the caret is still active.
   selCtx.setLineDash([]);
-  var _hr=Math.max(4.5,HANDLE_SIZE*0.62/zoom);
+  var _hr=HANDLE_SIZE*0.62/zoom;
   var _hxL=-pad, _hxR=d.w+pad, _hxC=d.w/2;
   var _hyT=d.top-pad, _hyB=d.top+d.h+pad, _hyM=d.top+d.h/2;
   var _hps=[[_hxL,_hyT],[_hxC,_hyT],[_hxR,_hyT],[_hxR,_hyM],
@@ -10759,7 +10760,7 @@ function _drawTextChrome(o){
   selCtx.setLineDash([2/zoom,2/zoom]);
   selCtx.beginPath(); selCtx.moveTo(topx,topy); selCtx.lineTo(hubx,huby); selCtx.stroke();
   selCtx.setLineDash([]);
-  var r=Math.max(7,HANDLE_SIZE/zoom)*1.15;
+  var r=(HANDLE_SIZE/zoom)*1.15;
   selCtx.fillStyle=ROT_COLOR; selCtx.strokeStyle='#fff'; selCtx.lineWidth=lw*1.5;
   selCtx.shadowColor=ROT_COLOR; selCtx.shadowBlur=6/zoom;
   selCtx.beginPath(); selCtx.arc(hubx,huby,r,0,Math.PI*2); selCtx.fill(); selCtx.stroke();
@@ -10769,14 +10770,14 @@ function _drawTextChrome(o){
   selCtx.restore();
   // Store the handle's world position for hit-testing
   var ca=Math.cos(ang), sa=Math.sin(ang);
-  o._rotHandle={x:o.x+(hubx*ca-huby*sa), y:o.y+(hubx*sa+huby*ca), r:Math.max(16,22/zoom)};
+  o._rotHandle={x:o.x+(hubx*ca-huby*sa), y:o.y+(hubx*sa+huby*ca), r:22/zoom};
 }
 function _textRotHandleAt(o,x,y){
   return !!(o&&o._rotHandle&&Math.hypot(x-o._rotHandle.x,y-o._rotHandle.y)<=o._rotHandle.r);
 }
 // Small "##°" readout drawn at a canvas position, screen-upright.
 function _drawAngleBadgeXY(ctx,x,y,deg){
-  var fs=Math.max(9,Math.min(15,12/zoom)), pad=4/zoom, lw=0.9/zoom, rad=3/zoom;
+  var fs=12/zoom, pad=4/zoom, lw=0.9/zoom, rad=3/zoom;
   var text=deg+'\u00B0';
   ctx.save();
   ctx.translate(x,y);
@@ -10823,7 +10824,7 @@ function _drawAngleBadge(o,deg){
 // but not deep inside the text. Grabbing the border drags the whole label.
 function _textBorderAt(o,x,y){
   var d=_textBoxDims(o);
-  var pad=6/zoom, band=Math.max(14,18/zoom);
+  var pad=6/zoom, band=18/zoom;
   var ang=o.angle||0, ca=Math.cos(-ang), sa=Math.sin(-ang);
   var dx=x-o.x, dy=y-o.y;
   var lx=dx*ca-dy*sa, ly=dx*sa+dy*ca;
@@ -10841,7 +10842,7 @@ function _textBorderAt(o,x,y){
 function _textSideAt(o,x,y){
   if(!o || o._fitWs || o._anchorRight) return null;
   var d=_textBoxDims(o);
-  var pad=6/zoom, band=Math.max(14,18/zoom);
+  var pad=6/zoom, band=18/zoom;
   var ang=o.angle||0, ca=Math.cos(-ang), sa=Math.sin(-ang);
   var dx=x-o.x, dy=y-o.y;
   var lx=dx*ca-dy*sa, ly=dx*sa+dy*ca;
@@ -10866,7 +10867,7 @@ function _textHandleAt(o,x,y){
   var ang=o.angle||0, ca=Math.cos(-ang), sa=Math.sin(-ang);
   var dx=x-o.x, dy=y-o.y;
   var lx=dx*ca-dy*sa, ly=dx*sa+dy*ca;
-  var pts=_textHandlePts(o), r=Math.max(12,16/zoom);
+  var pts=_textHandlePts(o), r=16/zoom;
   for(var i=0;i<8;i++){
     if(Math.hypot(lx-pts[i][0],ly-pts[i][1])<=r) return i;
   }
@@ -12959,7 +12960,7 @@ function renderPolylineSelection(){
   // The polyline itself (in its real color, on top)
   drawPolylineOnCtx(selCtx, pl, 1);
   // Vertex dots
-  var hs=Math.max(5,7/zoom);
+  var hs=7/zoom;
   pl.pts.forEach(function(pt){
     selCtx.save();
     selCtx.fillStyle='rgba(108,99,255,0.9)';
@@ -13014,12 +13015,13 @@ function redrawPolylinePreview(mx,my){
   // Cursor hint
   if(mx!=null){
     shCtx.globalAlpha=1;
-    shCtx.font='10px Arial,sans-serif';
+    var _z2=zoom||1;
+    shCtx.font=(10/_z2)+'px Arial,sans-serif';
     shCtx.fillStyle='rgba(255,255,255,0.7)';
     var hint=('ontouchstart' in window)
       ? '2nd finger to anchor · Dbl-tap to finish · '+plPoints.length+' pts'
       : 'Dbl-click or Enter to finish · '+plPoints.length+' pts';
-    shCtx.fillText(hint,mx+12,my+14);
+    shCtx.fillText(hint,mx+12/_z2,my+14/_z2);
   }
   shCtx.restore();
 }
@@ -18029,7 +18031,7 @@ function _drawDimBadges(ctx, cx, cy, w, h, angle){
     return Math.round(px) + ' px';
   }
 
-  var fontSize = Math.max(9, Math.min(16, 12 / zoom));
+  var fontSize = 12 / zoom;          // screen-constant: NO plan-px floor (it would grow with zoom)
   var pad      = 5 / zoom;
   var radius   = 3 / zoom;
   var lw       = 0.9 / zoom;
@@ -18072,7 +18074,7 @@ function _drawTextSizeBadge(ctx, s){
   if(!s || !s._textObj) return;
   var a    = s.angle || 0;
   var cosA = Math.cos(a), sinA = Math.sin(a);
-  var fontSize = Math.max(9, Math.min(16, 12 / zoom)); // screen-constant size
+  var fontSize = 12 / zoom;                            // screen-constant size
   var pad      = 5 / zoom;
   var radius   = 3 / zoom;
   var lw       = 0.9 / zoom;
@@ -18397,7 +18399,7 @@ function _drawImgGhost(cx, cy){
   var sz  = _pendingImgCanvasSize(_pendingImg);
   var x   = cx - sz.w / 2;
   var y   = cy - sz.h / 2;
-  var lw  = Math.max(1, 1.5 / zoom);   // line stays crisp at any zoom
+  var lw  = 1.5 / zoom;                // line stays crisp at any zoom
 
   selCtx.save();
 
