@@ -6493,9 +6493,11 @@ function renderPDFPage(n){
 
 function resize(w,h){
   // New document / rotation → any viewport-sharp region belongs to the OLD
-  // geometry. Drop it and pull every layer back to the plan origin before the
-  // full-plan sizing below, or stale CSS offsets displace whole layers.
-  _vpRegion=null;
+  // geometry. Drop it and pull every layer back to the plan origin, otherwise
+  // a stale CSS offset displaces whole layers. _vpUpdate() at the bottom of
+  // this function re-establishes a region for the NEW page immediately, so the
+  // very first paint is already viewport-rendered (mode is always on).
+  _vpRegion=null; _annoRegionKey=''; _imgRegionKey='';
   if(typeof _vpResetCss==='function'){ try{ _vpResetCss(); }catch(e){} }
   baseCv.width=drawCv.width=gridCv.width=tCv.width=shCv.width=hlCv.width=w;
   if(typeof imgCv!=='undefined'){ imgCv.width=w; }
@@ -6514,6 +6516,13 @@ function resize(w,h){
   // the backing stores are sized for the current zoom (see _setAnnoRes). (Export
   // re-renders these on their own canvases, and neither is read back, so nothing
   // else is affected.)
+  // Establish the viewport region for the NEW page geometry first (mode is
+  // always on), so _setAnnoRes sizes the layers to that region on the very
+  // first paint instead of doing a full-plan pass and then immediately
+  // re-rendering. If the page hasn't been laid out yet (zoom/pan not applied),
+  // _vpUpdate simply clamps the region to the whole plan — same result as the
+  // old full-plan path.
+  if(typeof _vpUpdate==='function'){ try{ _vpUpdate(); }catch(e){} }
   _setAnnoRes(true);
 }
 
@@ -6544,14 +6553,29 @@ var _VP_GUARD  = 0.08;   // rebuild when view gets this close (×view) to an edg
 function _vpEffFor(r){
   var dpr = window.devicePixelRatio || 1;
   var eff = Math.max(1, dpr * Math.max(1, zoom));   // full device res — NO zoom ceiling
-  // Area budget applies to the (small) region, not the plan — this is the whole
-  // trick. Guard anyway: huge monitors × dpr can still get big.
-  var CAP = (IS_IPHONE ? 8e6 : (IS_IPAD ? 12e6 : 30e6));
-  if(r.w*r.h*eff*eff > CAP) eff = Math.max(1, Math.sqrt(CAP/(r.w*r.h)));
+  // Area + side budgets apply to the (small) REGION, not the plan — that's the
+  // whole trick, and why there's no zoom ceiling. Desktop Safari blanks canvases
+  // past ~16.7MP, same family of limit as iOS, so it gets its own budget.
+  var CAP = (IS_IPHONE ? 8e6 : (IS_IPAD ? 12e6 : (IS_DESKTOP_SAFARI ? 15e6 : 30e6)));
   var MAX_SIDE = IS_IOS ? 8192 : 16384;
+  // The budget clamps used to floor at 1× ("never render below plan
+  // resolution"). That's right when zoomed IN — but at low zoom the region is
+  // large (a big sheet, or the whole plan) and 1× can ITSELF exceed the area /
+  // side budget. Flooring there hands back an over-budget canvas, which Safari
+  // and iOS silently BLANK. So the floor is only applied when 1× actually fits:
+  // otherwise the clamp wins and we go sub-1×, which is harmless because at low
+  // zoom the layer is being displayed shrunk anyway.
+  var oneXFits = (r.w*r.h <= CAP) && (r.w <= MAX_SIDE) && (r.h <= MAX_SIDE);
+  var floorAt = oneXFits ? 1 : 0.05;
   var sideCap = Math.min(MAX_SIDE/r.w, MAX_SIDE/r.h);
-  if(eff > sideCap) eff = Math.max(1, sideCap);
-  return Math.round(eff*4)/4;
+  if(r.w*r.h*eff*eff > CAP) eff = Math.max(floorAt, Math.sqrt(CAP/(r.w*r.h)));
+  if(eff > sideCap)         eff = Math.max(floorAt, sideCap);
+  // Bucket to 0.25 steps, but round DOWN — rounding up can push a
+  // budget-clamped eff back over the limit (the blank-canvas case).
+  eff = Math.max(0.05, Math.floor(eff*4)/4);
+  // Never exceed the budget after bucketing.
+  if(r.w*r.h*eff*eff > CAP) eff = Math.max(0.05, Math.floor(Math.sqrt(CAP/(r.w*r.h))*4)/4);
+  return eff;
 }
 // Backing width the anno canvases should have right now (region- or plan-wide).
 function _annoWantW(eff){
@@ -6589,16 +6613,15 @@ function _vpRerenderAll(){
 // Called from applyTransform on every pan/zoom. Decides which mode we're in and
 // whether the region needs rebuilding (zoom changed, or view neared its edge).
 function _vpUpdate(){
-  if(!baseLoaded || !baseCv.width || !baseCv.height) return;
-  var dpr = window.devicePixelRatio || 1;
-  var need = dpr * Math.max(1, zoom);
-  // Enter viewport mode only when classic full-plan rendering can no longer
-  // supply device resolution (its capped eff falls short of what zoom needs).
-  var wantRegion = zoom > 1.02 && need > _computeAnnoEffFull() + 0.26;
-  if(!wantRegion){
-    if(_vpRegion){ _vpRegion=null; _vpResetCss(); _vpRerenderAll(); }
-    return;
-  }
+  // Guard on GEOMETRY, not baseLoaded: resize() calls this while loading a new
+  // page, before afterLoad() flips baseLoaded — and the whole point of always-on
+  // mode is that the first paint is already region-rendered.
+  if(!baseCv.width || !baseCv.height) return;
+  // ALWAYS-ON: viewport mode is the only pipeline from the moment a document
+  // loads. Zoomed out, the region clamps to the whole plan and behaves exactly
+  // like classic full-plan rendering; zoomed in, it tightens around the view
+  // and resolution tracks the screen with no ceiling. No mode switch, so no
+  // re-render "pop" as you cross a threshold — crisp the whole way through.
   var vw = Math.max(1, viewport.clientWidth), vh = Math.max(1, viewport.clientHeight);
   var vx = (-panX)/zoom, vy = (-panY)/zoom, vwp = vw/zoom, vhp = vh/zoom; // visible plan rect
   if(_vpRegion){
@@ -6609,7 +6632,9 @@ function _vpUpdate(){
     var gB=(r.y0+r.h<baseCv.height-0.5)?gy:0;
     var inside = vx>=r.x0+gL-0.01 && vy>=r.y0+gT-0.01 &&
                  (vx+vwp)<=r.x0+r.w-gR+0.01 && (vy+vhp)<=r.y0+r.h-gB+0.01;
-    if(inside && Math.abs(zoom-r.zoomAt) <= r.zoomAt*0.02) return;  // region still good
+    // 4% zoom hysteresis ≈ one 0.25 eff bucket. With the mode always on, a
+    // tighter trigger would re-render continuously through ordinary pinches.
+    if(inside && Math.abs(zoom-r.zoomAt) <= r.zoomAt*0.04) return;  // region still good
   }
   var mX=vwp*_VP_MARGIN, mY=vhp*_VP_MARGIN;
   var x0=Math.max(0, vx-mX),                y0=Math.max(0, vy-mY);
@@ -6681,13 +6706,20 @@ function _sizeSelCvRaw(){
   selCv.style.left='0px'; selCv.style.top='0px';
   selCtx.setTransform(1,0,0,1,0,0);
 }
+var _annoRegionKey = '';   // identity of the region baked into the anno canvases
 function _setAnnoRes(force){
   var w = baseCv.width, h = baseCv.height;
   if(!w || !h) return;
   var eff = _computeAnnoEff();
   // Skip needless re-rasterization (e.g. during pan, where zoom is unchanged).
-  if(!force && Math.abs(eff - _annoEff) < 0.2) return;
+  // But in viewport mode a pan can move the REGION while eff stays identical —
+  // comparing eff alone would skip the redraw and leave the layers rendering
+  // the old window (blank strips as you pan). Key on the region too.
+  var key = _vpRegion ? (Math.round(_vpRegion.x0)+','+Math.round(_vpRegion.y0)+','+
+                         Math.round(_vpRegion.w)+','+Math.round(_vpRegion.h)) : '';
+  if(!force && Math.abs(eff - _annoEff) < 0.2 && key === _annoRegionKey) return;
   _annoEff = eff;
+  _annoRegionKey = key;
   _sizeAnnoCanvas(tCv,  tCtx,  eff);
   _sizeAnnoCanvas(shCv, shCtx, eff);
   _sizeAnnoCanvas(hlCv, hlCtx, eff);
@@ -17599,6 +17631,7 @@ var selImgDrag  = null;        // drag start state
 var IMG_HANDLE  = 10;          // handle size px (screen)
 
 var _imgEff = 0;     // effective scale currently baked into the image overlay canvas
+var _imgRegionKey = '';   // identity of the viewport region baked into imgCv
 
 // iOS Safari decodes <img> lazily: the FIRST drawImage of a big data-URL image
 // can paint garbled/partial pixels (subsequent draws are fine once the decode
@@ -17646,14 +17679,19 @@ function _computeImgEff(){
   // and silently corrupts/blanks anything bigger — keep iPad/iPhone well under.
   // Desktop set to 36MP: enough to reach ~5× on normal pages while leaving
   // memory headroom (the image canvas alone was pushing total VRAM past 1GB).
-  var _CAP = (IS_IPHONE ? 8e6 : (IS_IPAD ? 12e6 : 36e6));
-  if(w*h*eff*eff > _CAP) eff = Math.max(1, Math.sqrt(_CAP/(w*h)));
+  var _CAP = (IS_IPHONE ? 8e6 : (IS_IPAD ? 12e6 : (IS_DESKTOP_SAFARI ? 15e6 : 36e6)));
   // HARD PER-SIDE GUARD. Browsers blank a canvas whose width OR height passes
-  // ~32767px. Clamp eff so neither side of the backing store crosses a safe
-  // limit — a blank image is the opposite of crisp.
+  // ~32767px — a blank image is the opposite of crisp.
   var MAX_SIDE = IS_IOS ? 8192 : 16384;
+  // Same rule as _vpEffFor: only floor at 1× if 1× actually FITS the budget.
+  // At low zoom the region is large and 1× can bust the area/side limits on its
+  // own; flooring there would return an over-budget (blank) canvas. Zoomed in,
+  // the region is small, 1× fits, and images never render below plan resolution.
+  var _oneXFits = (w*h <= _CAP) && (w <= MAX_SIDE) && (h <= MAX_SIDE);
+  var _floorAt = _oneXFits ? 1 : 0.05;
   var _sideCap = Math.min(MAX_SIDE / w, MAX_SIDE / h);
-  if(eff > _sideCap) eff = Math.max(1, _sideCap);
+  if(w*h*eff*eff > _CAP) eff = Math.max(_floorAt, Math.sqrt(_CAP/(w*h)));
+  if(eff > _sideCap)     eff = Math.max(_floorAt, _sideCap);
   // Don't exceed what the placed images' source resolution can supply.
   var maxNative = 1;
   if(typeof imgOverlays!=='undefined'){
@@ -17666,7 +17704,13 @@ function _computeImgEff(){
     });
   }
   eff = Math.min(eff, Math.max(1, maxNative));
-  return Math.round(eff*4)/4;                             // bucket to 0.25 steps
+  // Bucket DOWN to 0.25 steps: rounding UP can push a budget-clamped eff back
+  // over the area limit, which is the silent blank-canvas case. The 0.05 floor
+  // stops a legitimate sub-1× eff (huge sheet, zoomed out) rounding to zero —
+  // that would be a zero-size canvas and an invisible image layer.
+  eff = Math.max(0.05, Math.floor(eff*4)/4);
+  if(w*h*eff*eff > _CAP) eff = Math.max(0.05, Math.floor(Math.sqrt(_CAP/(w*h))*4)/4);
+  return eff;
 }
 
 // Sync img-cv size whenever canvas changes
@@ -17699,7 +17743,13 @@ function _setImgRes(force){
   if(!baseCv.width || !baseCv.height) return;
   if(typeof imgOverlays==='undefined' || !imgOverlays.length) return;
   var eff = _computeImgEff();
-  if(!force && Math.abs(eff - _imgEff) < 0.2) return;
+  // Same region-identity guard as _setAnnoRes: in viewport mode a pan moves the
+  // region without changing eff, and skipping on eff alone would leave the image
+  // canvas rendering the previous window.
+  var _ikey = _vpRegion ? (Math.round(_vpRegion.x0)+','+Math.round(_vpRegion.y0)+','+
+                           Math.round(_vpRegion.w)+','+Math.round(_vpRegion.h)) : '';
+  if(!force && Math.abs(eff - _imgEff) < 0.2 && _ikey === _imgRegionKey) return;
+  _imgRegionKey = _ikey;
   if(_imgResTimer){ clearTimeout(_imgResTimer); _imgResTimer=null; }
   var doRender=function(){
     _imgResTimer=null;
