@@ -15152,10 +15152,27 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
     }
   }); }catch(e){ console.warn('[Vec] polylines',e); }
 
-  // ── Leaders (arrow + shoulder + label is drawn raster; draw the lines vector,
-  //    leave the text to raster overlay only if styled). Simpler + safe: draw the
-  //    two line segments as vectors and let the raster overlay carry the text.
-  //    To avoid double lines, leaders are fully handled in raster (skip here). ──
+  // ── Leaders → TRUE VECTORS ──────────────────────────────────────────────
+  // These used to be "fully handled in raster", which meant the arrow, main
+  // line and shoulder blurred at high zoom while every other annotation was
+  // vector-crisp. The geometry is just three line segments + two arrowhead
+  // arms — the same math as drawLeaderOnCtx — so paint them with the vector
+  // line() helper. The label is a separate text object and is already handled
+  // by the vector text pass; _suppressVectorizedForOverlay clears leaderObjs
+  // so the raster overlay doesn't draw the lines a second time.
+  try{ if(typeof leaderObjs!=='undefined') leaderObjs.forEach(function(o){
+    if(!visible(o)) return;
+    var op=(o.opacity==null?1:o.opacity);
+    // main line P1(arrow end) -> P2(elbow)
+    line(o.x1,o.y1,o.x2,o.y2,o.color,o.strokeW,op);
+    // arrowhead at P1 (same size rule as drawLeaderOnCtx)
+    var ang=Math.atan2(o.y1-o.y2,o.x1-o.x2), hw=Math.max((o.strokeW||2)*3,10);
+    line(o.x1,o.y1, o.x1-hw*Math.cos(ang-Math.PI/6), o.y1-hw*Math.sin(ang-Math.PI/6), o.color, o.strokeW, op);
+    line(o.x1,o.y1, o.x1-hw*Math.cos(ang+Math.PI/6), o.y1-hw*Math.sin(ang+Math.PI/6), o.color, o.strokeW, op);
+    // shoulder at P2 (direction may be rotated, not just horizontal)
+    var _se=leaderShoulderEnd(o);
+    line(o.x2,o.y2,_se.x,_se.y,o.color,o.strokeW,op);
+  }); }catch(e){ console.warn('[Vec] leaders',e); }
 
   // ── Markups: highlight (fill rect), strikeout/underline (line) ─────────────
   // ── NOTES / COMMENT BOXES → TRUE VECTORS ───────────────────────────────────
@@ -15516,11 +15533,16 @@ function _suppressVectorizedForOverlay(){
     shapeObjs:shapeObjs, measureObjs:measureObjs, textObjs:textObjs,
     polylineObjs:(typeof polylineObjs!=='undefined'?polylineObjs:null),
     markupObjs:(typeof markupObjs!=='undefined'?markupObjs:null),
-    commentObjs:(typeof commentObjs!=='undefined'?commentObjs:null)
+    commentObjs:(typeof commentObjs!=='undefined'?commentObjs:null),
+    leaderObjs:(typeof leaderObjs!=='undefined'?leaderObjs:null)
   };
   // Notes are painted as TRUE VECTORS now — keep them out of the raster overlay or
   // they'd be drawn twice (and the bitmap copy is the one that shifts shade on zoom).
   if(saved.commentObjs!==null) commentObjs = [];
+  // Leaders are vector now too (lines + arrowhead in the painter, label via the
+  // vector text pass) — clear them so the raster overlay doesn't double-draw
+  // a blurry copy over the crisp one.
+  if(saved.leaderObjs!==null) leaderObjs = [];
   // Keep ONLY the cloud shapes in the raster overlay (rect/ellipse are vectorized).
   shapeObjs = shapeObjs.filter(function(s){ return s.type==='cloud'; });
   measureObjs = [];
@@ -15535,6 +15557,7 @@ function _suppressVectorizedForOverlay(){
     if(saved.polylineObjs!==null) polylineObjs=saved.polylineObjs;
     if(saved.markupObjs!==null) markupObjs=saved.markupObjs;
     if(saved.commentObjs!==null) commentObjs=saved.commentObjs;
+    if(saved.leaderObjs!==null) leaderObjs=saved.leaderObjs;
   };
 }
 
@@ -18642,7 +18665,7 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Enter'&&selectedShape){ commitSelection(); return; }
   if(e.key==='Enter'&&tool==='pathmeasure'&&pmActive){ closePathMeasure(); return; }
   if(e.key==='Enter'&&tool==='polyline'&&plActive){ closePolyline(); return; }
-  if((e.key==='Delete'||e.key==='Backspace')&&selectedLeader&&document.activeElement===document.body){
+  if((e.key==='Delete'||e.key==='Backspace')&&selectedLeader){
     e.preventDefault();
     captureState();
     var lidx=leaderObjs.indexOf(selectedLeader);
@@ -18652,7 +18675,7 @@ document.addEventListener('keydown',function(e){
     renderShapeAndMeasure(); composite(); pushUndo();
     return;
   }
-  if((e.key==='Delete'||e.key==='Backspace')&&selImg&&document.activeElement===document.body){
+  if((e.key==='Delete'||e.key==='Backspace')&&selImg){
     e.preventDefault();
     captureState();
     var idx=imgOverlays.indexOf(selImg);
@@ -19496,7 +19519,25 @@ function applyWmScale(){
   var menu = document.getElementById('ctx-menu');
   var _ctxHit = null;
   var _ctxPos = null;       // canvas coords of the right-click
+  var _ctxSelShape = false; // right-click landed on an uncommitted selectedShape
   var _clipObj = null;      // last copied object (deep clone) + its kind
+
+  // Build a shape clip record from the LIVE selection. selectedShape is a
+  // detached copy (never in shapeObjs, so kindOf() can't classify it) and the
+  // committed object, editShapeObj, is flagged _editing. Prefer editShapeObj
+  // (it carries the live geometry during drags); fall back to selectedShape
+  // for a freshly drawn shape that hasn't been committed yet.
+  function _shapeClipFromSelection(){
+    var src = (typeof editShapeObj!=='undefined' && editShapeObj) ? editShapeObj :
+              (selectedShape && (selectedShape.type==='rect'||selectedShape.type==='ellipse'||selectedShape.type==='cloud')) ? selectedShape : null;
+    if(!src) return null;
+    return { kind:'shape', data:{
+      type:src.type, cx:src.cx, cy:src.cy, w:src.w, h:src.h, angle:src.angle||0,
+      color:src.color, strokeW:src.strokeW, opacity:src.opacity,
+      fill:!!src.fill, fillColor:src.fillColor, fillOpacity:src.fillOpacity,
+      lineStyle:src.lineStyle
+    }};
+  }
   var itUpload = document.getElementById('ctx-upload');
   var itCopy   = document.getElementById('ctx-copy');
   var itPaste  = document.getElementById('ctx-paste');
@@ -19504,7 +19545,7 @@ function applyWmScale(){
   var itFit    = document.getElementById('ctx-fit');
   var itDelete = document.getElementById('ctx-delete');
 
-  function hideMenu(){ menu.classList.remove('show'); _ctxHit = null; }
+  function hideMenu(){ menu.classList.remove('show'); _ctxHit = null; _ctxSelShape = false; }
   function show(el,on){ el.classList.toggle('hidden', !on); }
 
   // Identify which collection an object lives in
@@ -19572,6 +19613,22 @@ function applyWmScale(){
     var hit = findObjAtStrict(cp.x, cp.y);
     // Image overlays use a separate hit-test; check them too
     if(!hit && typeof findImgAt==='function'){ var ovh=findImgAt(cp.x,cp.y,false); if(ovh) hit=ovh; }
+    // A rect/ellipse/cloud that's currently SELECTED is flagged _editing, so
+    // findObjAtStrict skips it — right-clicking the very shape you just
+    // selected showed the empty-area menu with no Copy. Hit-test the live
+    // edit object (and a freshly drawn, not-yet-committed selectedShape,
+    // which isn't in shapeObjs at all yet) explicitly.
+    _ctxSelShape = false;
+    if(!hit){
+      if(typeof editShapeObj!=='undefined' && editShapeObj &&
+         isInsideShape(editShapeObj, cp.x, cp.y, false)){
+        hit = editShapeObj;
+      } else if(selectedShape &&
+                (selectedShape.type==='rect'||selectedShape.type==='ellipse'||selectedShape.type==='cloud') &&
+                isInsideShape(selectedShape, cp.x, cp.y, false)){
+        _ctxSelShape = true;   // uncommitted shape: copy from selectedShape itself
+      }
+    }
     _ctxHit = hit;
 
     // Cancel is available whenever there's an active selection or in-progress action
@@ -19587,6 +19644,10 @@ function applyWmScale(){
     if(hit){
       // On an object: Copy + Delete
       show(itUpload,false); show(itCopy,true); show(itDelete,true);
+      show(itPaste, !!_clipObj);
+    } else if(_ctxSelShape){
+      // On a freshly drawn (uncommitted) rect/ellipse/cloud selection: Copy
+      show(itUpload,false); show(itCopy,true); show(itDelete,false);
       show(itPaste, !!_clipObj);
     } else {
       // Empty area: Upload Image + Paste (object or clipboard image)
@@ -19623,6 +19684,12 @@ function applyWmScale(){
 
   // ── Copy (on an object) ──
   itCopy.addEventListener('click', function(){
+    if(!_ctxHit && _ctxSelShape){
+      // Uncommitted rect/ellipse/cloud selection — copy straight from it.
+      var sc=_shapeClipFromSelection();
+      if(sc){ _clipObj=sc; toast('Copied — right-click empty space to paste','ok',2000); }
+      hideMenu(); return;
+    }
     if(!_ctxHit){ hideMenu(); return; }
     var kind = kindOf(_ctxHit);
     if(kind==='imgoverlay'){
@@ -19716,6 +19783,17 @@ function applyWmScale(){
   var _pasteSeq=0;   // cascade offset so repeated pastes don't stack exactly
   window.AOG_copySelected=function(){
     if(!baseLoaded) return false;
+    // Rect/ellipse/cloud: selectedShape is a detached copy that lives in no
+    // collection, so kindOf() returned null and Ctrl+C silently did nothing.
+    // Route these through the live-selection clip builder instead.
+    if(selectedShape && (selectedShape.type==='rect'||selectedShape.type==='ellipse'||selectedShape.type==='cloud')){
+      var sc=_shapeClipFromSelection();
+      if(sc){
+        _clipObj=sc; _pasteSeq=0;
+        toast('Copied — press Ctrl+V / ⌘V to paste','ok',1800);
+        return true;
+      }
+    }
     var obj=_selectedObj(); if(!obj) return false;
     var kind=kindOf(obj);
     if(kind==='imgoverlay'){
@@ -19804,7 +19882,17 @@ function applyWmScale(){
     hideMenu();
     var idx;
     idx = shapeObjs.indexOf(obj);
-    if(idx > -1){ shapeObjs.splice(idx,1); renderShapeObjs(); renderShapeAndMeasure(); composite(); pushUndo(); return; }
+    if(idx > -1){
+      shapeObjs.splice(idx,1);
+      // Same ghost problem as images: a shape that's currently selected is
+      // drawn on selCv while its committed copy is flagged _editing. Deleting
+      // it from shapeObjs alone left the selection preview on screen until
+      // the next click-out. Drop the selection state too.
+      if(typeof editShapeObj!=='undefined' && obj===editShapeObj){
+        editShapeObj=null; selectedShape=null; selHandle=-1; selDragStart=null;
+        if(selCv.width>1){ selCv.width=1; selCv.height=1; }
+      }
+      renderShapeObjs(); renderShapeAndMeasure(); composite(); pushUndo(); return; }
     idx = textObjs.indexOf(obj);
     if(idx > -1){ textObjs.splice(idx,1); renderTextObjs(); composite(); pushUndo(); return; }
     idx = measureObjs.indexOf(obj);
@@ -19822,7 +19910,15 @@ function applyWmScale(){
     idx = stampObjs.indexOf(obj);
     if(idx > -1){ stampObjs.splice(idx,1); renderShapeAndMeasure(); composite(); pushUndo(); return; }
     if(typeof imgOverlays!=='undefined'){ idx = imgOverlays.indexOf(obj);
-      if(idx > -1){ imgOverlays.splice(idx,1); if(typeof renderImgOverlays==='function') renderImgOverlays(); composite(); if(typeof pushImgUndo==='function') pushImgUndo(); else pushUndo(); return; } }
+      if(idx > -1){
+        imgOverlays.splice(idx,1);
+        // If the deleted image was the SELECTED one, it lives on the selection
+        // canvas (selCv), not the overlay canvas — without dropping the
+        // selection here it kept ghosting on screen until the user clicked
+        // out. Commit clears selImg, shrinks selCv, and hides the image bar.
+        if(typeof selImg!=='undefined' && obj===selImg && typeof commitImgSelection==='function'){ commitImgSelection(); }
+        if(typeof renderImgOverlays==='function') renderImgOverlays();
+        composite(); if(typeof pushImgUndo==='function') pushImgUndo(); else pushUndo(); return; } }
     idx = commentObjs.indexOf(obj);
     if(idx > -1){ commentObjs.splice(idx,1); renderShapeAndMeasure(); composite(); pushUndo(); return; }
     idx = markupObjs.indexOf(obj);
