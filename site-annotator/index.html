@@ -6637,8 +6637,13 @@ function _vpUpdate(){
     if(inside && Math.abs(zoom-r.zoomAt) <= r.zoomAt*0.04) return;  // region still good
   }
   var mX=vwp*_VP_MARGIN, mY=vhp*_VP_MARGIN;
-  var x0=Math.max(0, vx-mX),                y0=Math.max(0, vy-mY);
-  var x1=Math.min(baseCv.width, vx+vwp+mX), y1=Math.min(baseCv.height, vy+vhp+mY);
+  // SNAP THE REGION TO WHOLE PLAN PIXELS. Fractional origins/sizes give every
+  // layer canvas a fractional CSS box; the compositor rounds each element to
+  // device pixels independently, and at desktop DPR 1 that half-pixel snap is
+  // a whole visible half-pixel (retina screens hide it). Integer geometry means
+  // every layer snaps identically — nothing can shift relative to the plan.
+  var x0=Math.floor(Math.max(0, vx-mX)),                y0=Math.floor(Math.max(0, vy-mY));
+  var x1=Math.ceil(Math.min(baseCv.width, vx+vwp+mX)),  y1=Math.ceil(Math.min(baseCv.height, vy+vhp+mY));
   if(x1-x0<2 || y1-y0<2) return;
   _vpRegion={x0:x0, y0:y0, w:x1-x0, h:y1-y0, zoomAt:zoom};
   _vpRerenderAll();
@@ -6708,17 +6713,18 @@ function _sizeAnnoCanvas(cv, ctx, eff){
   var bh = Math.max(1, Math.round(h*eff));
   cv.width  = bw;
   cv.height = bh;
-  // Derive the CSS size back from the ROUNDED backing store instead of using w/h
-  // directly. Rounding makes bw ≠ w*eff by up to half a pixel, so a CSS box of
-  // exactly w would scale the canvas by w/bw rather than 1/eff — a sub-pixel
-  // scale error that shifts the layer against the base plan, and shifts it by a
-  // DIFFERENT amount every time eff changes. That's the slight drift on zoom.
-  // bw/eff makes the mapping exactly 1/eff, so plan coords land pixel-perfect.
-  cv.style.width  = (bw/eff)+'px';
-  cv.style.height = (bh/eff)+'px';
+  // CSS box = EXACTLY the (integer) region size, identical for every layer, so
+  // the compositor snaps them all the same way — at desktop DPR 1 a per-layer
+  // fractional CSS size (the old bw/eff) rounded differently per layer's eff
+  // and images drifted a sub-pixel against the plan on zoom. The backing store
+  // rounding is compensated exactly in the transform: effX/effY are the TRUE
+  // backing-px-per-plan-px ratios, so plan coords still land pixel-perfect.
+  var effX = bw/w, effY = bh/h;
+  cv.style.width  = w+'px';
+  cv.style.height = h+'px';
   cv.style.left   = rx+'px';
   cv.style.top    = ry+'px';
-  ctx.setTransform(eff,0,0,eff, -rx*eff, -ry*eff);      // draw in plan coords, render at eff
+  ctx.setTransform(effX,0,0,effY, -rx*effX, -ry*effY);   // draw in plan coords, render at eff
 }
 // Size selCv 1:1 with the plan canvas for the raw-coordinate chrome paths
 // (text box/caret, measure/leader chrome). Backing = drawCv px, identity
@@ -12004,15 +12010,15 @@ function renderSelection(){
   if(selCv.width!==_selBW || selCv.height!==_selBH){
     selCv.width=_selBW; selCv.height=_selBH; _selPrevDirty=null;
   }
-  // CSS size derived from the ROUNDED backing store (see _sizeAnnoCanvas):
-  // using the raw region size makes the browser scale by w/bw instead of
-  // exactly 1/eff, and that sub-pixel error changes every time eff changes —
-  // which is what made the layer drift slightly against the plan on zoom.
-  selCv.style.width  = (_selBW/_selEff)+'px';
-  selCv.style.height = (_selBH/_selEff)+'px';
+  // CSS box = EXACTLY the (integer) region size — same rule as _sizeAnnoCanvas —
+  // so this canvas snaps to device pixels identically to every other layer.
+  // Backing-store rounding is compensated exactly per axis in the transform.
+  var _seX=_selBW/_sW, _seY=_selBH/_sH;
+  selCv.style.width  = _sW+'px';
+  selCv.style.height = _sH+'px';
   selCv.style.left   = _sRX+'px';
   selCv.style.top    = _sRY+'px';
-  selCtx.setTransform(_selEff,0,0,_selEff, -_sRX*_selEff, -_sRY*_selEff);
+  selCtx.setTransform(_seX,0,0,_seY, -_sRX*_seX, -_sRY*_seY);
   // Keep a comment's selection chrome (dashed box + handles) locked to the note's
   // LIVE geometry. The box auto-grows to fit text while typing, snaps to fit, and
   // can be re-sized on font/import changes — any of which leaves selectedShape
@@ -17772,13 +17778,15 @@ function syncImgCv(){
   var eff = (typeof _computeImgEff==='function') ? _computeImgEff() : 1;
   var bw=Math.max(1,Math.round(w*eff)), bh=Math.max(1,Math.round(h*eff));
   if(imgCv.width!==bw||imgCv.height!==bh){ imgCv.width=bw; imgCv.height=bh; }
-  // CSS size derived from the ROUNDED backing store (see _sizeAnnoCanvas):
-  // using the raw region size makes the browser scale by w/bw instead of
-  // exactly 1/eff, and that sub-pixel error changes every time eff changes —
-  // which is what made the layer drift slightly against the plan on zoom.
-  imgCv.style.width=(bw/eff)+'px'; imgCv.style.height=(bh/eff)+'px';
+  // Same geometry rule as _sizeAnnoCanvas: CSS box = EXACTLY the (integer)
+  // region size so this canvas snaps to device pixels identically to every
+  // other layer (the old bw/eff CSS size differed per this layer's own eff —
+  // at desktop DPR 1 that per-layer rounding made ONLY the pictures shift a
+  // hair on zoom). Backing-store rounding is compensated exactly per axis.
+  var effX=bw/w, effY=bh/h;
+  imgCv.style.width=w+'px'; imgCv.style.height=h+'px';
   imgCv.style.left=rx+'px'; imgCv.style.top=ry+'px';
-  imgCtx.setTransform(eff,0,0,eff, -rx*eff, -ry*eff);
+  imgCtx.setTransform(effX,0,0,effY, -rx*effX, -ry*effY);
   imgCv._eff=eff;
   _imgEff=eff;
 }
@@ -17872,6 +17880,19 @@ function _imgScaledSource(ov, targetW, targetH){
       nctx.drawImage(cur,0,0,cw,ch,0,0,nw,nh);
       cur=nx; cw=nw; ch=nh;
     }
+    // FINAL EXACT-SIZE PASS. The halving loop stops when either axis is within
+    // 2× of its target, and each step rounds nw/nh independently — so the cached
+    // bitmap ends up a fraction of a pixel off target on each axis, by a DIFFERENT
+    // amount at every zoom bucket. _drawImgOv then stretches it to ov.w × ov.h,
+    // and that varying sub-pixel stretch is what made pictures shift ever so
+    // slightly on zoom. One last resample to EXACTLY targetW×targetH makes the
+    // bitmap→frame mapping identical at every zoom level: zero drift.
+    if(cw!==targetW || ch!==targetH){
+      var fx=document.createElement('canvas'); fx.width=targetW; fx.height=targetH;
+      var fctx=fx.getContext('2d'); _imgSmooth(fctx);
+      fctx.drawImage(cur,0,0,cw,ch,0,0,targetW,targetH);
+      cur=fx; cw=targetW; ch=targetH;
+    }
     cur._sw=sw; cur._sh=sh; cur._tw=targetW; cur._th=targetH;
     ov._scaledCache=cur;
     return cur;
@@ -17888,16 +17909,13 @@ function _drawImgOv(ctx, ov){
   // Figure out how many device pixels this image actually occupies (the ctx
   // transform already carries the eff/zoom scale) so we can pre-downsample to it.
   var src = ov.img;
-  // Skip the heavy step-down resample WHILE actively dragging this image — keep
-  // drags smooth with single-pass high quality; the crisp cache builds on release.
-  var dragging = (typeof selImgDrag!=='undefined' && selImgDrag && typeof selImg!=='undefined' && selImg===ov);
-  if(!dragging && ctx.getTransform){
-    try{
-      var m = ctx.getTransform();
-      var sx = Math.hypot(m.a, m.b) || 1, sy = Math.hypot(m.c, m.d) || 1;
-      src = _imgScaledSource(ov, ov.w*sx, ov.h*sy);
-    }catch(e){ src = ov.img; }
-  }
+  // ZOOM-STABLE RENDERING: always draw straight from the ORIGINAL source with
+  // high-quality smoothing. The old path routed through _imgScaledSource, which
+  // rebuilt a differently-sized shrunken bitmap at every zoom bucket and switched
+  // back to the raw source below a 2× threshold — each rebuild/switch changed the
+  // resampling grid by a sub-pixel amount, so pictures shifted ever so slightly
+  // on zoom while vector layers (redrawn from geometry) stayed put. Drawing from
+  // one fixed source makes the frame mapping identical at every zoom: zero drift.
   ctx.drawImage(src, -ov.w/2, -ov.h/2, ov.w, ov.h);
   ctx.restore();
 }
@@ -17966,13 +17984,14 @@ function renderImgSelection(){
   if(_vpRegion){ _rX=_vpRegion.x0; _rY=_vpRegion.y0; _rW=_vpRegion.w; _rH=_vpRegion.h; }
   var bw=Math.max(1,Math.round(_rW*eff)), bh=Math.max(1,Math.round(_rH*eff));
   if(selCv.width!==bw||selCv.height!==bh){ selCv.width=bw; selCv.height=bh; }
-  // CSS size derived from the ROUNDED backing store (see _sizeAnnoCanvas):
-  // using the raw region size makes the browser scale by w/bw instead of
-  // exactly 1/eff, and that sub-pixel error changes every time eff changes —
-  // which is what made the layer drift slightly against the plan on zoom.
-  selCv.style.width=(bw/eff)+'px'; selCv.style.height=(bh/eff)+'px';
+  // CSS box = EXACTLY the (integer) region size — same rule as _sizeAnnoCanvas /
+  // syncImgCv — so the selected image snaps identically to the deselected one
+  // (no sub-pixel hop on select/deselect or zoom at desktop DPR 1). Backing
+  // rounding compensated exactly per axis.
+  var _eX=bw/_rW, _eY=bh/_rH;
+  selCv.style.width=_rW+'px'; selCv.style.height=_rH+'px';
   selCv.style.left=_rX+'px'; selCv.style.top=_rY+'px';
-  selCtx.setTransform(eff,0,0,eff, -_rX*eff, -_rY*eff);
+  selCtx.setTransform(_eX,0,0,_eY, -_rX*_eX, -_rY*_eY);
   _clearCv(selCtx,selCv);
   // Draw image itself
   _drawImgOv(selCtx, selImg);
