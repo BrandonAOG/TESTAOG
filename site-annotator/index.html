@@ -14740,16 +14740,102 @@ function _exportFlattenWhite(cnv){
   fx.drawImage(cnv,0,0);
   return f;
 }
+// ── NO-ALPHA (24-bit truecolor) PNG ENCODER ──────────────────────────────────
+// WHY THIS EXISTS: canvas.toBlob('image/png') ALWAYS emits a 32-bit RGBA PNG — it
+// keeps an alpha channel even when every pixel is opaque. Ordinary viewers ignore
+// an all-opaque alpha channel, but ACROBAT does not: importing a PNG that carries
+// an alpha channel makes Acrobat attach an /SMask and render the image through its
+// transparency path, where the RGB and the SMask are resampled INDEPENDENTLY at
+// each zoom (the same mechanism documented in the PDF exporter). That reintroduces
+// the "different shade at different zooms" artifact — but only in Acrobat, which is
+// exactly the symptom. Flattening onto white is necessary but NOT sufficient while
+// the alpha channel is still present in the file.
+// FIX: encode a PNG with color type 2 (truecolor, NO alpha channel). Acrobat then
+// imports it as a plain DeviceRGB image with no /SMask — nothing to resample
+// separately, so one exact shade at every zoom. Uses the browser-native
+// CompressionStream (zlib/deflate, RFC 1950 — exactly what PNG IDAT wants); no CDN.
+var _PNG_CRC_TBL=(function(){
+  var t=new Uint32Array(256);
+  for(var n=0;n<256;n++){ var c=n; for(var k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[n]=c>>>0; }
+  return t;
+})();
+function _pngCrc32(bytes){
+  var c=0xFFFFFFFF;
+  for(var i=0;i<bytes.length;i++) c=_PNG_CRC_TBL[(c^bytes[i])&0xFF]^(c>>>8);
+  return (c^0xFFFFFFFF)>>>0;
+}
+// Returns a Blob (image/png, no alpha) or null if unsupported/failed → caller falls
+// back to the opaque RGBA toBlob path, which is still correct in every non-Acrobat
+// viewer.
+async function _encodeOpaquePNG(canvas){
+  try{
+    if(typeof CompressionStream==='undefined') return null;   // older browser → fallback
+    var w=canvas.width, h=canvas.height;
+    if(!w||!h) return null;
+    var src=canvas.getContext('2d').getImageData(0,0,w,h).data;   // RGBA
+    // Raw image = per-scanline [filter byte 0][R G B ...]; alpha is simply dropped.
+    var stride=w*3;
+    var raw=new Uint8Array(h*(1+stride));
+    var p=0,q=0;
+    for(var y=0;y<h;y++){
+      raw[q++]=0;                                                  // filter: none
+      for(var x=0;x<w;x++){ raw[q++]=src[p]; raw[q++]=src[p+1]; raw[q++]=src[p+2]; p+=4; }
+    }
+    // zlib-compress the raw image data for IDAT.
+    var cs=new CompressionStream('deflate');
+    var wtr=cs.writable.getWriter(); wtr.write(raw); wtr.close();
+    var idat=new Uint8Array(await new Response(cs.readable).arrayBuffer());
+    var u32=function(v){ return [(v>>>24)&255,(v>>>16)&255,(v>>>8)&255,v&255]; };
+    var chunk=function(type,dataBytes){
+      var tb=[type.charCodeAt(0),type.charCodeAt(1),type.charCodeAt(2),type.charCodeAt(3)];
+      var body=new Uint8Array(4+dataBytes.length);
+      body.set(tb,0); body.set(dataBytes,4);
+      var crc=_pngCrc32(body);
+      var out=new Uint8Array(4+body.length+4);
+      out.set(u32(dataBytes.length),0); out.set(body,4); out.set(u32(crc),4+body.length);
+      return out;
+    };
+    var ihdr=new Uint8Array(13);
+    ihdr.set(u32(w),0); ihdr.set(u32(h),4);
+    ihdr[8]=8;   // bit depth
+    ihdr[9]=2;   // color type 2 = truecolor, NO alpha  ← the whole point
+    ihdr[10]=0; ihdr[11]=0; ihdr[12]=0;                 // deflate / adaptive filter / no interlace
+    var sig=new Uint8Array([137,80,78,71,13,10,26,10]);
+    var cI=chunk('IHDR',ihdr), cD=chunk('IDAT',idat), cE=chunk('IEND',new Uint8Array(0));
+    var png=new Uint8Array(sig.length+cI.length+cD.length+cE.length);
+    var o=0; png.set(sig,o); o+=sig.length; png.set(cI,o); o+=cI.length; png.set(cD,o); o+=cD.length; png.set(cE,o);
+    return new Blob([png],{type:'image/png'});
+  }catch(e){ console.warn('[Export] opaque-PNG encode failed:',e); return null; }
+}
 function exportToBlob(maxPx, mimeType, quality, cb){
   try{
     var c=compositeExport(maxPx);
     if(!c){ toast('Export failed — no canvas','err'); cb(null); return; }
-    // PNG keeps an alpha channel, which triggers the zoom-dependent shade bug
-    // described on _exportFlattenWhite. Flatten onto opaque white so the file has
-    // no alpha at all and every zoom shows the identical shade.
+    // PNG path: flatten onto opaque white AND strip the alpha channel entirely, so
+    // the file has no /SMask for Acrobat to resample independently at each zoom.
     if((mimeType||'')==='image/png'){
-      try{ var _fc=_exportFlattenWhite(c); releaseCanvas(c); c=_fc; }
-      catch(e){ console.warn('[Export] white-flatten failed, keeping alpha:',e); }
+      var pc;
+      try{ pc=_exportFlattenWhite(c); releaseCanvas(c); }
+      catch(e){ console.warn('[Export] white-flatten failed:',e); pc=c; }
+      var _pngFallback=function(){
+        // No-alpha encode unavailable/failed → opaque RGBA PNG. Still flattened on
+        // white, so it's correct in every viewer except (possibly) Acrobat's SMask
+        // path; the vast majority of browsers support CompressionStream, so this is
+        // a rare last resort.
+        try{
+          var fb=_exportFlattenWhite(compositeExport(maxPx));
+          fb.toBlob(function(b){ releaseCanvas(fb); cb(b); },'image/png');
+        }catch(e2){ toast('Export failed: '+e2.message,'err',5000); cb(null); }
+      };
+      _encodeOpaquePNG(pc).then(function(blob){
+        try{ releaseCanvas(pc); }catch(_){}
+        if(blob) cb(blob); else _pngFallback();
+      }).catch(function(err){
+        try{ releaseCanvas(pc); }catch(_){}
+        console.warn('[Export] no-alpha PNG failed, using RGBA PNG:',err);
+        _pngFallback();
+      });
+      return;
     }
     c.toBlob(function(blob){
       releaseCanvas(c);
