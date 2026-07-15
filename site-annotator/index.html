@@ -1218,13 +1218,10 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     <button class="ic-btn" id="btn-shortcuts" title="Keyboard shortcuts (?)">?</button>
   </div>
   <div class="sb-group">
-    <button class="save-btn" id="btn-saveproj" title="Save editable project file (.aogplan) — reopen later to keep editing">💾 Save</button>
-    <button class="save-btn" id="btn-openproj" title="Open an editable project file (.aogplan)">📂 Open</button>
-    <button class="save-btn" id="btn-png">JPG</button>
+    <button class="save-btn" id="btn-png">PNG</button>
     <button class="save-btn" id="btn-pdf">PDF</button>
     <button class="save-btn" id="btn-pdfedit" title="Export a PDF that also re-opens here for editing">PDF✎</button>
     <button class="save-btn" id="btn-print">Print</button>
-    <input type="file" id="openproj-in" accept=".aogplan,application/json" style="display:none">
   </div>
 </div>
 
@@ -1750,8 +1747,6 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     <div class="sc-grid">
       <div class="sc-row"><span class="sc-desc">Open image / PDF</span><span class="sc-key">＋ Open button or drag &amp; drop onto canvas</span></div>
       <div class="sc-row"><span class="sc-desc">New blank canvas</span><span class="sc-key">Tap ＋ Open → select New Canvas</span></div>
-      <div class="sc-row"><span class="sc-desc">Save editable project</span><span class="sc-key">💾 Save button → .aogplan file (keeps everything editable)</span></div>
-      <div class="sc-row"><span class="sc-desc">Open editable project</span><span class="sc-key">📂 Open button → choose a .aogplan file</span></div>
       <div class="sc-row"><span class="sc-desc">Export editable PDF</span><span class="sc-key">PDF✎ button — normal PDF that reopens here for editing</span></div>
       <div class="sc-row"><span class="sc-desc">Reopen an editable PDF</span><span class="sc-key">Open it like any PDF — annotations come back editable automatically</span></div>
       <div class="sc-row"><span class="sc-desc">Export PNG</span><span class="sc-key">PNG button (subbar)</span></div>
@@ -14725,17 +14720,48 @@ function compositeExport(maxPx){
 }
 
 
+// Flatten a canvas onto an OPAQUE WHITE background, dropping its alpha channel.
+// This is the raster twin of the PDF exporter's _flattenOnWhite (see the
+// "ZOOM-DEPENDENT SHADE BUG" note in the PDF path). A canvas's transparent pixels
+// are RGBA(0,0,0,0) — transparent but BLACK underneath. PNG stores colour and
+// alpha separately, and image viewers resample the two channels independently at
+// each zoom; bilinear filtering then bleeds that black out of the transparent
+// regions into the edges of the paint, so the same spot reads as a DIFFERENT
+// SHADE at different zoom levels (and snaps back on a full-resolution repaint).
+// Matting onto white removes the alpha channel entirely — nothing to resample
+// separately, so there is exactly one shade at every zoom. JPEG has no alpha, so
+// callers that stay on JPEG are unaffected and skip this.
+function _exportFlattenWhite(cnv){
+  var f=document.createElement('canvas');
+  f.width=cnv.width; f.height=cnv.height;
+  var fx=f.getContext('2d');
+  fx.fillStyle='#ffffff';
+  fx.fillRect(0,0,f.width,f.height);
+  fx.drawImage(cnv,0,0);
+  return f;
+}
 function exportToBlob(maxPx, mimeType, quality, cb){
   try{
     var c=compositeExport(maxPx);
     if(!c){ toast('Export failed — no canvas','err'); cb(null); return; }
+    // PNG keeps an alpha channel, which triggers the zoom-dependent shade bug
+    // described on _exportFlattenWhite. Flatten onto opaque white so the file has
+    // no alpha at all and every zoom shows the identical shade.
+    if((mimeType||'')==='image/png'){
+      try{ var _fc=_exportFlattenWhite(c); releaseCanvas(c); c=_fc; }
+      catch(e){ console.warn('[Export] white-flatten failed, keeping alpha:',e); }
+    }
     c.toBlob(function(blob){
       releaseCanvas(c);
       if(!blob){
-        // toBlob returns null when canvas is too large / OOM — use JPEG fallback
+        // toBlob returns null when canvas is too large / OOM — use JPEG fallback.
+        // JPEG is opaque, so also flatten onto white first (its own matte is BLACK,
+        // which would re-introduce the very dark-corner artifact we just removed).
         console.warn('[Export] toBlob returned null, trying JPEG fallback');
         try{
-          var c2=compositeExport(maxPx);
+          var _src2=compositeExport(maxPx);
+          var c2=_exportFlattenWhite(_src2);
+          releaseCanvas(_src2);
           c2.toBlob(function(blob2){
             releaseCanvas(c2);
             cb(blob2);
@@ -14893,17 +14919,22 @@ function commitAllForExport(){
 btnPng.addEventListener('click',function(){
   if(!baseLoaded){ toast('Open a file first','warn'); return; }
   commitAllForExport();
-  // Export the flattened plan as an HD JPEG (q0.95) on every platform — visually
-  // lossless for a site plan and a fraction of the size of a full-res PNG.
-  var mime  = 'image/jpeg';
-  var qual  = 0.97;
-  var ext   = 'jpg';
-  var mt    = 'image/jpeg';
+  // Export the flattened plan as a VERY HIGH-RESOLUTION, lossless PNG.
+  // Supersample to 2x the base canvas (capped at 6000px on the long side so
+  // toBlob doesn't OOM) — annotations are redrawn vector-style at this scale,
+  // so text/shapes/stamps come out genuinely sharper, not stuck at import DPI.
+  // (iOS applies its own IOS_MAX_PX cap inside compositeExport for safety.)
+  var _base   = Math.max(baseCv.width||0, baseCv.height||0);
+  var target  = _base ? Math.min(_base*2, 6000) : 0;
+  var mime  = 'image/png';
+  var qual  = 1;
+  var ext   = 'png';
+  var mt    = 'image/png';
   // Open the Save-As panel FIRST (within the click gesture), then export.
   pickSaveTarget('site-plan.'+ext, mt, 'Image', ['.'+ext]).then(function(handle){
     if(handle==='cancelled'){ toast('Save cancelled'); return; }
-    toast('Saving JPEG…','',0);
-    exportToBlob(0, mime, qual, function(blob){
+    toast('Saving PNG…','',0);
+    exportToBlob(target, mime, qual, function(blob){
       if(!blob){ toast('Export failed — try again','err',4000); return; }
       writeToTarget(handle, blob, 'site-plan.'+ext).then(function(){ toast('Saved ✓','ok',2500); });
     });
