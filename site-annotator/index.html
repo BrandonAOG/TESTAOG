@@ -169,12 +169,12 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .prop-section{margin-bottom:12px}
 .prop-title{font-size:10px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
 .prop-row{display:flex;align-items:center;gap:6px;margin-bottom:6px}
-.prop-row label{font-size:11px;color:var(--txt2);flex:1}
+.prop-row label,.prop-row .cap{font-size:11px;color:var(--txt2);flex:1}
 .prop-input{background:var(--surf2);border:1px solid var(--b2);color:var(--txt);border-radius:5px;padding:3px 6px;font-size:11px;width:72px;outline:none}
 .prop-input:focus{border-color:var(--acc)}
 .prop-input.wide{width:100%}
 .toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.toggle-row label{font-size:11px;color:var(--txt2)}
+.toggle-row label,.toggle-row .cap{font-size:11px;color:var(--txt2)}
 .tog{width:32px;height:18px;border-radius:9px;background:var(--surf2);border:1px solid var(--b2);cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
 .tog.on{background:var(--acc)}
 .tog::after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:left .2s}
@@ -900,10 +900,10 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 
 <!-- CUSTOMER BAR -->
 <div id="customer-bar">
-  <label>Customer</label>
+  <label for="cust-name">Customer</label>
   <input class="cust-input" id="cust-name" type="text" placeholder="Customer name…" maxlength="60" style="max-width:200px;">
   <div class="cust-sep"></div>
-  <label>Address</label>
+  <label for="cust-addr">Address</label>
   <input class="cust-input" id="cust-addr" type="text" placeholder="Job address…" maxlength="80" style="max-width:280px;flex:2;">
   <div class="cust-sep"></div>
   <label for="wm-brand">Brand</label>
@@ -1391,14 +1391,14 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
       <!-- Loaded page info -->
       <div class="prop-section" id="loaded-info-sec" style="display:none">
         <div class="prop-title">Loaded page</div>
-        <div class="prop-row"><label>Resolution</label><span class="prop-input" id="li-dpi" style="text-align:right;border:none;background:none;color:var(--txt)">—</span></div>
-        <div class="prop-row"><label>Pixel size</label><span class="prop-input" id="li-px" style="text-align:right;border:none;background:none;color:var(--txt);width:110px">—</span></div>
-        <div class="prop-row"><label>Page size</label><span class="prop-input" id="li-in" style="text-align:right;border:none;background:none;color:var(--txt);width:110px">—</span></div>
+        <div class="prop-row"><span class="cap">Resolution</span><span class="prop-input" id="li-dpi" style="text-align:right;border:none;background:none;color:var(--txt)">—</span></div>
+        <div class="prop-row"><span class="cap">Pixel size</span><span class="prop-input" id="li-px" style="text-align:right;border:none;background:none;color:var(--txt);width:110px">—</span></div>
+        <div class="prop-row"><span class="cap">Page size</span><span class="prop-input" id="li-in" style="text-align:right;border:none;background:none;color:var(--txt);width:110px">—</span></div>
       </div>
       <!-- Scale -->
       <div class="prop-section">
         <div class="prop-title">Scale</div>
-        <div class="prop-row"><label>1 pixel =</label><input class="prop-input" id="ppu-in" type="number" min="0.001" step="any" value="1"><input class="prop-input" id="unit-in" type="text" value="ft" style="width:36px;margin-left:2px"></div>
+        <div class="prop-row"><label for="ppu-in">1 pixel =</label><input class="prop-input" id="ppu-in" type="number" min="0.001" step="any" value="1"><input class="prop-input" id="unit-in" type="text" value="ft" style="width:36px;margin-left:2px"></div>
         <button class="add-btn" id="btn-set-scale" style="width:100%;margin-bottom:4px">Draw Reference Line</button>
         <button class="add-btn" id="btn-recalibrate" style="width:100%;margin-bottom:4px;display:none">↺ Recalibrate Scale</button>
         <button class="add-btn" id="btn-reset-scale" style="width:100%;margin-bottom:6px;color:#f87171;border-color:rgba(239,68,68,0.4);display:none">✕ Reset Scale</button>
@@ -1408,7 +1408,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
       <div class="prop-section">
         <div class="prop-title">PDF open mode</div>
         <div class="prop-row" style="align-items:flex-start">
-          <label style="flex:1;line-height:1.4">Editable text<br><span style="font-size:9px;color:var(--txt2)">Pull text off the page as objects you can retype and move</span></label>
+          <label for="explode-toggle" style="flex:1;line-height:1.4">Editable text<br><span style="font-size:9px;color:var(--txt2)">Pull text off the page as objects you can retype and move</span></label>
           <input type="checkbox" id="explode-toggle" checked style="width:18px;height:18px;accent-color:var(--acc);margin-top:2px">
         </div>
         <div style="font-size:9px;color:var(--txt2);margin-top:4px;line-height:1.5;border-top:1px solid var(--b1);padding-top:6px">
@@ -1423,9 +1423,9 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
           <span id="auto-scale-spinner" style="display:none;font-size:9px;color:var(--acc2);animation:savePulse .8s ease-in-out infinite">⬤</span>
         </div>
         <div style="font-size:10px;color:var(--acc2);margin-bottom:6px;line-height:1.4" id="auto-scale-hint">Upload a plan to auto-detect scale</div>
-        <div class="prop-row"><label>Scale notation</label><input class="prop-input" id="dpi-notation" type="text" placeholder='1"=30ft' style="width:80px"></div>
+        <div class="prop-row"><label for="dpi-notation">Scale notation</label><input class="prop-input" id="dpi-notation" type="text" placeholder='1"=30ft' style="width:80px"></div>
         <div class="prop-row">
-          <label>File DPI</label>
+          <label for="dpi-value">File DPI</label>
           <input class="prop-input" id="dpi-value" type="number" min="1" step="1" placeholder="300" style="width:52px">
           <select class="prop-input" id="dpi-unit" style="width:42px;padding:3px 2px">
             <option value="ft">ft</option>
@@ -1448,9 +1448,9 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
       <!-- Grid -->
       <div class="prop-section">
         <div class="prop-title">Grid</div>
-        <div class="prop-row"><label>Cell size (px)</label><input class="prop-input" id="grid-sz" type="number" min="10" max="500" value="50"></div>
-        <div class="toggle-row"><label>Show grid</label><div class="tog" id="tog-grid"></div></div>
-        <div class="toggle-row"><label>Snap to grid</label><div class="tog" id="tog-snap"></div></div>
+        <div class="prop-row"><label for="grid-sz">Cell size (px)</label><input class="prop-input" id="grid-sz" type="number" min="10" max="500" value="50"></div>
+        <div class="toggle-row"><span class="cap">Show grid</span><div class="tog" id="tog-grid"></div></div>
+        <div class="toggle-row"><span class="cap">Snap to grid</span><div class="tog" id="tog-snap"></div></div>
       </div>
       <!-- Title Block -->
       <div class="prop-section">
@@ -1565,7 +1565,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 <div id="scale-dlg">
   <h3>Set Scale from Reference Line</h3>
   <p style="font-size:11px;color:var(--txt2);margin-bottom:12px">Draw a line on the plan whose real length you know, then enter the length below.</p>
-  <div class="dlg-row"><label>Real length:</label><input class="dlg-input" id="ref-len" type="number" min="0.01" step="any" placeholder="e.g. 10"><input class="dlg-input" id="ref-unit" type="text" value="ft" style="max-width:40px"></div>
+  <div class="dlg-row"><label for="ref-len">Real length:</label><input class="dlg-input" id="ref-len" type="number" min="0.01" step="any" placeholder="e.g. 10"><input class="dlg-input" id="ref-unit" type="text" value="ft" style="max-width:40px"></div>
   <div id="ref-px-info" style="font-size:11px;color:var(--txt2);margin-bottom:12px">Draw the line first.</div>
   <div style="display:flex;gap:8px;justify-content:flex-end">
     <button class="dlg-btn sec" id="scale-reset" style="margin-right:auto;color:#f87171;border-color:rgba(239,68,68,0.4)">Reset</button>
@@ -1958,6 +1958,8 @@ window.AOG.dump=function(){
 };
 window.AOG.redraw=function(){ renderShapeAndMeasure(); composite(); };
 window.AOG.enableDebug=function(on){ AOG_DEBUG=(on!==false); try{ localStorage.setItem('AOG_DEBUG', AOG_DEBUG?'1':'0'); }catch(e){} return AOG_DEBUG; };
+// Short console shorthand: type AOGDEBUG(true) to turn debug on live, AOGDEBUG(false) off.
+window.AOGDEBUG=function(on){ AOG_DEBUG=(on!==false); try{ localStorage.setItem('AOG_DEBUG', AOG_DEBUG?'1':'0'); }catch(e){} console.log('%c[AOG] debug '+(AOG_DEBUG?'ON':'OFF'),'color:#0a0;font-weight:bold'); return AOG_DEBUG; };
 // Toggle export model: AOG.fullRedraw(true) = redraw every element as a movable
 // object (nothing memory-stuck at import position); AOG.fullRedraw(false) = keep
 // the original page pixel-perfect and only move edited elements. Re-export after.
@@ -4763,6 +4765,11 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
   // dominates, keep the original page content on export. This is exact, not a
   // heuristic: when a backdrop this large exists, it IS the page.
   var _hasDominantRaster=false;
+  // Count sizable page images (>=3% of page area) seen in the content stream.
+  // If ANY of them later fails to extract into an editable overlay, the export
+  // must NOT white-cover the page — nothing would reproduce that image and the
+  // page content would export blank (markups floating on white).
+  var _sizableImgs=0, _imgUnreproduced=false;
   try{
     var _fnA=opList.fnArray, _agA=opList.argsArray;
     var _cm=vp.transform.slice(), _stk=[];
@@ -4773,7 +4780,8 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
       if(_f===OPS.save){ _stk.push(_cm.slice()); }
       else if(_f===OPS.restore){ if(_stk.length) _cm=_stk.pop(); }
       else if(_f===OPS.transform){ _cm=_mmul(_cm,_ag); }
-      else if(_f===OPS.paintImageXObject || _f===OPS.paintJpegXObject || _f===OPS.paintInlineImage){
+      else if(_f===OPS.paintImageXObject || _f===OPS.paintJpegXObject || _f===OPS.paintInlineImage
+              || _f===OPS.paintImageMaskXObject || _f===OPS.paintImageMaskXObjectGroup || _f===OPS.paintImageMaskXObjectRepeat){
         var _cp=[[0,0],[1,0],[1,1],[0,1]].map(function(p){return {x:_cm[0]*p[0]+_cm[2]*p[1]+_cm[4], y:_cm[1]*p[0]+_cm[3]*p[1]+_cm[5]};});
         var _cxs=_cp.map(function(p){return p.x;}), _cys=_cp.map(function(p){return p.y;});
         var _iw=Math.max.apply(null,_cxs)-Math.min.apply(null,_cxs);
@@ -4784,7 +4792,15 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
         // equipment images) ARE extracted as movable overlays and reproduced, so
         // they must NOT force keep-original — otherwise annotation-based drawings
         // (whose linework IS extracted) get stuck keeping the page and ghost on move.
-        if(_pgArea>0 && (_iw*_ih) >= _pgArea*0.92){ _hasDominantRaster=true; break; }
+        if(_pgArea>0 && (_iw*_ih) >= _pgArea*0.03) _sizableImgs++;
+        // Threshold LOWERED 0.92 → 0.50 and IMAGE MASKS now counted. Scanned
+        // documents are typically a background image + bilevel MASK stencils
+        // carrying the linework — the masks are painted by paintImageMaskXObject,
+        // which the old scan ignored entirely, and scans are often drawn with
+        // margins (e.g. a survey at 84% of the page), sailing under 0.92. Both
+        // gaps let the export white-cover a scanned page it could not reproduce.
+        // Any image or mask covering half the page is a backdrop: keep the page.
+        if(_pgArea>0 && (_iw*_ih) >= _pgArea*0.50){ _hasDominantRaster=true; break; }
       }
     }
   }catch(e){}
@@ -4838,7 +4854,13 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
         var y0=Math.min.apply(null,ys), y1=Math.max.apply(null,ys);
         var rw=x1-x0, rh=y1-y0;
         if(rw<4||rh<4) continue;
-        if(rw*rh >= pageArea*0.92) continue;     // skip spurious full-page clip region
+        // Skip extraction of any image covering HALF the page or more (was 0.92).
+        // Whiting out a huge footprint on the composited backdrop erases every
+        // OTHER thing painted in that region — image-mask linework, text, vectors.
+        // Scanned documents stack a background image under bilevel mask stencils;
+        // extracting the background and whiting its 84%-of-page footprint erased
+        // the whole survey. Half-page+ images are backdrops: leave them baked in.
+        if(rw*rh >= pageArea*0.50) continue;
         var key=(fn===OPS.paintInlineImage) ? null : (a && a[0]);
         var bmp=_getPdfImageBitmap(page, key, a, fn);
         var ic=document.createElement('canvas');
@@ -4900,7 +4922,43 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
             if(sw>0&&sh>0){ ic.width=sw; ic.height=sh; ic.getContext('2d').drawImage(_baseSnap.canvas, sx,sy,sw,sh, 0,0,sw,sh); drew=true; }
           }catch(e){}
         }
-        if(!drew) continue;
+        if(!drew){
+          // A sizable page image could not be captured into an editable overlay.
+          // It exists ONLY as the original embed in the page — white-covering the
+          // page would erase it with nothing to redraw it. Flag it so the export
+          // keeps the original page content instead.
+          if(rw*rh >= pageArea*0.03) _imgUnreproduced=true;
+          continue;
+        }
+        // ── CAPTURE SANITY CHECK ──────────────────────────────────────────
+        // Before erasing this image from the backdrop, verify the captured copy
+        // actually contains ink. A decode-format mismatch can "succeed" while
+        // producing an empty or garbage canvas — whiting out the backdrop then
+        // leaves a blank page with nothing to show in its place. Sample a sparse
+        // grid; if essentially every sample is white or transparent, treat the
+        // capture as FAILED and keep the image baked in the backdrop instead
+        // (visually identical, just not movable — always safe).
+        if(rw*rh >= pageArea*0.03){
+          var _inkOK=false;
+          try{
+            var _sc2=ic.getContext('2d');
+            var _gw=Math.min(ic.width,64), _gh=Math.min(ic.height,64);
+            var _sd=_sc2.getImageData(0,0,ic.width,ic.height).data;
+            var _hits=0, _stepX=Math.max(1,Math.floor(ic.width/_gw)), _stepY=Math.max(1,Math.floor(ic.height/_gh));
+            for(var _sy=0;_sy<ic.height && _hits<8;_sy+=_stepY){
+              for(var _sx=0;_sx<ic.width && _hits<8;_sx+=_stepX){
+                var _si=(_sy*ic.width+_sx)*4;
+                if(_sd[_si+3]>10 && (_sd[_si]<235||_sd[_si+1]<235||_sd[_si+2]<235)) _hits++;
+              }
+            }
+            _inkOK=(_hits>=3);
+          }catch(_ie){ _inkOK=true; } // can't sample (tainted/OOM) → don't second-guess
+          if(!_inkOK){
+            _imgUnreproduced=true;
+            dbg('import','image capture came back blank — keeping it baked in the backdrop (no whiteout)');
+            continue;
+          }
+        }
         imgOverlays.push({
           img:ic, cx:x0+rw/2, cy:y0+rh/2, w:rw, h:rh,
           angle:0, flipH:false, flipV:false, opacity:1, layerIdx:activeLayerIdx,
@@ -4930,6 +4988,21 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
     }
   }catch(e){ console.warn('[Explode] image pass failed:',e); }
   _explodeLap('image pass ('+imgCount+' images'+(EXPLODE_IMAGES?'':' — kept in backdrop')+')');
+  // ── WHITE-COVER SAFETY GATE ────────────────────────────────────────────────
+  // _explodedFromPage=true tells the export "every piece of page content lives in
+  // an editable object, so you may white-cover the original page and redraw it".
+  // That promise is BROKEN if the page contains sizable raster images that were
+  // never extracted: either the image pass was skipped entirely (EXPLODE_IMAGES
+  // off) or _getPdfImageBitmap failed for them (_imgUnreproduced). The dominant-
+  // raster check (>=92% of page) misses scans drawn with margins — e.g. a survey
+  // at 84% of the page — which is exactly the file that exported as a blank white
+  // page with only the signature markups. If ANY sizable image is unreproduced,
+  // force keep-original: annotations still export fine, the page is never erased.
+  if(!(EXPLODE_OTHER && EXPLODE_IMAGES && !_denseDrawing) && _sizableImgs>0) _imgUnreproduced=true;
+  if(_imgUnreproduced && _explodedFromPage){
+    _explodedFromPage=false;
+    dbg('import','white-cover disabled: page has sizable raster image(s) with no extracted overlay copy — keeping original page content on export');
+  }
 
   // ── VECTOR PASS ──────────────────────────────────────────────────────────
   // Walk the operator list, decode each constructPath into device-space
@@ -5830,7 +5903,8 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
 
   _explodedMarkupCount=markupObjs.filter(function(o){return o._fromExplode;}).length;
   _explodedPenCount   =penObjs.filter(function(o){return o._fromExplode;}).length;
-  dbg('import','markup pass', {highlights:_explodedMarkupCount, penStrokes:_explodedPenCount});
+  try{ _explodedPageImgCount = imgOverlays.filter(function(o){return o._fromPdfPage;}).length; }catch(e){ _explodedPageImgCount=0; }
+  dbg('import','markup pass', {highlights:_explodedMarkupCount, penStrokes:_explodedPenCount, pageImages:_explodedPageImgCount});
   return made;
 }
 
@@ -6252,8 +6326,25 @@ function _getPdfImageBitmap(page, key, args, fn){
         dst.set(src.subarray(0, dst.length));
       } else if(kind===2 || src.length===iw*ih*3){
         for(var s=0,d=0;d<dst.length;s+=3,d+=4){ dst[d]=src[s];dst[d+1]=src[s+1];dst[d+2]=src[s+2];dst[d+3]=255; }
-      } else if(kind===1 || src.length===iw*ih){
+      } else if(src.length===iw*ih){
         for(var s2=0,d2=0;d2<dst.length;s2++,d2+=4){ var v=src[s2]; dst[d2]=v;dst[d2+1]=v;dst[d2+2]=v;dst[d2+3]=255; }
+      } else if(src.length>=Math.ceil(iw/8)*ih && src.length<iw*ih){
+        // PACKED 1-BIT-PER-PIXEL (GRAYSCALE_1BPP) — bilevel CCITT G4 / JBIG2
+        // scans, the standard format for scanned surveys and site plans. pdf.js
+        // delivers these as packed bits (8 px per byte, MSB first, 1 = white).
+        // The old code fell into the byte-per-pixel gray branch via kind===1,
+        // read packed bytes as gray values, ran out of data 1/8 of the way in,
+        // and produced a garbage/blank capture — which then WHITED the real scan
+        // out of the backdrop. That is why checking "Images" on import made
+        // scanned pages load blank. Expand the bits properly instead.
+        var rowB=Math.ceil(iw/8);
+        for(var by=0;by<ih;by++){
+          for(var bx=0;bx<iw;bx++){
+            var bit=(src[by*rowB+(bx>>3)]>>(7-(bx&7)))&1;
+            var bv=bit?255:0, d3=(by*iw+bx)*4;
+            dst[d3]=bv; dst[d3+1]=bv; dst[d3+2]=bv; dst[d3+3]=255;
+          }
+        }
       } else {
         return null;
       }
@@ -6910,10 +7001,6 @@ var layerTmps=layers.map(function(l){
         var vp=page.getViewport({scale:sc, rotation:_rot});
         if(Math.abs(vp.width-_rw0)>2 || Math.abs(vp.height-_rh0)>2) return;  // aspect drift → keep the resample
         if(baseCv.width!==_rw0 || baseCv.height!==_rh0) return;              // user rotated again mid-flight
-        bCtx.save();
-        bCtx.setTransform(1,0,0,1,0,0);
-        bCtx.clearRect(0,0,_rw0,_rh0);
-        bCtx.restore();
         // ANNOTATIONS OFF. The source PDF still contains the original Ink/Line/
         // Square/Circle/PolyLine annots that import extracted into editable objects
         // and WHITED OUT on the backdrop. Re-rendering the pristine page painted
@@ -6921,7 +7008,29 @@ var layerTmps=layers.map(function(l){
         // ghosting underneath the copy you were dragging. Render page content only.
         var _AM = (window.pdfjsLib && pdfjsLib.AnnotationMode && pdfjsLib.AnnotationMode.DISABLE !== undefined)
                   ? pdfjsLib.AnnotationMode.DISABLE : 0;
-        page.render({canvasContext:bCtx, viewport:vp, annotationMode:_AM}).promise.then(function(){
+        // ── RENDER OFFSCREEN, SWAP ON SUCCESS ─────────────────────────────
+        // The old code did clearRect(baseCv) FIRST and rendered into baseCv
+        // afterwards. If the render rejected (pdf.js throws "Cannot use the
+        // same canvas during multiple render() operations" whenever an earlier
+        // render task on bCtx is still registered, plus any transient render
+        // error), the catch "kept the resample" — but the resample had already
+        // been wiped. Screen went blank white with only the markup layers on
+        // top, and every export from that state produced markups on an empty
+        // page. Render into a FRESH temp canvas instead and copy it onto
+        // baseCv only after the render fully succeeds: the visible bitmap is
+        // never destroyed, and a fresh canvas can never collide with a stale
+        // pdf.js render registration on bCtx.
+        var _tmp=document.createElement('canvas');
+        _tmp.width=_rw0; _tmp.height=_rh0;
+        var _tctx=_tmp.getContext('2d');
+        page.render({canvasContext:_tctx, viewport:vp, annotationMode:_AM}).promise.then(function(){
+          // user rotated again (or loaded another file) while we rendered → discard
+          if(baseCv.width!==_rw0 || baseCv.height!==_rh0) return;
+          bCtx.save();
+          bCtx.setTransform(1,0,0,1,0,0);
+          bCtx.clearRect(0,0,_rw0,_rh0);
+          bCtx.drawImage(_tmp,0,0);
+          bCtx.restore();
           if(typeof composite==='function') composite();
           dbg('rotate','base re-rendered from PDF at '+_rot+'° (lossless, no resample blur)');
         }).catch(function(e){ console.warn('[Rotate] base re-render failed, keeping resample:',e); });
@@ -15016,13 +15125,14 @@ btnPng.addEventListener('click',function(){
   var qual  = 1;
   var ext   = 'png';
   var mt    = 'image/png';
+  var _fn   = _exportFileName(ext);
   // Open the Save-As panel FIRST (within the click gesture), then export.
-  pickSaveTarget('site-plan.'+ext, mt, 'Image', ['.'+ext]).then(function(handle){
+  pickSaveTarget(_fn, mt, 'Image', ['.'+ext]).then(function(handle){
     if(handle==='cancelled'){ toast('Save cancelled'); return; }
     toast('Saving PNG…','',0);
     exportToBlob(target, mime, qual, function(blob){
       if(!blob){ toast('Export failed — try again','err',4000); return; }
-      writeToTarget(handle, blob, 'site-plan.'+ext).then(function(){ toast('Saved ✓','ok',2500); });
+      writeToTarget(handle, blob, _fn).then(function(){ toast('Saved ✓','ok',2500); });
     });
   });
 });
@@ -15121,13 +15231,21 @@ function _shouldWhiteCoverPage(){
 // Count of highlight/ink objects created at import. If fewer survive at export,
 // the user erased one — and the pristine page still contains it, so the native
 // vector export must not be used.
-var _explodedMarkupCount=0, _explodedPenCount=0;
+var _explodedMarkupCount=0, _explodedPenCount=0, _explodedPageImgCount=0;
 function _explodedMarkupsDeleted(){
   try{
-    var m=0,p=0;
+    var m=0,p=0,im=0;
     if(typeof markupObjs!=='undefined') m=markupObjs.filter(function(o){return o._fromExplode;}).length;
     if(typeof penObjs!=='undefined')    p=penObjs.filter(function(o){return o._fromExplode;}).length;
-    return m<_explodedMarkupCount || p<_explodedPenCount;
+    // DELETED PAGE-NATIVE IMAGES: an extracted page image (seal, logo, photo) that
+    // the user deletes just vanishes from imgOverlays — but the ORIGINAL embed is
+    // still drawn by the pristine page the vector export reloads, so the "deleted"
+    // image reappeared in the exported PDF. Count them like markups/pens: a drop
+    // in count means a deletion, which routes the export to the clean composite
+    // (whose backdrop already reflects the deletion). Untouched/moved page images
+    // stay on the fast vector path as before.
+    if(typeof imgOverlays!=='undefined') im=imgOverlays.filter(function(o){return o._fromPdfPage;}).length;
+    return m<_explodedMarkupCount || p<_explodedPenCount || im<_explodedPageImgCount;
   }catch(e){ return false; }
 }
 
@@ -16221,7 +16339,19 @@ function _buildVectorPdf(attachJson, onReady){
         try{
           // Sample the four corners + centre. An all-zero alpha in a region that
           // should hold paint is the signature of a blanked/clamped canvas.
-          var cx=c.getContext('2d');
+          // Copy into a willReadFrequently (CPU-backed) scratch canvas first, then
+          // sample THAT. The export canvas is GPU-backed, so the ~1000 getImageData
+          // reads below would each force a slow GPU→CPU readback — which is exactly
+          // what Chrome's "willReadFrequently" console warning is about. One drawImage
+          // into a CPU canvas turns those reads cheap and silences the warning.
+          // (Passing the flag to c.getContext directly wouldn't help: the option is
+          //  ignored once a context already exists on a canvas, and this one has one.)
+          var cx;
+          try{
+            var _scr=document.createElement('canvas'); _scr.width=c.width; _scr.height=c.height;
+            cx=_scr.getContext('2d',{willReadFrequently:true});
+            cx.drawImage(c,0,0);
+          }catch(_se){ cx=c.getContext('2d'); }
           function a(x,y){ try{ return cx.getImageData(x,y,1,1).data[3]; }catch(e){ return -1; } }
           o.alpha={tl:a(1,1), tr:a(c.width-2,1), bl:a(1,c.height-2),
                    br:a(c.width-2,c.height-2), mid:a(c.width>>1, c.height>>1)};
@@ -16571,6 +16701,25 @@ function _buildVectorPdf(attachJson, onReady){
                   _annotsStripped = true;
                   dbg('export','full-redraw: removed '+_annCount+' page annotations (original content)');
                 }catch(e){ console.warn('[VectorExport] annot removal failed:',e); }
+                // ── REMOVE, DON'T JUST COVER ─────────────────────────────────
+                // Painting a white rectangle over the page left the ORIGINAL
+                // content stream inside the file. Acrobat renders progressively:
+                // the original operators (including any image the user deleted)
+                // draw first, THEN the white cover lands — so the old page
+                // content flashed for a split second on every open. Every piece
+                // of this content is reproduced by the extracted objects, so the
+                // original stream is pure dead weight: replace /Contents with an
+                // empty stream. The white rectangle below stays as a belt-and-
+                // braces opaque base for the blend-mode overlays.
+                try{
+                  var _empty = pdf.context.stream('');
+                  var _emptyRef = pdf.context.register(_empty);
+                  page.node.set(PDFLib.PDFName.of('Contents'), _emptyRef);
+                  // pdf-lib caches a normalized wrapper; force it to rebuild so
+                  // drawRectangle/drawText below append to the fresh empty stream.
+                  try{ page.node.normalize(); }catch(_n){}
+                  dbg('export','full-redraw: original content stream REMOVED (no progressive-render flash)');
+                }catch(e){ console.warn('[VectorExport] content stream removal failed, keeping white cover only:',e); }
                 try{ page.drawRectangle({x:0,y:0,width:PW,height:PH,color:PDFLib.rgb(1,1,1),borderWidth:0}); dbg('export','full-redraw: page covered white'); }
                 catch(e){ console.warn('[VectorExport] page cover failed:',e); }
               } else if(_FULL_REDRAW){
@@ -16875,7 +17024,8 @@ btnPdf.addEventListener('click',function(){
     toast('PDF export needs an internet connection','warn'); return;
   }
   // Open the Save-As panel FIRST (within the click gesture), then build the PDF.
-  pickSaveTarget('site-plan.pdf', 'application/pdf', 'PDF Document', ['.pdf']).then(function(handle){
+  var _pdfFn=_exportFileName('pdf');
+  pickSaveTarget(_pdfFn, 'application/pdf', 'PDF Document', ['.pdf']).then(function(handle){
     if(handle==='cancelled'){ toast('Save cancelled'); return; }
     toast('Preparing PDF…','',0);
     // Preferred path: keep the original PDF vectors crisp, stamp annotations on top.
@@ -16883,7 +17033,7 @@ btnPdf.addEventListener('click',function(){
     _buildVectorPdf(null, function(vbytes){
       if(vbytes){
         var pdfBlob=new Blob([vbytes],{type:'application/pdf'});
-        writeToTarget(handle, pdfBlob, 'site-plan.pdf').then(function(){ toast('Saved as PDF (vectors kept) ✓','ok',2800); if(AOG_DEBUG){ window.AOG.dumpDebug(); toast('DEBUG: '+_dbgLog.length+' trace records — see console','warn',4000); } });
+        writeToTarget(handle, pdfBlob, _pdfFn).then(function(){ toast('Saved as PDF (vectors kept) ✓','ok',2800); if(AOG_DEBUG){ window.AOG.dumpDebug(); toast('DEBUG: '+_dbgLog.length+' trace records — see console','warn',4000); } });
         return;
       }
       // Fallback: layered raster — see _layeredRasterUrls for why (annotation
@@ -16891,7 +17041,7 @@ btnPdf.addEventListener('click',function(){
       var _ldoc=_layeredRasterPdfBlob();
       if(_ldoc){
         var pdfBlob2=_ldoc.output('blob');
-        writeToTarget(handle, pdfBlob2, 'site-plan.pdf').then(function(){ toast('Saved as PDF ✓','ok',2500); });
+        writeToTarget(handle, pdfBlob2, _pdfFn).then(function(){ toast('Saved as PDF ✓','ok',2500); });
         return;
       }
       // Last resort: flattened raster. Embed as JPEG (visually identical to PNG for a
@@ -16911,7 +17061,7 @@ btnPdf.addEventListener('click',function(){
       if(imgH/imgW<ch/cw) imgW=imgH/(ch/cw);
       doc.addImage(imgData,'JPEG',2,2,imgW,imgH);
       var pdfBlob=doc.output('blob');
-      writeToTarget(handle, pdfBlob, 'site-plan.pdf').then(function(){ toast('Saved as PDF ✓','ok',2500); });
+      writeToTarget(handle, pdfBlob, _pdfFn).then(function(){ toast('Saved as PDF ✓','ok',2500); });
     };
     reader.readAsDataURL(blob);
     });
@@ -16934,6 +17084,17 @@ var openProjIn  = document.getElementById('openproj-in');
 function _projFileName(ext){
   var base=(document.getElementById('tb-proj')||{}).value||'site-plan';
   base=base.replace(/[\\/:*?"<>|]+/g,'_').slice(0,60)||'site-plan';
+  return base+'.'+ext;
+}
+
+// Build "Site-Plan <customer address>.<ext>" for PNG + PDF exports.
+// Falls back to plain "Site-Plan.<ext>" when the address field is empty.
+function _exportFileName(ext){
+  var addr=((document.getElementById('cust-addr')||{}).value||'')
+             .replace(/[\\/:*?"<>|]+/g,' ')   // strip filename-illegal chars
+             .replace(/\s+/g,' ').trim();
+  var base='Site-Plan'+(addr?' '+addr:'');
+  base=base.slice(0,90);
   return base+'.'+ext;
 }
 
@@ -16991,7 +17152,7 @@ if(btnPdfEdit) btnPdfEdit.addEventListener('click', function(){
   commitAllForExport();
   if(typeof window.jspdf==='undefined'&&typeof jsPDF==='undefined'){ toast('PDF export needs an internet connection','warn'); return; }
   if(typeof window.PDFLib==='undefined'){ toast('Editable PDF needs an internet connection','warn',4000); return; }
-  var name=_projFileName('pdf');
+  var name=_exportFileName('pdf');
   pickSaveTarget(name, 'application/pdf', 'PDF Document', ['.pdf']).then(function(handle){
     if(handle==='cancelled'){ toast('Save cancelled'); return; }
     toast('Preparing editable PDF…','',0);
