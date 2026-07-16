@@ -3735,8 +3735,66 @@ function applyTransform(){
   // but snap the RENDERED translate to the device-pixel grid (multiples of
   // 1/dpr), so every frame lands on the same physical grid.
   var _dpr=window.devicePixelRatio||1;
-  var _tx=Math.round(panX*_dpr)/_dpr, _ty=Math.round(panY*_dpr)/_dpr;
-  scene.style.transform='translate('+_tx+'px,'+_ty+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if(typeof _vpUpdate==='function') _vpUpdate(); if(typeof _setAnnoRes==='function') _setAnnoRes(false); if(typeof _setImgRes==='function') _setImgRes(false); if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); }
+  // Snap relative to where the VIEWPORT actually sits on screen. At fractional
+  // browser zoom the viewport's own left/top edge can land between device
+  // pixels (the trace showed every layer parked at exactly ±0.5 device px at
+  // 125%), so snapping the translate to multiples of 1/dpr alone still leaves
+  // the content off-grid. Fold the container's sub-device-pixel offset into
+  // the rounding so (containerEdge + translate) lands ON the device grid.
+  var _ox=0,_oy=0;
+  try{ var _pr=(scene.offsetParent||viewport).getBoundingClientRect(); _ox=_pr.left; _oy=_pr.top; }catch(e){}
+  var _tx=Math.round((_ox+panX)*_dpr)/_dpr-_ox, _ty=Math.round((_oy+panY)*_dpr)/_dpr-_oy;
+  scene.style.transform='translate('+_tx+'px,'+_ty+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if(typeof _vpUpdate==='function') _vpUpdate(); if(typeof _setAnnoRes==='function') _setAnnoRes(false); if(typeof _setImgRes==='function') _setImgRes(false); if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); if(AOG_DEBUG) _zoomDbgTrace(_dpr,_tx,_ty); }
+
+// ── ZOOM WOBBLE TRACER ────────────────────────────────────────────────────────
+// Turn on with ?debug in the URL or AOGDEBUG(true) in the console, then zoom at
+// different browser zoom levels. One rAF-batched line per frame, tagged
+// [zoomdbg]. Columns:
+//   dpr        devicePixelRatio (browser zoom changes this — 1.25, 0.9, …)
+//   zoom       app zoom
+//   pan        raw panX float → snapped tx actually rendered
+//   base/img/anno/draw
+//              each layer's on-screen LEFT edge in DEVICE pixels; the number
+//              in () is the sub-device-pixel fraction. If a layer wobbles, its
+//              fraction flip-flops between frames while the others hold steady.
+//   img-base   img canvas left MINUS base canvas left, in device px — should
+//              stay CONSTANT while zooming. If it oscillates, the pictures are
+//              moving relative to the plan (per-layer compositor snapping),
+//              not the whole scene.
+//   region     _vpRegion origin — if this changes on exactly the wobble frames,
+//              the region rebuild is the trigger.
+var _zoomDbgPending=false;
+function _zoomDbgTrace(dpr,tx,ty){
+  if(_zoomDbgPending) return; _zoomDbgPending=true;
+  requestAnimationFrame(function(){
+    _zoomDbgPending=false;
+    try{
+      var f=function(el){
+        if(!el) return 'n/a';
+        var r=el.getBoundingClientRect();
+        var d=r.left*dpr;
+        return d.toFixed(3)+' ('+(d-Math.round(d)).toFixed(3)+')';
+      };
+      var _iCv=(typeof imgCv!=='undefined')?imgCv:null;
+      var _sCv=(typeof shCv!=='undefined')?shCv:null;
+      var delta='n/a';
+      if(_iCv && baseCv){
+        delta=((_iCv.getBoundingClientRect().left-baseCv.getBoundingClientRect().left)*dpr).toFixed(3);
+      }
+      console.log('[zoomdbg]',
+        'dpr='+dpr,
+        'zoom='+zoom.toFixed(5),
+        'pan='+panX.toFixed(3)+'→'+tx.toFixed(3),
+        'base='+f(baseCv),
+        'img='+f(_iCv),
+        'anno='+f(_sCv),
+        'draw='+f(drawCv),
+        'img-base='+delta,
+        'region='+(_vpRegion?(_vpRegion.x0+','+_vpRegion.y0+' w'+_vpRegion.w):'null')
+      );
+    }catch(e){ console.log('[zoomdbg] trace error', e.message); }
+  });
+}
 
 // ── PAN LIMITS ────────────────────────────────────────────────────────────────
 // The old rule only guaranteed that 80px of canvas stayed on screen:
@@ -6705,9 +6763,24 @@ function _annoXf(ctx, eff){
   if(_vpRegion) ctx.setTransform(eff,0,0,eff, -_vpRegion.x0*eff, -_vpRegion.y0*eff);
   else          ctx.setTransform(eff,0,0,eff,0,0);
 }
+// ── SUBPIXEL LAYER POSITIONING ───────────────────────────────────────────────
+// Region canvases used to be placed with CSS left/top = region origin (plan px)
+// INSIDE the scale(zoom)'d scene. Their screen position is therefore
+// origin×zoom — a different fractional device-pixel offset on every zoom tick —
+// and the compositor snapped each layer to the device-pixel grid independently.
+// At fractional dpr (any browser zoom ≠ 100%) that snap flip-flopped frame to
+// frame, so ONLY the pictures (and anno layers) wobbled sideways against the
+// plan, whose canvas sits at origin 0 and never re-snaps. Positioning with a
+// transform instead makes each canvas its own composited layer rendered at its
+// TRUE fractional offset (GPU subpixel compositing) — nothing snaps, nothing
+// wobbles, at any devicePixelRatio.
+function _posCv(cv, x, y){
+  cv.style.left='0px'; cv.style.top='0px';
+  cv.style.transform='translate3d('+x+'px,'+y+'px,0)';
+}
 function _vpResetCss(){
   [tCv,shCv,hlCv,(typeof imgCv!=='undefined'?imgCv:null),selCv].forEach(function(cv){
-    if(cv){ cv.style.left='0px'; cv.style.top='0px'; }
+    if(cv){ _posCv(cv,0,0); }
   });
 }
 // rAF-batched re-render of every region-aware layer after the region moves.
@@ -6841,8 +6914,7 @@ function _sizeAnnoCanvas(cv, ctx, eff){
   var effX = bw/w, effY = bh/h;
   cv.style.width  = w+'px';
   cv.style.height = h+'px';
-  cv.style.left   = rx+'px';
-  cv.style.top    = ry+'px';
+  _posCv(cv, rx, ry);
   ctx.setTransform(effX,0,0,effY, -rx*effX, -ry*effY);   // draw in plan coords, render at eff
 }
 // Size selCv 1:1 with the plan canvas for the raw-coordinate chrome paths
@@ -6856,7 +6928,7 @@ function _sizeSelCvRaw(){
   selCv.style.height = baseCv.height+'px';
   // This raw mode is full-plan by definition — undo any viewport-region offset
   // left on the element or the text chrome draws displaced by the region origin.
-  selCv.style.left='0px'; selCv.style.top='0px';
+  _posCv(selCv,0,0);
   selCtx.setTransform(1,0,0,1,0,0);
 }
 var _annoRegionKey = '';   // identity of the region baked into the anno canvases
@@ -12149,8 +12221,7 @@ function renderSelection(){
   var _seX=_selBW/_sW, _seY=_selBH/_sH;
   selCv.style.width  = _sW+'px';
   selCv.style.height = _sH+'px';
-  selCv.style.left   = _sRX+'px';
-  selCv.style.top    = _sRY+'px';
+  _posCv(selCv, _sRX, _sRY);
   selCtx.setTransform(_seX,0,0,_seY, -_sRX*_seX, -_sRY*_seY);
   // Keep a comment's selection chrome (dashed box + handles) locked to the note's
   // LIVE geometry. The box auto-grows to fit text while typing, snaps to fit, and
@@ -18220,7 +18291,7 @@ function syncImgCv(){
   // hair on zoom). Backing-store rounding is compensated exactly per axis.
   var effX=bw/w, effY=bh/h;
   imgCv.style.width=w+'px'; imgCv.style.height=h+'px';
-  imgCv.style.left=rx+'px'; imgCv.style.top=ry+'px';
+  _posCv(imgCv, rx, ry);
   imgCtx.setTransform(effX,0,0,effY, -rx*effX, -ry*effY);
   imgCv._eff=eff;
   _imgEff=eff;
@@ -18425,7 +18496,7 @@ function renderImgSelection(){
   // rounding compensated exactly per axis.
   var _eX=bw/_rW, _eY=bh/_rH;
   selCv.style.width=_rW+'px'; selCv.style.height=_rH+'px';
-  selCv.style.left=_rX+'px'; selCv.style.top=_rY+'px';
+  _posCv(selCv, _rX, _rY);
   selCtx.setTransform(_eX,0,0,_eY, -_rX*_eX, -_rY*_eY);
   _clearCv(selCtx,selCv);
   // Draw image itself
@@ -18882,7 +18953,7 @@ function _drawImgGhost(cx, cy){
   selCv.style.height = (_gh/_ge) + 'px';
   // Full-plan canvas — drop any viewport-region offset left on the element by a
   // previous selection render, or the ghost draws displaced by the region origin.
-  selCv.style.left='0px'; selCv.style.top='0px';
+  _posCv(selCv,0,0);
   selCtx.setTransform(_ge,0,0,_ge,0,0);
   _clearCv(selCtx,selCv);
   if(!_pendingImg) return;
