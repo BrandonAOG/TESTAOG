@@ -3184,7 +3184,12 @@ var tool='none', color='#ef4444', strokeW=5, opacity=1, lineStyle='solid', fillS
 // Notes (comment border) default to 10pt; every other tool defaults to 5pt.
 var STROKE_DEFAULT = 5;
 var STROKE_DEFAULT_NOTE = 10;
-function _toolStrokeDefault(t){ return (t==='comment') ? STROKE_DEFAULT_NOTE : STROKE_DEFAULT; }
+var STROKE_DEFAULT_MEASURE = 1;   // measuring lines start hairline-thin — precision first
+function _toolStrokeDefault(t){
+  if(t==='comment') return STROKE_DEFAULT_NOTE;
+  if(t==='measure' || t==='pathmeasure') return STROKE_DEFAULT_MEASURE;
+  return STROKE_DEFAULT;
+}
 var _toolStroke = {};   // { toolName: lastWidth }
 var fillColor='#ef4444', fillOpacity=0.4; // separate fill (inner) color and opacity
 var stampType='north';
@@ -16594,9 +16599,26 @@ function _buildVectorPdf(attachJson, onReady){
     // build the alpha as a SEPARATE 8-bit grayscale /SMask stream, and attach it to
     // the image XObject directly. Then white sits under the transparency by
     // construction and canvas premultiplication never gets a say.
+    // ── EMPTY-OVERLAY DETECTION ──────────────────────────────────────────────
+    // The bleed scan already walks every pixel; reuse its count. If an overlay has
+    // ZERO painted pixels there is nothing to show — but embedding it anyway stamps
+    // a full-page soft-masked (SMask) PNG over the entire sheet. That forces the
+    // viewer's TRANSPARENCY COMPOSITOR across the whole page, and Acrobat
+    // rasterizes/composites transparency at zoom-dependent resolutions — which made
+    // the vector linework beneath read a SLIGHTLY DIFFERENT SHADE at each zoom
+    // (the reported polyline symptom). Skipping the empty overlay keeps the page a
+    // plain opaque vector page wherever possible: one exact shade at every zoom.
+    var _mainOvPainted=-1, _hlOvPainted=-1;             // -1 = unknown → embed as before
     if(typeof _bleedOverlayAlpha==='function'){
-      _bleedOverlayAlpha(comp);                        // kill dark edge halos at zoom
-      if(compHl) _bleedOverlayAlpha(compHl);
+      _mainOvPainted=_bleedOverlayAlpha(comp);         // kill dark edge halos at zoom
+      if(compHl){
+        _hlOvPainted=_bleedOverlayAlpha(compHl);
+        if(_hlOvPainted===0){
+          dbg('export','highlight overlay EMPTY (0 painted px) — dropped');
+          try{ if(typeof releaseCanvas==='function') releaseCanvas(compHl); }catch(e){}
+          compHl=null;                                 // _encodeHl(null) → no hl embed
+        }
+      }
     }
     _xlap('overlay alpha-bleed done');
 
@@ -16870,9 +16892,17 @@ function _buildVectorPdf(attachJson, onReady){
                   catch(e){ console.warn('[VectorExport] hl overlay (multiply) failed, drawing normal:',e); try{ _drawOv(hlImg,null); }catch(_){} }
                 });
               }
-              chain=chain.then(function(){ return pdf.embedPng(overlayBytes); }).then(function(ovImg){
-                _drawOv(ovImg,null);
-              });
+              if(_mainOvPainted===0){
+                // Provably blank: every annotation went out as a vector or native
+                // image. Embedding a transparent full-page SMask PNG here would only
+                // drag the whole page through the viewer's transparency compositor
+                // (zoom-dependent shade shifts on the linework) and bloat the file.
+                dbg('export','main overlay EMPTY (0 painted px) — embed SKIPPED (page stays plain vector)');
+              } else {
+                chain=chain.then(function(){ return pdf.embedPng(overlayBytes); }).then(function(ovImg){
+                  _drawOv(ovImg,null);
+                });
+              }
               // No stamp/white-patch pass. The only remaining kept-page cases here
               // have NO moved extracted content (moves are routed to the clean
               // composite export above), so there is nothing to cover — and we never
@@ -16934,10 +16964,12 @@ function _buildVectorPdf(attachJson, onReady){
 // a 2px skirt into the black. BLEED_PASSES is sized to cover that with margin.
 var BLEED_PASSES = 12;
 
+// Returns the number of painted (alpha>0) pixels found, or -1 if the scan
+// could not run — callers use 0 to skip embedding a provably-empty overlay.
 function _bleedOverlayAlpha(cnv, passes){
   try{
     var w=cnv.width, h=cnv.height;
-    if(!w||!h) return;
+    if(!w||!h) return 0;
     var _P = (passes|0) || BLEED_PASSES;
     var _bt0=(window.performance&&performance.now)?performance.now():Date.now();
     var _now=function(){ return (window.performance&&performance.now)?performance.now():Date.now(); };
@@ -16958,7 +16990,7 @@ function _bleedOverlayAlpha(cnv, passes){
     var _painted=0;
     for(var i0=0;i0<N;i0++){ if(a32[i0]!==0){ _painted++; front.push(i0); } }
     if(AOG_DEBUG) console.log('[AOG:bleed] '+w+'x'+h+' N='+(N/1e6).toFixed(1)+'MP painted='+(100*_painted/N).toFixed(1)+'% ('+_painted+') scan+push='+Math.round(_now()-_st)+'ms');
-    if(!front.length){ return; }                 // empty overlay → nothing to bleed
+    if(!front.length){ return 0; }               // empty overlay → nothing to bleed
     var queued=new Uint8Array(N);                // a pixel is filled at most once, ever
     var _avg=function(nb,nx,ny){                 // average RGB of nb's visible neighbours
       var r=0,g=0,b=0,n=0,j;
@@ -16989,7 +17021,9 @@ function _bleedOverlayAlpha(cnv, passes){
     if(AOG_DEBUG) console.log('[AOG:bleed] passes done, total '+Math.round(_now()-_bt0)+'ms');
     ctx.putImageData(im,0,0);
     if(AOG_DEBUG) console.log('[AOG:bleed] putImageData done, grand total '+Math.round(_now()-_bt0)+'ms');
+    return _painted;
   }catch(e){ /* best-effort — overlay still valid without bleed */ }
+  return -1;
 }
 
 // Layered raster PDF pieces: base plan as JPEG 0.95 (on a scanned plan 0.95 vs
