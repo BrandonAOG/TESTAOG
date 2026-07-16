@@ -2176,10 +2176,10 @@ function wrapLinesToWidth(text, maxW, fontSize, family, bold, italic){
 }
 // Canonical "display lines" for a text object: wrapped when obj.wrapW is set,
 // else the raw hard lines. Imported width-fit labels (o._fitWs — their per-line
-// squeeze table is indexed by ORIGINAL line numbers) and right-anchored leader
-// labels never wrap, so their anchor math stays untouched.
+// squeeze table is indexed by ORIGINAL line numbers) never wrap. Right-anchored
+// leader labels DO wrap now — their anchor is re-pinned on every reflow/commit.
 function getTextLines(o, fpx){
-  if(o && o.wrapW && o.text && !o._anchorRight){
+  if(o && o.wrapW && o.text && !o._fitWs){
     return wrapLinesToWidth(o.text, ptToCanvasPx(o.wrapW), fpx,
                             o.fontFamily||'Arial', o.bold, o.italic);
   }
@@ -3228,6 +3228,11 @@ var textAlign      = 'left';
 // the page. We anchor the text box's RIGHT edge at the placement point and
 // right-align it. This flag is set only for that case and cleared for all other
 // text entry.
+var _textAnchorRight = false;
+// Armed by the leader flow when it opens the label editor: the committed text
+// gets tagged _leaderLabel so its stretch handles can keep the leader-side
+// edge pinned (left-hanging AND right-hanging labels alike).
+var _textLeaderPending = false;
 var _textAnchorRight = false;
 var textBgColor    = '#00ff11';
 var textBgOpacity  = 0.9;
@@ -7826,6 +7831,18 @@ function onDown(e){
   if(tool==='leader'){
     // Mid-placement (first point already set) → let the click handler place P2.
     if(leaderStep>0){ return; }
+    // Editing a label right now → its LEFT-side stretch handles work here too
+    // (same Acrobat-style wrap-resize as the text tool), so users don't have to
+    // switch tools to reflow a leader label they just typed.
+    if(editingObj){
+      var _lth=_textHandleAt(editingObj,sp.x,sp.y);
+      if(_textHandleStretches(editingObj,_lth)){
+        e.preventDefault();
+        _txtSizeReedit=true;               // caret returns on release
+        _beginTextWrapResize(editingObj,sp,_textHandleSide(_lth));
+        return;
+      }
+    }
     // Double-tap a label's TEXT with the leader tool → edit the text directly,
     // so users don't have to switch to the Text tool. Single taps fall through
     // to leader selection (handles / recolor) below.
@@ -8085,6 +8102,10 @@ function onMove(e){
       var _w2=measureLinesWDrawn(_so,_wl2,_sfpx);
       _so.x=_ss.rx-_w2*Math.cos(_ss.ang);
       _so.y=_ss.ry-_w2*Math.sin(_ss.ang);
+      // Leader label: the pinned right edge IS the leader anchor — keep the
+      // stored anchor in lock-step so the elbow/commit math agrees with the
+      // reflowed box.
+      if(_so._anchorRight){ _so._anchorX=_ss.rx; _so._anchorY=_ss.ry; }
     }
     renderTextObjs();
     _sizeSelCvRaw();
@@ -8565,6 +8586,7 @@ function onUp(e){
       textOv.value='';   // label must NEVER inherit text left over from a previous box
       // Text anchor: horizontal drags place text just past the shoulder end on
       // that side; vertical drags place it just past the shoulder end above/below.
+      _textLeaderPending=true;   // tag the label this session commits
       var _se=leaderShoulderEnd(_leaderObj);
       if(_ld.vertical){
         textX=_se.x; textY=_se.y + (_ld.sign>0 ? 2 : -2);
@@ -10118,6 +10140,7 @@ function handleLeaderClick(x,y,e){
     leaderObjs.push(_lobj);
     renderShapeAndMeasure();
     composite();
+    _textLeaderPending=true;   // tag the label this session commits
     var _se=leaderShoulderEnd(_lobj);
     if(_ld.vertical){
       textX=_se.x; textY=_se.y + (_ld.sign>0 ? 2 : -2);
@@ -10657,7 +10680,10 @@ function _syncTextFmtFromObj(obj){
   textItalic     = !!obj.italic;
   textUnderline  = !!obj.underline;
   textStrike     = !!obj.strike;
-  textAlign      = obj.textAlign || 'left';
+  // A leader label's 'right' alignment is FORCED by its right-edge anchor, not
+  // a user preference — syncing it into the global made every text placed
+  // afterwards come out right-aligned. Keep the global as-is for leader labels.
+  if(!obj._anchorRight) textAlign = obj.textAlign || 'left';
   textBgColor    = obj.bgColor   || '#ffff00';
   textBgOpacity  = obj.bgOpacity || 0;
   // Update font-family select
@@ -11108,7 +11134,15 @@ function _textHandleAt(o,x,y){
 // Top/bottom-center handles and the dashed line between handles = move.
 function _textHandleStretches(o,h){
   if(h<0||h===1||h===5) return false;
-  if(!o||o._anchorRight) return false;   // leader labels keep their anchor math
+  if(!o) return false;
+  // Leader labels hang LEFT of their anchor (the leader elbow pins their right
+  // edge). Only the LEFT-side handles stretch — the right edge must stay glued
+  // to the leader, so right handles keep move behavior.
+  if(o._anchorRight) return _textHandleSide(h)==='L';
+  // Right-hanging leader label: its LEFT edge sits at the leader's shoulder end,
+  // so only the RIGHT-side handles stretch (the 'R' drag pins o.x — the arrow
+  // stays attached). Mirrors the left-hanging rule above.
+  if(o._leaderLabel) return _textHandleSide(h)==='R';
   return true;
 }
 function _textHandleSide(h){ return (h===0||h===6||h===7)?'L':'R'; }
@@ -11223,7 +11257,7 @@ function _openTextEdit(o){
   // Wrapped labels: materialize the current soft wrap into the editor so the
   // dashed edit box shows the SAME rows as the canvas. Single \n is treated as
   // a SOFT break by the wrapper, so this round-trips losslessly on commit.
-  if(o.wrapW && !o._anchorRight){
+  if(o.wrapW && !o._fitWs){
     o.text=getTextLines(o,ptToCanvasPx(o.fontSize)).join('\n');
   }
   textOv.value=o.text;
@@ -11274,6 +11308,7 @@ function _openTextEdit(o){
 
 function handleText(e){
   _textAnchorRight = false;  // normal text never uses the leader's left-hang anchor
+  _textLeaderPending = false;
   var p=getPos(e);
   // Grabbing the rotate handle of the text being edited → rotate it.
   if(editingObj && _textRotHandleAt(editingObj,p.x,p.y)){
@@ -11924,8 +11959,14 @@ function commitText(){
       // Right-anchored label (left-hanging leader): re-pin the RIGHT edge to the
       // stored anchor so edits grow/shrink leftward, not rightward off the page.
       if(_textAnchorRight && editingObj._anchorX!=null){
-        var _eln=val.split('\n');
         var _efpx=ptToCanvasPx(editingObj.fontSize);
+        // Wrapped leader label: measure the SAME rows the canvas will draw
+        // (soft-wrapped to wrapW), not the raw hard lines, or the repinned x
+        // disagrees with the rendered width and the label jumps off its anchor.
+        var _eln=editingObj.wrapW
+          ? wrapLinesToWidth(val, ptToCanvasPx(editingObj.wrapW), _efpx,
+                             editingObj.fontFamily||'Arial', editingObj.bold, editingObj.italic)
+          : val.split('\n');
         var _emw=measureLinesWFull(_eln,_efpx,editingObj.fontFamily||'Arial',editingObj.bold,editingObj.italic);
         // Keep the FAR end pinned and grow the start back along the label's own
         // direction, so a rotated label grows/shrinks in line with its glyphs
@@ -11957,10 +11998,12 @@ function commitText(){
              underline:textUnderline,strike:textStrike,textAlign:_newAlign,
              bgColor:textBgColor,bgOpacity:textBgOpacity,
              _anchorRight:_textAnchorRight, _anchorX:textX, _anchorY:textY};
+    if(_textLeaderPending) obj._leaderLabel=true;
     textObjs.push(obj); renderTextObjs(); pushUndo(); _aogRestoreTextCol();
     // (No transform box — a freshly placed text just sits there. Re-click to edit.)
   }
   _textAnchorRight = false; // reset so the next text entry starts clean
+  _textLeaderPending = false;
 }
 
 // Enter selection mode for a text object (move + rotate, no resize)
