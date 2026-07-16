@@ -8701,9 +8701,13 @@ function onUp(e){
         layerIdx:activeLayerIdx,showLabel:false,_editing:false
       };
       measureObjs.push(newLine);
-      // Commit immediately — no edit mode on mouseup
-      selectedMeasure=null;
+      // Stay selected after placement so endpoints/size can be adjusted
+      // immediately — no second click needed (matches touch behaviour).
+      newLine._editing=true;
+      selectedMeasure=newLine;
+      measureDragHandle=-1; measureDragStart=null;
       renderShapeAndMeasure();
+      renderMeasureSelection();
     } else { renderShapeAndMeasure(); }
     composite(); pushUndo();
   }
@@ -8719,18 +8723,13 @@ function onUp(e){
         _editing:false
       };
       measureObjs.push(newM);
-      if(isTouch){
-        // Touch: stay in edit mode so endpoints can be dragged
-        newM._editing=true;
-        selectedMeasure=newM;
-        measureDragHandle=-1; measureDragStart=null;
-        renderShapeAndMeasure();
-        renderMeasureSelection();
-      } else {
-        // Desktop: commit immediately on mouseup — no extra click needed
-        selectedMeasure=null;
-        renderShapeAndMeasure();
-      }
+      // Stay in edit mode on BOTH touch and desktop so the endpoints can be
+      // dragged to fine-tune immediately — no extra click needed.
+      newM._editing=true;
+      selectedMeasure=newM;
+      measureDragHandle=-1; measureDragStart=null;
+      renderShapeAndMeasure();
+      renderMeasureSelection();
       if(scalingMode){
         refLinePixels=px;
         _scalingRefMeasure=newM;
@@ -8763,16 +8762,13 @@ function onUp(e){
         layerIdx:activeLayerIdx, showLabel:false, isArrow:true, _editing:false
       };
       measureObjs.push(newA);
-      if(isTouchA){
-        newA._editing=true;
-        selectedMeasure=newA;
-        measureDragHandle=-1; measureDragStart=null;
-        renderShapeAndMeasure();
-        renderMeasureSelection();
-      } else {
-        selectedMeasure=null;
-        renderShapeAndMeasure();
-      }
+      // Stay selected after placement so endpoints/size can be adjusted
+      // immediately — no second click needed.
+      newA._editing=true;
+      selectedMeasure=newA;
+      measureDragHandle=-1; measureDragStart=null;
+      renderShapeAndMeasure();
+      renderMeasureSelection();
     } else { renderShapeAndMeasure(); }
     composite(); pushUndo();
   }
@@ -13207,13 +13203,18 @@ function closePolyline(){
   }
   if(plPoints.length<2){ plPoints=[]; plActive=false; renderShapeAndMeasure(); return; }
   captureState();
-  polylineObjs.push({
+  var _newPl={
     id:Date.now(), pts:plPoints.slice(),
     color:color, strokeW:strokeW, opacity:opacity, lineStyle:lineStyle,
     layerIdx:activeLayerIdx
-  });
+  };
+  polylineObjs.push(_newPl);
   plPoints=[]; plActive=false;
   renderShapeAndMeasure(); composite(); pushUndo();
+  // Stay selected after commit so vertices can be adjusted immediately —
+  // no extra click needed.
+  selectedPolyline=_newPl;
+  renderPolylineSelection();
   toast('Polyline committed · Hold to delete','ok',2000);
 }
 
