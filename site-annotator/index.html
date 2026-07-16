@@ -3974,6 +3974,26 @@ function fitToVP(){
       applyTransform();
     }catch(e){}
   });
+
+  // ── FIRST-PAINT CORRECTIVE REDRAW ─────────────────────────────────────────
+  // On the initial load, the viewport region is computed, THEN fitToVP changes
+  // zoom/pan (and the self-correct rAF above may nudge pan once more). The
+  // synchronous _setAnnoRes(false) inside applyTransform can run against a
+  // region that's about to move, and its skip-guard (eff+region key unchanged)
+  // can suppress the redraw that would repaint the rest — so annotations show
+  // half-drawn until a later manual zoom forces a clean rebuild. Force ONE full
+  // re-rasterization a couple frames after the fit has fully settled: clear the
+  // guard keys so nothing can be skipped, then redraw at full region resolution.
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      try{
+        if(typeof _annoRegionKey!=='undefined') _annoRegionKey='';
+        if(typeof _annoEff!=='undefined') _annoEff=0;
+        if(typeof _vpUpdate==='function') _vpUpdate();
+        if(typeof _setAnnoRes==='function') _setAnnoRes(true);
+      }catch(e){}
+    });
+  });
 }
 
 function zoomAt(f,cx,cy){
@@ -4538,7 +4558,13 @@ function _loadPDFExploded(f){
 // while Chrome/Firefox/Edge get the full high-res budget.
 var IS_DESKTOP_SAFARI = !IS_IOS &&
   /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(navigator.userAgent);
-var CANVAS_MAX_AREA = IS_IPHONE ? 4.2e6 : (IS_IPAD ? 8e6 : (IS_DESKTOP_SAFARI ? 16e6 : 20e6));
+// Raised desktop budgets (was 16/20 MP): large CAD plans were hitting the AREA
+// cap long before the 400-DPI target, rendering hairline linework at ~1px where
+// CSS zoom resampling makes it band light/dark. Chrome desktop 20→40 MP doubles
+// the pixels (~1.41× linear resolution) so hairlines carry more samples; Safari
+// desktop gets a smaller bump (its canvas memory handling is less forgiving).
+// Mobile budgets unchanged — memory there is the hard constraint.
+var CANVAS_MAX_AREA = IS_IPHONE ? 4.2e6 : (IS_IPAD ? 8e6 : (IS_DESKTOP_SAFARI ? 24e6 : 40e6));
 function _clampScaleToArea(scale, pw, ph){
   var area = (pw*scale) * (ph*scale);
   if(area <= CANVAS_MAX_AREA) return scale;
@@ -4562,6 +4588,17 @@ function _explodePDFPage(n){
     var sc  = _explodeScale(vp1);
     var vp  = page.getViewport({scale:sc});
     var w=Math.round(vp.width), h=Math.round(vp.height);
+    // ── DEBUG: backdrop rasterization resolution. Shows the DPI the baked page is
+    // rendered at and the resulting canvas size. If linework stays baked (see
+    // annot-vec counts) this is the ceiling on its sharpness at any zoom.
+    try{
+      dbg('backdrop-res','baked page raster', {
+        pagePts: Math.round(vp1.width)+'x'+Math.round(vp1.height),
+        scale: sc.toFixed(3),
+        effectiveDPI: Math.round(sc*72),
+        backdropPx: w+'x'+h
+      });
+    }catch(_e){}
 
     resize(w,h);
     bCtx.save(); bCtx.fillStyle='#ffffff'; bCtx.fillRect(0,0,w,h); bCtx.restore();
@@ -5997,6 +6034,23 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
     }
   }catch(e){ console.warn('[Markup] shape annot import:',e); }
 
+  // ── DEBUG: how many of the page's line/shape annotations actually became
+  // editable VECTOR objects this import (vs. staying baked in the backdrop). If
+  // these counts are ~0 while [AOG:annots] shows many Line/PolyLine/Square/Circle,
+  // the linework is raster-only and will go soft on zoom. If they're populated,
+  // the softness is a render-resolution issue, not extraction.
+  try{
+    var _dbgAnnotVec = {
+      lines:   measureObjs.filter(function(o){return o&&o._fromAnnot&&o._fromExplode&&!o.isArrow;}).length,
+      arrows:  measureObjs.filter(function(o){return o&&o._fromAnnot&&o._fromExplode&&o.isArrow;}).length,
+      shapes:  shapeObjs.filter(function(o){return o&&o._fromAnnot&&o._fromExplode;}).length,
+      polylines: polylineObjs.filter(function(o){return o&&o._fromAnnot&&o._fromExplode;}).length,
+      pen:     penObjs.filter(function(o){return o&&o._fromExplode;}).length
+    };
+    _dbgAnnotVec.totalVectors = _dbgAnnotVec.lines+_dbgAnnotVec.arrows+_dbgAnnotVec.shapes+_dbgAnnotVec.polylines;
+    dbg('annot-vec','line/shape annots → editable vectors', _dbgAnnotVec);
+  }catch(_e){ console.warn('[dbg] annot-vec count failed:', _e); }
+
   _explodedMarkupCount=markupObjs.filter(function(o){return o._fromExplode;}).length;
   _explodedPenCount   =penObjs.filter(function(o){return o._fromExplode;}).length;
   try{ _explodedPageImgCount = imgOverlays.filter(function(o){return o._fromPdfPage;}).length; }catch(e){ _explodedPageImgCount=0; }
@@ -6953,6 +7007,23 @@ function _setAnnoRes(force){
   _sizeAnnoCanvas(tCv,  tCtx,  eff);
   _sizeAnnoCanvas(shCv, shCtx, eff);
   _sizeAnnoCanvas(hlCv, hlCtx, eff);
+  // ── DEBUG: the resolution vector annotations are actually rasterized at right
+  // now. deviceScale = how many backing px per on-screen px (≥1 = crisp, <1 =
+  // upscaled/soft). If this is <1 at the zoom where lines look soft, the clamp in
+  // _vpEffFor is the culprit; if it's ≥1, the soft content is baked backdrop.
+  try{
+    if(AOG_DEBUG){
+      var _rgW = _vpRegion ? _vpRegion.w : baseCv.width;
+      var _rgH = _vpRegion ? _vpRegion.h : baseCv.height;
+      dbg('anno-res','vector layer resolution', {
+        zoom: zoom.toFixed(4),
+        eff: eff,
+        region: Math.round(_rgW)+'x'+Math.round(_rgH),
+        backingPx: tCv.width+'x'+tCv.height,
+        deviceScale: (eff/(window.devicePixelRatio||1)/Math.max(zoom,0.0001)).toFixed(2)
+      });
+    }
+  }catch(_e){}
   if(baseLoaded){
     if(typeof renderTextObjs==='function')        renderTextObjs();
     if(typeof renderShapeAndMeasure==='function') renderShapeAndMeasure();
@@ -9108,7 +9179,7 @@ function drawMeasureObjOnCtx(ctx, m, highlight){
   ctx.save();
   ctx.globalAlpha=m.opacity;
   ctx.strokeStyle=highlight?'#00D4FF':m.color;
-  ctx.lineWidth=m.strokeW;
+  ctx.lineWidth=_hairline(m.strokeW);
   ctx.lineCap='round'; ctx.lineJoin='round';
   if(m.lineStyle==='dashed') ctx.setLineDash([m.strokeW*4,m.strokeW*3]);
   else if(m.lineStyle==='dotted') ctx.setLineDash([m.strokeW,m.strokeW*2.5]);
@@ -9180,6 +9251,25 @@ function _prepShcvPreview(){
   return shCtx;
 }
 
+// ── HAIRLINE FLOOR ──────────────────────────────────────────────────────────
+// Thin imported vector lines (conduit runs, boxes, leaders) render at their true
+// plan-px weight, which is correct at working zoom — but when the whole 4400px
+// sheet is zoomed out to the ~13% fit view, a ~2-3px line becomes <1 screen px
+// and antialiases into faint gray, so the drawing looks washed out compared to
+// Acrobat. PDF/CAD viewers avoid this with a minimum ON-SCREEN line weight.
+// _hairline() raises the drawn width so a line never falls below ~1 screen px,
+// but ONLY during on-screen rendering (_annoScreenRender) — export runs the same
+// helpers with the flag off, so exported/printed weights are untouched. At normal
+// zoom the floor is below the real widths, so it changes nothing there.
+var _annoScreenRender = false;
+var _HAIRLINE_MIN_SCREEN_PX = 1.1;
+function _hairline(w){
+  if(!_annoScreenRender) return w;                       // export / off-screen: true weight
+  var z = (typeof zoom==='number' && zoom>1e-4) ? zoom : 1;
+  var floor = _HAIRLINE_MIN_SCREEN_PX / z;               // plan px needed for ~1 screen px
+  return w > floor ? w : floor;
+}
+
 function renderShapeAndMeasure(){
   // Guarantee the shapes/notes canvas backing store AND its draw transform match
   // the current zoom resolution before we draw. This renderer works in plan
@@ -9196,6 +9286,8 @@ function renderShapeAndMeasure(){
   else { _annoXf(hlCtx, _eff); }
   _clearCv(shCtx,shCv);
   _clearCv(hlCtx,hlCv);
+  _annoScreenRender = true;   // enable hairline floor for the committed on-screen pass
+  try{
   // Markups first → they underlie everything drawn below (matches export).
   renderMarkupObjs();
   // Shape objects
@@ -9206,7 +9298,7 @@ function renderShapeAndMeasure(){
     shCtx.save();
     shCtx.translate(s.cx,s.cy); shCtx.rotate(s.angle);
     shCtx.strokeStyle=s.color; shCtx.fillStyle=s.color;
-    shCtx.lineWidth=s.strokeW; shCtx.lineCap='round'; shCtx.lineJoin='round';
+    shCtx.lineWidth=_hairline(s.strokeW); shCtx.lineCap='round'; shCtx.lineJoin='round';
     shCtx.globalAlpha=s.opacity;
     if(s.lineStyle==='dashed') shCtx.setLineDash([s.strokeW*4,s.strokeW*3]);
     else if(s.lineStyle==='dotted') shCtx.setLineDash([s.strokeW,s.strokeW*2.5]);
@@ -9257,6 +9349,7 @@ function renderShapeAndMeasure(){
   stampObjs.forEach(function(o){ var L=layers[o.layerIdx]; if(L&&!L.visible) return; drawStampObjOnCtx(shCtx,o,1); });
   // Comment objects (sticky notes)
   renderCommentObjs(shCtx);
+  } finally { _annoScreenRender = false; }
 }
 
 // ── Draw helpers for live pen/polygon/leader/stamp ──────────────
@@ -13129,7 +13222,7 @@ function drawPolylineOnCtx(ctx, pl, sc){
   ctx.save();
   ctx.globalAlpha=pl.opacity;
   ctx.strokeStyle=pl.color;
-  ctx.lineWidth=pl.strokeW*sc;
+  ctx.lineWidth=_hairline(pl.strokeW*sc);
   ctx.lineCap='round'; ctx.lineJoin='round';
   if(pl.lineStyle==='dashed') ctx.setLineDash([pl.strokeW*4*sc,pl.strokeW*3*sc]);
   else if(pl.lineStyle==='dotted') ctx.setLineDash([pl.strokeW*sc,pl.strokeW*2.5*sc]);
