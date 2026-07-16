@@ -16127,6 +16127,13 @@ function _buildVectorPdf(attachJson, onReady){
   try{
     if(!_vecRetried) dbgReset('EXPORT (vector path)');
     _annotsStripped = false;
+    // Export-side lap timer (mirrors the import [AOG:time] laps). Records every lap
+    // into _xTimes so a single consolidated object can be logged at the end — robust
+    // against individual console lines getting scattered among other logs.
+    var _xT0=(window.performance&&performance.now)?performance.now():Date.now();
+    var _xTimes={};
+    var _xlap=function(tag){ var _n=(window.performance&&performance.now)?performance.now():Date.now(); var _ms=Math.round(_n-_xT0); _xTimes[tag]=_ms; if(AOG_DEBUG) console.log('[AOG:time/export] '+tag+' +'+_ms+'ms'); };
+    var _xdump=function(){ if(AOG_DEBUG) console.log('%c[AOG:time/export] PHASE TABLE (cumulative ms since export start)','color:#a05;font-weight:bold', _xTimes); };
     dbg('export','_buildVectorPdf start',{vectorOK:_vectorBackdropOK, pdfBytes:(_pdfBytes?_pdfBytes.byteLength:0), hasPDFLib:(typeof window.PDFLib!=='undefined'),
       shapes:shapeObjs.length, measures:measureObjs.length, text:textObjs.length, images:imgOverlays.length});
     // ── SELF-HEAL: recover the source PDF at EXPORT time ──────────────────────
@@ -16231,6 +16238,8 @@ function _buildVectorPdf(attachJson, onReady){
         console.warn('[AOG:export] Vector path abandoned. Moved-object report:', _culprits);
       }catch(_e){ console.warn('[AOG:export] culprit scan failed:', _e); }
       dbg('export','kept page + moved extracted content → clean composite export (no white patches)');
+      _xlap('EXIT: raster/composite fallback (moved or deleted extracted content)');
+      _xdump();
       onReady(null); return;
     }
 
@@ -16337,37 +16346,32 @@ function _buildVectorPdf(attachJson, onReady){
                mp:+((c.width*c.height)/1e6).toFixed(2),
                aspect:+(c.width/Math.max(1,c.height)).toFixed(4)};
         try{
-          // Sample the four corners + centre. An all-zero alpha in a region that
-          // should hold paint is the signature of a blanked/clamped canvas.
-          // Copy into a willReadFrequently (CPU-backed) scratch canvas first, then
-          // sample THAT. The export canvas is GPU-backed, so the ~1000 getImageData
-          // reads below would each force a slow GPU→CPU readback — which is exactly
-          // what Chrome's "willReadFrequently" console warning is about. One drawImage
-          // into a CPU canvas turns those reads cheap and silences the warning.
-          // (Passing the flag to c.getContext directly wouldn't help: the option is
-          //  ignored once a context already exists on a canvas, and this one has one.)
-          var cx;
-          try{
-            var _scr=document.createElement('canvas'); _scr.width=c.width; _scr.height=c.height;
-            cx=_scr.getContext('2d',{willReadFrequently:true});
-            cx.drawImage(c,0,0);
-          }catch(_se){ cx=c.getContext('2d'); }
-          function a(x,y){ try{ return cx.getImageData(x,y,1,1).data[3]; }catch(e){ return -1; } }
-          o.alpha={tl:a(1,1), tr:a(c.width-2,1), bl:a(1,c.height-2),
-                   br:a(c.width-2,c.height-2), mid:a(c.width>>1, c.height>>1)};
-          // Sample a coarse grid rather than reading back the whole ~20MP bitmap.
-          // The full getImageData was costing real time on every export (Chrome
-          // warns about it) — and a blanked canvas shows up just as clearly in a
-          // 32x32 sample as in 20 million pixels.
-          var N=32, nz=0, tot=0;
-          for(var gy=0; gy<N; gy++){
-            for(var gx=0; gx<N; gx++){
-              var sx=Math.min(c.width-1,  Math.floor((gx+0.5)*c.width /N));
-              var sy=Math.min(c.height-1, Math.floor((gy+0.5)*c.height/N));
-              if(a(sx,sy)>0) nz++;
-              tot++;
-            }
-          }
+          // ── ONE READBACK, NOT A THOUSAND ─────────────────────────────────────
+          // The previous version copied the export canvas into a FULL-SIZE scratch
+          // canvas and then issued ~1,030 separate 1-pixel getImageData calls
+          // (5 corners/centre + a 32×32 grid). In practice each of those reads was
+          // hitting a slow path (~16ms apiece → ~16.5s per export; the phase table
+          // showed it as a giant gap swallowed by the "alpha-bleed done" lap).
+          // The willReadFrequently scratch did not save us.
+          //
+          // Fix: downscale the overlay ONCE into a tiny 33×33 canvas with a single
+          // GPU→CPU drawImage, then do a SINGLE getImageData over all 1,089 pixels.
+          // Grid cells now report the AVERAGE alpha of their region instead of one
+          // exact pixel — for the trace's purpose (detecting a blanked/clamped
+          // bitmap) that's equivalent, and it turns ~16.5s into ~10ms.
+          var GN=33; // 33 = 32-cell grid + room for exact-ish corner samples
+          var _scr=document.createElement('canvas'); _scr.width=GN; _scr.height=GN;
+          var cx=_scr.getContext('2d',{willReadFrequently:true});
+          cx.drawImage(c, 0, 0, GN, GN);                 // single downscale readback
+          var gd=cx.getImageData(0,0,GN,GN).data;        // ONE getImageData, 4KB
+          function a(gx,gy){ return gd[((gy*GN)+gx)*4+3]; }
+          // Corners + centre of the downscaled bitmap. Not the literal edge pixels
+          // of the full-res canvas, but a blanked/clamped region shows up the same.
+          o.alpha={tl:a(0,0), tr:a(GN-1,0), bl:a(0,GN-1),
+                   br:a(GN-1,GN-1), mid:a(GN>>1, GN>>1)};
+          o.alphaNote='sampled from '+GN+'x'+GN+' downscale (region averages, not exact pixels)';
+          var nz=0, tot=GN*GN;
+          for(var gi=3; gi<gd.length; gi+=4){ if(gd[gi]>0) nz++; }
           o.paintedPctSampled=+((nz/tot)*100).toFixed(2);
         }catch(e){ o.sampleErr=String(e); }
         return o;
@@ -16387,8 +16391,9 @@ function _buildVectorPdf(attachJson, onReady){
         _hlOverlayPass=false;
         _restHl2();
       }
+      _xlap('overlay composite passes');
 
-      try{
+      if(AOG_DEBUG) try{
         var _t={
           base:{w:_bw, h:_bh, mp:+((_bw*_bh)/1e6).toFixed(2)},
           budgetMP:+(_budget/1e6).toFixed(1),
@@ -16462,6 +16467,19 @@ function _buildVectorPdf(attachJson, onReady){
     function _nativeBytes(ov){
       return new Promise(function(res,rej){
         try{
+          // ENCODE CACHE — the single biggest save-time win. The emitted bytes depend
+          // ONLY on the source image and its flip state; position, size, opacity and
+          // rotation are applied later at draw time, never baked into the bytes. So a
+          // moved/resized/faded image re-uses its previous encode instead of spending
+          // ~2s re-encoding identical pixels. Invalidated only if ov.img or flip change.
+          var _c=ov._natBytesCache;
+          if(_c && _c.img===ov.img && _c.flipH===!!ov.flipH && _c.flipV===!!ov.flipV && _c.bytes){
+            res({ov:ov, bytes:_c.bytes, png:_c.png}); return;
+          }
+          var _store=function(bytes,png){
+            try{ ov._natBytesCache={img:ov.img, flipH:!!ov.flipH, flipV:!!ov.flipV, bytes:bytes, png:!!png}; }catch(e){}
+            return {ov:ov, bytes:bytes, png:png};
+          };
           // Pass-through only for reasonably-sized originals (≤4MB). HEIC→JPEG
           // conversions and big phone photos can be 15-30MB apiece — embedding
           // those verbatim is what blew exports up 10×.
@@ -16472,6 +16490,9 @@ function _buildVectorPdf(attachJson, onReady){
           var src=ov.img;
           var nw=src.naturalWidth||src.width, nh=src.naturalHeight||src.height;
           if(!nw||!nh){ rej(new Error('no image dims')); return; }
+          var _it0=(window.performance&&performance.now)?performance.now():Date.now();
+          var _iel=function(){ return Math.round(((window.performance&&performance.now)?performance.now():Date.now())-_it0); };
+          var _ilog=function(path){ if(AOG_DEBUG) console.log('[AOG:img] '+(nw*nh/1e6).toFixed(1)+'MP '+nw+'x'+nh+' path='+path+' +'+_iel()+'ms'); };
           // TRANSPARENCY FIX: JPEG has no alpha channel, so matting to white
           // gave every transparent stamp an opaque white bounding box that
           // covered whatever sat behind it (e.g. the ATS triangle's box cutting
@@ -16485,6 +16506,7 @@ function _buildVectorPdf(attachJson, onReady){
             var ad=acx.getImageData(0,0,nw,nh).data;
             for(var ai=3; ai<ad.length; ai+=4){ if(ad[ai]<255){ hasAlpha=true; break; } }
           }catch(e){ hasAlpha=false; }
+          if(AOG_DEBUG) console.log('[AOG:img] '+(nw*nh/1e6).toFixed(1)+'MP alpha-scan +'+_iel()+'ms (hasAlpha='+hasAlpha+')');
           if(hasAlpha){
             var pc=document.createElement('canvas'); pc.width=nw; pc.height=nh;
             var pcx=pc.getContext('2d');
@@ -16496,7 +16518,7 @@ function _buildVectorPdf(attachJson, onReady){
               if(!pb){ rej(new Error('png toBlob null')); return; }
               var pfr=new FileReader();
               pfr.onerror=function(){ rej(new Error('png read fail')); };
-              pfr.onload=function(){ res({ov:ov, bytes:new Uint8Array(pfr.result), png:true}); };
+              pfr.onload=function(){ _ilog('PNG'); res(_store(new Uint8Array(pfr.result), true)); };
               pfr.readAsArrayBuffer(pb);
             },'image/png');
             return;
@@ -16509,12 +16531,12 @@ function _buildVectorPdf(attachJson, onReady){
           tcx.scale(ov.flipH?-1:1, ov.flipV?-1:1);
           tcx.drawImage(src,0,0,nw,nh);
           var b444=_encodeJpeg444(tc, 0.97);
-          if(b444){ res({ov:ov, bytes:b444}); return; }
+          if(b444){ _ilog('JS444'); res(_store(b444, false)); return; }
           tc.toBlob(function(b){
             if(!b){ rej(new Error('toBlob null')); return; }
             var fr=new FileReader();
             fr.onerror=function(){ rej(new Error('read fail')); };
-            fr.onload=function(){ res({ov:ov, bytes:new Uint8Array(fr.result)}); };
+            fr.onload=function(){ _ilog('nativeJPEG'); res(_store(new Uint8Array(fr.result), false)); };
             fr.readAsArrayBuffer(b);
           },'image/jpeg',0.97);
         }catch(e){ rej(e); }
@@ -16576,6 +16598,7 @@ function _buildVectorPdf(attachJson, onReady){
       _bleedOverlayAlpha(comp);                        // kill dark edge halos at zoom
       if(compHl) _bleedOverlayAlpha(compHl);
     }
+    _xlap('overlay alpha-bleed done');
 
     var _encodeHl=function(cb){                        // → Uint8Array | null
       if(!compHl){ cb(null); return; }
@@ -16593,7 +16616,9 @@ function _buildVectorPdf(attachJson, onReady){
       }catch(e){ cb(null); }
     };
     _encodeHl(function(hlBytes){
+    _xlap('highlight overlay PNG encoded');
     comp.toBlob(function(blob){
+      _xlap('main overlay PNG encoded');
       var done=function(v){ releaseComp(); onReady(v); };
       if(!blob){ done(null); return; }
       var fr=new FileReader();
@@ -16602,7 +16627,9 @@ function _buildVectorPdf(attachJson, onReady){
         try{
           var overlayBytes=new Uint8Array(fr.result);
           Promise.all(nativeList.map(_nativeBytes)).then(function(natives){
+            _xlap('native images encoded ('+natives.length+')');
             return PDFLib.PDFDocument.load(_pdfBytes.slice(0)).then(function(pdf){
+              _xlap('pdf-lib loaded source PDF');
               var idx=Math.max(0,(_vecPageNum||1)-1);
               var pages=pdf.getPages();
               if(idx>=pages.length) idx=0;
@@ -16819,6 +16846,7 @@ function _buildVectorPdf(attachJson, onReady){
                   });
                 });
               });
+              chain=chain.then(function(){ _xlap('native images embedded into page'); });
               // Now stamp the transparent annotation overlay (shapes, text, notes)
               // ON TOP of the native images so notes/text are never hidden behind a
               // picture. Under rotation we rotate+position it to cover the page; the
@@ -16857,6 +16885,7 @@ function _buildVectorPdf(attachJson, onReady){
                 });
               }
               return chain.then(function(){
+                _xlap('overlays+annotations done, starting pdf.save()');
                 if(attachJson){
                   var jb=new TextEncoder().encode(attachJson);
                   return pdf.attach(jb, AOG_PDF_ATTACH, {
@@ -16868,7 +16897,7 @@ function _buildVectorPdf(attachJson, onReady){
                 return pdf.save();
               });
             });
-          }).then(function(bytes){ if(bytes) done(bytes); })
+          }).then(function(bytes){ _xlap('EXIT: vector PDF assembled'); _xdump(); if(bytes) done(bytes); })
             .catch(function(err){ console.warn('[VectorExport] failed, using raster:',err); done(null); });
         }catch(e){ console.warn('[VectorExport] error, using raster:',e); done(null); }
       };
@@ -16910,33 +16939,56 @@ function _bleedOverlayAlpha(cnv, passes){
     var w=cnv.width, h=cnv.height;
     if(!w||!h) return;
     var _P = (passes|0) || BLEED_PASSES;
+    var _bt0=(window.performance&&performance.now)?performance.now():Date.now();
+    var _now=function(){ return (window.performance&&performance.now)?performance.now():Date.now(); };
     var ctx=cnv.getContext('2d', {willReadFrequently:true});
     var im=ctx.getImageData(0,0,w,h), d=im.data;
+    if(AOG_DEBUG) console.log('[AOG:bleed] getImageData '+cnv.width+'x'+cnv.height+' +'+Math.round(_now()-_bt0)+'ms');
     var a32=new Uint32Array(d.buffer);           // fast alpha!=0 test via full px
+    var N=w*h;
+    // FRONTIER DILATION — the original swept EVERY transparent pixel on the page for
+    // each of the 12 passes: O(area×passes) ≈ 16MP×12 ≈ 200M lookups, ~15s, almost all
+    // of it asking blank pixels "any painted neighbour?" and hearing "no". A bounding
+    // box doesn't help because annotations spread corner-to-corner. Instead we grow
+    // outward from the painted pixels: each pass only visits the current edge, so cost
+    // scales with how much ink there is, not the page size. Output is byte-identical —
+    // same set of filled pixels, same 4-neighbour average, same 12 passes.
+    var front=[];
+    var _st=_now();
+    var _painted=0;
+    for(var i0=0;i0<N;i0++){ if(a32[i0]!==0){ _painted++; front.push(i0); } }
+    if(AOG_DEBUG) console.log('[AOG:bleed] '+w+'x'+h+' N='+(N/1e6).toFixed(1)+'MP painted='+(100*_painted/N).toFixed(1)+'% ('+_painted+') scan+push='+Math.round(_now()-_st)+'ms');
+    if(!front.length){ return; }                 // empty overlay → nothing to bleed
+    var queued=new Uint8Array(N);                // a pixel is filled at most once, ever
+    var _avg=function(nb,nx,ny){                 // average RGB of nb's visible neighbours
+      var r=0,g=0,b=0,n=0,j;
+      if(nx>0   && d[(j=(nb-1))*4+3]!==0){ r+=d[j*4];g+=d[j*4+1];b+=d[j*4+2];n++; }
+      if(nx<w-1 && d[(j=(nb+1))*4+3]!==0){ r+=d[j*4];g+=d[j*4+1];b+=d[j*4+2];n++; }
+      if(ny>0   && d[(j=(nb-w))*4+3]!==0){ r+=d[j*4];g+=d[j*4+1];b+=d[j*4+2];n++; }
+      if(ny<h-1 && d[(j=(nb+w))*4+3]!==0){ r+=d[j*4];g+=d[j*4+1];b+=d[j*4+2];n++; }
+      return n ? [(r/n)|0,(g/n)|0,(b/n)|0] : null;
+    };
     for(var pass=0; pass<_P; pass++){
-      var grew=[];                               // [idx, r,g,b] to apply after scan
-      for(var y=0;y<h;y++){
-        var row=y*w;
-        for(var x=0;x<w;x++){
-          var i=row+x;
-          if(a32[i]!==0) continue;               // pixel has data (any channel/alpha)
-          // average RGB of visible neighbors (4-connected is enough per pass)
-          var r=0,g=0,b=0,n=0, j;
-          if(x>0   && d[(j=(i-1))*4+3]!==0){ r+=d[j*4];g+=d[j*4+1];b+=d[j*4+2];n++; }
-          if(x<w-1 && d[(j=(i+1))*4+3]!==0){ r+=d[j*4];g+=d[j*4+1];b+=d[j*4+2];n++; }
-          if(y>0   && d[(j=(i-w))*4+3]!==0){ r+=d[j*4];g+=d[j*4+1];b+=d[j*4+2];n++; }
-          if(y<h-1 && d[(j=(i+w))*4+3]!==0){ r+=d[j*4];g+=d[j*4+1];b+=d[j*4+2];n++; }
-          if(n) grew.push(i, (r/n)|0, (g/n)|0, (b/n)|0);
-        }
+      var fills=[];                              // [idx,r,g,b] — applied AFTER the scan
+      var next=[];                               // pixels filled this pass = next edge
+      for(var fi=0; fi<front.length; fi++){
+        var p=front[fi], px=p%w, py=(p/w)|0, nb, c;
+        if(px>0   && a32[(nb=p-1)]===0 && !queued[nb] && (c=_avg(nb,px-1,py))){ queued[nb]=1; fills.push(nb,c[0],c[1],c[2]); next.push(nb); }
+        if(px<w-1 && a32[(nb=p+1)]===0 && !queued[nb] && (c=_avg(nb,px+1,py))){ queued[nb]=1; fills.push(nb,c[0],c[1],c[2]); next.push(nb); }
+        if(py>0   && a32[(nb=p-w)]===0 && !queued[nb] && (c=_avg(nb,px,py-1))){ queued[nb]=1; fills.push(nb,c[0],c[1],c[2]); next.push(nb); }
+        if(py<h-1 && a32[(nb=p+w)]===0 && !queued[nb] && (c=_avg(nb,px,py+1))){ queued[nb]=1; fills.push(nb,c[0],c[1],c[2]); next.push(nb); }
       }
-      for(var k=0;k<grew.length;k+=4){
-        var idx=grew[k]*4;
-        d[idx]=grew[k+1]; d[idx+1]=grew[k+2]; d[idx+2]=grew[k+3];
-        d[idx+3]=1;                              // alpha 1/255: invisible, but marks
-      }                                          // the pixel "colored" for pass 2
-      if(!grew.length) break;
+      for(var k=0;k<fills.length;k+=4){
+        var idx=fills[k]*4;
+        d[idx]=fills[k+1]; d[idx+1]=fills[k+2]; d[idx+2]=fills[k+3];
+        d[idx+3]=1;                              // alpha 1/255: invisible, marks "colored"
+      }
+      if(!fills.length) break;
+      front=next;
     }
+    if(AOG_DEBUG) console.log('[AOG:bleed] passes done, total '+Math.round(_now()-_bt0)+'ms');
     ctx.putImageData(im,0,0);
+    if(AOG_DEBUG) console.log('[AOG:bleed] putImageData done, grand total '+Math.round(_now()-_bt0)+'ms');
   }catch(e){ /* best-effort — overlay still valid without bleed */ }
 }
 
