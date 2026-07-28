@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-vTest2.4.8';
+var CACHE_NAME = 'aog-forms-v2.4.6';
 var DEV_MODE   = false;
 
 // Tracks whether this SW instance has already run a precache repair pass
@@ -23,11 +23,8 @@ var cacheProgress = { percent: 0, label: '', done: false }; // ← SET TRUE duri
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  '📋 Site Annotator: right-click Copy & Paste now works on rectangles and ellipses (Ctrl+C / Ctrl+V too).',
-  '🗑️ Site Annotator: deleting a selected picture or shape now removes it instantly — no more clicking out first.',
-  '📐 Site Annotator: leader arrows now export as true vectors — crystal clear at any zoom in the PDF.',
-  '📶 Offline upgrade: photo import (HEIC) and PDF export fonts now work with no signal — their libraries are cached like everything else.',
-  '🔧 Fixed a caching bug that quietly kept some fonts and libraries from saving for offline use.',
+  '📸 Android: Capture & PDF now save straight to your phone (Photos/Gallery → Download album)',
+  '📤 After saving, a one-tap SHARE IT bar pops up to text/email the file',
 ];
 // 
 // ============================================================

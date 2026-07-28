@@ -428,7 +428,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   --w-print-desktop-safari-num-ts      : 3ch;
   --w-print-desktop-safari-ts-type     : 20ch;
   --w-print-desktop-safari-ts-placement: 35ch;
-  --w-print-desktop-safari-circuits    : 3ch;
+  --w-print-desktop-safari-circuits    : 6ch;
   --w-print-desktop-safari-stand-height: 8ch;
   --w-print-desktop-safari-tank-size   : 13ch;
   --w-print-desktop-safari-elec-run    : 10ch;
@@ -555,7 +555,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   --w-phone-num-ts:          3ch;   /* # Transfer Switches input (phone) — narrow, single digit */
   --w-phone-ts-type:         22ch;  /* Transfer switch specs (phone) — fits e.g. "200A 20-SPACE" */
   --w-phone-ts-placement:    35ch;  /* Transfer switch placement input (phone)          */
-  --w-phone-circuits:        5ch;   /* 60A and 100A circuits inputs (phone)             */
+  --w-phone-circuits:        7ch;   /* 60A and 100A circuits inputs (phone)             */
   --w-phone-stand-height:    9ch;   /* Stand/pad height input (phone)                   */
   --w-phone-tank-size:       13ch;  /* New/existing tank size inputs (phone)            */
   --w-phone-elec-run:        5ch;   /* Electrical run (ft) input (phone)                */
@@ -567,7 +567,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   --w-ipad-num-ts:           3ch;
   --w-ipad-ts-type:          25ch;
   --w-ipad-ts-placement:     35ch;
-  --w-ipad-circuits:         5ch;
+  --w-ipad-circuits:         7ch;
   --w-ipad-stand-height:     8ch;
   --w-ipad-tank-size:        13ch;
   --w-ipad-elec-run:         10ch;
@@ -579,7 +579,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   --w-desktop-num-ts:        8ch;
   --w-desktop-ts-type:       20ch;
   --w-desktop-ts-placement:  35ch;  /* longer: fits e.g. "Install Back To Back With Panel" */
-  --w-desktop-circuits:      5ch;
+  --w-desktop-circuits:      7ch;
   --w-desktop-stand-height:  10ch;
   --w-desktop-tank-size:     10ch;
   --w-desktop-elec-run:      10ch;
@@ -591,7 +591,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   --w-print-num-ts:          3ch;
   --w-print-ts-type:         20ch;
   --w-print-ts-placement:    35ch;  /* longer: fits e.g. "Install Back To Back With Panel" (phone print) */
-  --w-print-circuits:        5ch;
+  --w-print-circuits:        7ch;
   --w-print-stand-height:    8ch;
   --w-print-tank-size:       13ch;
   --w-print-elec-run:        10ch;
@@ -603,7 +603,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   --w-print-ipad-num-ts:         3ch;
   --w-print-ipad-ts-type:        20ch;
   --w-print-ipad-ts-placement:   35ch;  /* longer: fits e.g. "Install Back To Back With Panel" */
-  --w-print-ipad-circuits:       5ch;
+  --w-print-ipad-circuits:       7ch;
   --w-print-ipad-stand-height:   8ch;
   --w-print-ipad-tank-size:      12ch;
   --w-print-ipad-elec-run:       10ch;
@@ -615,7 +615,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   --w-print-desktop-num-ts:      3ch;
   --w-print-desktop-ts-type:     20ch;
   --w-print-desktop-ts-placement:35ch;  /* longer: fits e.g. "Install Back To Back With Panel" */
-  --w-print-desktop-circuits:    3ch;
+  --w-print-desktop-circuits:    6ch;
   --w-print-desktop-stand-height:8ch;
   --w-print-desktop-tank-size:   13ch;
   --w-print-desktop-elec-run:    10ch;
@@ -1869,9 +1869,9 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
             <input type="radio" name="loadshed" id="ls_n" value="N" class="yn-n"><label class="yn-label yn-label-n" for="ls_n">N</label>
           </div>
           <span class="inline-label">60A circuits</span>
-          <input type="number" id="circuits_60a" name="circuits_60a" title="Number of 60A circuits needed for load shed" placeholder="0" inputmode="numeric" autocomplete="off" style="width:var(--w-phone-circuits);min-width:var(--w-phone-circuits);" aria-label="Number of 60A circuits">
+          <input type="text" maxlength="4" id="circuits_60a" name="circuits_60a" title="Number of 60A circuits needed for load shed — e.g. 2 or -" placeholder="0" inputmode="text" autocomplete="off" style="width:var(--w-phone-circuits);min-width:var(--w-phone-circuits);" aria-label="Number of 60A circuits">
           <span class="inline-label" style="margin-left:var(--gap-phone-label-sm);">100A circuits</span>
-          <input type="number" id="circuits_100a" name="circuits_100a" title="Number of 100A circuits needed for load shed" placeholder="0" inputmode="numeric" autocomplete="off" style="width:var(--w-phone-circuits);min-width:var(--w-phone-circuits);" aria-label="Number of 100A circuits">
+          <input type="text" maxlength="4" id="circuits_100a" name="circuits_100a" title="Number of 100A circuits needed for load shed — e.g. 2 or -" placeholder="0" inputmode="text" autocomplete="off" style="width:var(--w-phone-circuits);min-width:var(--w-phone-circuits);" aria-label="Number of 100A circuits">
         </div>
         <div class="inline-row">
           <span class="inline-label">Coverage</span>
@@ -2436,8 +2436,16 @@ async function saveFillablePdf() {
     // On phones/tablets that support file sharing, pull up the native share
     // sheet (Save to Files, Messages, Mail…) — same behavior as CAPTURE.
     // Everywhere else, fall back to a direct download.
+    // Android: save straight to Downloads, then offer to share — no share-sheet hunting.
+    if (/Android/i.test(navigator.userAgent || '')) {
+      _downloadBlob(blob, fname);
+      setStatus('Resumable PDF saved — check Files → Downloads.');
+      setTimeout(function(){ setStatus(''); }, 4000);
+      try { _androidOfferShare([new File([blob], fname, { type: 'application/pdf' })], 'pdf'); } catch (e) {}
+      return;
+    }
     var didShare = false;
-    var _isMobileOS = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var _isMobileOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     if (_isMobileOS && typeof canShareFiles === 'function' && canShareFiles()) {
       try {
         var pdfFile = new File([blob], fname, { type: 'application/pdf' });
@@ -4232,7 +4240,48 @@ function showSmartOverlay(dataURL, filename) {
   closeBtn.onclick = function () { document.body.removeChild(overlay); setStatus(''); };
   setStatus('Ready — long-press image to save.');
 }
+// ===== ANDROID: SAVE FIRST, THEN OFFER TO SHARE =====
+// The Android share sheet has no reliable "save to gallery" target (it varies
+// by phone and many have none), so techs were hunting through apps just to
+// keep a copy. New flow: Android DOWNLOADS the file instantly — it lands in
+// the Downloads folder, which Google Photos / Samsung Gallery show as the
+// "Download" album — then a small bar offers one-tap sharing (text, email,
+// Drive…) for techs who also need to send it somewhere.
+function isAndroidDevice() { return /Android/i.test(navigator.userAgent || ''); }
+function _androidOfferShare(files, kind) {
+  try {
+    if (!files || !files.length) return;
+    if (!(navigator.canShare && navigator.canShare({ files: files }))) return;
+  } catch (e) { return; }
+  var old = document.getElementById('aog-share-offer');
+  if (old && old.parentNode) old.parentNode.removeChild(old);
+  var bar = document.createElement('div');
+  bar.id = 'aog-share-offer';
+  bar.style.cssText = 'position:fixed;left:10px;right:10px;bottom:14px;z-index:999999;background:#16181d;color:#f0f0f2;border:1px solid rgba(255,255,255,0.18);border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px;box-shadow:0 10px 28px rgba(0,0,0,0.5);font-family:inherit;';
+  var msg = document.createElement('div');
+  msg.style.cssText = 'flex:1;font-size:13px;line-height:1.45;min-width:0;';
+  msg.innerHTML = '<b style="color:#4ade80;">✓ Saved to your phone</b><br><span style="color:#aab;">' +
+    (kind === 'pdf' ? 'Find it in your <b>Files → Downloads</b>.' : 'Find it in <b>Photos/Gallery → Download</b>.') + '</span>';
+  var shareBtn = document.createElement('button');
+  shareBtn.textContent = '📤 SHARE IT';
+  shareBtn.style.cssText = 'background:#FBBF24;color:#111;border:none;border-radius:8px;padding:11px 14px;font-weight:bold;font-size:12px;cursor:pointer;flex-shrink:0;letter-spacing:0.5px;';
+  var closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.setAttribute('aria-label', 'Dismiss');
+  closeBtn.style.cssText = 'background:transparent;color:#8888aa;border:none;font-size:16px;padding:6px 8px;cursor:pointer;flex-shrink:0;';
+  var timer = null;
+  function kill() { if (timer) clearTimeout(timer); if (bar.parentNode) bar.parentNode.removeChild(bar); }
+  // The click IS the user gesture navigator.share() needs — share from here is allowed.
+  shareBtn.onclick = function () { kill(); try { navigator.share({ files: files }).catch(function () {}); } catch (e) {} };
+  closeBtn.onclick = kill;
+  bar.appendChild(msg); bar.appendChild(shareBtn); bar.appendChild(closeBtn);
+  document.body.appendChild(bar);
+  timer = setTimeout(kill, 15000);
+}
+
 function saveSmart() {
+  // Android: instant save to Downloads, then share offer.
+  if (isAndroidDevice()) { saveForAndroid(); return; }
   // Older Android / desktop without file sharing → direct download path.
   if (!canShareFiles() && !isIOSDevice()) { saveForAndroid(); return; }
   setStatus('Rendering… please wait');
@@ -4316,9 +4365,15 @@ function saveForAndroid() {
       _hideRenderOverlay();
       var link = document.createElement('a');
       link.download = filename;
-      link.href = canvas.toDataURL('image/jpeg', 0.92);
+      var _durl = canvas.toDataURL('image/jpeg', 0.92);
+      link.href = _durl;
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
-      setStatus('Saved: ' + filename);
+      if (isAndroidDevice()) {
+        setStatus('Saved — check Photos/Gallery (Download album).');
+        try { _androidOfferShare([dataURLtoFile(_durl, filename)], 'jpg'); } catch (e) {}
+      } else {
+        setStatus('Saved: ' + filename);
+      }
       setTimeout(function() { setStatus(''); }, 4000);
     }).catch(function(err) {
       _hideRenderOverlay();

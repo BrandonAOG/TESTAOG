@@ -3377,8 +3377,49 @@ function _isDesktopDevice() {
   return true;
 }
 
+// ===== ANDROID: SAVE FIRST, THEN OFFER TO SHARE =====
+// The Android share sheet has no reliable "save to gallery" target (it varies
+// by phone and many have none), so techs were hunting through apps just to
+// keep a copy. New flow: Android DOWNLOADS the file(s) instantly — they land
+// in the Downloads folder, which Google Photos / Samsung Gallery show as the
+// "Download" album — then a small bar offers one-tap sharing (text, email,
+// Drive…) for techs who also need to send it somewhere.
+function isAndroidDevice() { return /Android/i.test(navigator.userAgent || ''); }
+function _androidOfferShare(files, kind) {
+  try {
+    if (!files || !files.length) return;
+    if (!(navigator.canShare && navigator.canShare({ files: files }))) return;
+  } catch (e) { return; }
+  var old = document.getElementById('aog-share-offer');
+  if (old && old.parentNode) old.parentNode.removeChild(old);
+  var bar = document.createElement('div');
+  bar.id = 'aog-share-offer';
+  bar.style.cssText = 'position:fixed;left:10px;right:10px;bottom:14px;z-index:999999;background:#16181d;color:#f0f0f2;border:1px solid rgba(255,255,255,0.18);border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px;box-shadow:0 10px 28px rgba(0,0,0,0.5);font-family:inherit;';
+  var msg = document.createElement('div');
+  msg.style.cssText = 'flex:1;font-size:13px;line-height:1.45;min-width:0;';
+  msg.innerHTML = '<b style="color:#4ade80;">✓ Saved to your phone</b><br><span style="color:#aab;">' +
+    (kind === 'pdf' ? 'Find it in your <b>Files → Downloads</b>.' : 'Find it in <b>Photos/Gallery → Download</b>.') + '</span>';
+  var shareBtn = document.createElement('button');
+  shareBtn.textContent = '📤 SHARE IT';
+  shareBtn.style.cssText = 'background:#FBBF24;color:#111;border:none;border-radius:8px;padding:11px 14px;font-weight:bold;font-size:12px;cursor:pointer;flex-shrink:0;letter-spacing:0.5px;';
+  var closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.setAttribute('aria-label', 'Dismiss');
+  closeBtn.style.cssText = 'background:transparent;color:#8888aa;border:none;font-size:16px;padding:6px 8px;cursor:pointer;flex-shrink:0;';
+  var timer = null;
+  function kill() { if (timer) clearTimeout(timer); if (bar.parentNode) bar.parentNode.removeChild(bar); }
+  // The click IS the user gesture navigator.share() needs — share from here is allowed.
+  shareBtn.onclick = function () { kill(); try { navigator.share({ files: files }).catch(function () {}); } catch (e) {} };
+  closeBtn.onclick = kill;
+  bar.appendChild(msg); bar.appendChild(shareBtn); bar.appendChild(closeBtn);
+  document.body.appendChild(bar);
+  timer = setTimeout(kill, 15000);
+}
+
 function saveSmart() {
-  // No file-share support and not iOS → direct download (older Android/desktop).
+  // Desktop always downloads directly — no share sheet.
+  if (_isDesktopDevice()) { saveForAndroid(); return; }
+  // No file-share support and not iOS → direct download (older Android).
   if (!canShareFiles() && !isIOSDevice()) { saveForAndroid(); return; }
 
   setStatus('Rendering pages, please wait…');
@@ -3426,6 +3467,14 @@ function saveSmart() {
   Promise.all(jobs).then(function (results) {
     cleanup();
     var files = results.map(function (r) { return r.file; });
+    // Android: save all pages straight to Downloads, then offer to share.
+    if (isAndroidDevice()) {
+      downloadResults(results);
+      setStatus('Saved — check Photos/Gallery (Download album).');
+      setTimeout(function () { setStatus(''); }, 4000);
+      _androidOfferShare(files, 'jpg');
+      return;
+    }
     if (navigator.canShare && navigator.canShare({ files: files })) {
       navigator.share({ files: files }).then(function () {
         setStatus('');
@@ -3757,9 +3806,20 @@ async function saveFillablePdf() {
     var fname = pdfResumableFilename();
     var blob = new Blob([bytes], { type: 'application/pdf' });
 
-    // Share on mobile if possible, else download.
+    // Android: save straight to Downloads, then offer to share — no share-sheet hunting.
+    if (isAndroidDevice()) {
+      var _urlA = URL.createObjectURL(blob);
+      var _aA = document.createElement('a');
+      _aA.href = _urlA; _aA.download = fname; _aA.click();
+      setTimeout(function () { URL.revokeObjectURL(_urlA); }, 4000);
+      setStatus('Resumable PDF saved — check Files → Downloads.');
+      try { _androidOfferShare([new File([blob], fname, { type: 'application/pdf' })], 'pdf'); } catch (e) {}
+      return;
+    }
+    // Share on iOS if possible, else download.
+    // Desktop always downloads directly — no share sheet.
     var didShare = false;
-    if (typeof File !== 'undefined' && navigator.canShare) {
+    if (!_isDesktopDevice() && typeof File !== 'undefined' && navigator.canShare) {
       try {
         var pdfFile = new File([blob], fname, { type: 'application/pdf' });
         if (navigator.canShare({ files: [pdfFile] })) {
