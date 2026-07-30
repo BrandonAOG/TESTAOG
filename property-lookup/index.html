@@ -37,6 +37,11 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://services.arcgisonline.com" crossorigin>
 <link rel="preconnect" href="https://server.arcgisonline.com" crossorigin>
+<link rel="preconnect" href="https://hazards.fema.gov" crossorigin>          <!-- NFHL export: slowest handshake in the app (strict TLS 1.2) — pre-open it -->
+<link rel="preconnect" href="https://basemap.nationalmap.gov" crossorigin>   <!-- USGS Topo basemap tiles -->
+<link rel="preconnect" href="https://mapservices.weather.noaa.gov" crossorigin> <!-- NWS warnings / NOAA overlays -->
+<link rel="preconnect" href="https://tiledimageservices2.arcgis.com" crossorigin> <!-- Collier 2026 LERC tiles -->
+<link rel="dns-prefetch" href="https://ags.colliergov.net">                  <!-- county flood cross-check queries -->
 <link rel="dns-prefetch" href="https://unpkg.com">
 <link rel="dns-prefetch" href="https://tile.openstreetmap.org">
 <link rel="dns-prefetch" href="https://geocode.arcgis.com">
@@ -474,6 +479,12 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .suggest .sg .pin{color:var(--faint);flex:none}
   .suggest .sg .sgsrc{margin-left:auto;color:var(--faint);font-size:9.5px;flex:none;padding-top:1px}
   .suggest .sgmsg{padding:10px 12px;font-family:var(--mono);font-size:11px;color:var(--faint)}
+
+  /* ---- Our blue flood-zone labels (replace FEMA's baked-in black ones) ---- */
+  .floodlbl{ color:#39d3ff; font-family:var(--mono); font-size:11px; font-weight:700;
+    text-align:center; white-space:nowrap; line-height:1.25; pointer-events:none;
+    transform:translate(-50%,-50%);
+    text-shadow:0 0 3px #10151b,0 0 3px #10151b,1px 1px 2px #10151b,-1px -1px 2px #10151b }
 
   /* ---- Search history dropdown ---- */
   .history{position:absolute;z-index:1200;left:0;right:0;top:calc(100% + 4px);
@@ -1195,7 +1206,7 @@ const FL_UTILITY = {
   JEFFERSON:  { name:"Talquin Electric Cooperative", type:"Electric cooperative", phone:"(850) 627-7651", web:"https://www.talquinelectric.com" },
   LAFAYETTE:  { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
   LAKE:       { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida", note:"Utilities Commission of New Smyrna Beach and city utilities serve some areas." },
-  LEE:        { name:"Lee County Electric Cooperative (LCEC)", type:"Electric cooperative", phone:"(239) 656-2300", web:"https://www.lcec.net", note:"LCEC serves Cape Coral, Sanibel, Pine Island, North Fort Myers, Lehigh Acres & much of the county. FPL serves the City of Fort Myers and some adjacent areas — the two split Lee, so confirm by address." },
+  LEE:        { name:"Lee County Electric Cooperative (LCEC)", type:"Electric cooperative", phone:"(239) 656-2300", web:"https://www.lcec.net", note:"LCEC serves  Coral, Sanibel, Pine Island, North Fort Myers, Lehigh Acres & much of the county. FPL serves the City of Fort Myers and some adjacent areas — the two split Lee, so confirm by address." },
   LEON:       { name:"Talquin Electric Cooperative", type:"Electric cooperative", phone:"(850) 627-7651", web:"https://www.talquinelectric.com", note:"City of Tallahassee Electric Utility serves Tallahassee." },
   LEVY:       { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida" },
   LIBERTY:    { name:"Gulf Power (now FPL/NextEra)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
@@ -1354,7 +1365,7 @@ const GAS_GEOJSON_FILE = 'fl_gas_territories.geojson';
    nearly all of SWFL; a few municipalities run their own systems. Confirm a main at the address. */
 const FL_GAS = {
   COLLIER:  { name:"TECO Peoples Gas", phone:"1-877-832-6747", web:"https://www.peoplesgas.com", note:"Peoples Gas is the franchised LDC across Collier (Naples/Marco/unincorporated). City of Naples also operates a municipal gas system in parts of the city." },
-  LEE:      { name:"Limited natural gas — mostly propane (LP)", phone:null, web:null, note:"Most of Lee County, including nearly all of Cape Coral, has NO piped natural gas — homes use propane (LP) from suppliers like Suburban, AmeriGas or Ferrellgas. Piped natural gas (TECO Peoples Gas) reaches only limited pockets, mainly parts of Fort Myers. Assume propane unless a gas main is confirmed at the address." },
+  LEE:      { name:"Limited natural gas — mostly propane (LP)", phone:null, web:null, note:"Most of Lee County, including nearly all of  Coral, has NO piped natural gas — homes use propane (LP) from suppliers like Suburban, AmeriGas or Ferrellgas. Piped natural gas (TECO Peoples Gas) reaches only limited pockets, mainly parts of Fort Myers. Assume propane unless a gas main is confirmed at the address." },
   CHARLOTTE:{ name:"TECO Peoples Gas", phone:"1-877-832-6747", web:"https://www.peoplesgas.com", note:"Peoples Gas is the franchised LDC in Charlotte County (Port Charlotte/Punta Gorda) where mains reach." },
   SARASOTA: { name:"TECO Peoples Gas", phone:"1-877-832-6747", web:"https://www.peoplesgas.com", note:"Peoples Gas serves much of Sarasota County; the City of Sarasota also has a municipal gas utility." },
   MANATEE:  { name:"TECO Peoples Gas", phone:"1-877-832-6747", web:"https://www.peoplesgas.com" },
@@ -1485,7 +1496,8 @@ const COUNTY_LIVE = {
    Its address search often returns richer, locally-maintained flood-zone info and the actual
    EC on file. Keyed by normalized MUNICIPALITY (city) name. Add more cities as you confirm them. */
 const FORERUNNER = {
-  NAPLES: { url:"https://naplesfl.withforerunner.com/explore", label:"City of Naples flood portal (Forerunner)" }
+  NAPLES:    { url:"https://naplesfl.withforerunner.com/explore", label:"City of Naples flood portal (Forerunner)" },
+  CAPECORAL: { url:"https://capecoralfl.withforerunner.com/",     label:"City of Cape Coral flood portal (Forerunner)" }
 };
 
 /* ---------- LIVE county flood cross-check (vs the effective FEMA NFHL) ----------
@@ -1562,7 +1574,7 @@ const DOCS_CITY = {
     // dept and permitting via the EnerGov self-service portal, NOT Lee County's Accela/eConnect.
     ecLayer: null,   // no public EC point-layer wired; search records in the EnerGov portal
     ecMap:   "https://capecoralfl.withforerunner.com/",
-    ecNote:  "City of Cape Coral (not Lee County): Cape Coral issues its own permits and keeps Elevation Certificates in its EnerGov self-service portal — search the address there. City Building Division (239) 574-0546. Verify before relying on it.",
+    ecNote:  "City of Cape Coral (not Lee County): Cape Coral issues its own permits. Elevation Certificates are searchable by address in the city's Forerunner flood portal; older records may only exist in the EnerGov self-service portal. City Building Division (239) 574-0546. Verify before relying on it.",
     permit:  "https://energovweb.capecoral.gov/EnerGovProd/selfservice#/home",
     permitBy:"address"
   },
@@ -1610,10 +1622,12 @@ const DOCS_CITY = {
 };
 const DOCS_COUNTY = {
   COLLIER: {
-    // Collier publishes an EC map app; this layer URL is a best guess and MUST be verified.
-    ecLayer: "https://ags2.colliercountyfl.gov/gis/rest/services/agency/ElevationCertificates/MapServer/0",
-    ecMap:   "https://www.collier.gov/County-Development/Operations-Regulatory-Management/Floodplain-Management",
-    ecNote:  "Unincorporated Collier County. Keeps historic & current ECs for structures built after Sept 14, 1979 in zones A/V. Flood hotline (239) 252-2942.",
+    // ✅ Collier's Elevation Certificates live inside the county's DFIRM 2024 Experience app
+    //    (same app as the flood-zone viewer): search the address there and open the EC record/PDF.
+    //    The old ags2 layer URL was an unverified guess — dropped so we always send users to the app.
+    ecLayer: null,
+    ecMap:   "https://experience.arcgis.com/experience/70ae02cb985c4d288556ba5d00629fc7",
+    ecNote:  "Unincorporated Collier County: Elevation Certificates are in the county's DFIRM 2024 map app — search the address, click the parcel, and open the EC record. Keeps historic & current ECs for structures built after Sept 14, 1979 in zones A/V. Flood hotline (239) 252-2942.",
     permit:  "https://cvportal.collier.gov/cityviewweb/",
     permitBy:"address"
   },
@@ -1898,6 +1912,17 @@ const ZONING_LIVE = {
   // item 9ec63c115d3a40509559ebc5e2cb8991.
   HENDRY: { label:"Hendry County Zoning", codeField:"Current_Zo", descField:"Current_Zo", urls:[
     "https://services7.arcgis.com/8l7Qq5t0CPLAJwJK/arcgis/rest/services/Zoning/FeatureServer/1/query"
+  ]},
+  // ✅ Manatee County — the district rides on the county's public "Parcels" FeatureServer (the same
+  // denormalized parcel layer that carries flood zone, year built, trash pickup, etc.). Field
+  // "ZONING" holds the code; it's namespaced by jurisdiction — UNINCORPORATED parcels are bare
+  // (A, RSF-6, PD-MU, "A,PD-MU" for split zoning), while CITY parcels carry a 2-letter prefix
+  // (BR_ Bradenton, PA_ Palmetto, etc.). manateeSetbacks()/renderManateeSetbacks() strip the city
+  // prefix (bailing to a "city district" note) and split comma-joined dual zoning. codeField pinned
+  // to ZONING so detection can't drift to LUC (the property-appraiser USE code) or the many service
+  // columns. YRBLT feeds parcelYearBuilt; the parcels service is CORS-open and token-free.
+  MANATEE: { label:"Manatee County Zoning", codeField:"ZONING", urls:[
+    "https://www.mymanatee.org/gisits/rest/services/publicportal/publicportal/FeatureServer/0/query"
   ]}
 };
 
@@ -2637,17 +2662,58 @@ const ArcGISExportTiles = L.TileLayer.extend({
 });
 const floodLayer = new ArcGISExportTiles(
   FEMA_NFHL_MS + "/export?dpi=96&transparent=true&format=png32&bboxSR=3857&imageSR=3857"
-              + "&size=256,256&layers=show:28&f=image&bbox={bbox}",
-  { tileSize:256, opacity:0.45, minZoom:10, maxZoom:19, zIndex:240,
+              + "&size=512,512&layers=show:28&f=image&bbox={bbox}",
+  // maxZoom must match the map's (23) or Leaflet drops the layer entirely above 19; maxNativeZoom
+  // caps the actual export requests at 19 and upscales beyond. The fill is flat colour so the
+  // stretch is invisible, and floodEdgeLayer draws crisp vector zone outlines over it from z13.
+  // 512px tiles = each request covers 4× the area at the same px/m (bbox doubles with tileSize),
+  // quartering round-trips to FEMA's slow export server. Flat fill → no visible difference.
+  { tileSize:512, opacity:0.45, minZoom:10, maxZoom:23, maxNativeZoom:19, zIndex:240,
     attribution:'Flood zones &copy; FEMA NFHL', updateWhenIdle:L.Browser.mobile });
+
+/* ---------- Blue zone labels ("Zone VE/ (EL 12)") on the FEMA flood layer ----------
+   FEMA's export server DOES support dynamicLayers restyling, but carrying its 9 recolored label
+   classes on every tile URL needs ~34 KB of query string — far over server URL limits, so those
+   tiles never load (verified live). Plan B, same visual result:
+     1. Tell FEMA "render zone fills but NO labels" — that dynamicLayers payload is ~200 chars.
+     2. Draw the SAME label text ourselves in blue, from the zone polygons the app already fetches
+        for the dashed edge lines (FLD_ZONE + STATIC_BFE reconstruct "Zone VE/ (EL 12)" exactly).
+   If the suppression probe fails, nothing changes: FEMA's black labels stay, ours stay off —
+   never both, never neither. */
+let ownFloodLabels=false;
+(async function blueFloodLabels(){
+  const dbg = window.__floodLabelDebug = { stage:'start', mode:'suppress+own' };
+  try{
+    const dyn=[{ id:28, source:{ type:'mapLayer', mapLayerId:28 }, drawingInfo:{ showLabels:false } }];
+    const url = FEMA_NFHL_MS + "/export?dpi=96&transparent=true&format=png32&bboxSR=3857&imageSR=3857"
+              + "&size=512,512&f=image&dynamicLayers=" + encodeURIComponent(JSON.stringify(dyn))
+              + "&bbox={bbox}";
+    dbg.urlLen = url.length;
+    // Probe with an Image() — the same way Leaflet loads tiles (plain <img>, no CORS involved).
+    const okImg = await new Promise(res=>{
+      const im=new Image(); const t=setTimeout(()=>res(false),15000);
+      im.onload=()=>{ clearTimeout(t); res(im.naturalWidth>0); };
+      im.onerror=()=>{ clearTimeout(t); res(false); };
+      im.src=url.replace('{bbox}','-9130000,3020000,-9120000,3030000');
+    });
+    dbg.probe = okImg ? 'image loaded ok' : 'image failed to load';
+    if(!okImg){ dbg.stage='abort: label-suppression tile failed — FEMA labels kept'; return; }
+    floodLayer.setUrl(url);
+    ownFloodLabels=true;                       // refreshFloodEdges now draws the blue labels
+    dbg.stage='ACTIVE — FEMA labels off, blue labels on';
+    try{ drawFloodLabels(); refreshFloodEdges(); }catch(e){}
+  }catch(e){ dbg.stage='exception'; dbg.err=String(e&&e.message||e); }
+})();
 let floodOn=false;
 const btnFlood=document.getElementById('btnFlood');
 if(btnFlood) btnFlood.onclick=function(){
   floodOn=!floodOn; this.classList.toggle('active',floodOn);
-  if(floodOn){ floodLayer.addTo(map); floodEdgeLayer.addTo(map); floodEdgeKey='';
+  if(floodOn){ floodLayer.addTo(map); floodEdgeLayer.addTo(map); floodLblLayer.addTo(map); floodEdgeKey='';
+    try{ if(map.getZoom()>=13 && lastFloodGj){ renderFloodEdgesFromCache(); drawFloodLabels(); } }catch(e){}
     if(map.getZoom()<10) mapToast('Zoom in to see flood-zone shading.',2400);
     else refreshFloodEdges(); }
-  else { map.removeLayer(floodLayer); map.removeLayer(floodEdgeLayer); }
+  else { map.removeLayer(floodLayer); map.removeLayer(floodEdgeLayer); map.removeLayer(floodLblLayer); floodLblLayer.clearLayers(); }
+
 };
 
 /* ---------- Flood-zone BOUNDARIES (vector, on top of the PNG fill) ----------
@@ -2658,9 +2724,167 @@ if(btnFlood) btnFlood.onclick=function(){
    the parcel-lines layer. The fill (PNG) still shows at z>=10; only the crisp edges wait
    for z>=13. */
 const FEMA_NFHL_QUERY = FEMA_NFHL_MS + "/28/query";
+
+/* ---------- ALL flood zones intersecting the PARCEL (not just the pin) ----------
+   The main flood lookup is a point query at the marker, so a lot that straddles a zone line
+   (very common on canal/gulf lots: VE at the seawall, AE mid-lot, X at the street) reports only
+   whichever zone the pin happens to sit in. This re-queries NFHL layer 28 with the parcel's
+   POLYGON geometry (the statewide-roll / live-feed parcel rings we already fetched, WGS84) and
+   returns every distinct zone touching the lot. POST, because parcel rings can exceed URL limits.
+   Fails soft: any error/timeout → null → the card simply omits the extra row. */
+async function queryFloodZonesOnParcel(parcelFeature){
+  const rings0 = parcelFeature && parcelFeature.geometry && parcelFeature.geometry.rings;
+  if(!rings0 || !rings0.length){ window.__floodParcelDebug={fail:'no parcel rings'}; return null; }
+  // Round to 6 decimals (~10 cm): shrinks the payload a lot, and FEMA's strict server is happier
+  // with sane coordinates than with 15-decimal doubles.
+  const rings = rings0.map(r=>r.map(p=>[+p[0].toFixed(6), +p[1].toFixed(6)]));
+  const geomStr = JSON.stringify({ rings, spatialReference:{ wkid:4326 } });
+  const common = { geometryType:'esriGeometryPolygon', inSR:'4326',
+    spatialRel:'esriSpatialRelIntersects',
+    outFields:'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF',
+    returnGeometry:'false', f:'json' };
+  const parse = j => {
+    if(!j || j.error || !j.features){ return null; }
+    const seen=new Set(), out=[];
+    for(const f of j.features){
+      const a=f.attributes||{};
+      const zone=(a.FLD_ZONE||'').trim(); if(!zone) continue;
+      const bfe=(a.STATIC_BFE!=null && Number(a.STATIC_BFE)>-9999)?Number(a.STATIC_BFE):null;
+      const key=zone+'|'+(bfe==null?'':bfe);
+      if(seen.has(key)) continue; seen.add(key);
+      out.push({ zone, bfe, sfha:(a.SFHA_TF==='T'),
+                 sub:(a.ZONE_SUBTY&&a.ZONE_SUBTY.trim())?a.ZONE_SUBTY.trim():null });
+    }
+    out.sort((x,y)=>(y.sfha-x.sfha)||((y.bfe||0)-(x.bfe||0))||x.zone.localeCompare(y.zone));
+    return out;
+  };
+  const attempt = async (opts) => {
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(), FLOOD_TIMEOUT);
+    try{
+      const r=await fetch(opts.url, { method:opts.method, body:opts.body, signal:ctrl.signal });
+      clearTimeout(t);
+      if(!r.ok) return { fail:'HTTP '+r.status };
+      const j=await r.json();
+      if(j.error) return { fail:'service: '+(j.error.message||JSON.stringify(j.error).slice(0,120)) };
+      return { ok:parse(j), raw:(j.features||[]).length };
+    }catch(e){ clearTimeout(t); return { fail:String(e&&e.message||e) }; }
+  };
+  // Attempt 1: POST (handles any parcel size).
+  const body=new URLSearchParams(Object.assign({ geometry:geomStr }, common));
+  let res = await attempt({ url:FEMA_NFHL_QUERY, method:'POST', body });
+  // Attempt 2: GET with the OUTER ring only (some strict proxies mishandle POST). Skip if URL too long.
+  if(!res.ok){
+    const post_fail = res.fail;
+    const outer = JSON.stringify({ rings:[rings[0]], spatialReference:{ wkid:4326 } });
+    const qs = new URLSearchParams(Object.assign({ geometry:outer }, common)).toString();
+    if((FEMA_NFHL_QUERY+'?'+qs).length < 7500){
+      res = await attempt({ url:FEMA_NFHL_QUERY+'?'+qs, method:'GET' });
+    }
+    res.post_fail = post_fail;
+  }
+  window.__floodParcelDebug = { rings:rings.length, verts:rings[0].length,
+    rawHits:res.raw, distinct:(res.ok?res.ok.length:null), fail:res.fail||null, post_fail:res.post_fail||null };
+  return res.ok || null;
+}
 const floodEdgeLayer = L.geoJSON(null, {
   style:{ color:'#39d3ff', weight:2, opacity:.95, dashArray:'6,5',
           fill:true, fillColor:'#39d3ff', fillOpacity:0.001 } });
+const floodLblLayer = L.layerGroup();     // our blue zone labels (replaces FEMA's baked-in black ones)
+/* Short two-line label matching FEMA's own wording: "Zone VE/ (EL 12)" / "Zone AE/ (EL 9)" /
+   "Zone X" / "Zone OPEN WATER". Placed at the centroid of the polygon's vertices that are inside
+   the current view, so labels stay visible even when only part of a huge zone is on screen. */
+let lastFloodGj=null, lastFloodIdx=null;   // cached polygons + per-polygon bbox index for fast hit-tests
+/* Build a small spatial index once per fetch: [{bbox:[W,S,E,N], rings, props}] so each label
+   placement is a cheap bbox reject + one point-in-polygon test. */
+function indexFloodGj(gj){
+  const idx=[];
+  if(!gj||!gj.features) return idx;
+  for(const f of gj.features){
+    const p=f.properties||{}; const z=(p.FLD_ZONE||'').trim(); if(!z) continue;
+    const g=f.geometry; if(!g) continue;
+    const polys = g.type==='Polygon' ? [g.coordinates] : (g.type==='MultiPolygon' ? g.coordinates : []);
+    for(const rings of polys){
+      if(!rings||!rings[0]||rings[0].length<4) continue;
+      let W=1e9,S=1e9,E=-1e9,N=-1e9;
+      for(const c of rings[0]){ if(c[0]<W)W=c[0]; if(c[0]>E)E=c[0]; if(c[1]<S)S=c[1]; if(c[1]>N)N=c[1]; }
+      idx.push({ W,S,E,N, rings, props:p });
+    }
+  }
+  return idx;
+}
+function _pipRing(x,y,ring){            // ray-cast point-in-ring
+  let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
+    if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function _zoneAt(x,y){
+  // Which zone polygon contains this lng/lat? NFHL zones mostly tile, but panel seams / LOMR
+  // revisions CAN stack overlapping records — when several contain the point, the SMALLEST
+  // (most specific) polygon wins instead of whichever happened to be first in the fetch.
+  if(!lastFloodIdx) return null;
+  let best=null, bestArea=Infinity;
+  for(const e of lastFloodIdx){
+    if(x<e.W||x>e.E||y<e.S||y>e.N) continue;          // bbox reject
+    const area=(e.E-e.W)*(e.N-e.S);
+    if(area>=bestArea) continue;                      // can't beat current best
+    if(!_pipRing(x,y,e.rings[0])) continue;           // outside outer ring
+    let inHole=false;
+    for(let h=1;h<e.rings.length;h++){ if(_pipRing(x,y,e.rings[h])){ inHole=true; break; } }
+    if(!inHole){ best=e.props; bestArea=area; }
+  }
+  return best;
+}
+const _zoneKey = p => p ? ((p.FLD_ZONE||'')+'|'+((p.STATIC_BFE!=null&&p.STATIC_BFE>-9999)?p.STATIC_BFE:'')) : null;
+/* Does a label anchored at screen point (px,py) fit INSIDE one zone? Tests the four points the
+   rendered text roughly reaches (±half label width/height). Prevents a label anchored just inside
+   a narrow stripe from visually spilling across the boundary — which reads as "wrong label in
+   wrong zone" even though the anchor point itself was classified correctly. */
+function _labelFits(px,py,key){
+  const HW=46, HH=13;                                  // ~half of the rendered label box in px
+  for(const [dx,dy] of [[-HW,0],[HW,0],[0,-HH],[0,HH]]){
+    const ll=map.containerPointToLatLng([px+dx,py+dy]);
+    const k=_zoneKey(_zoneAt(ll.lng,ll.lat));
+    if(k!==null && k!==key) return false;              // a DIFFERENT zone vetoes; missing data doesn't
+  }
+  return true;
+}
+/* FEMA-style placement: repeated labels on a screen grid (~every 280px). For each grid point,
+   whichever zone polygon CONTAINS it gets a label there — so a zone that fills the whole view
+   (open water, a wide AE band) is labelled even when its boundary is far off-screen. This is the
+   case the old vertex-centroid approach missed. */
+function drawFloodLabels(gj){
+  const t0=performance.now();
+  floodLblLayer.clearLayers();
+  if(!ownFloodLabels || !lastFloodIdx || !lastFloodIdx.length) return;
+  const sz=map.getSize(), SP=280;                       // px between repeated labels
+  const nx=Math.max(1,Math.round(sz.x/SP)), ny=Math.max(1,Math.round(sz.y/SP));
+  let placed=0;
+  for(let gy=0; gy<ny && placed<80; gy++){
+    for(let gx=0; gx<nx && placed<80; gx++){
+      const cx=(gx+0.5)*sz.x/nx, cy=(gy+0.5)*sz.y/ny;   // cell centre in screen px
+      const qx=sz.x/nx/4, qy=sz.y/ny/4;                 // quarter-cell nudge distances
+      // try the centre first, then 8 nudged spots inside the cell — take the first where the
+      // WHOLE label box sits in one zone; if none fits, draw nothing (no label > wrong-looking label)
+      for(const [ox,oy] of [[0,0],[-qx,0],[qx,0],[0,-qy],[0,qy],[-qx,-qy],[qx,-qy],[-qx,qy],[qx,qy]]){
+        const px=cx+ox, py=cy+oy;
+        const ll=map.containerPointToLatLng([px,py]);
+        const p=_zoneAt(ll.lng, ll.lat);
+        if(!p) continue;
+        const z=(p.FLD_ZONE||'').trim(); if(!z) continue;
+        if(!_labelFits(px,py,_zoneKey(p))) continue;
+        const bfe=(p.STATIC_BFE!=null && p.STATIC_BFE>-9999)?p.STATIC_BFE:null;
+        const txt='Zone '+z+(bfe!=null?'/<br>(EL '+bfe+')':'');
+        L.marker(ll, { interactive:false, keyboard:false,
+          icon:L.divIcon({ className:'floodlbl', html:txt, iconSize:null }) }).addTo(floodLblLayer);
+        placed++; break;
+      }
+    }
+  }
+  window.__floodLabelMs = Math.round((performance.now()-t0)*10)/10;   // perf breadcrumb
+}
 let floodEdgeKey='', floodEdgeBusy=false;
 function floodZoneLabel(p){
   if(!p) return 'Flood zone';
@@ -2673,40 +2897,67 @@ function floodZoneLabel(p){
   if(bfe) s += ' · BFE '+bfe+' ft';
   return s;
 }
-async function refreshFloodEdges(){
-  if(!floodOn){ floodEdgeLayer.clearLayers(); return; }
-  if(map.getZoom() < 13){ floodEdgeLayer.clearLayers(); floodEdgeKey=''; return; }  // edges only when zoomed in
+let floodEdgeEnv=null;                    // envelope (padded) the cached polygons cover
+function _viewInsideCache(){
+  if(!floodEdgeEnv || !lastFloodGj) return false;
   const b=map.getBounds();
-  const key=[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].map(n=>n.toFixed(4)).join(',');
-  if(key===floodEdgeKey || floodEdgeBusy) return;
+  return b.getWest()>=floodEdgeEnv.W && b.getEast()<=floodEdgeEnv.E &&
+         b.getSouth()>=floodEdgeEnv.S && b.getNorth()<=floodEdgeEnv.N;
+}
+/* Instant, network-free redraw of the dashed lines from cache (used at zoomend and whenever the
+   view is still inside the padded envelope of the last fetch). */
+function renderFloodEdgesFromCache(){
+  if(!lastFloodGj) return;
+  floodEdgeLayer.clearLayers();
+  floodEdgeLayer.addData(lastFloodGj);
+  floodEdgeLayer.eachLayer(ly=>{
+    const p = ly.feature && ly.feature.properties;
+    ly.bindTooltip(floodZoneLabel(p), {sticky:true, direction:'top', className:'parcel-tip', opacity:1});
+  });
+}
+async function refreshFloodEdges(){
+  if(!floodOn){ floodEdgeLayer.clearLayers(); floodLblLayer.clearLayers(); return; }
+  if(map.getZoom() < 13){ floodEdgeLayer.clearLayers(); floodLblLayer.clearLayers(); floodEdgeKey=''; return; }  // edges only when zoomed in
+  // Still inside the padded envelope of the last fetch → nothing new to load; the instant
+  // cache redraw in the moveend handler has already repainted lines + labels. Skip the network.
+  if(_viewInsideCache() || floodEdgeBusy) return;
   floodEdgeBusy=true;
-  const env=`${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
+  const b=map.getBounds();
+  // Fetch a PADDED envelope (~half a screen extra on each side): small pans stay inside it and
+  // cost zero network — the difference between "lines pop in after a second" and "always there".
+  const padX=(b.getEast()-b.getWest())*0.4, padY=(b.getNorth()-b.getSouth())*0.4;
+  const W=b.getWest()-padX, S=b.getSouth()-padY, E=b.getEast()+padX, N=b.getNorth()+padY;
+  const env=`${W},${S},${E},${N}`;
   const url=FEMA_NFHL_QUERY+`?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
     `&spatialRel=esriSpatialRelIntersects&where=1%3D1`+
     `&outFields=${encodeURIComponent('FLD_ZONE,ZONE_SUBTY,STATIC_BFE')}`+
-    `&returnGeometry=true&outSR=4326&resultRecordCount=400&f=geojson`;
+    `&returnGeometry=true&outSR=4326&geometryPrecision=6&resultRecordCount=1500&f=geojson`;
   try{
     const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),15000);
     const r=await fetch(url,{signal:ctrl.signal}); clearTimeout(t);
     if(r.ok){ const gj=await r.json();
       if(gj && gj.features){
-        floodEdgeLayer.clearLayers();
-        floodEdgeLayer.addData(gj);
-        // bind hover tooltips per zone (canvas renderer still supports layer events)
-        floodEdgeLayer.eachLayer(ly=>{
-          const p = ly.feature && ly.feature.properties;
-          const lbl = floodZoneLabel(p);
-          ly.bindTooltip(lbl, {sticky:true, direction:'top', className:'parcel-tip', opacity:1});
-        });
-        floodEdgeKey=key;
+        lastFloodGj=gj; lastFloodIdx=indexFloodGj(gj);
+        floodEdgeEnv={W,S,E,N};
+        renderFloodEdgesFromCache();
+        try{ drawFloodLabels(gj); }catch(e){}
       }
     }
   }catch(e){ /* keep existing edges on failure */ }
   finally{ floodEdgeBusy=false; }
 }
 let floodEdgeTimer=null;
-map.on('zoomstart', ()=>{ if(floodOn) floodEdgeLayer.clearLayers(); });
-map.on('moveend zoomend', ()=>{ clearTimeout(floodEdgeTimer); floodEdgeTimer=setTimeout(refreshFloodEdges,BOUNDS_DEBOUNCE); });
+map.on('zoomstart', ()=>{ if(floodOn) floodEdgeLayer.clearLayers(); });   // labels ride the zoom transform — keep them
+map.on('moveend zoomend', ()=>{
+  // INSTANT path: repaint lines + labels synchronously from cache (~ms). The debounced fetch below
+  // only fires when the view leaves the padded envelope of the cached data.
+  if(floodOn){
+    if(map.getZoom()>=13){
+      try{ if(lastFloodGj && floodEdgeLayer.getLayers().length===0) renderFloodEdgesFromCache(); }catch(e){}
+      try{ drawFloodLabels(); }catch(e){}
+    } else { floodLblLayer.clearLayers(); }
+  }
+  clearTimeout(floodEdgeTimer); floodEdgeTimer=setTimeout(refreshFloodEdges,BOUNDS_DEBOUNCE); });
 
 /* ---------- Parcel / lot-line overlay (statewide cadastral) ----------
    Same FL DOR cadastral the panel reads on click, drawn as thin lines across the view. Parcels are
@@ -3136,7 +3387,7 @@ function makeRadarFrame(frame){
   // frame = { time:<epoch seconds>, path:"/v2/radar/<ts>" } from the RainViewer JSON
   const url=radarHost+frame.path+'/'+RADAR_TILE+'/{z}/{x}/{y}/'+RADAR_COLOR+'/'+RADAR_SMOOTH+'_'+RADAR_SNOW+'.png';
   const lyr=L.tileLayer(url,{
-    opacity:0, tileSize:RADAR_TILE, maxNativeZoom:RADAR_MAXNATIVE, maxZoom:19,
+    opacity:0, tileSize:RADAR_TILE, maxNativeZoom:RADAR_MAXNATIVE, maxZoom:23,
     updateWhenIdle:L.Browser.mobile, keepBuffer:2, crossOrigin:true,
     attribution:'Radar &copy; <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a>'
   });
@@ -3698,8 +3949,8 @@ async function toggleSurge(on){
   if(cat.surgeInun && !inunVector){
     const isImg=/ImageServer/i.test(cat.surgeInun);
     const path=isImg?'/exportImage':'/export';
-    const tl=new ArcGISExportTiles(cat.surgeInun+path+'?dpi=96&transparent=true&format=png32&bboxSR=3857&imageSR=3857&size=256,256&f=image&bbox={bbox}',
-      {tileSize:256,opacity:.55,minZoom:5,maxZoom:19,zIndex:243,attribution:'Surge &copy; NOAA/NHC'});
+    const tl=new ArcGISExportTiles(cat.surgeInun+path+'?dpi=96&transparent=true&format=png32&bboxSR=3857&imageSR=3857&size=512,512&f=image&bbox={bbox}',
+      {tileSize:512,opacity:.55,minZoom:5,maxZoom:23,maxNativeZoom:19,zIndex:243,attribution:'Surge &copy; NOAA/NHC'});
     tl.addTo(map); nhcSub.surge.tiles=tl; any=true;
   }
   if(!any){ mapToast('No storm-surge watch/warning or inundation issued right now.',2800); nhcSub.surge.on=false; surgeGeoms=[]; inunGeoms=[]; _syncStormSubHover(); renderStormControls(); return; }
@@ -3893,7 +4144,7 @@ function renderStormControls(){
    tropical / severe polygons. Same ArcGISExportTiles technique as the flood fill. */
 const NWS_WWA_MS = "https://mapservices.weather.noaa.gov/eventdriven/rest/services/WWA/watch_warn_adv/MapServer";
 const WARN_BASE = NWS_WWA_MS + "/export?dpi=96&transparent=true&format=png32&bboxSR=3857&imageSR=3857"
-            + "&size=256,256&layers=show:1&f=image&bbox={bbox}";
+            + "&size=512,512&layers=show:1&f=image&bbox={bbox}";
 const warnHidden = new Set();   // exact prod_type strings the user has switched off
 function warnUrl(){
   let u=WARN_BASE;
@@ -3905,7 +4156,7 @@ function warnUrl(){
 }
 function applyWarnFilter(){ try{ warnLayer.setUrl(warnUrl()); }catch(e){} }
 const warnLayer = new ArcGISExportTiles(WARN_BASE,
-  { tileSize:256, opacity:0.5, minZoom:5, maxZoom:19, zIndex:245,
+  { tileSize:512, opacity:0.5, minZoom:5, maxZoom:23, maxNativeZoom:19, zIndex:245,
     attribution:'Warnings &copy; NOAA/NWS', updateWhenIdle:L.Browser.mobile });
 let warnOn=false, warnRefresh=null, warnLegendCache=null;
 /* Fetch the live legend swatches straight from the NWS WWA service so the labels &
@@ -5926,20 +6177,278 @@ function renderSanibelSetbacks(districtCode){
   return h;
 }
 
-/* ---------- Cape Coral required setbacks — LUDR Article 4, Table 4.1.3.B ----------
+/* ================================ MANATEE COUNTY ================================
+   Manatee County Land Development Code, Chapter 4, Section 401 (Standard Zoning Districts).
+   Governs the UNINCORPORATED county; the cities (Bradenton, Palmetto, Bradenton Beach,
+   Holmes Beach, Anna Maria) and the Town of Longboat Key run their own codes and are excluded
+   via MANATEE_INCORP. Hand-entered & verified from the uploaded LDC (Supp. No. 15–16; latest
+   dimensional-table ordinance Ord. 23-15, 2-16-23) against the six Schedule-of-Bulk tables:
+     Table 4-4  Village (Myakka City, Parrish, Rubonia)
+     Table 4-5  Agricultural & Single-Family (A, A-1, RSF-1..9)
+     Table 4-6  Duplex & Multi-Family (RDD-3/4.5/6, RMF-6/9/12/16)
+     Table 4-7  Mobile Home (RSMH-4.5/6)
+     Table 4-8  Office / Commercial / Mixed-Use (PR-S/M, NC-S/M, GC, HC, MX, RVP)
+     Table 4-9  Industrial / Extraction / Institutional (LM, HM, EX, MP-I)
+   Values: numbers = minimum feet; the front figures shown are the SINGLE-FAMILY-DETACHED row
+   (the primary case for generator siting). Where the table lists "20/25", the 25 is the
+   front-loaded-garage/carport minimum (§ Table 4-5 fn.5, administratively reducible up to 5 ft).
+   wf = waterfront yard (never < 30 ft; 25 ft on platted lots of record — § 401.3.E.9).
+
+   IMPORTANT — the density suffix is MEANINGFUL here (RSF-6 ≠ RSF-9; RMF-12 ≠ RMF-16), so this
+   table is keyed on the FULL code and does NOT collapse the numeric tier the way Sarasota's does.
+
+   GENERATOR RULE (rides on every unincorporated-Manatee result via renderManateeEquipmentNote):
+   Manatee EXEMPTS residential electrical generators (and residential A/C units) from ALL required
+   yards outright — § 401.3.E.2. Not an encroachment allowance, a full exemption. The real limits
+   are: (1) not in the visibility triangle (§ 1002); (2) not in any easement — and note § 401.3.F.6
+   extends easement encroachment only to A/C & POOL equipment, NOT generators; (3) the 10-ft
+   equipment-separation rule where the district side yard is < 7.5 ft (a spacing rule vs. the
+   neighbor's equipment, not a lot-line setback). */
+const MANATEE_INCORP = new Set(['BRADENTON','PALMETTO','BRADENTONBEACH','HOLMESBEACH','ANNAMARIA','LONGBOATKEY']);
+const MANATEE_SETBACKS = {
+  // --- Table 4-5: Agricultural & Single-Family (front = SF-detached) ---
+  "A":       { front:50, side:10, rear:25, wf:30, minLot:"217,800 sq ft (5 ac)", width:200, height:"2 stories", tightSide:false, note:"General Agriculture. Non-res FAR 0.23; open space 20%. Min lot may not include wetlands unless § 401.3.C.3 met. Yards +35 ft where contiguous to active ag operations (§ 401.3.E.8)." },
+  "A-1":     { front:50, side:10, rear:25, wf:30, minLot:"43,560 sq ft (1 ac)", width:100, height:"2 stories", tightSide:false, note:"Agricultural Suburban — rural-to-suburban transition." },
+  "RSF-1":   { front:40, side:10, rear:25, wf:30, minLot:"30,000 sq ft", width:100, height:"2 stories", tightSide:false, note:"Residential Single-Family RSF-1." },
+  "RSF-2":   { front:25, side:10, rear:25, wf:30, minLot:"15,000 sq ft", width:80, height:"2 stories", tightSide:false, note:"Residential Single-Family RSF-2." },
+  "RSF-3":   { front:25, side:10, rear:20, wf:30, minLot:"10,000 sq ft", width:75, height:"2 stories", tightSide:false, note:"Residential Single-Family RSF-3." },
+  "RSF-4.5": { front:"20/25", side:8, rear:20, wf:30, minLot:"7,000 sq ft", width:70, height:"2 stories", tightSide:false, note:"Residential Single-Family RSF-4.5. Front 20 ft (25 ft for front-loaded garage/carport)." },
+  "RSF-6":   { front:"20/25", side:8, rear:20, wf:30, minLot:"6,000 sq ft", width:60, height:"2 stories", tightSide:false, note:"Residential Single-Family RSF-6. Front 20 ft (25 ft for front-loaded garage/carport)." },
+  "RSF-9":   { front:"15/25", side:5, rear:15, wf:30, minLot:"4,000 sq ft", width:40, height:"2 stories", tightSide:true, note:"Residential Single-Family RSF-9. Front 15 ft (25 ft for front-loaded garage/carport). Side yard 5 ft (< 7.5 ft — the 10-ft equipment-separation rule applies)." },
+  // --- Table 4-6: Duplex & Multi-Family (front = SF-detached row; other building types differ) ---
+  "RDD-3":   { front:25, side:10, rear:20, wf:30, minLot:"8,000 sq ft (SF-det)", width:75, height:"3 stories", tightSide:false, multi:true, note:"Residential Duplex RDD-3. Values shown = single-family-detached row; duplex/semi-detached rows differ — see full Table 4-6." },
+  "RDD-4.5": { front:25, side:8, rear:20, wf:30, minLot:"7,000 sq ft (SF-det)", width:70, height:"3 stories", tightSide:false, multi:true, note:"Residential Duplex RDD-4.5. SF-detached row shown; duplex/semi-detached differ — see full Table 4-6." },
+  "RDD-6":   { front:25, side:8, rear:20, wf:30, minLot:"6,000 sq ft (SF-det)", width:60, height:"3 stories", tightSide:false, multi:true, note:"Residential Duplex RDD-6. SF-detached row shown; duplex/semi-detached differ — see full Table 4-6." },
+  "RMF-6":   { front:"20/25", side:10, rear:20, wf:30, minLot:"6,000 sq ft (SF-det)", width:50, height:"4 stories", tightSide:false, multi:true, note:"Residential Multi-Family RMF-6. SF-detached row shown; multi-family rear 25 ft, attached/semi-detached rows differ — see full Table 4-6." },
+  "RMF-9":   { front:"20/25", side:10, rear:20, wf:30, minLot:"6,000 sq ft (SF-det)", width:50, height:"4 stories", tightSide:false, multi:true, note:"Residential Multi-Family RMF-9. SF-detached row shown; other building types differ — see full Table 4-6." },
+  "RMF-12":  { front:"15/25", side:5, rear:15, wf:30, minLot:"5,000 sq ft (SF-det)", width:40, height:"6 stories", tightSide:true, multi:true, note:"Residential Multi-Family RMF-12. SF-detached row shown; multi-family rear 20 ft. Side 5 ft (< 7.5 ft — 10-ft equipment-separation rule applies). See full Table 4-6." },
+  "RMF-16":  { front:"15/25", side:5, rear:15, wf:30, minLot:"4,000 sq ft (SF-det)", width:40, height:"6 stories", tightSide:true, multi:true, note:"Residential Multi-Family RMF-16. SF-detached row shown; multi-family rear 20 ft. Side 5 ft (< 7.5 ft — 10-ft equipment-separation rule applies). See full Table 4-6." },
+  // --- Table 4-7: Mobile Home ---
+  "RSMH-4.5": { front:5, side:5, rear:5, wf:30, minLot:"3,000–4,750 sq ft (by width)", width:40, height:"1 story (res)", tightSide:true, note:"Mobile Home RSMH-4.5. All yards 5 ft (side < 7.5 ft — 10-ft equipment-separation rule applies). MH/RV exempt from waterfront setback. Min project area 20 ac." },
+  "RSMH-6":   { front:5, side:5, rear:5, wf:30, minLot:"3,000–4,750 sq ft (by width)", width:40, height:"1 story (res)", tightSide:true, note:"Mobile Home RSMH-6. All yards 5 ft (side < 7.5 ft — 10-ft equipment-separation rule applies). MH/RV exempt from waterfront setback. Min project area 20 ac." },
+  // --- Table 4-4: Village ---
+  "VIL-MYAKKA":  { front:"20/25", side:10, rear:20, wf:30, minLot:"10,000 sq ft (SF-det)", width:75, height:"3 stories", tightSide:false, note:"Myakka City Village. Front 20 ft (25 ft front-loaded garage). All-other-residential front 25 ft." },
+  "VIL-RUBONIA": { front:"20/25", side:8, rear:20, wf:30, minLot:"6,000 sq ft (SF-det)", width:60, height:"3 stories", tightSide:false, note:"Rubonia Village. Front 20 ft (25 ft front-loaded garage). Side 8 ft (residential)." },
+  "VIL-PARRISH": { front:"20/25", side:10, rear:20, wf:30, minLot:"10,000 sq ft (SF-det)", width:75, height:"3 stories", tightSide:false, note:"Parrish Village. Front 20 ft (25 ft front-loaded garage). Parrish Commercial Village Overlay (§ 403.4) may add standards." },
+  // --- Table 4-8: Office / Commercial / Mixed-Use (uniform 25/10/15 except RVP) ---
+  "PR-S": { front:25, side:10, rear:15, wf:30, minLot:"10,000 sq ft", width:75, height:"3 stories", tightSide:false, nonres:true, note:"Professional Office, Small. Side/rear 20 ft when abutting single-family residential zoning." },
+  "PR-M": { front:25, side:10, rear:15, wf:30, minLot:"10,000 sq ft", width:75, height:"3 stories", tightSide:false, nonres:true, note:"Professional Office, Medium. Side/rear 20 ft when abutting single-family residential zoning." },
+  "NC-S": { front:25, side:10, rear:15, wf:30, minLot:"7,500 sq ft", width:75, height:"3 stories", tightSide:false, nonres:true, note:"Neighborhood Commercial, Small. Side/rear 20 ft when abutting single-family residential zoning." },
+  "NC-M": { front:25, side:10, rear:15, wf:30, minLot:"7,500 sq ft", width:75, height:"3 stories", tightSide:false, nonres:true, note:"Neighborhood Commercial, Medium. Side/rear 20 ft when abutting single-family residential zoning." },
+  "GC":   { front:25, side:10, rear:15, wf:30, minLot:"7,500 sq ft", width:75, height:"4 stories (6 SP)", tightSide:false, nonres:true, note:"General Commercial. Side/rear 20 ft when abutting single-family residential zoning." },
+  "HC":   { front:25, side:10, rear:15, wf:30, minLot:"7,500 sq ft", width:75, height:"3 stories", tightSide:false, nonres:true, note:"Heavy Commercial. Side/rear 20 ft when abutting single-family residential zoning." },
+  "MX":   { front:25, side:10, rear:15, wf:30, minLot:"7,500 sq ft", width:75, height:"4 stories (6 SP)", tightSide:false, nonres:true, note:"Mixed-Use. Side/rear 20 ft when abutting single-family residential zoning." },
+  "RVP":  { front:"50/5", side:"15/5", rear:15, wf:30, minLot:"10-acre project", width:"30/20/75", height:"1 story (res) / 3 (non-res)", tightSide:false, nonres:true, note:"Recreational Vehicle Park. Perimeter setbacks 50/15/15; internal RV sites 5 ft. Non-RV uses 25/10/15." },
+  // --- Table 4-9: Industrial / Extraction / Institutional (front = general; SF-use figures noted) ---
+  "LM":   { front:25, side:20, rear:20, wf:30, minLot:"10,000 sq ft", width:100, height:"4 stories", tightSide:false, nonres:true, note:"Light Manufacturing. Single-family uses: front 20 / side 8 / rear 20 (§ 531.47.D). 75 ft side/rear when abutting SF residential zoning." },
+  "HM":   { front:25, side:20, rear:20, wf:30, minLot:"10,000 sq ft", width:100, height:"5 stories", tightSide:false, nonres:true, note:"Heavy Manufacturing. Single-family uses: front 20 / side 8 / rear 20 (§ 531.47.D). 75 ft side/rear when abutting SF residential zoning." },
+  "EX":   { front:50, side:10, rear:25, wf:30, minLot:"5 acres", width:200, height:"N/A", tightSide:false, nonres:true, note:"Extraction (mining). Non-res FAR 0.23." },
+  "MP-I": { front:40, side:"30/40", rear:"30/40", wf:30, minLot:"40 acres", height:"7 stories / 84 ft", tightSide:false, nonres:true, note:"Master Planned Institutional. Side/rear 30 ft (non-residential) / 40 ft (residential). Buildings > 35 ft trigger § 401.5. Open space 25%." },
+  // --- Conservation / Recreation / Open Space (no dimensional table row — governed per use / PD) ---
+  "CON":  { front:null, side:null, rear:null, allFormula:true, note:"Conservation — preserves open space, habitat, drainage & recharge areas. Dimensional standards set per approved use; ag operations need a Conservation Plan. Verify in § 401.1.A." },
+  "R/OS": { front:null, side:null, rear:null, allFormula:true, note:"Recreation / Open Space — parks, historic sites, permanent open space. Dimensional standards set per approved use. Verify in § 401.1.B." },
+  // --- Planned Development (§ 402) — project-specific ---
+  // Planned Development (§ 402.7–402.21). GIS stores these HYPHENATED (PD-R, PD-MU, PD-PM…);
+  // the LDC section codes are unhyphenated (PDR, PDMU…). Keyed on the GIS form; aliases map both.
+  "PD-R":  { front:null, side:null, rear:null, pd:true, note:"Planned Development Residential (§ 402.7) — front/side/rear, height and density are set by the approved development order & master site plan. Read the parcel's adopting PD ordinance." },
+  "PD-MH": { front:null, side:null, rear:null, pd:true, note:"Planned Development Mobile Home (§ 402.8) — standards set by the approved development order & master site plan. Read the parcel's adopting PD ordinance." },
+  "PD-RV": { front:null, side:null, rear:null, pd:true, note:"Planned Development Recreational Vehicle (§ 402.9) — standards set by the approved development order & master site plan. Read the parcel's adopting PD ordinance." },
+  "PD-O":  { front:null, side:null, rear:null, pd:true, note:"Planned Development Office (§ 402.10) — standards set by the approved development order & master site plan. Read the parcel's adopting PD ordinance." },
+  "PD-C":  { front:null, side:null, rear:null, pd:true, note:"Planned Development Commercial (§ 402.11) — standards set by the approved development order & master site plan. Read the parcel's adopting PD ordinance." },
+  "PD-RP": { front:null, side:null, rear:null, pd:true, note:"Planned Development Research Park (§ 402.12) — standards set by the approved development order & master site plan. Read the parcel's adopting PD ordinance." },
+  "PD-I":  { front:null, side:null, rear:null, pd:true, note:"Planned Development Industrial (§ 402.13) — standards set by the approved development order & master site plan. Read the parcel's adopting PD ordinance." },
+  "PD-W":  { front:null, side:null, rear:null, pd:true, note:"Planned Development Waterfront (§ 402.14) — standards (incl. waterfront structures) set by the approved development order. Read the parcel's adopting PD ordinance." },
+  "PD-PI": { front:null, side:null, rear:null, pd:true, note:"Planned Development Public Interest (§ 402.15) — standards set by the approved development order. Read the parcel's adopting PD ordinance." },
+  "PD-MU": { front:null, side:null, rear:null, pd:true, note:"Planned Development Mixed Use (§ 402.16) — standards set by the approved development order & master site plan. Read the parcel's adopting PD ordinance." },
+  "PD-UI": { front:null, side:null, rear:null, pd:true, note:"Planned Development Urban Industrial (§ 402.17) — standards set by the approved development order. Read the parcel's adopting PD ordinance." },
+  "PD-PM": { front:null, side:null, rear:null, pd:true, note:"Planned Development Port Manatee (§ 402.18) — standards set by the approved development order. Read the parcel's adopting PD ordinance." },
+  "PD-GC": { front:null, side:null, rear:null, pd:true, note:"Planned Development Golf Course (§ 402.19) — standards set by the approved development order & master site plan. Read the parcel's adopting PD ordinance." },
+  "PD-A":  { front:null, side:null, rear:null, pd:true, note:"Planned Development Agriculture (§ 402.20) — standards set by the approved development order & master site plan. Read the parcel's adopting PD ordinance." },
+  "PD-EZ": { front:null, side:null, rear:null, pd:true, note:"Planned Development Encouragement Zone (§ 402.21) — standards set by the approved development order. Read the parcel's adopting PD ordinance." }
+};
+const MANATEE_DISTRICT_ALIASES = {
+  "GENERALAGRICULTURE":"A","AGRICULTURE":"A","AGRICULTURALSUBURBAN":"A-1",
+  "RESIDENTIALSINGLEFAMILY1":"RSF-1","RESIDENTIALSINGLEFAMILY2":"RSF-2","RESIDENTIALSINGLEFAMILY3":"RSF-3",
+  "RESIDENTIALSINGLEFAMILY45":"RSF-4.5","RESIDENTIALSINGLEFAMILY6":"RSF-6","RESIDENTIALSINGLEFAMILY9":"RSF-9",
+  "RESIDENTIALDUPLEX3":"RDD-3","RESIDENTIALDUPLEX45":"RDD-4.5","RESIDENTIALDUPLEX6":"RDD-6",
+  "RESIDENTIALMULTIFAMILY6":"RMF-6","RESIDENTIALMULTIFAMILY9":"RMF-9","RESIDENTIALMULTIFAMILY12":"RMF-12","RESIDENTIALMULTIFAMILY16":"RMF-16",
+  "RESIDENTIALSINGLEFAMILYMOBILEHOME45":"RSMH-4.5","RESIDENTIALSINGLEFAMILYMOBILEHOME6":"RSMH-6",
+  "MOBILEHOME45":"RSMH-4.5","MOBILEHOME6":"RSMH-6",
+  "MYAKKACITY":"VIL-MYAKKA","MYAKKA":"VIL-MYAKKA","VILLAGEMYAKKACITY":"VIL-MYAKKA",
+  "RUBONIA":"VIL-RUBONIA","VILLAGERUBONIA":"VIL-RUBONIA","PARRISH":"VIL-PARRISH","VILLAGEPARRISH":"VIL-PARRISH",
+  "PROFESSIONALSMALLOFFICE":"PR-S","PROFESSIONALSMALL":"PR-S","PROFESSIONALMEDIUMOFFICE":"PR-M","PROFESSIONALMEDIUM":"PR-M",
+  "NEIGHBORHOODCOMMERCIALSMALL":"NC-S","NEIGHBORHOODCOMMERCIALMEDIUM":"NC-M",
+  "GENERALCOMMERCIAL":"GC","HEAVYCOMMERCIAL":"HC","MIXEDUSE":"MX","RECREATIONALVEHICLEPARK":"RVP",
+  "LIGHTMANUFACTURING":"LM","HEAVYMANUFACTURING":"HM","EXTRACTION":"EX","MASTERPLANNEDINSTITUTIONAL":"MP-I",
+  "CONSERVATION":"CON","RECREATIONOPENSPACE":"R/OS","RECREATION":"R/OS","OPENSPACE":"R/OS",
+  // Descriptive GIS strings AND unhyphenated LDC codes (PDR, PDMU…) -> hyphenated table keys.
+  "PLANNEDDEVELOPMENTRESIDENTIAL":"PD-R","PDR":"PD-R",
+  "PLANNEDDEVELOPMENTMOBILEHOME":"PD-MH","PDMH":"PD-MH",
+  "PLANNEDDEVELOPMENTRECREATIONALVEHICLE":"PD-RV","PDRV":"PD-RV",
+  "PLANNEDDEVELOPMENTOFFICE":"PD-O","PDO":"PD-O",
+  "PLANNEDDEVELOPMENTCOMMERCIAL":"PD-C","PDC":"PD-C",
+  "PLANNEDDEVELOPMENTRESEARCHPARK":"PD-RP","PDRP":"PD-RP",
+  "PLANNEDDEVELOPMENTINDUSTRIAL":"PD-I","PDI":"PD-I",
+  "PLANNEDDEVELOPMENTWATERFRONT":"PD-W","PDW":"PD-W",
+  "PLANNEDDEVELOPMENTPUBLICINTEREST":"PD-PI","PDPI":"PD-PI",
+  "PLANNEDDEVELOPMENTMIXEDUSE":"PD-MU","PDMU":"PD-MU",
+  "PLANNEDDEVELOPMENTURBANINDUSTRIAL":"PD-UI","PDUI":"PD-UI",
+  "PLANNEDDEVELOPMENTPORTMANATEE":"PD-PM","PDPM":"PD-PM",
+  "PLANNEDDEVELOPMENTGOLFCOURSE":"PD-GC","PDGC":"PD-GC",
+  "PLANNEDDEVELOPMENTAGRICULTURE":"PD-A","PDA":"PD-A",
+  "PLANNEDDEVELOPMENTENCOURAGEMENTZONE":"PD-EZ","PDEZ":"PD-EZ",
+  "PLANNEDDEVELOPMENT":"PD-R"
+};
+/* Manatee's parcel GIS namespaces zoning by jurisdiction: unincorporated codes are BARE (A, RSF-6,
+   PD-MU), while a city parcel's code carries a two-letter prefix + underscore — BR_ (Bradenton),
+   and by the same pattern PA_ (Palmetto), BB_ (Bradenton Beach), HB_ (Holmes Beach), AM_ (Anna
+   Maria), LB_ (Longboat Key). Those are CITY districts governed by the city's own code, NOT the
+   Manatee County LDC, so the county renderer must not fire on them. This tests for that prefix. */
+const MANATEE_CITY_PREFIX = { BR:'Bradenton', PA:'Palmetto', BB:'Bradenton Beach', HB:'Holmes Beach', AM:'Anna Maria', LB:'Longboat Key' };
+function manateeCityPrefix(districtCode){
+  if(districtCode==null) return null;
+  const m = String(districtCode).trim().toUpperCase().match(/^([A-Z]{2})_/);
+  return m ? (MANATEE_CITY_PREFIX[m[1]] || m[1]) : null;
+}
+/* Resolve one bare Manatee LDC district token to a setbacks entry. Suffix is significant, so try the
+   FULL normalized code first, then descriptive-string / LDC-code aliases, then a hyphenated PD form.
+   Handles "RSF-6", "RSF6", "RSF 6", "RMF-12", "RSMH-4.5", "A-1", "PD-MU", "PDMU", the long GIS
+   strings, and bare "A". Does NOT strip city prefixes — callers filter those out first. */
+function manateeSetbacksOne(token){
+  if(!token) return null;
+  const raw = String(token).toUpperCase().trim();
+  if(MANATEE_SETBACKS[raw]) return MANATEE_SETBACKS[raw];
+  // Normalize separators: "RSF 6" / "RSF_6" -> "RSF-6"; "PD MU" -> "PD-MU".
+  const dash = raw.replace(/[\s_]+/g,'-').replace(/-+/g,'-');
+  if(MANATEE_SETBACKS[dash]) return MANATEE_SETBACKS[dash];
+  // "RSF6" / "RMF12" -> insert a dash before a trailing numeric tier.
+  const reDash = raw.replace(/^([A-Z]+)[-\s]?([0-9]+(?:\.[0-9]+)?)$/, '$1-$2');
+  if(MANATEE_SETBACKS[reDash]) return MANATEE_SETBACKS[reDash];
+  // Descriptive GIS string or unhyphenated LDC code (letters+digits only) via alias map.
+  const alnum = raw.replace(/[^A-Z0-9]/g,'');
+  if(MANATEE_DISTRICT_ALIASES[alnum]) return MANATEE_SETBACKS[MANATEE_DISTRICT_ALIASES[alnum]];
+  // PD fallback: any unrecognized "PD…" token -> generic Planned Development (residential template).
+  if(/^PD/.test(alnum)) return MANATEE_SETBACKS["PD-R"];
+  return null;
+}
+/* Resolve a Manatee ZONING value, which may be split (comma-joined dual zoning, e.g. "A,PD-MU").
+   Returns { entries:[{token,setbacks}], cityPrefix } — cityPrefix set if ANY token is a city code. */
+function manateeSetbacks(districtCode){
+  if(districtCode==null || String(districtCode).trim()==='') return null;
+  const cityPrefix = manateeCityPrefix(districtCode);
+  // Split only on comma/semicolon (dual zoning like "A,PD-MU"). NOT on "/" — some district codes
+  // legitimately contain a slash (e.g. "R/OS" Recreation/Open Space).
+  const tokens = String(districtCode).split(/[,;]+/).map(t=>t.trim()).filter(Boolean);
+  const entries = [];
+  for(const t of tokens){
+    if(manateeCityPrefix(t)) continue;               // skip city-prefixed tokens
+    const sb = manateeSetbacksOne(t);
+    if(sb) entries.push({ token:t, setbacks:sb });
+  }
+  if(!entries.length && !cityPrefix) return null;
+  return { entries, cityPrefix };
+}
+/* Render one resolved district block (setbacks table or PD marker). No equipment note here — that
+   rides once at the end of renderManateeSetbacks so split-zoning parcels don't repeat it. */
+function renderManateeOneDistrict(token, s){
+  const shown = String(token);
+  if(s.pd){
+    let p=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ PD</span> ${esc(shown)} · setbacks set by the approved PD ordinance (Manatee LDC § 402)</div>`;
+    p+=`<div class="note">${esc(s.note)}</div>`;
+    p+=`<div class="note warnbox">Manatee Planned Development districts (LDC § 402) carry custom, project-specific setbacks, height and density adopted in the development order &amp; master site plan. The standard district tables do not apply — read the recorded PD ordinance for exact numbers.</div>`;
+    return p;
+  }
+  const ft = v => (v==null) ? '<span class="muted">see code</span>'
+                : (typeof v==='number' ? (v===0?'0 ft':v+' ft') : esc(String(v))+' ft');
+  const tref = s.nonres ? 'LDC § 401, Tables 4-8/4-9' : (s.multi ? 'LDC § 401, Table 4-6' : 'LDC § 401, Tables 4-4/4-5');
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(shown)} (Manatee ${esc(tref)})</div>`;
+  if(s.allFormula){
+    h+=`<div class="note">${esc(s.note)}</div>`;
+    h+=`<a class="palink" href="https://library.municode.com/fl/manatee_county/codes/code_of_ordinances" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify § 401 — Manatee LDC (Municode)</a>`;
+    return h;
+  }
+  if(s.minLot) h+=fieldRow('Minimum lot area', esc(String(s.minLot)));
+  if(s.width!=null) h+=fieldRow('Minimum lot width', (typeof s.width==='number'?s.width+' ft':esc(String(s.width))+' ft'));
+  h+=fieldRow('Front'+(s.nonres?'':' (single-family)'), ft(s.front), 'big');
+  h+=fieldRow('Side', ft(s.side));
+  h+=fieldRow('Rear', ft(s.rear));
+  if(s.wf!=null) h+=fieldRow('Waterfront', ft(s.wf));
+  if(s.height) h+=fieldRow('Max building height', esc(String(s.height)));
+  if(typeof s.front==='string' && s.front.indexOf('/')>-1 && !s.nonres) h+=`<div class="note"><b>Front detail:</b> the second figure is the minimum for a front-loaded garage or carport (25 ft), administratively reducible up to 5 ft if 25 ft of sidewalk-to-garage separation is kept (Table 4-5 fn. 5).</div>`;
+  if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
+  h+=`<a class="palink" href="https://library.municode.com/fl/manatee_county/codes/code_of_ordinances" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify § 401 — Manatee LDC (Municode)</a>`;
+  return h;
+}
+/* Render required setbacks for an unincorporated Manatee County ZONING value (LDC § 401,
+   Tables 4-4..4-9). Handles split zoning ("A,PD-MU") and bails when the code is a city district. */
+function renderManateeSetbacks(districtCode){
+  const r = manateeSetbacks(districtCode);
+  if(!r) return '';
+  // City-prefixed code (BR_*, PA_*, …): governed by the city's own LDC, not the county's. Say so
+  // instead of rendering county numbers that don't apply.
+  if(r.cityPrefix && !r.entries.length){
+    return `<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ CITY</span> ${esc(String(districtCode))} · ${esc(r.cityPrefix)} district</div>`
+      + `<div class="note warnbox">This parcel's zoning code (<b>${esc(String(districtCode))}</b>) is a <b>City of ${esc(r.cityPrefix)}</b> district, not a Manatee County one. Setbacks and generator rules come from ${esc(r.cityPrefix)}'s own land development code — the county LDC § 401 tables do not apply. Look up the district in the city's code.</div>`;
+  }
+  if(!r.entries.length) return '';
+  let h='';
+  const multiZone = r.entries.length > 1;
+  if(multiZone){
+    h+=`<div class="note warnbox"><b>Split zoning.</b> This parcel carries more than one zoning district (<b>${esc(String(districtCode))}</b>). Each applies to a different portion of the site; the standards below are shown per district. A generator's siting depends on which portion it sits in — confirm with the county.</div>`;
+  }
+  const tight = r.entries.some(e=>e.setbacks.tightSide);
+  for(const e of r.entries) h += renderManateeOneDistrict(e.token, e.setbacks);
+  h += renderManateeEquipmentNote({ tightSide: tight });
+  return h;
+}
+/* Manatee's residential generator / mechanical-equipment rule. Rides on every unincorporated-Manatee
+   result — it's a county-wide exemption in § 401.3.E.2, not district-specific. Manatee EXEMPTS
+   residential generators from ALL required yards; the binding limits are the visibility triangle, the
+   no-easement rule (which for generators is absolute — the § 401.3.F.6 easement-encroachment relief
+   covers only A/C & pool equipment), and the 10-ft equipment-separation rule on tight-side lots.
+   Takes the resolved setbacks entry so it can flag the 10-ft rule only where the side yard is < 7.5 ft. */
+function renderManateeEquipmentNote(s){
+  let g=`<div class="freshline snap" style="margin-top:12px"><span class="badge unk">⚡ GENERATOR · LDC § 401.3.E.2</span> generator siting (Manatee County)</div>`;
+  g+=`<div class="note"><b>Residential generators are exempt from every required yard.</b> LDC § 401.3.E.2 lists "residential electrical generators" (and residential A/C units) among structures <b>exempt from the required yards</b> — front, side and rear. The district setbacks above do <b>not</b> constrain a standby generator on a residential site.</div>`;
+  g+=fieldRow('Front yard', 'Exempt from setback');
+  g+=fieldRow('Side yard', 'Exempt from setback');
+  g+=fieldRow('Rear yard', 'Exempt from setback');
+  g+=fieldRow('Visibility triangle', 'Prohibited');
+  g+=fieldRow('Any easement', 'Prohibited');
+  g+=`<div class="note warnbox"><b>The exemption is not unlimited — three real constraints remain:</b><br>· <b>Visibility triangle (§ 1002).</b> The one exclusion written into the exemption itself. Sight triangles at street corners and driveways stay clear.<br>· <b>No easement — and for generators this is absolute.</b> "In drainage swales and easements... no encroachments are permitted." The narrow easement-encroachment relief in § 401.3.F.6 is granted only to <b>air-conditioning and pool equipment</b> — generators are not on that list. Pull the plat; a platted PUE/drainage easement bars the pad.<br>· <b>10-ft equipment separation on tight lots.</b> Where the district's minimum side yard is under 7½ ft, accessory equipment (A/C, pumps, <b>generators</b>) must sit at least 10 ft from the neighbor's similar equipment (Table 4-5 fn. 8; 4-6 fn. 9; 4-7 fn. 3).</div>`;
+  if(s && s.tightSide){
+    g+=`<div class="note"><b>This district has a side yard under 7½ ft</b>, so the 10-ft equipment-separation rule applies here. The generator can sit anywhere in the side yard, but must be ≥ 10 ft from the adjacent lot's A/C, generator or similar equipment — a constraint you can't verify from this parcel alone.</div>`;
+  }
+  g+=`<div class="note"><b>Scope &amp; other rules.</b> The yard exemption is <b>residential</b> only — a generator serving a non-residential use meets the district setback. Noise is governed by the county noise ordinance (Code of Ordinances, Art. II — Noise). In Planned Developments the generator still can't sit in an easement even where the PD sets no yards.</div>`;
+  g+=`<a class="palink" href="https://library.municode.com/fl/manatee_county/codes/code_of_ordinances" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify § 401.3 — Manatee LDC (Municode)</a>`;
+  return g;
+}
+
+/* ---------- Cape Coral required setbacks — LDC Article 4, Table 4.1.3.B ----------
+   SOURCE OF TRUTH: City of Cape Coral LAND DEVELOPMENT CODE (Ord. No. 17-19, adopted 8-5-2019),
+   printed as Volume II of the Code of Ordinances. The LDC *superseded* the former "Land Use and
+   Development Regulations" (LUDR) — the section numbers carried over, the document name did not.
+   Verified line-by-line against Table 4.1.3.B as printed in Supp. No. 38.
+
    Cape Coral's table uses more yard types than Collier: Front, Front (cul-de-sac), Side,
-   Corner-lot street side, Rear (primary), and Rear for pool cage. Verified against user-pasted
-   Table 4.1.3.B (residential districts). Cape Coral's GIS layer often returns map codes like
-   R-1B/R-1D/R-1W — all map to the single "R-1" standards in the code table (handled in aliasing). */
+   Corner-lot street side, Rear (primary), Rear for pool cage, and Double-frontage. Residential
+   districts also carry a Minimum Lot Area and (R-1/RML only) a Maximum Impervious Surface cap —
+   the latter matters for generator/AC pads, which are impervious (calc method: LDC Art. 1 § 1.15.M).
+
+   The city's GIS layer sometimes returns legacy map codes like R-1A/R-1B/R-1D/R-1W. The LDC has no
+   R-1 subdistricts — there is one R-1 standard — so all of them alias to "R-1" (handled below). */
 const CAPE_CORAL_SETBACKS = {
-  "R-1": { front:25, frontCul:18, side:7.5, rear:20, rearCage:10, cornerSide:10, height:38,
-           rearNote:"Rear 20 ft primary structure / 10 ft pool cage." },
-  "RML": { front:25, frontCul:18, side:7.5, rear:20, rearCage:10, cornerSide:10, height:50,
+  "R-1": { minLot:10000, imperv:"60%", front:25, frontCul:18, side:7.5, rear:20, rearCage:10,
+           doubleFront:25, cornerSide:10, height:38,
+           rearNote:"Rear 20 ft primary structure / 10 ft pool cage.",
+           note:"Minimum width at the setback line: 80 ft (single-family/duplex), 40 ft (semi-detached), 120 ft (attached / multi-family 3+ units)." },
+  "RML": { minLot:10000, imperv:"60%", front:25, frontCul:18, side:7.5, rear:20, rearCage:10,
+           doubleFront:25, cornerSide:10, height:50,
            rearNote:"Rear 20 ft primary / 10 ft pool cage.",
-           note:"Duplexes: front 36/30 ft (per § 5.10.3), side 7.5, rear 20/10, corner side 10, height 38." },
-  "RMM": { front:25, frontCul:18, side:6, rear:26, cornerSide:10, height:60 },
-  "RE":  { front:50, frontCul:36, side:35, rear:35, cornerSide:25, height:38 },
-  "A":   { front:50, frontCul:36, side:35, rear:35, cornerSide:25, height:38,
+           note:"Duplexes: front 36/30 ft (structure design, per § 5.10.3), no cul-de-sac standard, side 7.5, rear 20/10, double-frontage 25, corner side 10, height 38." },
+  "RMM": { minLot:43560, front:25, frontCul:18, side:6, rear:26, doubleFront:25, cornerSide:10, height:60 },
+  "RE":  { minLot:40000, front:50, frontCul:36, side:35, rear:35, doubleFront:50, cornerSide:25, height:38 },
+  "A":   { minLot:"None", front:50, frontCul:36, side:35, rear:35, doubleFront:50, cornerSide:25, height:38,
            note:"Non-residential uses in the A district require a minimum of 4 acres." },
 
   /* --- NON-RESIDENTIAL districts (these tables add Min Lot Area, FAR & Double-frontage) --- */
@@ -5955,7 +6464,7 @@ const CAPE_CORAL_SETBACKS = {
            tableRef:"Article 4 (non-residential standards)" },
 
   /* --- MIXED-USE districts --- */
-  "NC":  { ref:"NC (Neighborhood Commercial): dimensional standards are set in Cape Coral LUDR Table 4.2.12 — see the code for this district.",
+  "NC":  { ref:"NC (Neighborhood Commercial): dimensional standards are set in Cape Coral LDC Table 4.2.12 — see the code for this district.",
            tableRef:"Article 4 (mixed-use standards)" },
   "CC":  { minLot:"None", far:1.25,   front:15, side:"0 ft or 6 ft", rear:15, doubleFront:15, cornerSide:10, height:"None",
            tableRef:"Article 4 (mixed-use standards)",
@@ -5966,7 +6475,7 @@ const CAPE_CORAL_SETBACKS = {
            tableRef:"Article 4 (mixed-use standards)" },
   "SC":  { minLot:"None", far:4,      front:"See § 4.2.15.D.", height:"120 ft (or 10 stories)",
            tableRef:"Article 4 (mixed-use standards)",
-           note:"SC (Suburban Center): front, side, rear, double-frontage and corner-side setbacks are established in Cape Coral LUDR Section 4.2.15.D." }
+           note:"SC (South Cape): front, side, rear, double-frontage and corner-side setbacks are established in Cape Coral LDC Section 4.2.15.D." }
 };
 /* Normalize a detected Cape Coral district to a table key. Cape Coral's GIS layer returns the full
    district DESCRIPTION (e.g. "Single-Family Residential Districts (R-1A & R-1B)"), not a bare code,
@@ -5980,7 +6489,9 @@ function capeCoralSetbacks(districtCode){
   if(CAPE_CORAL_SETBACKS[exact]) return tag(CAPE_CORAL_SETBACKS[exact], exact);
   // Planned Unit Development family (MXPUD, RPUD, CPUD, IPUD, PUD…): setbacks are NOT from a fixed
   // district table — each PUD's dimensional standards are set in its own approved ordinance/master
-  // concept plan (LUDR § 4.2.16). Return a PUD marker so the renderer shows guidance, not numbers.
+  // concept plan (LDC § 4.2.16; procedures at Art. 3 § 3.4.7). Return a PUD marker so the renderer
+  // shows guidance, not numbers. Note LDC Table 4.1.6: "PUD zoning allows all uses consistent with
+  // the Future Land Use Classification."
   if(/PUD\b/.test(U) || /PLANNED\s*(UNIT|DEVELOPMENT|DEVELOP)/.test(U)){
     return { __key:exact, __shown:String(districtCode).trim(), pud:true,
              tableRef:"Section 4.2.16 (Planned Unit Development Districts)" };
@@ -6021,17 +6532,18 @@ function renderCapeCoralSetbacks(districtCode){
   const shown = s.__shown || String(districtCode);
   // Planned Unit Development: no fixed table — setbacks come from the approved PUD ordinance.
   if(s.pud){
-    let p=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ PUD</span> ${esc(shown)} · setbacks set by the approved PUD ordinance (Cape Coral LUDR ${esc(s.tableRef||'Section 4.2.16')})</div>`;
+    let p=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ PUD</span> ${esc(shown)} · setbacks set by the approved PUD ordinance (Cape Coral LDC ${esc(s.tableRef||'Section 4.2.16')})</div>`;
     p+=`<div class="note">This is a <b>Planned Unit Development</b>. Its front, side, rear, height and other dimensional standards are <b>not</b> taken from a standard district table — they're established individually in this property's <b>approved PUD ordinance &amp; master concept plan</b> (the recorded development order). Look up that specific PUD ordinance for its setbacks.</div>`;
-    p+=`<div class="note warnbox">Cape Coral PUD / MXPUD districts (LUDR § 4.2.16) carry custom, project-specific setbacks adopted by City Council ordinance. The standard non-residential / mixed-use table values do <b>not</b> apply — verify the exact numbers in the recorded PUD development order.</div>`;
+    p+=`<div class="note warnbox">Cape Coral PUD / MXPUD districts (LDC § 4.2.16) carry custom, project-specific setbacks adopted by City Council ordinance. The standard non-residential / mixed-use table values do <b>not</b> apply — verify the exact numbers in the recorded PUD development order.</div>`;
     return p;
   }
   const isSub = s.__key && norm(shown)!==norm(s.__key);
   const famNote = isSub ? ` <span class="muted">(${esc(s.__key)} standards)</span>` : '';
   const tref = s.tableRef || 'Table 4.1.3.B';
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(shown)}${famNote} (Cape Coral LUDR ${esc(tref)})</div>`;
+  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(shown)}${famNote} (Cape Coral LDC ${esc(tref)})</div>`;
   // Lot area / FAR (non-residential & mixed-use districts carry these; residential entries don't)
   if(s.minLot!=null){ const lv=(typeof s.minLot==='number')?(fmtNum(s.minLot)+' sq ft'):(/^none$/i.test(String(s.minLot))?'None (no minimum)':String(s.minLot)); h+=fieldRow('Minimum lot area', esc(lv)); }
+  if(s.imperv!=null){ h+=fieldRow('Max impervious surface', esc(String(s.imperv))); }
   if(s.far!=null){ const fv=/^none$/i.test(String(s.far))?'None (no FAR limit)':String(s.far); h+=fieldRow('Floor-area ratio (FAR)', esc(fv)); }
   // Yard setbacks (each rendered only if defined for this district)
   const frontV=setVal(s.front);
@@ -6044,7 +6556,9 @@ function renderCapeCoralSetbacks(districtCode){
   if(s.ref) h+=`<div class="note">${esc(s.ref)}</div>`;
   if(s.rearNote) h+=`<div class="note"><b>Rear detail:</b> ${esc(s.rearNote)}</div>`;
   if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
-  h+=`<div class="note warnbox">Required minimums from Cape Coral's adopted LUDR (Article 4), keyed to the detected district. R-1 subcodes (R-1A, R-1B, R-1D, R-1W…) share the R-1 setback standards. Verify corner-lot frontage, waterfront, double-frontage and any overlay/PUD conditions in the code before relying on these.</div>`;
+  if(s.imperv) h+=`<div class="note"><b>Impervious cap:</b> generator, AC and pool-equipment concrete pads count toward the ${esc(String(s.imperv))} impervious-surface maximum. Calculation method: LDC Article 1, § 1.15.M.</div>`;
+  h+=`<div class="note warnbox">Required minimums from Cape Coral's adopted <b>Land Development Code</b> (Ord. 17-19, Article 4), keyed to the detected district. ${s.__key==='R-1' ? 'The LDC has no R-1 subdistricts — legacy map codes (R-1A, R-1B, R-1D, R-1W…) all use the single R-1 standard. ' : ''}<b>Irregular residential lots abutting a platted waterway</b> may have front/side/rear setbacks assigned individually by the Director (LDC § 4.1.4). Verify corner-lot frontage, double-frontage and any overlay/PUD conditions in the code before relying on these.</div>`;
+  h+=`<a class="palink" href="https://library.municode.com/fl/cape_coral/codes/code_of_ordinances" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify in the Cape Coral Land Development Code (Municode, Vol. II)</a>`;
   return h;
 }
 
@@ -7815,7 +8329,10 @@ async function snapToParcelByAddress(q, lat, lng){
     if(best && (best.overlap>0 || (d<=0.012 && feats.filter(f=>houseNum((f.attributes||{}).PHY_ADDR1)===hn).length===1))){
       return best;
     }
-    if(best && d>=0.03) return best;                // last resort: best nearest exact-number match
+    // Widest box, last resort: only trust it if the STREET matched. A bare same-house-number hit on a
+    // DIFFERENT street across a 3km box is worse than leaving the geocoder pin alone, so we return null
+    // in that case and let the caller keep its original point.
+    if(best && best.overlap>0 && d>=0.03) return best;
   }
   return null;
 }
@@ -8104,9 +8621,29 @@ function renderCollierGeneratorRules(){
   return g;
 }
 
-/* Cape Coral generator siting — LUDR Article 5 setback-encroachment table. Generators may project
-   into required yards up to the listed distance from the building envelope; verified from the
-   user-pasted encroachment table. Unlike Collier, Cape Coral allows a front-yard projection. */
+/* Cape Coral generator siting — LDC Table 4.1.5 (Article 4) + LDC § 5.1.13.E (Article 5).
+   Verified against the adopted LDC, Supp. No. 38 (Table 4.1.5 as amended by Ord. 29-26, 6-3-2026;
+   § 5.1.13 as amended by Ord. 25-25, 6-4-2025).
+
+   The controlling text, because it is easy to get backwards:
+
+     § 4.1.5.C.3 — "newly installed air conditioners, generators, and pool equipment along with
+     their respective concrete pads, are exempt from building setback requirements but shall not
+     be placed in any easement."
+
+     Table 4.1.5 (Maximum Distance Allowed FROM THE BUILDING ENVELOPE):
+       Generators and HVAC equipment ...... Front: 5 ft (see § 5.1.13) | Side: None | Rear: None
+       Pool equipment ..................... Front: Not allowed         | Side: None | Rear: None
+
+   "None" in that table = no maximum distance from the building, i.e. unrestricted placement in
+   that yard. It does NOT mean "no encroachment allowed." So in the side and rear yards a generator
+   is exempt from the district setback outright; the BINDING constraint is the six-foot perimeter
+   public utility easement (LDC § 5.1.6.A), which in R-1/RML/RE/A may hold nothing but a paved
+   driveway, walkway, sidewalk, fence, or well. Generators are not on that list.
+
+   Practical effect on a typical R-1 lot: the generator's real side-yard floor is the 6 ft PUE,
+   NOT (7.5 ft setback − 5 ft encroachment) = 2.5 ft. HVAC is grouped WITH generators, not with
+   pool equipment; pool equipment is the one that is barred from the front yard. */
 
 /* ---------- Aerial & Street View scouting ----------
    Keyless: the hero image is a static Esri World Imagery export (same source as the map's
@@ -8202,19 +8739,28 @@ function _ptToPaths(lat,lng, paths){
    ASCE-sanctioned method, and what the Hazard Tool does. Returns {v, lo, hi, interp} or null. */
 async function queryWindSpeed(lat,lng){
   const base=WIND_LIVE.url; if(!base) return null;
-  for(const r of WIND_LIVE.radii){
+  // SPEED: fire ALL radii in parallel (was: sequential, each waiting for the last to miss) and ask the
+  // server to GENERALIZE the contour lines (maxAllowableOffset scaled to the search radius, plus
+  // geometryPrecision=5). The statewide ASCE contour polylines are enormous at full resolution —
+  // generalizing cuts each payload ~10-100× with no meaningful effect on a km-scale distance
+  // interpolation. We then take the SMALLEST radius that produced usable values, so the result is
+  // identical to the old sequential logic — just arriving in one round-trip time instead of four.
+  const attempts = WIND_LIVE.radii.map(r=>{
+    const off = Math.max(50, Math.round(r/50));   // metres of allowed simplification (~2% of radius)
     const params=`geometry=${pointGeom(lat,lng)}&geometryType=esriGeometryPoint&inSR=4326`+
       `&distance=${r}&units=esriSRUnit_Meter&spatialRel=esriSpatialRelIntersects`+
-      `&outFields=*&returnGeometry=true&outSR=4326&f=json`;
+      `&outFields=*&returnGeometry=true&outSR=4326&maxAllowableOffset=${off}&geometryPrecision=5&f=json`;
     const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),ENRICH_TIMEOUT);
-    let j;
-    try{
-      const resp=await fetch(base+'?'+params,{signal:ctrl.signal}); clearTimeout(t);
-      if(!resp.ok) continue;
-      j=await resp.json(); if(j.error) continue;
-    }catch(e){ clearTimeout(t); return null; }   // CORS / network / timeout → county fallback
+    return fetch(base+'?'+params,{signal:ctrl.signal})
+      .then(resp=>{ clearTimeout(t); return resp.ok?resp.json():null; })
+      .then(j=>(j && !j.error)?j:null)
+      .catch(()=>{ clearTimeout(t); return null; });
+  });
+  const results = await Promise.all(attempts);
+  for(const j of results){                        // radii order preserved → smallest hit wins
+    if(!j) continue;
     const feats=j.features||[];
-    if(!feats.length) continue;                  // none within this radius → expand
+    if(!feats.length) continue;                  // none within this radius → try next
     const byVal={};                              // nearest distance (m) per distinct contour value
     for(const f of feats){
       const v=detectWindSpeed(f.attributes||{}); if(v==null) continue;
@@ -8274,15 +8820,49 @@ function renderWindDesign(lat, lng, cityName, countyName, liveWind){
   return h;
 }
 
-function renderCapeCoralGeneratorRules(){
-  let g=`<div class="freshline snap" style="margin-top:12px"><span class="badge unk">⚡ GENERATOR · LUDR Art. 5</span> generator siting (Cape Coral)</div>`;
-  g+=`<div class="note"><b>Yard encroachment:</b> a generator may project up to <b>5 ft into the front, side, or rear yard</b> from the building envelope. (Cape Coral permits a front-yard projection — unlike some jurisdictions.)</div>`;
-  g+=fieldRow('Front yard', 'up to 5 ft');
-  g+=fieldRow('Side yard', 'up to 5 ft');
-  g+=fieldRow('Rear yard', 'up to 5 ft');
-  g+=`<div class="note">Other mechanical equipment (AC, pool equipment) may encroach 5 ft into <b>side and rear</b> yards but <b>not the front</b>. These are projections from the building envelope, measured on top of the district's required setback.</div>`;
-  g+=`<div class="note warnbox">From Cape Coral's LUDR setback-encroachment table (Article 5). The encroachment is measured from the building envelope (i.e., into the required yard shown above), not from the lot line. Confirm waterfront, PUE (public utility easement), and corner-lot conditions with Cape Coral before siting.</div>`;
-  g+=`<a class="palink" href="https://online.encodeplus.com/regs/capecoral-fl" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify in Cape Coral LUDR (Article 5)</a>`;
+function renderCapeCoralGeneratorRules(districtCode){
+  const U = districtCode ? String(districtCode).toUpperCase() : '';
+  // The six-foot perimeter PUE exists in R-1, RML, RE and A (LDC § 5.1.6.A). RMM and the
+  // non-residential / mixed-use districts are not named in that subsection.
+  const hasPUE = /\bR-?1[A-Z]?\b/.test(U) || /\bRML\b/.test(U) || /\bRE\b/.test(U) ||
+                 /\bRESIDENTIAL ESTATE/.test(U) || /\bAGRICULTUR/.test(U) || U.trim()==='A';
+
+  let g=`<div class="freshline snap" style="margin-top:12px"><span class="badge unk">⚡ GENERATOR · LDC Table 4.1.5 &amp; § 5.1.13</span> generator siting (Cape Coral)</div>`;
+
+  g+=`<div class="note"><b>Generators are exempt from building setbacks.</b> LDC § 4.1.5.C.3: newly installed generators, air conditioners and pool equipment — <i>and their concrete pads</i> — "are exempt from building setback requirements <b>but shall not be placed in any easement</b>." The district setbacks above do <b>not</b> constrain the unit. The easement does.</div>`;
+
+  g+=fieldRow('Side yard', 'Exempt from setback — no distance limit');
+  g+=fieldRow('Rear yard', 'Exempt from setback — no distance limit');
+  g+=fieldRow('Front yard', 'Allowed · ≤ 5 ft from front of building, screened enclosure required', 'big');
+  g+=fieldRow('Any easement', 'Prohibited');
+
+  if(hasPUE){
+    g+=`<div class="note warnbox"><b>The 6-foot perimeter PUE is the real limit.</b> In the R-1, RML, RE and A districts a six-foot public utility easement rings the site (LDC § 5.1.6.A), and nothing may be placed on it except a paved driveway, walkway, sidewalk, fence, or well. <b>A generator is not on that list.</b> So on a standard R-1 lot the closest a generator can sit to a side or rear line is <b>6 ft</b> — not 2.5 ft, and not the 7.5 ft side setback. Pull the plat: the PUE is platted, and utilities or drainage inside it can further restrict the pad.</div>`;
+  } else {
+    g+=`<div class="note warnbox">No six-foot perimeter PUE is imposed on this district by LDC § 5.1.6.A, but <b>any</b> recorded easement still bars a generator pad. Pull the plat and the title work before siting.</div>`;
+  }
+
+  // LDC § 5.1.13 is titled "Single-family residential standards" — its front-yard conditions bind
+  // single-family uses. Show the full checklist for districts where SF is the norm; a pointer elsewhere.
+  const isSF = hasPUE || /\bRMM\b/.test(U) || !U;
+  if(!isSF){
+    g+=`<div class="note">The detailed front-yard enclosure requirements in LDC § 5.1.13.E apply to <b>single-family residential</b> uses. For a single-family use lawfully located in this district, those conditions still apply — see § 5.1.13.E.</div>`;
+  } else
+  g+=`<div class="note"><b>Front-yard generators &amp; HVAC (single-family) — LDC § 5.1.13.E.</b> Permitted in front of the residence, subject to all of:
+    <br>· Screened from the street and from any abutting residential site by an <b>enclosure</b> of materials consistent with the building and painted to match the front façade.
+    <br>· Enclosure max height <b>6 ft</b>, unless more is needed to screen the full height of the equipment. It is not a "wall" for § 5.2.7 purposes.
+    <br>· <b>The enclosure itself must meet all building setbacks</b> for the district — the equipment's setback exemption does not pass through to it.
+    <br>· Equipment no more than <b>5 ft from the front of the building</b>, unless the Florida Building Code requires more.
+    <br>· The enclosure may screen <b>only</b> the generator/HVAC — no other equipment or storage inside it.
+    <br>· Does <b>not</b> apply to temporary portable generators during emergencies or after a natural disaster.</div>`;
+
+  g+=`<div class="note"><b>Other equipment (Table 4.1.5).</b> HVAC is treated <b>identically to generators</b> — 5 ft in the front yard, unlimited in side and rear. <b>Pool equipment is the exception:</b> <b>not allowed</b> in the front yard; unlimited in side and rear. (Existing AC, pool equipment and generators may be maintained and replaced, provided the replacement does not encroach into an easement.)</div>`;
+
+  g+=`<div class="note"><b>Also check:</b> the pad is impervious surface and counts against the district's impervious cap (60% in R-1 and RML; LDC Art. 1 § 1.15.M). Irregular residential lots abutting a platted waterway can have setbacks assigned individually by the Director (§ 4.1.4). And required setbacks must otherwise stay "open and unobstructed from 30 inches above the ground" (§ 4.1.5).</div>`;
+
+  g+=`<div class="note warnbox"><b>Currency:</b> Table 4.1.5 was last amended by Ord. 29-26 (6-3-2026) and § 5.1.13 by Ord. 25-25 (6-4-2025) — both provisions have changed twice in two years. Confirm against the live code and with Cape Coral Development Services before siting.</div>`;
+
+  g+=`<a class="palink" href="https://library.municode.com/fl/cape_coral/codes/code_of_ordinances" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify in the Cape Coral Land Development Code (Municode, Vol. II — Art. 4 &amp; Art. 5)</a>`;
   return g;
 }
 
@@ -8301,6 +8881,10 @@ function drawParcel(g, info){
       let acres=Infinity;
       try{ const _d=parcelDimensions(g); if(_d&&_d.acres>0) acres=_d.acres; }catch(e){}
       const oversized = acres>MAX_HOME_LOT_ACRES;
+      // Remember this lot's polygon so same-lot gap-fill labels can be suppressed — but ONLY for a
+      // normal home lot. Inside an oversized shared tract (condo/mobile park) the gap-fill is exactly
+      // how the individual unit numbers get drawn, so we must NOT suppress points there.
+      setSubjectRings(oversized ? null : g);
       const latlngs=g.rings.map(r=>r.map(p=>[p[1],p[0]]));
       // Shared tract → ORANGE dashed outline (context). Normal home lot → solid BLUE.
       const col = oversized ? '#ff8c1a' : '#39d3ff';
@@ -8363,6 +8947,9 @@ async function drawHomeWithinTract(lat, lng, tractAcres, info){
       if(a<bestA){ bestA=a; best=f; }
     }
     if(!best) return;
+    // This is the individual home lot resolved inside a shared tract — treat it as the subject for
+    // same-lot gap-fill suppression (a home here can still carry a second street frontage).
+    setSubjectRings(best.geometry);
     const latlngs=best.geometry.rings.map(rr=>rr.map(p=>[p[1],p[0]]));
     homeParcelLayer=L.polygon(latlngs,{renderer:canvasRenderer,color:'#39d3ff',weight:2.5,
       fillColor:'#39d3ff',fillOpacity:.14,opacity:1}).addTo(map);
@@ -8386,6 +8973,18 @@ async function drawHomeWithinTract(lat, lng, tractAcres, info){
    any failure, and skipped when zoomed out too far to be readable. */
 const nbrNumLayer = L.layerGroup();
 let nbrNumOn = true;   // labels follow the parcel view by default; tied to the parcel result
+// Rings ([[ [lng,lat], ... ]]) of the SUBJECT parcel currently highlighted, in WGS84. Set when a
+// parcel is drawn and used to suppress gap-fill address points that fall on the SAME lot — a deep
+// through-lot / corner lot can carry a second street address (e.g. 22519 Aster Ave also addressed
+// 3605 Idlewild St), and without this the gap-fill would draw that second address as if it were a
+// separate home. Cleared on each new draw so a stale polygon never suppresses real neighbours.
+let _subjRings = null;
+function setSubjectRings(geometry){
+  try{
+    const rings = geometry && geometry.rings;
+    _subjRings = (rings && rings.length) ? rings : null;
+  }catch(e){ _subjRings = null; }
+}
 function clearNeighborNumbers(){ try{ nbrNumLayer.clearLayers(); if(map.hasLayer(nbrNumLayer)) map.removeLayer(nbrNumLayer); }catch(e){} }
 /* Clicking a neighbour label runs a FULL lookup of that address — identical to typing
    it in the search box. We drop any "#unit" suffix and a trailing ", City" so the
@@ -8449,6 +9048,12 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
             if(!hn) continue;
             const g=f.geometry; const cx=g?(g.x!=null?g.x:g.X):null, cy=g?(g.y!=null?g.y:g.Y):null;
             if(cx==null||cy==null) continue;
+            // SAME-LOT SUPPRESSION (file path): a deep through-lot / corner lot can carry a SECOND
+            // street address (e.g. 22519 Aster Ave also has a 3605 Idlewild St point). The compact
+            // file lists both, so without this we'd draw two addresses on one house. Drop any point
+            // that falls INSIDE the subject parcel whose house number ISN'T the subject's — the
+            // subject's own point (same hn) is always kept so its label never disappears.
+            if(_subjRings && (want==null || hn!==String(want).trim()) && pointInPolygon(cx, cy, _subjRings)) continue;
             // dedup on full address + exact coord so stacked condo units collapse only if identical
             const key=txt+'@'+cx.toFixed(6)+','+cy.toFixed(6);
             if(seen.has(key)) continue; seen.add(key);
@@ -8678,6 +9283,13 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
             if(pnum==null||String(pnum).trim()===''){ const m=String(formatAddrPoint(a)).match(/^\s*(\d+)/); pnum=m?m[1]:null; }
             const hn = pnum!=null ? houseNum(String(pnum)) : null;
             if(!hn) continue;
+            // SAME-LOT SUPPRESSION: if this point falls inside the SUBJECT parcel polygon, it's a
+            // second street address on the very same lot (deep through-lot / corner lot — e.g.
+            // 22519 Aster Ave also carrying a 3605 Idlewild St point). The lot already shows its
+            // subject label, so drawing this too would look like two addresses on one house. Skip it.
+            // (Only set for normal home lots, never for oversized shared tracts, so unit gap-fill
+            // inside a condo/mobile park is unaffected.)
+            if(_subjRings && pointInPolygon(gx, gy, _subjRings)) continue;
             // already have a parcel label for this spot? skip (avoids duplicating outside numbers).
             let dup=false;
             for(const L0 of labels){ const ddx=L0.lng-gx, ddy=L0.lat-gy; if(ddx*ddx+ddy*ddy < NEAR2){ dup=true; break; } }
@@ -8828,6 +9440,7 @@ async function runLookup(lat,lng,searchCtx){
   if(parcelLayer){ map.removeLayer(parcelLayer); parcelLayer=null; }
   if(homeParcelLayer){ map.removeLayer(homeParcelLayer); homeParcelLayer=null; }
   clearNeighborNumbers(); _nbrCtx=null;
+  _subjRings=null;   // reset per lookup; drawParcel re-sets it only for a normal home lot
   saveLoc(lat,lng);
   document.getElementById('coordReadout').textContent=`lat ${lat.toFixed(5)}   lng ${lng.toFixed(5)}`;
 
@@ -9224,6 +9837,11 @@ async function runLookup(lat,lng,searchCtx){
     html += renderParcelGeneric(liveRes.features[0].attributes, det);
     if(liveRes.__ngLat && marker){ try{ marker.setLatLng([liveRes.__ngLat, liveRes.__ngLng]); saveLoc(liveRes.__ngLat, liveRes.__ngLng); }catch(e){} }
     { const _a=liveRes.features[0].attributes;
+      const _siteBox = det.site?[pick(_a,det.site), (det.city?pick(_a,det.city):null)].filter(Boolean).join(', '):null;
+      // MAP-CLICK ADDRESS FILL: when the lookup came from clicking the map (no searchCtx — typed
+      // searches and suggestion clicks always pass one), reflect the clicked parcel's site address
+      // into the search box, exactly like picking it from the dropdown would.
+      if(!searchCtx && _siteBox){ try{ addrEl.value=_siteBox; STORE.set('fl_addr',_siteBox); addToHistory(_siteBox); }catch(e){} }
       drawParcel(liveRes.features[0].geometry, {
         owner: det.owner?pick(_a,det.owner):null,
         pid:   det.pid?pick(_a,det.pid):null,
@@ -9335,6 +9953,8 @@ async function runLookup(lat,lng,searchCtx){
     }
     if(lsf) html += fieldRow('Lot area', lsf+' sq ft');
     if(site)     html += fieldRow('Site address', esc(site)+(siteCity?'<br>'+esc(siteCity):''));
+    // MAP-CLICK ADDRESS FILL (roll-fallback counties): same as the live branch above.
+    if(!searchCtx && site){ try{ const _boxAddr=[site,siteCity].filter(Boolean).join(', '); addrEl.value=_boxAddr; STORE.set('fl_addr',_boxAddr); addToHistory(_boxAddr); }catch(e){} }
     if(mail)     html += fieldRow('Owner mailing', esc(mail)+(mailCity?'<br>'+esc(mailCity):''));
     if(sec||twn||rng) html += fieldRow('Sec-Twn-Rng', esc([sec,twn,rng].filter(Boolean).join(' - ')));
     if(jv)  html += fieldRow('Just (market) value'+(ay?' '+esc(ay):''), jv);
@@ -9446,6 +10066,13 @@ async function runLookup(lat,lng,searchCtx){
   }
 
   /* ---- Flood ---- */
+  /* Both the FEMA Flood Hazard card and the Elevation Certificate card now live in the Flood tab,
+     and for some cities (Naples) the resident portal and the EC lookup are the SAME URL. Record
+     whatever portal this card links so the EC card below can reference it instead of re-linking. */
+  let floodPortalUrl = null;
+  const sameUrl = (a,b) => !!a && !!b &&
+    String(a).trim().replace(/\/+$/,'').toLowerCase() === String(b).trim().replace(/\/+$/,'').toLowerCase();
+
   html += `<div class="card"><div class="ch"><span class="icn">[ FLD ]</span><h2>FEMA Flood Hazard</h2>
     <div class="src">FEMA National<br>Flood Hazard Layer</div></div><div class="cb">`;
   html += `<div class="freshline"><span class="badge live">● LIVE</span> effective NFHL, queried in real time</div>`;
@@ -9477,6 +10104,23 @@ async function runLookup(lat,lng,searchCtx){
     html += fieldRow('Base Flood Elev.', bfe!=null?esc(bfe)+' ft (NAVD88)':'<span class="muted">none published for this zone</span>');
     if(depth!=null) html += fieldRow('Base flood depth', esc(depth)+' ft');
     if(zones.length>1) html += fieldRow('Note','Point sits on a zone boundary — '+zones.length+' zones overlap here.');
+    // --- Whole-parcel check: does the LOT cross flood-zone lines? (pin query above is point-only) ---
+    { const pFeat = (parcel && !parcel.__err && parcel.features && parcel.features[0] && parcel.features[0].geometry && parcel.features[0].geometry.rings) ? parcel.features[0]
+                  : (live && !live.__err && live.features && live.features[0] && live.features[0].geometry && live.features[0].geometry.rings) ? live.features[0] : null;
+      if(pFeat){
+        const pz = await queryFloodZonesOnParcel(pFeat);
+        if(myId!==runId) return;
+        if(pz && pz.length>1){
+          const lbls = pz.map(m=>{
+            let s='<b>'+esc(m.zone)+'</b>'; if(m.bfe!=null) s+=' '+esc(m.bfe)+' ft';
+            if(m.sfha) s+=' <span class="badge sfha" style="font-size:9px">SFHA</span>';
+            return s; });
+          html += `<div class="field"><div class="k">Zones on this parcel</div><div class="v">${lbls.join(' &nbsp;·&nbsp; ')}</div></div>`;
+          html += `<div class="note">This lot crosses a flood-zone boundary — the zone above is only where the pin sits. Insurance rating uses the <b>building's</b> zone (typically the highest-risk zone the structure touches); equipment placed elsewhere on the lot (generator pad, pool equipment) may fall in a different zone with a different required elevation. Confirm the zone line on the FIRM panel.</div>`;
+          if(window.__exportData) window.__exportData.floodZonesParcel = pz.map(m=>m.zone+(m.bfe!=null?' '+m.bfe:'')).join(', ');
+        }
+      }
+    }
     html += `<div class="note" style="padding-top:9px">Static BFE comes straight from the effective FIRM. Many zones (e.g. AE on a wide floodplain, AO, or Zone X) carry no single static BFE — confirm the precise elevation on the FIRM panel / FEMA Map Service Center.</div>`;
   } else {
     html += `<div class="field"><div class="k">Flood zone</div><div class="v zone"><span class="badge unk">Not mapped</span></div></div>`;
@@ -9505,6 +10149,7 @@ async function runLookup(lat,lng,searchCtx){
   if(fr){
     html += `<a class="palink" href="${esc(fr.url)}" target="_blank" rel="noopener" style="margin-top:10px">↗ ${esc(fr.label)} — detailed flood zone by address</a>`;
     html += `<div class="note">The above is the effective FEMA NFHL (the legal flood zone). ${esc(titleCase(cityName))} also maintains a resident flood portal that frequently has more detailed, locally-curated flood-zone and elevation info for an address — worth cross-checking.</div>`;
+    floodPortalUrl = fr.url;
   }
   html += `</div></div>`;
 
@@ -9575,6 +10220,9 @@ async function runLookup(lat,lng,searchCtx){
     // Unincorporated Sarasota County (Unified Development Code, Ch. 124 § 124-76). Cities (Sarasota,
     // Venice, North Port, Longboat Key) adopt their own codes and are excluded via SARASOTA_INCORP.
     if(norm(countyName)==='SARASOTA' && !SARASOTA_INCORP.has(norm(cityName)) && zhit.code){ html += renderSarasotaSetbacks(zhit.code); }
+    // Manatee's parcel layer covers the whole county; city parcels are flagged by a ZONING prefix
+    // (BR_, PA_…), which renderManateeSetbacks() self-detects and reports — so no cityName guard here.
+    if(norm(countyName)==='MANATEE' && zhit.code){ html += renderManateeSetbacks(zhit.code); }
     if(zhit.sheetUrl) html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Official zoning map sheet (PDF)</a>`;
     html += `<div class="note" style="padding-top:6px">District read live from <b>${esc(zhit.layerName||jurName)}</b>${zhit.lastEdit?' (layer updated '+esc(zhit.lastEdit.toLocaleDateString())+')':''}. Verify overlays, any PUD/planned-development terms, and the exact front/side/rear setbacks in the adopted code below — those are not a queryable number.</div>`;
     html += `<div class="note warnbox"><b>Not from the property appraiser.</b> The district above comes from <b>${esc(jurName)}</b>'s zoning GIS; setbacks and use standards live in its adopted land development code (Municode) and permitting portal.</div>`;
@@ -9588,7 +10236,7 @@ async function runLookup(lat,lng,searchCtx){
   // Collier County generator siting (LDC 5.03.07) — UNINCORPORATED Collier only. The incorporated
   // cities (Naples has its own § 56-41 rendered above; Marco Island has its own LDC) are excluded.
   if(norm(countyName)==='COLLIER' && !COLLIER_INCORP.has(norm(cityName))){ html += renderCollierGeneratorRules(); }
-  if(norm(cityName)==='CAPECORAL'){ html += renderCapeCoralGeneratorRules(); }
+  if(norm(cityName)==='CAPECORAL'){ html += renderCapeCoralGeneratorRules(zhit && zhit.code ? zhit.code : null); }
   // City of Sanibel: ecological-zone setbacks + the Ch. 126 Div. 16 generator ordinance. Rendered
   // unconditionally for any Sanibel parcel (not gated on a detected zoning code), since Sanibel's
   // ecological-zone GIS isn't reliably point-queryable here — pass the zone code when we DID get one
@@ -9627,7 +10275,8 @@ async function runLookup(lat,lng,searchCtx){
       html += `<a class="palink" href="${esc(z.zoningCh)}" target="_blank" rel="noopener" style="margin-left:6px">↗ Setbacks for ${distTxt} — zoning code, live (Municode)</a>`;
       html += `<div class="note">Opens ${esc(jurName)}'s live zoning chapter. Find the <b>${(zhit&&zhit.code)?esc(String(zhit.code)):'detected'}</b> district section for its exact front/side/rear setbacks — always the current adopted text, never cached here.</div>`;
     } else if(z.code){
-      // Label by source: Municode vs other code platforms (e.g. encodePlus for Cape Coral's LUDR).
+      // Label by source: Municode vs other code platforms. (Cape Coral's zoning now lives in the
+      // Land Development Code, printed as Volume II of its Municode Code of Ordinances.)
       const codeLabel = /municode\.com/i.test(z.code) ? 'Land development code (Municode)' : 'Land development code';
       html += `<a class="palink" href="${esc(z.code)}" target="_blank" rel="noopener" style="margin-left:6px">↗ ${codeLabel}</a>`;
     }
@@ -9661,12 +10310,15 @@ async function runLookup(lat,lng,searchCtx){
     }
   }catch(e){}
 
-  html += `<div class="card noprint"><div class="ch"><span class="icn">[ DOC ]</span><h2>Permits &amp; Documents</h2>
-    <div class="src">${esc(docJur)}<br>floodplain / permits</div></div><div class="cb">`;
+  /* The Elevation Certificate is a floodplain document, not a permit record — it renders as its
+     own card so tabifyResults() files it under Flood, beside the FEMA Flood Hazard card.
+     Printable (no `noprint`): the EC is the document a reviewer actually wants on the page. */
+  html += `<div class="card"><div class="ch"><span class="icn">[ ELV ]</span><h2>Elevation Certificate</h2>
+    <div class="src">${esc(docJur)}<br>floodplain</div></div><div class="cb">`;
 
   // --- City resident portal (Forerunner): shown when not already represented by a city DOCS entry ---
   const frDoc = (cityName && !docInCity) ? FORERUNNER[norm(cityName)] : null;
-  if(frDoc){
+  if(frDoc && !sameUrl(frDoc.url, floodPortalUrl)){
     html += `<a class="palink" href="${esc(frDoc.url)}" target="_blank" rel="noopener">↗ ${esc(frDoc.label)} — search this address for its Elevation Certificate</a>`;
     html += `<div class="note">${esc(titleCase(cityName))}'s resident portal lets you search an address and view the Elevation Certificate on file (plus local flood info). This is usually the quickest EC lookup for in-city properties.</div>`;
   }
@@ -9696,11 +10348,22 @@ async function runLookup(lat,lng,searchCtx){
 
   // --- Always offer the human EC map / search page as fallback ---
   if(docCfg){
-    if(docCfg.ecMap) html += `<a class="palink" href="${esc(docCfg.ecMap)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(docJur)} elevation-certificate map / search</a>`;
+    // Don't re-link the same portal the FEMA Flood Hazard card already linked (same tab, one URL).
+    if(docCfg.ecMap && sameUrl(docCfg.ecMap, floodPortalUrl)){
+      html += `<div class="note">The EC lookup for this address is the same resident portal linked in the <b>FEMA Flood Hazard</b> card above — search the address there to view the Elevation Certificate on file.</div>`;
+    } else if(docCfg.ecMap){
+      html += `<a class="palink" href="${esc(docCfg.ecMap)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(docJur)} elevation-certificate map / search</a>`;
+    }
     if(docCfg.ecNote) html += `<div class="note">${esc(docCfg.ecNote)}</div>`;
   } else if(countyName){
     html += `<a class="palink" href="https://www.google.com/search?q=${encodeURIComponent(titleCase(countyName)+' County Florida elevation certificate map lookup')}" target="_blank" rel="noopener" style="margin-top:8px">↗ Find ${esc(titleCase(countyName))} County elevation-certificate lookup</a>`;
   }
+
+  html += `</div></div>`;   // ---- close the Elevation Certificate card ----
+
+  /* ---- Permits & Documents: survey / site plan / permit history ---- */
+  html += `<div class="card noprint"><div class="ch"><span class="icn">[ DOC ]</span><h2>Permits &amp; Documents</h2>
+    <div class="src">${esc(docJur)}<br>permits</div></div><div class="cb">`;
 
   // --- Survey / Site Plan / permit history: deep link to the permitting portal (no public data feed exists) ---
   // City portal wins when the parcel is in a city; else county; else the zoning-config portal.
@@ -9939,7 +10602,7 @@ function tabifyResults(root){
   const MAP=[
     [/jurisdiction/i,'site'],[/parcel/i,'site'],
     [/hoa|sunbiz/i,'hoa'],
-    [/zoning/i,'zoning'],[/flood/i,'flood'],[/wind/i,'wind'],
+    [/zoning/i,'zoning'],[/flood|elevation/i,'flood'],[/wind/i,'wind'],
     [/electric/i,'utilities'],[/natural gas|propane/i,'utilities'],
     [/permit/i,'permits'],[/aerial|street view/i,'aerial']
   ];
@@ -10040,6 +10703,18 @@ const COUNTY_PARCEL_RESOLVERS = {
     zipField:  "SiteZipCode",
     folioField:"Folio",
     ownerField:"OwnerLine1"
+  },
+  // Charlotte County's own live parcel layer (the same layer that draws the correct per-parcel
+  // address labels on the map). Site address = FullPropertyAddress, parcel id = ACCOUNT,
+  // owner = ownersname. This layer has NO separate city/zip field — the address is a single
+  // combined string — so cityField/zipField are omitted and the resolver just uses the address.
+  // Routing the suggestion through here (instead of the interpolated OSM/Census pin) is what stops
+  // "22519 Aster Ave" landing on 22501 two lots west.
+  CHARLOTTE: {
+    url: "https://agis.charlottecountyfl.gov/arcgis/rest/services/Essentials/CCGIS_Web_Layers2022/MapServer/17/query",
+    addrField: "FullPropertyAddress",
+    folioField:"ACCOUNT",
+    ownerField:"ownersname"
   }
 };
 /* Suffix/abbreviation folding so "Rd"/"Road", "Ct"/"Court", "Dr"/"Drive" etc. all compare equal,
@@ -10073,15 +10748,20 @@ async function resolveCountyParcel(countyName, searchCtx){
   // require the distinctive street token(s) to be present so "652 Bougainvillea" can't match
   // "652 Broad Ave". When no street was typed, accept the bare house-number hit only if unique.
   const wantCore = new Set(streetCore(searchCtx.raw||''));
+  // Direction + suffix tokens the user actually typed (AVE/ST/S/N/...). When present, the parcel's
+  // address must contain them too — so "8th Ave S" can never match "8th St N".
+  const DIRSUF = new Set([...Object.values(DIRMAP), ...Object.values(SUFMAP)]);
+  const wantDS = streetTokens(searchCtx.raw||'').filter(t=>DIRSUF.has(t));
   const matches=[];
   for(const f of feats){
     const a=f.attributes||{}; const addr=a[cfg.addrField]; if(!addr) continue;
     if(houseNum(addr)!==searchCtx.hn) continue;
+    const toks=new Set(streetTokens(addr));
     if(wantCore.size){
-      const toks=new Set(streetTokens(addr));
       let overlap=false; wantCore.forEach(t=>{ if(toks.has(t)) overlap=true; });
       if(!overlap) continue;                       // street must match when one was typed
     }
+    if(wantDS.length && !wantDS.every(t=>toks.has(t))) continue; // typed Ave/S/etc. must match too
     const c=featCentroid(f); if(!c) continue;       // [x,y] = [lng,lat]
     matches.push({
       lat:c[1], lng:c[0],
@@ -10137,8 +10817,14 @@ async function doSearch(){
     let county=null;
     const rough=await geocodeBest(q).catch(()=>null);
     if(rough && isFinite(rough.lat) && isFinite(rough.lng)) county=await countyNameAt(rough.lat,rough.lng).catch(()=>null);
-    if(county && COUNTY_PARCEL_RESOLVERS[norm(county)]){
-      const pr=await resolveCountyParcel(county, searchCtx).catch(()=>null);
+    // If the rough geocode failed or landed somewhere without a resolver (common for short
+    // addresses like "481 8th Ave S" that exist in many cities), don't give up — try each
+    // configured county parcel layer directly. The strict house-number + street/direction/suffix
+    // match inside resolveCountyParcel keeps false hits out.
+    let tryCounties = (county && COUNTY_PARCEL_RESOLVERS[norm(county)]) ? [county] : Object.keys(COUNTY_PARCEL_RESOLVERS);
+    for(const cty of tryCounties){
+      const pr=await resolveCountyParcel(cty, searchCtx).catch(()=>null);
+      if(!pr){ continue; }
       if(pr && pr.multi && pr.candidates && pr.candidates.length){
         // Several lots share this number+street — show them rather than guess one.
         const list=pr.candidates.slice(0,8).map(c=>`<div class="sg" style="cursor:default"><span>${esc(c.label)}</span>${c.folio?`<span class="sgsrc">${esc(c.folio)}</span>`:''}</div>`).join('');
@@ -10174,9 +10860,25 @@ async function doSearch(){
   if(!g){ results.innerHTML=setStatus('err','Could not geocode that address. Try adding city/ZIP, or just click the spot on the map.'); return; }
   addToHistory(g.label || q);
   results.innerHTML=setStatus('busy','Pinpointing the parcel…');
-  map.setView([g.lat,g.lng], 18);
-  await runLookup(g.lat,g.lng, searchCtx);
-  const conf = `<div class="note matchconf noprint" style="padding:2px 2px 4px">Matched (${esc(g.src)}): <b style="color:var(--ink)">${esc(g.label)}</b> — parcel resolved below; confirm the marker is on the right lot.</div>`;
+  // UNIVERSAL ROOFTOP SNAP (every county): the geocoder point is INTERPOLATED along the street's
+  // house-number range and routinely lands a lot or two off — sometimes on a vacant neighbour. Before
+  // running point-in-polygon from that drifted pin, re-query the statewide parcel roll around it and
+  // snap to the parcel whose SITE ADDRESS actually matches the typed house number + street. Runs for
+  // ALL 67 counties (the roll is statewide); counties with a wired live layer were already handled
+  // authoritatively above, so this only ever improves the geocoder-fallback cases.
+  let sLat=g.lat, sLng=g.lng, snapSrc=g.src, snapLabel=g.label;
+  if(searchCtx.hn && g.src!=='FL parcel roll'){
+    try{
+      const snap=await snapToParcelByAddress(q, g.lat, g.lng);
+      if(snap && isFinite(snap.lat) && isFinite(snap.lng)){
+        sLat=snap.lat; sLng=snap.lng;
+        if(snap.matched){ snapLabel=snap.matched; snapSrc=(g.src||'geocoder')+' + parcel-roll snap'; }
+      }
+    }catch(e){}
+  }
+  map.setView([sLat,sLng], 18);
+  await runLookup(sLat,sLng, searchCtx);
+  const conf = `<div class="note matchconf noprint" style="padding:2px 2px 4px">Matched (${esc(snapSrc)}): <b style="color:var(--ink)">${esc(snapLabel)}</b> — parcel resolved below; confirm the marker is on the right lot.</div>`;
   results.insertAdjacentHTML('afterbegin',conf);
 }
 document.getElementById('go').onclick=doSearch;
@@ -10333,6 +11035,10 @@ async function chooseSuggestion(it){
   // is comma-mangled ("…, Ridgeview Lakes, Naples, Collier County, Florida, 34102, United States")
   // and whose OSM coordinate is interpolated (lands on the wrong house). Prefer the typed text.
   const basis = houseNum(typed) ? typed : cleanAddress(it.label);
+  // What we DISPLAY in the search box is different from what we MATCH on: the box should always
+  // show the full picked address (cleaned of "County/United States" cruft), never the partial
+  // text the user had typed so far. searchCtx below still anchors on the typed basis.
+  const fullAddr = cleanAddress(it.label) || basis;
   const searchCtx = { raw:basis, hn:houseNum(basis), toks:new Set(streetTokens(basis)), unit:searchUnit(basis) };
   // AUTHORITATIVE COUNTY-PARCEL FIRST: if the suggestion sits in a county whose parcel layer carries
   // correct site addresses (e.g. Collier), resolve the EXACT lot there by street+number and ignore
@@ -10343,7 +11049,7 @@ async function chooseSuggestion(it){
   if(searchCtx.hn && county && COUNTY_PARCEL_RESOLVERS[norm(county)]){
     const pr=await resolveCountyParcel(county, searchCtx).catch(()=>null);
     if(pr && pr.multi && pr.candidates && pr.candidates.length){
-      addrEl.value=basis;
+      addrEl.value=fullAddr; STORE.set('fl_addr',fullAddr);
       const list=pr.candidates.slice(0,8).map(c=>`<div class="sg" style="cursor:default"><span>${esc(c.label)}</span>${c.folio?`<span class="sgsrc">${esc(c.folio)}</span>`:''}</div>`).join('');
       results.innerHTML=setStatus('err',`Found ${pr.candidates.length} lots matching “${esc(basis)}”. Pick the exact one on the map, or add a unit/more detail.`)+`<div style="margin-top:6px">${list}</div>`;
       map.setView([pr.candidates[0].lat,pr.candidates[0].lng],18);
@@ -10363,11 +11069,27 @@ async function chooseSuggestion(it){
     // county covered but address not found in its parcel layer → fall through to the OSM coordinate.
   }
   // FALLBACK (non-resolver counties): use the suggestion's own coordinate; runLookup resolves the parcel.
-  addrEl.value=basis; STORE.set('fl_addr',basis); addToHistory(it.label);
+  addrEl.value=fullAddr; STORE.set('fl_addr',fullAddr); addToHistory(it.label);
   results.innerHTML=setStatus('busy','Pinpointing the parcel…');
-  map.setView([it.lat,it.lng], 18);
-  await runLookup(it.lat,it.lng, searchCtx);
-  const conf = `<div class="note matchconf noprint" style="padding:2px 2px 4px">Matched: <b style="color:var(--ink)">${esc(it.label)}</b> — parcel resolved below; confirm the marker is on the right lot.</div>`;
+  // ROOFTOP SNAP (counties without an authoritative resolver, or where the resolver found nothing):
+  // the suggestion's OSM/Census coordinate is INTERPOLATED and routinely lands a lot or two off —
+  // often on a vacant neighbouring parcel. Before doing point-in-polygon from that drifted pin,
+  // re-query the statewide parcel roll around it and snap to the parcel whose SITE ADDRESS actually
+  // matches the typed house number + street. If found, drive runLookup from the corrected point so
+  // the polygon, marker and details all land on the right house.
+  let qLat=it.lat, qLng=it.lng, snapNote='';
+  if(searchCtx.hn){
+    try{
+      const snap=await snapToParcelByAddress(basis, it.lat, it.lng);
+      if(snap && isFinite(snap.lat) && isFinite(snap.lng)){
+        qLat=snap.lat; qLng=snap.lng;
+        if(snap.matched) snapNote=` · snapped to ${esc(snap.matched)}`;
+      }
+    }catch(e){}
+  }
+  map.setView([qLat,qLng], 18);
+  await runLookup(qLat,qLng, searchCtx);
+  const conf = `<div class="note matchconf noprint" style="padding:2px 2px 4px">Matched: <b style="color:var(--ink)">${esc(it.label)}</b>${snapNote} — parcel resolved below; confirm the marker is on the right lot.</div>`;
   results.insertAdjacentHTML('afterbegin',conf);
 }
 
