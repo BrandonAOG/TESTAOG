@@ -20625,6 +20625,45 @@ function _imgScaledSource(ov, targetW, targetH){
   }catch(e){ return src; }
 }
 
+// ── DRAG PROXY ──────────────────────────────────────────────────────────────
+// While an image is being moved/resized/rotated it is redrawn every frame. Doing
+// that from the full-resolution source with high-quality smoothing is very heavy
+// for large photos (the "sticks/pauses while sizing" symptom, worse when zoomed
+// in). Build ONE small downscaled proxy at drag start and draw that (cheap) every
+// frame; the real, full-quality draw returns the moment the drag ends.
+function _buildDragProxy(ov){
+  try{
+    var src=ov.img; if(!src) return null;
+    var sw=src.naturalWidth||src.width, sh=src.naturalHeight||src.height;
+    if(!sw||!sh) return null;
+    // Target size ≈ current on-screen backing footprint (frozen eff), with room to
+    // grow, capped so the per-frame draw stays cheap. If the source is already
+    // small there's nothing to gain — use it directly.
+    var effNow=(selCv&&selCv._effSaved)?selCv._effSaved:(window.devicePixelRatio||1)*Math.max(1,zoom);
+    var disp=Math.max(ov.w,ov.h)*effNow;
+    var maxSide=Math.min(Math.max(320, Math.round(disp*1.6)), 1600);
+    var scale=Math.min(1, maxSide/Math.max(sw,sh));
+    if(scale>=0.999) return src;                 // source already small enough
+    var pw=Math.max(1,Math.round(sw*scale)), ph=Math.max(1,Math.round(sh*scale));
+    var c=document.createElement('canvas'); c.width=pw; c.height=ph;
+    var x=c.getContext('2d');
+    try{ x.imageSmoothingEnabled=true; x.imageSmoothingQuality='medium'; }catch(e){}
+    x.drawImage(src,0,0,pw,ph);
+    return c;
+  }catch(e){ return null; }
+}
+// Fast per-frame draw of an overlay from a (small) proxy source — low smoothing,
+// since the proxy is already near display size.
+function _drawImgOvFast(ctx, ov, src){
+  ctx.save();
+  try{ ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='low'; }catch(e){}
+  ctx.globalAlpha = ov.opacity!==undefined ? ov.opacity : 1;
+  ctx.translate(ov.cx, ov.cy);
+  ctx.rotate(ov.angle||0);
+  ctx.scale(ov.flipH?-1:1, ov.flipV?-1:1);
+  ctx.drawImage(src, -ov.w/2, -ov.h/2, ov.w, ov.h);
+  ctx.restore();
+}
 function _drawImgOv(ctx, ov){
   ctx.save();
   _imgSmooth(ctx);
@@ -20730,9 +20769,12 @@ function renderImgSelection(){
   selCtx.setTransform(_eX,0,0,_eY, -_rX*_eX, -_rY*_eY);
   _clearCv(selCtx,selCv);
   // Draw the image itself ONLY during an active drag/resize (imgCv skips it
-  // then). When just selected, imgCv already shows it — drawing it here too
-  // would double-composite semi-transparent images and darken them on select.
-  if((typeof selImgDrag!=='undefined') && selImgDrag) _drawImgOv(selCtx, selImg);
+  // then). Use a small pre-built PROXY so the per-frame resample is cheap; the
+  // full-resolution, high-quality draw returns on pointer-up (imgCv re-renders).
+  if((typeof selImgDrag!=='undefined') && selImgDrag){
+    if(!selImgDrag._proxy) selImgDrag._proxy=_buildDragProxy(selImg)||selImg.img;
+    _drawImgOvFast(selCtx, selImg, selImgDrag._proxy);
+  }
   // Dashed bounding box
   var lw=1.5/zoom, ov=selImg, a=ov.angle||0;
   selCtx.save();
