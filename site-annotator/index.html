@@ -6452,7 +6452,19 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
         // stamped images — signed & sealed marks, signature stamps — are left
         // out entirely; the export strip below also removes the original annot,
         // so they never appear on screen or in any exported file.
-        if(!EXPLODE_SIGSEAL){
+        // Our OWN picture/equipment stamps are tagged Contents='AOG-IMG' on export.
+        // Always bring those back so a plain "PDF" round-trips its pictures — the
+        // Signatures & seals gate only applies to FOREIGN image stamps (signed &
+        // sealed marks), which the user may not want re-imported by default.
+        // pdf.js 3.x exposes /Contents as contentsObj.str (plain `.contents` is
+        // undefined for Stamp annots) — check both so the AOG marker is found.
+        var _isAogImgStamp=false;
+        try{
+          var _annC2=(curAnn && (curAnn.contents!=null ? curAnn.contents
+                        : (curAnn.contentsObj && curAnn.contentsObj.str))) || '';
+          _isAogImgStamp = /^AOG-IMG/.test(String(_annC2));
+        }catch(_ae){}
+        if(!EXPLODE_SIGSEAL && !_isAogImgStamp){
           try{ dbg('import','annotation image (stamp) skipped — Signatures & seals unticked'); }catch(_d){}
           continue;
         }
@@ -16942,6 +16954,10 @@ function _emitImageStamps(pdf, page, sz, sc, list){
               var d2={ Type:'Annot', Subtype:'Stamp', Rect:[rect[0],rect[1],rect[2],rect[3]],
                        F:4, P:page.ref, CA:op,
                        NM:PDFLib.PDFString.of('AOG-IMG-'+Date.now().toString(36)+'-'+(seq++)),
+                       // Marker read on re-import: lets the reopen path recognise these
+                       // as OUR OWN picture/equipment stamps and always bring them back,
+                       // instead of gating them behind the "Signatures & seals" option.
+                       Contents:PDFLib.PDFString.of('AOG-IMG'),
                        AP:{ N:apRef } };
               var annotRef=ctx.register(ctx.obj(d2));
               var arr=null; try{ arr=page.node.Annots(); }catch(_a){}
@@ -20105,7 +20121,13 @@ function checkForSavedSession(){
 function _rederivePageImgProvenance(){
   try{
     if(typeof imgOverlays==='undefined' || !imgOverlays.length) return Promise.resolve();
-    var needs=imgOverlays.filter(function(o){ return !o._fromPdfPage; });
+    // NEVER reclassify an ANNOTATION-derived image (_fromAnnot) as a page image.
+    // These came from Stamp annotations (e.g. our own equipment pictures). If one
+    // were re-tagged _fromPdfPage it would export as "untouched page content" and
+    // NOT be re-emitted — yet the export strips the Stamp that actually carried it,
+    // so the picture vanished on the next export. Only genuine page-content images
+    // (no provenance yet, and not from an annotation) may be matched below.
+    var needs=imgOverlays.filter(function(o){ return !o._fromPdfPage && !o._fromAnnot; });
     if(!needs.length) return Promise.resolve();
     if(typeof _pdfBytes==='undefined' || !_pdfBytes || typeof pdfjsLib==='undefined') return Promise.resolve();
     return pdfjsLib.getDocument({data:_pdfBytes.slice(0)}).promise.then(function(doc){
@@ -20114,7 +20136,14 @@ function _rederivePageImgProvenance(){
         var vw=(rot===90||rot===270)? (page.view[3]-page.view[1]) : (page.view[2]-page.view[0]);
         var scale=baseCv.width/vw;
         var vp=page.getViewport({scale:scale, rotation:page.rotate});
-        return page.getOperatorList().then(function(op){
+        // Annotations DISABLED: only PAGE-CONTENT images should produce match
+        // rects here. With annotations on, a Stamp annotation's image (our own
+        // equipment pictures) added a rect that an imported overlay matched,
+        // mis-tagging it as a page image. That is exactly what dropped pictures
+        // from the next export.
+        var _amDisable=(pdfjsLib.AnnotationMode && pdfjsLib.AnnotationMode.DISABLE);
+        if(_amDisable==null) _amDisable=0;
+        return page.getOperatorList({annotationMode:_amDisable}).then(function(op){
           var OPS=pdfjsLib.OPS, U=pdfjsLib.Util;
           var m=[1,0,0,1,0,0], stk=[], rects=[];
           for(var i=0;i<op.fnArray.length;i++){
