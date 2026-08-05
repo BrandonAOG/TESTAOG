@@ -5199,7 +5199,7 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
   // If ANY of them later fails to extract into an editable overlay, the export
   // must NOT white-cover the page — nothing would reproduce that image and the
   // page content would export blank (markups floating on white).
-  var _sizableImgs=0, _imgUnreproduced=false;
+  var _sizableImgs=0, _anyImgs=0, _imgUnreproduced=false;
   try{
     var _fnA=opList.fnArray, _agA=opList.argsArray;
     var _cm=vp.transform.slice(), _stk=[];
@@ -5212,6 +5212,7 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
       else if(_f===OPS.transform){ _cm=_mmul(_cm,_ag); }
       else if(_f===OPS.paintImageXObject || _f===OPS.paintJpegXObject || _f===OPS.paintInlineImage
               || _f===OPS.paintImageMaskXObject || _f===OPS.paintImageMaskXObjectGroup || _f===OPS.paintImageMaskXObjectRepeat){
+        _anyImgs++;   // ANY baked image, regardless of size (see keep-original guard below)
         var _cp=[[0,0],[1,0],[1,1],[0,1]].map(function(p){return {x:_cm[0]*p[0]+_cm[2]*p[1]+_cm[4], y:_cm[1]*p[0]+_cm[3]*p[1]+_cm[5]};});
         var _cxs=_cp.map(function(p){return p.x;}), _cys=_cp.map(function(p){return p.y;});
         var _iw=Math.max.apply(null,_cxs)-Math.min.apply(null,_cxs);
@@ -5447,7 +5448,13 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
   // at 84% of the page — which is exactly the file that exported as a blank white
   // page with only the signature markups. If ANY sizable image is unreproduced,
   // force keep-original: annotations still export fine, the page is never erased.
-  if(!(EXPLODE_OTHER && EXPLODE_IMAGES && !_denseDrawing) && _sizableImgs>0) _imgUnreproduced=true;
+  // A baked image is un-reproduced if it wasn't extracted into an overlay. The old
+  // test only counted SIZABLE images (>=3% of page), so a SMALL picture on a fresh
+  // PDF (Pictures & photos import is OFF by default) slipped through: editing text
+  // triggered the white-cover redraw, which erased the page content — and the small
+  // baked picture with it. When images aren't being extracted, ANY baked image must
+  // keep the original page.
+  if(!(EXPLODE_OTHER && EXPLODE_IMAGES && !_denseDrawing) && (_sizableImgs>0 || (!EXPLODE_IMAGES && _anyImgs>0))) _imgUnreproduced=true;
   if(_imgUnreproduced && _explodedFromPage){
     _explodedFromPage=false;
     dbg('import','white-cover disabled: page has sizable raster image(s) with no extracted overlay copy — keeping original page content on export');
@@ -16235,6 +16242,22 @@ function _movedExplodeObj(o){
   return false;
 }
 
+// Should this TEXT object be exported as a real Acrobat /FreeText annotation
+// (editable in Acrobat) instead of flattened vector? True for user-added text and
+// for EDITED page text — the latter is the important case: editing PDF-native text
+// used to force the whole sheet to flatten to a raster (dropping images and turning
+// every markup non-editable). Emitting it as a FreeText annotation (with an opaque
+// white background that covers the original baked words) keeps the page vector, so
+// images and markups survive untouched. Rotated text stays vector (FreeText can't
+// rotate cleanly); unedited page text is left baked in the page.
+function _textToAcro(o){
+  if(typeof EXPORT_ACRO_ANNOTS==='undefined' || !EXPORT_ACRO_ANNOTS) return false;
+  if(!o || o.text==null || !String(o.text).trim()) return false;
+  if(Math.abs(o.angle||0) >= 0.001) return false;         // rotated text → keep vector
+  if(o._fromExplode) return _movedExplodeObj(o);           // page text: only if edited/moved
+  return true;                                             // user-added text
+}
+
 // Did the page's GRAPHICS (linework/shapes/images) actually get extracted into
 // redrawable objects? White-covering the original page is only safe when they did
 // — otherwise the survey lives only in the original page and covering it erases it.
@@ -16321,6 +16344,8 @@ function _anyMovedExtracted(){
     function _ghostRisk(o){
       if(!o || !o._fromExplode) return false;
       if(o._fromAnnot && !o._bakedHl) return false;   // original is stripped → safe
+      if(_textToAcro(o)) return false;                // edited text → FreeText annot covers its
+                                                      // own original; no raster bail needed
       return _movedExplodeObj(o);
     }
     if(typeof markupObjs!=='undefined' && markupObjs.some(_ghostRisk)) return true;
@@ -16885,6 +16910,84 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     if(rotDeg) d.Rotate=rotDeg;
     addAnnot(d, ops, rect, noteA, fillA, fontRef);
   }); }catch(e){ console.warn('[AcroAnnot] notes',e); }
+
+  // ── Text objects → /FreeText (editable in Acrobat) ─────────────────────────
+  // User-added text AND edited page text. For EDITED page text the original words
+  // are still baked in the reused page, so the appearance paints an OPAQUE WHITE
+  // box (sized to the wider of the new and original text) that hides them — this
+  // is what lets the sheet stay VECTOR instead of flattening to a raster and
+  // losing images/markups. New user text draws with a transparent background.
+  try{ if(typeof textObjs!=='undefined') textObjs.forEach(function(obj){
+    if(!obj || !obj._acroFlag) return;
+    var op=(obj.opacity==null?1:obj.opacity);
+    // Use the STANDARD WinAnsi Helvetica set for the annotation appearance. The
+    // text operator writes Latin-1 bytes (pdfStr), which render correctly ONLY
+    // against a WinAnsi simple font. A custom/embedded TTF is a Type0/Identity-H
+    // font whose content stream needs 2-byte glyph IDs — Latin-1 bytes there come
+    // out as tofu boxes (□□□). Helvetica keeps the edited text readable & editable.
+    var f=obj.bold?(obj.italic?fonts.boldItalic:fonts.bold):(obj.italic?fonts.italic:fonts.regular);
+    if(!f) f=fonts.regular;
+    var fontRef=(f&&f.ref)?f.ref:(fonts.regular&&fonts.regular.ref)||null;
+    var efpx=ptToCanvasPx(obj.fontSize), fsize=efpx/sc;
+    var lineH=(typeof _lineAdvOf==='function')?_lineAdvOf(obj,efpx):efpx*1.25;
+    var txCol=rgb01(obj.color||'#000000');
+    var lines=getTextLines(obj,efpx).map(function(l){ return _winAnsiSafe(_repairLigArtifacts(l)); });
+    function _wc(str){ try{ return f.widthOfTextAtSize(str,fsize)*sc; }catch(_){ return String(str).length*fsize*0.5*sc; } }
+    var maxW=0; lines.forEach(function(l){ var wv=_wc(l); if(wv>maxW)maxW=wv; });
+    var nLines=lines.length;
+    var coverBg=!!obj._fromExplode;   // edited page text must hide its baked original
+    if(coverBg && obj._oText!=null){
+      var oLines=String(obj._oText).split('\n');
+      oLines.forEach(function(l){ var wv=_wc(_winAnsiSafe(String(l))); if(wv>maxW)maxW=wv; });
+      if(oLines.length>nLines) nLines=oLines.length;
+    }
+    if(!maxW||!nLines) return;
+    var asc=fsize*TXT_ASC_F, desc=fsize*TXT_DESC_F, padX=2/sc, padY=1.5/sc;
+    var boxL=obj.x - padX*sc, boxTop=obj.y - asc*sc - padY*sc;
+    var boxW=maxW + padX*2*sc, boxH=(nLines-1)*lineH + (asc+desc)*sc + padY*2*sc;
+    var q0=P(boxL,boxTop), q1=P(boxL+boxW,boxTop), q2=P(boxL+boxW,boxTop+boxH), q3=P(boxL,boxTop+boxH);
+    var xs=[q0.x,q1.x,q2.x,q3.x], ys=[q0.y,q1.y,q2.y,q3.y];
+    var rect=[Math.min.apply(null,xs)-1, Math.min.apply(null,ys)-1, Math.max.apply(null,xs)+1, Math.max.apply(null,ys)+1];
+    // Hide the ORIGINAL baked words with a white box painted ON THE PAGE — NOT in
+    // the annotation appearance. A cover inside the appearance moves WITH the
+    // annotation when it's dragged in Acrobat, re-exposing the old text; on the
+    // page it stays put at the original spot no matter where the text is moved.
+    // Cover is anchored to the ORIGINAL position (_oX/_oY) and sized to the wider
+    // of the new and original text.
+    if(coverBg){
+      try{
+        var _oX=(obj._oX!=null?obj._oX:obj.x), _oY=(obj._oY!=null?obj._oY:obj.y);
+        var _cvBL=P(_oX - padX*sc, _oY + (nLines-1)*lineH + (desc+padY)*sc);
+        page.drawRectangle({ x:_cvBL.x, y:_cvBL.y,
+          width: W(maxW) + padX*2,
+          height: (nLines-1)*W(lineH) + (asc+desc) + padY*2,
+          rotate: PDFLib.degrees(rotDeg), color: PDFLib.rgb(1,1,1), opacity:1, borderWidth:0 });
+      }catch(_cv){ console.warn('[AcroAnnot] text cover',_cv); }
+    }
+    var ops='';
+    var align=obj.textAlign||'left';
+    ops+='q /GS0 gs BT /F0 '+f2(fsize)+' Tf '+colStr(txCol)+' rg ';
+    lines.forEach(function(ln,i){
+      if(ln==='') return;
+      var twc=_wc(ln);
+      var _off=(align==='center'?(maxW-twc)/2:align==='right'?(maxW-twc):0);
+      var pp=P(obj.x+_off, obj.y+i*lineH);
+      ops+=tmRotAt(pp.x,pp.y,rotDeg)+'('+pdfStr(ln)+') Tj ';
+    });
+    ops+='ET Q ';
+    var d={ Subtype:'FreeText',
+            Contents:_pdfStrOf(obj.text),
+            DA:PDFLib.PDFString.of('/Helv '+f2(fsize)+' Tf '+colStr(txCol)+' rg'),
+            Q:(align==='center'?1:align==='right'?2:0),
+            CA:op,
+            BS:bsDict(0,null) };
+    // No /C (transparent background): the original is hidden by the page-level
+    // white box above, so the annotation itself must NOT carry a background —
+    // otherwise dragging it would leave a white ghost box at the new location and
+    // (worse) the moving box wouldn't reveal that the original is already covered.
+    if(rotDeg) d.Rotate=rotDeg;
+    addAnnot(d, ops, rect, op, null, fontRef);
+  }); }catch(e){ console.warn('[AcroAnnot] text',e); }
 
   if(emitted) dbg('export','Acrobat annotations emitted: '+emitted);
   return emitted;
@@ -17609,6 +17712,14 @@ function _markAcroAnnotObjs(){
     if(!vis(o) || skipImport(o) || !o.pts || o.pts.length<1) return;
     if(o.blend) return;   // ink-highlighter (multiply) stays in the raster overlay
     o._acroFlag=true; n++;
+  }); }catch(_e){}
+  // Text → /FreeText annotation (editable in Acrobat). User-added text always;
+  // EDITED page text too (so the sheet stays vector instead of flattening). The
+  // painter skips _acroFlag objects, and _emitAcrobatAnnots draws each as a
+  // FreeText with an opaque white box that hides the original baked words.
+  try{ if(typeof textObjs!=='undefined') textObjs.forEach(function(t){
+    if(t) delete t._acroFlag;
+    if(vis(t) && _textToAcro(t)){ t._acroFlag=true; n++; }
   }); }catch(_e){}
   if(n) dbg('export','Acrobat-annot mode: '+n+' object(s) will be real annotations');
   return n;
