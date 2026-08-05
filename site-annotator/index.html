@@ -2422,6 +2422,38 @@ function _repairLigArtifacts(s){
   if(!s || typeof s!=='string') return s;
   return s.indexOf('\u08A2')===-1 ? s : s.replace(/\u08A2/g,'ti');
 }
+// ── WinAnsi safety net for PDF export ────────────────────────────────────────
+// pdf-lib's standard Helvetica uses WinAnsi encoding and THROWS on any character
+// it can't encode (e.g. page.drawText -> "WinAnsi cannot encode ..."), which aborts
+// the whole export. The classic offenders in permit/survey text are the typographic
+// PRIME marks (U+2032 feet, U+2033 inches) -- e.g. pasting  1/4"  as  1/4″  or  10′.
+// Map those and other common non-WinAnsi typography to safe ASCII, then drop any
+// remaining un-encodable char so a paste can never break the export.
+function _winAnsiSafe(s){
+  if(s==null) return s;
+  s=String(s)
+    .replace(/[′‵]/g,"'")                 // prime / reversed prime -> '  (feet)
+    .replace(/[″‴‶‷]/g,'"')     // double/triple prime -> "  (inches)
+    .replace(/[‘’‚‛]/g,"'")     // curly single quotes -> '
+    .replace(/[“”„‟]/g,'"')     // curly double quotes -> "
+    .replace(/[‐‑‒–—―−]/g,'-') // hyphens/dashes/minus -> -
+    .replace(/…/g,'...')                        // ellipsis
+    .replace(/[⁄∕]/g,'/')                  // fraction / division slash -> /
+    .replace(/•/g,'-')                          // bullet -> -
+    .replace(/™/g,'(TM)').replace(/®/g,'(R)').replace(/©/g,'(C)')
+    .replace(/[ -   　]/g,' ') // exotic spaces -> normal space
+    .replace(/[​-‏‪-‮﻿]/g,''); // zero-width / bidi marks -> drop
+  // Final guard: replace anything still outside Latin-1 (and stray C1 controls) with '?'
+  return s.replace(/[^\x09\x0A\x0D\x20-\x7E -ÿ]/g,'?');
+}
+// Build a PDF literal string safely. PDFString.of() wraps the raw text in ( )
+// WITHOUT escaping, so a lone or unbalanced parenthesis in user text (e.g.
+// "(6.8.6.1(B)") produces an invalid string object and Acrobat refuses the file.
+// Escape backslashes and parentheses (and sanitize to WinAnsi) before wrapping.
+function _pdfStrOf(s){
+  s=_winAnsiSafe(s==null?'':s);
+  return PDFLib.PDFString.of(String(s).replace(/\\/g,'\\\\').replace(/([()])/g,'\\$1'));
+}
 // Per-object line spacing. Imported multi-line paragraphs carry the SOURCE
 // PDF's real leading in o.lineH (a multiplier of font size, like TXT_LINE_H);
 // re-spacing them with the app's tight default visibly squeezed stacked labels
@@ -4654,8 +4686,8 @@ var EXPLODE_SIGSEAL = false;
 // rectangles/ellipses, pen strokes) are exported as REAL PDF annotations
 // (/Line /PolyLine /Square /Circle /Ink) with generated appearance streams —
 // so Acrobat can select, move, recolor and delete them like its own markups.
-// When OFF (default) everything is flattened into the page as before.
-var EXPORT_ACRO_ANNOTS = false;
+// Defaults ON so the checkbox loads checked and exports are Acrobat-editable.
+var EXPORT_ACRO_ANNOTS = true;
 document.addEventListener('DOMContentLoaded', function(){
   var _aa=document.getElementById('opt-acroannots');
   if(_aa){
@@ -16499,7 +16531,7 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     return f2(cc)+' '+f2(ss)+' '+f2(-ss)+' '+f2(cc)+' '+f2(px)+' '+f2(py)+' Tm ';
   }
   // Escape a literal PDF string for use inside (...) Tj.
-  function pdfStr(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)'); }
+  function pdfStr(s){ return _winAnsiSafe(String(s==null?'':s)).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)'); }
 
   // Append one annotation dict (+AP stream) to the page's /Annots array.
   // fontRef (optional): when the appearance stream draws text (/F0), the font
@@ -16619,7 +16651,7 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
       d.LE=['Butt','Butt'];
       var lenPx=Math.hypot(m.x2-m.x1,m.y2-m.y1);
       var label=(typeof scaleSet!=='undefined'&&scaleSet)?formatLength(lenPx):(Math.round(lenPx)+'px');
-      d.Contents=PDFLib.PDFString.of(label);
+      d.Contents=_pdfStrOf(label);
       _capInfo={label:label, ang:angC2};
     }
     addAnnot(d, ops, rect, op, null, null);
@@ -16647,7 +16679,7 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
       var q3={x:q0.x+cfs*1.25*cux, y:q0.y+cfs*1.25*cuy};
       var crect=bounds([q0,q1,q2,q3],2);
       var _capD={ Subtype:'FreeText',
-                 Contents:PDFLib.PDFString.of(cLabel),
+                 Contents:_pdfStrOf(cLabel),
                  DA:PDFLib.PDFString.of('/Helv '+f2(cfs)+' Tf '+colStr(c)+' rg'),
                  Q:1, CA:op, BS:bsDict(0,null) };
       // /Rotate tells Acrobat what angle to lay the text when it regenerates the
@@ -16830,7 +16862,7 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
       ops+='ET Q ';
     }
     var d={ Subtype:'FreeText',
-            Contents:PDFLib.PDFString.of(String(c.text||'')),
+            Contents:_pdfStrOf(c.text),
             DA:PDFLib.PDFString.of('/Helv '+f2(daFs)+' Tf '+colStr(txCol)+' rg'),
             Q:0,
             C:[Math.round(bgCol[0]*1000)/1000, Math.round(bgCol[1]*1000)/1000, Math.round(bgCol[2]*1000)/1000],
@@ -17064,7 +17096,7 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
     // shift back by half text width along the line direction
     var halfX=Math.cos(ang)*(tw*sc)/2, halfY=Math.sin(ang)*(tw*sc)/2;
     var lp=P(ox-halfX, oy-halfY);
-    page.drawText(label,{x:lp.x, y:lp.y, size:fsize, font:fonts.bold,
+    page.drawText(_winAnsiSafe(label),{x:lp.x, y:lp.y, size:fsize, font:fonts.bold,
       color:col(m.color), rotate:degrees(deg+rotDeg)});
   }); }catch(e){ console.warn('[Vec] measures',e); }
 
@@ -17150,7 +17182,7 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
       // exactly as the on-screen renderer does, so the break points are the same.
       var _mc=document.createElement('canvas').getContext('2d');
       _mc.font=cmtCtxFont(c, fsPx);
-      var lines=cmtWrapLines(_mc, c.text, maxW);
+      var lines=cmtWrapLines(_mc, c.text, maxW).map(_winAnsiSafe);
 
       var _famK=_customFamilyKey(c.fontFamily);
       var _set=(fonts.custom && _famK && fonts.custom[_famK]) ? fonts.custom[_famK] : fonts;
@@ -17260,7 +17292,7 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
     var lines=getTextLines(obj,efpx);   // same wrap breaks as the screen render
     // Final safety net: strip ligature artifacts right before PDF drawing, so
     // even a session that still carries the bogus char in memory exports clean.
-    lines=lines.map(function(l){ return _repairLigArtifacts(l); });
+    lines=lines.map(function(l){ return _winAnsiSafe(_repairLigArtifacts(l)); });
     var align=obj.textAlign||'left';
     var op=(obj.opacity==null?1:obj.opacity);
     var a=(obj.angle||0);
