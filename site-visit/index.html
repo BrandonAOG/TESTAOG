@@ -3397,8 +3397,9 @@ function _androidOfferShare(files, kind) {
   bar.style.cssText = 'position:fixed;left:10px;right:10px;bottom:14px;z-index:999999;background:#16181d;color:#f0f0f2;border:1px solid rgba(255,255,255,0.18);border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px;box-shadow:0 10px 28px rgba(0,0,0,0.5);font-family:inherit;';
   var msg = document.createElement('div');
   msg.style.cssText = 'flex:1;font-size:13px;line-height:1.45;min-width:0;';
-  msg.innerHTML = '<b style="color:#4ade80;">✓ Saved to your phone</b><br><span style="color:#aab;">' +
-    (kind === 'pdf' ? 'Find it in your <b>Files → Downloads</b>.' : 'Find it in <b>Photos/Gallery → Download</b>.') + '</span>';
+  msg.innerHTML = '<b style="color:#FBBF24;">Tap SHARE to save or send</b><br><span style="color:#aab;">' +
+    'Choose <b>Save to ' + (kind === 'pdf' ? 'Files' : 'Photos') + '</b> to keep a copy, or pick an app to send it. ' +
+    'A copy may also be in your <b>' + (kind === 'pdf' ? 'Files → Downloads' : 'Photos/Gallery → Download') + '</b>.</span>';
   var shareBtn = document.createElement('button');
   shareBtn.textContent = '📤 SHARE IT';
   shareBtn.style.cssText = 'background:#FBBF24;color:#111;border:none;border-radius:8px;padding:11px 14px;font-weight:bold;font-size:12px;cursor:pointer;flex-shrink:0;letter-spacing:0.5px;';
@@ -3413,7 +3414,7 @@ function _androidOfferShare(files, kind) {
   closeBtn.onclick = kill;
   bar.appendChild(msg); bar.appendChild(shareBtn); bar.appendChild(closeBtn);
   document.body.appendChild(bar);
-  timer = setTimeout(kill, 15000);
+  timer = setTimeout(kill, 30000);
 }
 
 function saveSmart() {
@@ -3466,13 +3467,18 @@ function saveSmart() {
 
   Promise.all(jobs).then(function (results) {
     cleanup();
-    var files = results.map(function (r) { return r.file; });
-    // Android: save all pages straight to Downloads, then offer to share.
+    var files = results.map(function (r) { return r.file; }).filter(Boolean);
+    // Android: DO BOTH — download the page(s) first (lands in Downloads when the
+    // PWA allows it), THEN open the native Share Sheet so the tech can also Save
+    // to Files/Photos or send it.
     if (isAndroidDevice()) {
-      downloadResults(results);
-      setStatus('Saved — check Photos/Gallery (Download album).');
-      setTimeout(function () { setStatus(''); }, 4000);
-      _androidOfferShare(files, 'jpg');
+      // DELIVER BOTH, reliably: auto-download the page(s), then show the SHARE
+      // button. We don't auto-open the share sheet — after render + spaced
+      // downloads the tap's user gesture has expired, so navigator.share() would
+      // silently fail. The SHARE button is a fresh gesture, so the sheet opens.
+      downloadResults(results, function () {
+        _androidOfferShare(files, 'jpg');
+      });
       return;
     }
     if (navigator.canShare && navigator.canShare({ files: files })) {
@@ -3494,21 +3500,24 @@ function saveSmart() {
   });
 }
 // Direct-download fallback (Android/desktop without file sharing).
-function downloadResults(results) {
-  results.forEach(function (r) {
-    try {
-      var parts = r.dataURL.split(','), mime = (parts[0].match(/:(.*?);/) || [])[1] || 'image/jpeg';
-      var bin = atob(parts[1]), arr = new Uint8Array(bin.length);
-      for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-      _svDownloadBlob(new Blob([arr], { type: mime }), r.fname);
-    } catch (e) {
-      var link = document.createElement('a');
-      link.download = r.fname; link.href = r.dataURL;
-      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+// Downloads run sequentially with a small gap because Android Chrome only
+// honors ONE programmatic download per gesture — firing them all at once
+// drops every page after the first.
+function downloadResults(results, afterDone) {
+  var i = 0;
+  (function next() {
+    if (i >= results.length) {
+      setStatus(results.length + ' image(s) sent to your Downloads folder.');
+      setTimeout(function () { setStatus(''); }, 4000);
+      if (typeof afterDone === 'function') afterDone();
+      return;
     }
-  });
-  setStatus(results.length + ' image(s) sent to your Downloads folder.');
-  setTimeout(function () { setStatus(''); }, 4000);
+    var r = results[i++];
+    var link = document.createElement('a');
+    link.download = r.fname; link.href = r.dataURL;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    setTimeout(next, 700);
+  })();
 }
 // Long-press overlay fallback (older iOS without file sharing).
 function showCaptureOverlay(results) {
@@ -3605,23 +3614,53 @@ function saveForAndroid() {
     setTimeout(() => setStatus(''), msg.indexOf('⚠') === 0 ? 5000 : 4000);
     if (wasDark) document.body.classList.add('dark-mode');
   }
+  // Android Chrome only honors ONE programmatic download per user gesture, so
+  // clicking a download link per page dropped page 2. Collect every page first,
+  // then share both at once (Share Sheet) or download sequentially with a delay.
+  const _results = [];
+  function _svFileFromDataURL(dataURL, filename) {
+    try {
+      var parts = dataURL.split(',');
+      var mime = (parts[0].match(/:(.*?);/) || [])[1] || 'image/jpeg';
+      var bin = atob(parts[1]); var arr = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      return new File([arr], filename, { type: mime });
+    } catch (e) { return null; }
+  }
+  function _seqDownload(list, doneMsg) {
+    var i = 0;
+    (function next() {
+      if (i >= list.length) { finish(doneMsg); return; }
+      var r = list[i++];
+      var a = document.createElement('a');
+      a.download = r.fname; a.href = r.dataURL;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(next, 700);
+    })();
+  }
+  function _saveOrShare() {
+    for (var _i = _results.length - 1; _i >= 0; _i--) { if (!_results[_i]) _results.splice(_i, 1); }
+    var files = _results.map(function (r) { return r.file; }).filter(Boolean);
+    if (isAndroidDevice()) {
+      // Auto-download, then show the SHARE button (fresh gesture). Auto-share
+      // here would silently fail — the tap's user gesture has expired.
+      _seqDownload(_results, 'Saved to Downloads. Tap SHARE to send or Save to Files/Photos.');
+      _androidOfferShare(files, 'jpg');
+    } else {
+      _seqDownload(_results, _results.length + ' image(s) sent to your Downloads folder.');
+    }
+  }
   pages.forEach((page, idx) => {
     _withTimeout(html2canvas(page, { scale: captureScale, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } }), 45000, 'Page ' + (idx + 1) + ' render').then(rawCanvas => {
       _updateRenderOverlay('Page ' + (idx + 1) + ' of ' + pages.length + ' rendered…');
       const canvas = fillSheet(rawCanvas)  /* every page = full 8.5x11 letter sheet w/ 0.15in margins */;
-      const _dlname = pages.length === 1
+      const fname = pages.length === 1
         ? 'AlwaysOn_Generators_Form.jpg'
         : `AlwaysOn_Generators_Form_Page${idx+1}.jpg`;
-      canvas.toBlob(function (b) {
-        if (b) { _svDownloadBlob(b, _dlname); }
-        else {
-          var link = document.createElement('a');
-          link.download = _dlname; link.href = canvas.toDataURL('image/jpeg', 0.85);
-          document.body.appendChild(link); link.click(); document.body.removeChild(link);
-        }
-      }, 'image/jpeg', 0.85);
+      const durl = canvas.toDataURL('image/jpeg', 0.85);
+      _results[idx] = { fname: fname, dataURL: durl, file: _svFileFromDataURL(durl, fname) };
       completed++;
-      if (completed === pages.length) finish(`${pages.length} image(s) sent to your Downloads folder.`);
+      if (completed === pages.length) _saveOrShare();
     }).catch(err => {
       completed++;
       if (!failed) { failed = true; finish('⚠ Could not render page ' + (idx + 1) + ' — try again.'); }
@@ -3820,11 +3859,18 @@ async function saveFillablePdf() {
     var fname = pdfResumableFilename();
     var blob = new Blob([bytes], { type: 'application/pdf' });
 
-    // Android: save straight to Downloads, then offer to share — no share-sheet hunting.
+    // Android: DELIVER BOTH, reliably — auto-download the PDF, then show the
+    // SHARE button (fresh gesture). Auto-share after an async PDF build would
+    // silently fail because the tap's user gesture has expired.
     if (isAndroidDevice()) {
-      _svDownloadBlob(blob, fname);
-      setStatus('Resumable PDF saved — check Files → Downloads.');
-      try { _androidOfferShare([new File([blob], fname, { type: 'application/pdf' })], 'pdf'); } catch (e) {}
+      var _apdf = new File([blob], fname, { type: 'application/pdf' });
+      var _urlA = URL.createObjectURL(blob);
+      var _aA = document.createElement('a');
+      _aA.href = _urlA; _aA.download = fname; document.body.appendChild(_aA); _aA.click(); document.body.removeChild(_aA);
+      setTimeout(function () { URL.revokeObjectURL(_urlA); }, 4000);
+      setStatus('Saved to Downloads. Tap SHARE to send or Save to Files.');
+      setTimeout(function () { setStatus(''); }, 5000);
+      try { _androidOfferShare([_apdf], 'pdf'); } catch (e) {}
       return;
     }
     // Share on iOS if possible, else download.
@@ -3843,43 +3889,16 @@ async function saveFillablePdf() {
       }
     }
     if (!didShare) {
-      _svDownloadBlob(blob, fname);
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = fname; a.click();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
       setStatus('Resumable PDF saved: ' + fname);
     }
   } catch (err) {
     _hideRenderOverlay();
     setStatus('Could not build PDF: ' + (err && err.message ? err.message : err));
   }
-}
-
-// Hardened blob download for Android browsers/WebViews that silently ignore a
-// programmatic blob: anchor download. Appends the anchor to the DOM, then falls
-// back to the share sheet / a new tab if the click can't take.
-function _svDownloadBlob(blob, filename) {
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  var supportsDownload = ('download' in a);
-  a.href = url; a.download = filename; a.rel = 'noopener'; a.target = '_blank';
-  document.body.appendChild(a);
-  var clicked = false;
-  try { a.click(); clicked = true; } catch (e) { clicked = false; }
-  document.body.removeChild(a);
-  var isAndroid = /Android/i.test(navigator.userAgent || '');
-  if (!clicked || !supportsDownload || isAndroid) {
-    var _shared = false;
-    try {
-      if (navigator.canShare) {
-        var f = new File([blob], filename, { type: blob.type || 'application/octet-stream' });
-        if (navigator.canShare({ files: [f] })) {
-          _shared = true;
-          navigator.share({ files: [f], title: filename })
-            .catch(function () { try { window.open(url, '_blank'); } catch (e) {} });
-        }
-      }
-    } catch (e) { _shared = false; }
-    if (!_shared && (!clicked || !supportsDownload)) { try { window.open(url, '_blank'); } catch (e) {} }
-  }
-  setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
 }
 
 // ── LOAD DRAFT FILE (resumable PDF) ─────────────────────────────────────
