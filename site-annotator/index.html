@@ -16894,7 +16894,16 @@ function _emitImageStamps(pdf, page, sz, sc, list){
   var jobs=list.map(function(ov){
     return new Promise(function(resolve){
       try{
-        var iw=Math.max(1,Math.round(ov.w)), ih=Math.max(1,Math.round(ov.h));
+        // Rasterize the stamp at the image's SOURCE resolution, not its on-page
+        // display size. A small preset (e.g. a 240px equipment symbol) scaled up on
+        // the plan used to be captured at the larger display width — i.e. upsampled
+        // from the small source, so it exported blurry. Using the natural size keeps
+        // every source pixel (identical fidelity to the clean native-embed path)
+        // while the annotation stays a movable /Stamp. Page footprint is set by the
+        // cm matrix (Wp/Hp) below, independent of this raster resolution.
+        var _sw=(ov.img&&(ov.img.naturalWidth||ov.img.width))||Math.round(ov.w);
+        var _sh=(ov.img&&(ov.img.naturalHeight||ov.img.height))||Math.round(ov.h);
+        var iw=Math.max(1,Math.round(_sw)), ih=Math.max(1,Math.round(_sh));
         var CAP=2200, dn=Math.min(1, CAP/Math.max(iw,ih));
         var cw=Math.max(1,Math.round(iw*dn)), ch=Math.max(1,Math.round(ih*dn));
         var cnv=document.createElement('canvas'); cnv.width=cw; cnv.height=ch;
@@ -18124,13 +18133,10 @@ function _buildVectorPdf(attachJson, onReady){
       // so they still export as TRUE VECTORS (drawSvgPath) even with Acrobat-edit
       // on — otherwise they'd be flattened into raster /Stamp annotations and lose
       // their crisp vector linework. Only NON-traceable user/annotation pictures
-      // (photos, colour graphics) become editable raster /Stamps.
-      // EQUIPMENT SYMBOLS (ov.img._isEquip) are also kept out of the stamp path:
-      // they're colour bitmaps that render clean through the native-embed pipeline
-      // (full source resolution, alpha preserved) — the exact same output as when
-      // Acrobat-edit is OFF, which is the look the user wants. The capped, re-encoded
-      // /Stamp path degraded them.
-      _acroImgList = nativeList.filter(function(ov){ return ov && (!ov._fromPdfPage || ov._fromAnnot) && !_traceDrawable(ov) && !(ov.img && ov.img._isEquip); });
+      // (photos, colour graphics) become editable raster /Stamps — equipment symbols
+      // included, so they stay MOVABLE in Acrobat. _emitImageStamps rasterizes them
+      // at full source resolution (not on-page display size) so they stay crisp.
+      _acroImgList = nativeList.filter(function(ov){ return ov && (!ov._fromPdfPage || ov._fromAnnot) && !_traceDrawable(ov); });
       if(_acroImgList.length){
         nativeList = nativeList.filter(function(ov){ return _acroImgList.indexOf(ov)===-1; });
       }
