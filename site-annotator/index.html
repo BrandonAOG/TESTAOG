@@ -1211,6 +1211,21 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     <span id="op-val">100%</span>
   </div>
   <div class="sep" id="tb-op-sep"></div>
+   <div id="tb-image-grp" style="display:none;flex-shrink:0;align-items:center;gap:8px">
+   <span style="font-size:10px;color:#8888aa">Opacity</span>
+   <input type="range" id="img-op-sl" min="5" max="100" value="100" style="width:72px">
+   <span id="img-op-val" style="font-size:10px;color:#f0f0f2;min-width:28px;text-align:right">100%</span>
+   <div class="sep"></div>
+   <button id="img-flip-h" title="Flip horizontal" style="font-size:12px;padding:3px 9px;background:rgba(108,99,255,.18);border:1px solid rgba(108,99,255,.5);color:#9d97ff;border-radius:7px;cursor:pointer;line-height:1.3">↔</button>
+   <button id="img-flip-v" title="Flip vertical" style="font-size:12px;padding:3px 9px;background:rgba(108,99,255,.18);border:1px solid rgba(108,99,255,.5);color:#9d97ff;border-radius:7px;cursor:pointer;line-height:1.3">↕</button>
+   <div class="sep"></div>
+   <button id="img-to-front" title="Bring to front" style="font-size:10px;padding:3px 8px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.35);color:#00D4FF;border-radius:7px;cursor:pointer;white-space:nowrap">↑ Front</button>
+   <button id="img-to-back" title="Send to back" style="font-size:10px;padding:3px 8px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.35);color:#00D4FF;border-radius:7px;cursor:pointer;white-space:nowrap">↓ Back</button>
+   <div class="sep"></div>
+   <button id="img-del" title="Delete image" style="font-size:12px;padding:3px 9px;background:rgba(255,60,60,.15);border:1px solid rgba(255,60,60,.4);color:#ff6060;border-radius:7px;cursor:pointer">🗑</button>
+   <button id="img-desel" title="Deselect" style="font-size:10px;padding:3px 10px;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:#6ee7b7;border-radius:7px;cursor:pointer;font-weight:700">✓ Done</button>
+   </div>
+
 </div>
 </div>
 
@@ -1256,6 +1271,8 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     <button class="save-btn" id="btn-print">Print</button>
   </div>
 </div>
+
+
 
 
 <!-- MAIN -->
@@ -1358,27 +1375,6 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 
   <!-- VIEWPORT -->
   <div id="viewport">
-    <div id="img-sel-bar" style="display:none;position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(14,14,20,0.96);border:1.5px solid rgba(0,212,255,0.55);border-radius:14px;padding:8px 14px;align-items:center;gap:10px;z-index:50;pointer-events:auto;white-space:nowrap;box-shadow:0 4px 24px rgba(0,0,0,0.6);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);">
-  <!-- Drag handle / label -->
-  <span style="font-size:10px;font-weight:700;color:#00D4FF;text-transform:uppercase;letter-spacing:.08em;user-select:none;">✦ Image</span>
-  <div style="width:1px;height:20px;background:rgba(255,255,255,0.12);flex-shrink:0"></div>
-  <!-- Opacity -->
-  <span style="font-size:10px;color:#8888aa">Opacity</span>
-  <input type="range" id="img-op-sl" min="5" max="100" value="100" style="width:72px">
-  <span id="img-op-val" style="font-size:10px;color:#f0f0f2;min-width:28px;text-align:right">100%</span>
-  <div style="width:1px;height:20px;background:rgba(255,255,255,0.12);flex-shrink:0"></div>
-  <!-- Flip -->
-  <button id="img-flip-h" title="Flip horizontal" style="font-size:12px;padding:3px 9px;background:rgba(108,99,255,.18);border:1px solid rgba(108,99,255,.5);color:#9d97ff;border-radius:7px;cursor:pointer;line-height:1.3">↔</button>
-  <button id="img-flip-v" title="Flip vertical" style="font-size:12px;padding:3px 9px;background:rgba(108,99,255,.18);border:1px solid rgba(108,99,255,.5);color:#9d97ff;border-radius:7px;cursor:pointer;line-height:1.3">↕</button>
-  <div style="width:1px;height:20px;background:rgba(255,255,255,0.12);flex-shrink:0"></div>
-  <!-- Layer order -->
-  <button id="img-to-front" title="Bring to front" style="font-size:10px;padding:3px 8px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.35);color:#00D4FF;border-radius:7px;cursor:pointer;white-space:nowrap">↑ Front</button>
-  <button id="img-to-back"  title="Send to back"  style="font-size:10px;padding:3px 8px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.35);color:#00D4FF;border-radius:7px;cursor:pointer;white-space:nowrap">↓ Back</button>
-  <div style="width:1px;height:20px;background:rgba(255,255,255,0.12);flex-shrink:0"></div>
-  <!-- Delete / Done -->
-  <button id="img-del"   title="Delete image" style="font-size:12px;padding:3px 9px;background:rgba(255,60,60,.15);border:1px solid rgba(255,60,60,.4);color:#ff6060;border-radius:7px;cursor:pointer">🗑</button>
-  <button id="img-desel" title="Deselect" style="font-size:10px;padding:3px 10px;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:#6ee7b7;border-radius:7px;cursor:pointer;font-weight:700">✓ Done</button>
-</div>
 <div id="drop-zone">
       <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="8" y="8" width="48" height="48" rx="6"/>
@@ -14207,6 +14203,7 @@ function updateToolbarForTool(t){
     opGrp       : document.getElementById('tb-op-grp'),
     opSep       : document.getElementById('tb-op-sep'),
     cmtGrp      : document.getElementById('cmt-clr-grp'),
+    imageGrp    : document.getElementById('tb-image-grp'),
   };
 
   // Groups by what each tool needs
@@ -14275,6 +14272,11 @@ function updateToolbarForTool(t){
   if(ids.swSep) ids.swSep.style.display = (isShape || isStroke) ? '' : 'none';
   shFlex(ids.opGrp, isShape || isStroke);
   if(ids.opSep) ids.opSep.style.display = (isShape || isStroke) ? '' : 'none';
+
+  // image controls (opacity / flip / order / delete / done) — Image tool only,
+  // shown here in the tool row just like Text/Note controls. They act on the
+  // selected picture; with none selected the buttons simply no-op.
+  shFlex(ids.imageGrp, t==='image');
 
   // ── PROPERTIES ROW: hide it entirely when the tool has no options ─────────
   // Every group above has just been shown or hidden. Rather than maintain a
@@ -19507,6 +19509,12 @@ var SAVE_STORE      = 'autosave';
 var SAVE_DEBOUNCE   = IS_IPHONE ? 5000 : 2500; // longer on iPhone — gives iOS time to free memory after drawing
 var _saveDb         = null;
 var _saveTimer      = null;
+// Autosave encodes the whole backdrop+layers with toDataURL, a 1-3s SYNCHRONOUS
+// block on big pages. If it lands while you're interacting (e.g. clicking a
+// picture then reaching for a handle) the thread freezes and the cursor can't
+// update. Track the last pointer activity and hold the save off until you pause.
+var _lastInteract   = 0;
+var _saveDeferStart = 0;
 var _saveIndicator  = document.getElementById('save-indicator');
 var _lastSaveTime   = 0;
 
@@ -19837,7 +19845,14 @@ function doSave(){
     (typeof _txtRotating!=='undefined' && _txtRotating) ||
     (typeof _txtSizing!=='undefined' && _txtSizing) ||
     (typeof isPanning!=='undefined' && isPanning);
-  if(_busy){ scheduleSave(); return; }
+  var _recentInteract = (Date.now()-_lastInteract) < 1000;
+  if(_busy || _recentInteract){
+    if(!_saveDeferStart) _saveDeferStart=Date.now();
+    // Hold off the heavy save while busy/interacting — but never starve it: after
+    // ~20s of continuous activity, let it run so work still gets persisted.
+    if(_busy || (Date.now()-_saveDeferStart) < 20000){ scheduleSave(); return; }
+  }
+  _saveDeferStart=0;
   setSaveStatus('saving');
 
   // RELIABLE CACHE POINT. Reaching here PROVES IndexedDB is open, so this is where
@@ -21714,7 +21729,7 @@ _imgFileInput.addEventListener('change',function(){
 // ══════════════════════════════════════════════════════════════
 
 // ── Image overlay selection bar ───────────────────────────────
-var _imgSelBar     = document.getElementById('img-sel-bar');
+var _imgSelBar     = document.getElementById('tb-image-grp');
 var _imgOpSl       = document.getElementById('img-op-sl');
 var _imgOpVal      = document.getElementById('img-op-val');
 var _imgFlipHBtn   = document.getElementById('img-flip-h');
@@ -21725,11 +21740,17 @@ var _imgToFrontBtn = document.getElementById('img-to-front');
 var _imgToBackBtn  = document.getElementById('img-to-back');
 
 function showImgBar(ov){
-  _imgSelBar.style.display='flex';
+  // The image controls now live in the #tb2 tool row and are shown/hidden by the
+  // active tool (updateToolbarForTool), exactly like the Text tool's controls.
+  // Selecting a picture just syncs the opacity readout to it.
+  if(typeof tool!=='undefined' && tool==='image') _imgSelBar.style.display='flex';
   _imgOpSl.value=Math.round((ov.opacity!==undefined?ov.opacity:0.75)*100);
   _imgOpVal.textContent=_imgOpSl.value+'%';
 }
-function hideImgBar(){ _imgSelBar.style.display='none'; }
+// Deselecting a picture does NOT hide the row — the controls stay put while the
+// Image tool is active (like every other tool tab). The row is hidden only when
+// you switch to a different tool (updateToolbarForTool).
+function hideImgBar(){ }
 
 function applyImgOp(v){
   if(!selImg) return;
@@ -22638,6 +22659,12 @@ drawCv.addEventListener('mousemove', function(e){
   // resize/move cursor flicker ("faint cursor"). Only the image path manages
   // the cursor while an image overlay is selected.
 }, { passive: true });
+
+// Record pointer activity so autosave (doSave) can hold off until you pause,
+// keeping its 1-3s encode off the moment you're clicking/hovering handles.
+['mousedown','mousemove','touchstart','touchmove','wheel'].forEach(function(_ev){
+  drawCv.addEventListener(_ev, function(){ _lastInteract=Date.now(); }, {passive:true});
+});
 
 // Clear image cursor when mouse leaves the canvas entirely and no drag is active
 drawCv.addEventListener('mouseleave', function(){
