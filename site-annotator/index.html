@@ -16478,9 +16478,9 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
   var N=PDFLib.PDFName, ctx=pdf.context;
   var VH=sz.height;
   var v2p=sz._v2p||function(vx,vy){ return {x:vx,y:vy}; };
-  function P(cx,cy){ return v2p(cx/sc, VH - cy/sc); }
-  function W(px){ return px/sc; }
-  function f2(n){ return (Math.round(n*100)/100).toString(); }
+  function P(cx,cy){ var _p=v2p(cx/sc, VH - cy/sc); return {x:(isFinite(_p.x)?_p.x:0), y:(isFinite(_p.y)?_p.y:0)}; }
+  function W(px){ var v=px/sc; return isFinite(v)?v:0; }
+  function f2(n){ n=+n; if(!isFinite(n)) n=0; return (Math.round(n*100)/100).toString(); }
   function rgb01(hex){ var c=_hexToRgb(hex||'#000000')||{r:0,g:0,b:0}; return [c.r/255,c.g/255,c.b/255]; }
   function colStr(a){ return f2(a[0])+' '+f2(a[1])+' '+f2(a[2]); }
   function dashOf(o,sw){
@@ -16506,6 +16506,12 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
   // is added to the form's /Resources so the caption renders in every viewer.
   function addAnnot(dict, apOps, rect, strokeOp, fillOp, fontRef){
     try{
+      // Guard: a non-finite coordinate (NaN/Infinity) serialized into Rect/BBox is
+      // exactly what makes Acrobat call the file "damaged and could not be repaired"
+      // (qpdf/pdf-lib accept it, Acrobat doesn't). Clamp to finite before use.
+      rect=[rect[0],rect[1],rect[2],rect[3]].map(function(v){ v=+v; return isFinite(v)?v:0; });
+      strokeOp=(strokeOp==null||!isFinite(+strokeOp))?1:+strokeOp;
+      if(fillOp!=null && !isFinite(+fillOp)) fillOp=1;
       var res={ ExtGState:{ GS0:{ Type:'ExtGState', CA:strokeOp, ca:strokeOp } } };
       if(fillOp!=null) res.ExtGState.GSF={ Type:'ExtGState', CA:fillOp, ca:fillOp };
       if(fontRef) res.Font={ F0: fontRef };
@@ -16520,6 +16526,11 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
       dict.P=page.ref;
       dict.NM=PDFLib.PDFString.of('AOG-'+Date.now().toString(36)+'-'+(nmSeq++));
       dict.AP={ N: apRef };
+      // Final safety net: clamp any non-finite number in the dict's coordinate
+      // ARRAY fields (L, Vertices, CL, C, IC, QuadPoints, …). Only arrays are
+      // touched, so PDFRef/PDFString values are left intact.
+      try{ Object.keys(dict).forEach(function(k){ var v=dict[k];
+        if(Array.isArray(v)){ for(var i=0;i<v.length;i++){ if(typeof v[i]==='number' && !isFinite(v[i])) v[i]=0; } } }); }catch(_sn){}
       var annotRef=ctx.register(ctx.obj(dict));
       var arr=null;
       try{ arr=page.node.Annots(); }catch(_a){}
@@ -16844,9 +16855,9 @@ function _emitImageStamps(pdf, page, sz, sc, list){
   if(!list || !list.length || !window.PDFLib){ return Promise.resolve(0); }
   var N=PDFLib.PDFName, ctx=pdf.context;
   var VH=sz.height, v2p=sz._v2p||function(x,y){return {x:x,y:y};}, rot=sz._rot||0;
-  function P(cx,cy){ return v2p(cx/sc, VH - cy/sc); }
-  function W(px){ return px/sc; }
-  function f2(n){ return (Math.round(n*100)/100).toString(); }
+  function P(cx,cy){ var _p=v2p(cx/sc, VH - cy/sc); return {x:(isFinite(_p.x)?_p.x:0), y:(isFinite(_p.y)?_p.y:0)}; }
+  function W(px){ var v=px/sc; return isFinite(v)?v:0; }
+  function f2(n){ n=+n; if(!isFinite(n)) n=0; return (Math.round(n*100)/100).toString(); }
   var seq=0;
   var jobs=list.map(function(ov){
     return new Promise(function(resolve){
@@ -16870,7 +16881,10 @@ function _emitImageStamps(pdf, page, sz, sc, list){
               // cm maps the image unit square (0..1) → centered, scaled, rotated.
               var a=Wp*cphi, b=Wp*sphi, cM=-Hp*sphi, dM=Hp*cphi;
               var e=C.x-0.5*(a+cM), ff=C.y-0.5*(b+dM);
-              var op=(ov.opacity!=null?ov.opacity:1);
+              var op=(ov.opacity!=null && isFinite(+ov.opacity))?+ov.opacity:1;
+              // Bail if any matrix/position value went non-finite — a NaN in the
+              // Stamp Rect/BBox/cm is what makes Acrobat reject the whole file.
+              if(![a,b,cM,dM,e,ff,C.x,C.y,Wp,Hp].every(isFinite)){ console.warn('[ImgStamp] non-finite geometry, skipping'); resolve(); return; }
               var res={ XObject:{}, ExtGState:{ GS0:{ Type:'ExtGState', CA:op, ca:op } } };
               res.XObject.Im0=im.ref;
               var apOps='q /GS0 gs '+f2(a)+' '+f2(b)+' '+f2(cM)+' '+f2(dM)+' '+f2(e)+' '+f2(ff)+' cm /Im0 Do Q';
@@ -16928,8 +16942,8 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
   var rotDeg = rot; // 0/90/180/270
   function col(hex){ var c=_hexToRgb(hex||'#000000')||{r:0,g:0,b:0}; return rgb(c.r/255,c.g/255,c.b/255); }
   // Map a canvas point (top-left origin, base px) → unrotated PDF page point.
-  function P(cx,cy){ return v2p(cx/sc, VH - cy/sc); }
-  function W(px){ return px/sc; }                 // canvas length px → pt (scale only)
+  function P(cx,cy){ var _p=v2p(cx/sc, VH - cy/sc); return {x:(isFinite(_p.x)?_p.x:0), y:(isFinite(_p.y)?_p.y:0)}; }
+  function W(px){ var v=px/sc; return isFinite(v)?v:0; }                 // canvas length px → pt (scale only)
   var movedExplode=_movedExplodeObj;   // shared detector
   var _dbgCnt={drawn:0, skippedExplode:0, movedDrawn:0};
   function visible(o){
