@@ -8,7 +8,7 @@
 //    2. Update CHANGELOG below with what changed
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-vTEST2.4.6';
+var CACHE_NAME = 'aog-forms-v2.4.7';
 var DEV_MODE   = false;
 
 // Tracks whether this SW instance has already run a precache repair pass
@@ -23,8 +23,7 @@ var cacheProgress = { percent: 0, label: '', done: false }; // ← SET TRUE duri
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  '📸 Android: Capture & PDF now save straight to your phone (Photos/Gallery → Download album)',
-  '📤 After saving, a one-tap SHARE IT bar pops up to text/email the file',
+'📍 Address search IN PROPERTY LOOKUP now snaps to the correct parcel statewide — picks the exact lot from the county/state parcel records instead of dropping the pin on a neighboring house',
 ];
 // 
 // ============================================================

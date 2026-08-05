@@ -48,6 +48,18 @@ body{font-family:'Exo 2','Inter',sans-serif;background:var(--bg);color:var(--tex
 .topbar-brand{font-weight:700;font-size:16px;letter-spacing:.3px;color:#fff;}
 .topbar-brand span{color:var(--yellow);}
 .topbar-right{display:flex;gap:6px;}
+/* ── HEADER LIVE STATS (visible on every tab) ── */
+.hdr-stats{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+.hs{background:rgba(217,119,6,.10);border:1px solid rgba(217,119,6,.35);border-radius:6px;padding:4px 9px;min-width:74px;text-align:right;}
+.hs-l{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.5);line-height:1.3;}
+.hs-v{font-family:'Orbitron',monospace;font-size:13px;font-weight:700;color:#FBBF24;line-height:1.2;white-space:nowrap;}
+.hs-u{font-family:'Share Tech Mono',monospace;font-size:8px;color:rgba(255,255,255,.45);margin-left:3px;font-weight:400;}
+@media(max-width:640px){
+  .topbar{flex-wrap:wrap;}
+  .hdr-stats{margin-left:0;width:100%;justify-content:space-between;gap:5px;padding-top:2px;}
+  .hs{flex:1;min-width:0;padding:3px 6px;text-align:center;}
+  .hs-v{font-size:12px;}
+}
 .btn{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:var(--rs);font-family:'Inter',sans-serif;font-size:12px;font-weight:600;border:none;cursor:pointer;transition:all .15s;white-space:nowrap;}
 .btn-primary{background:var(--blue);color:#fff;}
 .btn-primary:hover{background:var(--blue-dk);}
@@ -343,6 +355,12 @@ input[type=number][id^="pexva_"]::-webkit-inner-spin-button{-webkit-appearance:n
   <div>
     <div style="font-family:'Orbitron',monospace;font-size:11px;font-weight:700;color:#fff;letter-spacing:2px;line-height:1.1;">LOAD CALC</div>
     <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(255,255,255,0.4);letter-spacing:1px;">NEC 2020 · Art. 220.82</div>
+  </div>
+
+  <div class="hdr-stats">
+    <div class="hs"><div class="hs-l">Fuel</div><div class="hs-v" id="h_fuel">LP</div></div>
+    <div class="hs"><div class="hs-l">Min. Generator</div><div class="hs-v" id="h_gen">—</div></div>
+    <div class="hs"><div class="hs-l">Service Demand</div><div class="hs-v" id="h_dem">—<span class="hs-u">VA</span></div></div>
   </div>
 </div>
 
@@ -1576,6 +1594,12 @@ function calc(){
   sv('s_gen',gen);
   document.getElementById('s_fuel').textContent=fuel==='propane'?'Propane LP':'Natural Gas';
   sv('s_dem',Math.round(svcDem));
+
+  // ── Header live readout (always visible on every tab) ──
+  var hf=document.getElementById('h_fuel'), hg=document.getElementById('h_gen'), hd=document.getElementById('h_dem');
+  if(hf) hf.textContent = fuel==='propane' ? 'LP' : 'NG';
+  if(hg) hg.textContent = gen;
+  if(hd) hd.innerHTML = fmt(Math.round(svcDem))+'<span class="hs-u">VA</span>';
   sv('s_amps',amps.toFixed(1));
   sv('s_svc',svcSize);
   sv('s_neut',neutral_amps.toFixed(1));  // NEC 220.61 neutral amps

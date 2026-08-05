@@ -3496,8 +3496,16 @@ function saveSmart() {
 // Direct-download fallback (Android/desktop without file sharing).
 function downloadResults(results) {
   results.forEach(function (r) {
-    var link = document.createElement('a');
-    link.download = r.fname; link.href = r.dataURL; link.click();
+    try {
+      var parts = r.dataURL.split(','), mime = (parts[0].match(/:(.*?);/) || [])[1] || 'image/jpeg';
+      var bin = atob(parts[1]), arr = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      _svDownloadBlob(new Blob([arr], { type: mime }), r.fname);
+    } catch (e) {
+      var link = document.createElement('a');
+      link.download = r.fname; link.href = r.dataURL;
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
   });
   setStatus(results.length + ' image(s) sent to your Downloads folder.');
   setTimeout(function () { setStatus(''); }, 4000);
@@ -3601,11 +3609,17 @@ function saveForAndroid() {
     _withTimeout(html2canvas(page, { scale: captureScale, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } }), 45000, 'Page ' + (idx + 1) + ' render').then(rawCanvas => {
       _updateRenderOverlay('Page ' + (idx + 1) + ' of ' + pages.length + ' rendered…');
       const canvas = fillSheet(rawCanvas)  /* every page = full 8.5x11 letter sheet w/ 0.15in margins */;
-      const link = document.createElement('a');
-      link.download = pages.length === 1
+      const _dlname = pages.length === 1
         ? 'AlwaysOn_Generators_Form.jpg'
         : `AlwaysOn_Generators_Form_Page${idx+1}.jpg`;
-      link.href = canvas.toDataURL('image/jpeg', 0.85); link.click();
+      canvas.toBlob(function (b) {
+        if (b) { _svDownloadBlob(b, _dlname); }
+        else {
+          var link = document.createElement('a');
+          link.download = _dlname; link.href = canvas.toDataURL('image/jpeg', 0.85);
+          document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+      }, 'image/jpeg', 0.85);
       completed++;
       if (completed === pages.length) finish(`${pages.length} image(s) sent to your Downloads folder.`);
     }).catch(err => {
@@ -3808,10 +3822,7 @@ async function saveFillablePdf() {
 
     // Android: save straight to Downloads, then offer to share — no share-sheet hunting.
     if (isAndroidDevice()) {
-      var _urlA = URL.createObjectURL(blob);
-      var _aA = document.createElement('a');
-      _aA.href = _urlA; _aA.download = fname; _aA.click();
-      setTimeout(function () { URL.revokeObjectURL(_urlA); }, 4000);
+      _svDownloadBlob(blob, fname);
       setStatus('Resumable PDF saved — check Files → Downloads.');
       try { _androidOfferShare([new File([blob], fname, { type: 'application/pdf' })], 'pdf'); } catch (e) {}
       return;
@@ -3832,16 +3843,43 @@ async function saveFillablePdf() {
       }
     }
     if (!didShare) {
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url; a.download = fname; a.click();
-      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      _svDownloadBlob(blob, fname);
       setStatus('Resumable PDF saved: ' + fname);
     }
   } catch (err) {
     _hideRenderOverlay();
     setStatus('Could not build PDF: ' + (err && err.message ? err.message : err));
   }
+}
+
+// Hardened blob download for Android browsers/WebViews that silently ignore a
+// programmatic blob: anchor download. Appends the anchor to the DOM, then falls
+// back to the share sheet / a new tab if the click can't take.
+function _svDownloadBlob(blob, filename) {
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  var supportsDownload = ('download' in a);
+  a.href = url; a.download = filename; a.rel = 'noopener'; a.target = '_blank';
+  document.body.appendChild(a);
+  var clicked = false;
+  try { a.click(); clicked = true; } catch (e) { clicked = false; }
+  document.body.removeChild(a);
+  var isAndroid = /Android/i.test(navigator.userAgent || '');
+  if (!clicked || !supportsDownload || isAndroid) {
+    var _shared = false;
+    try {
+      if (navigator.canShare) {
+        var f = new File([blob], filename, { type: blob.type || 'application/octet-stream' });
+        if (navigator.canShare({ files: [f] })) {
+          _shared = true;
+          navigator.share({ files: [f], title: filename })
+            .catch(function () { try { window.open(url, '_blank'); } catch (e) {} });
+        }
+      }
+    } catch (e) { _shared = false; }
+    if (!_shared && (!clicked || !supportsDownload)) { try { window.open(url, '_blank'); } catch (e) {} }
+  }
+  setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
 }
 
 // ── LOAD DRAFT FILE (resumable PDF) ─────────────────────────────────────

@@ -2320,11 +2320,44 @@ function clearForm(confirmed) {
    The 📂 LOAD button reads either channel back and refills the form.
 ================================================================ */
 function _downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  // Some Android browsers/WebViews (in-app browsers inside Gmail, Facebook,
+  // Messenger, some Samsung Internet configs) silently ignore a programmatic
+  // anchor download of a blob: URL. Detect support for the `download` attribute
+  // and, when it's missing OR the click doesn't take, fall back to the native
+  // share sheet, then to opening the blob in a new tab so the user can save it.
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  var supportsDownload = ('download' in a);
+  a.href = url;
+  a.download = filename;
+  a.rel = 'noopener';
+  a.target = '_blank'; // harmless on desktop; lets some Android browsers save
+  document.body.appendChild(a);
+
+  var clicked = false;
+  try { a.click(); clicked = true; } catch (e) { clicked = false; }
+  document.body.removeChild(a);
+
+  // Fallback for Android browsers that block the anchor download entirely.
+  var isAndroid = /Android/i.test(navigator.userAgent || '');
+  if (!clicked || !supportsDownload || isAndroid) {
+    var _shared = false;
+    try {
+      if (navigator.canShare) {
+        var f = new File([blob], filename, { type: blob.type || 'application/octet-stream' });
+        if (navigator.canShare({ files: [f] })) {
+          _shared = true;
+          navigator.share({ files: [f], title: filename })
+            .catch(function () { try { window.open(url, '_blank'); } catch (e) {} });
+        }
+      }
+    } catch (e) { _shared = false; }
+    if (!_shared && (!clicked || !supportsDownload)) {
+      try { window.open(url, '_blank'); } catch (e) {}
+    }
+  }
+  // Keep the URL alive long enough for a new-tab / share consumer to read it.
+  setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
 }
 
 function _editPdfFilename() {
@@ -2925,18 +2958,40 @@ function captureAllPages() {
       page.style.width = RENDER_W + 'px';
       page.style.maxWidth = RENDER_W + 'px';
       page.style.minWidth = RENDER_W + 'px';
-      // First page needs extra settle time so the viewport-meta swap (portrait→
-      // wide) fully reflows before html2canvas measures. Later pages are quick.
-      const settle = (idx === 0) ? 250 : 60;
-      setTimeout(() => {
-        page.style.height = 'auto';
-        // Tight height: avoid baking large trailing whitespace into the source
-        // canvas (that extra blank space makes page 1 scale down and look small).
-        const captureH = Math.max(page.scrollHeight, page.offsetHeight) + 8;
+      page.style.height = 'auto';
+      // The portrait→wide viewport swap must FULLY reflow before html2canvas
+      // measures, or page 1 is measured while still collapsed and captures
+      // nearly empty — the "only the second page exported" bug on some Androids.
+      // Wait for web fonts, then two animation frames (layout settled), then
+      // measure. If the height still reads collapsed (< a sane minimum), wait
+      // one more frame and re-measure before giving up.
+      var _fontsReady = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+      // A real form page at 1050px wide is always well over this; anything under
+      // it means the reflow hasn't landed yet.
+      var MIN_SANE_H = 300;
+      function _measure() {
+        return Math.max(page.scrollHeight, page.offsetHeight, Math.ceil(page.getBoundingClientRect().height));
+      }
+      function _raf() { return new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); }); }
+      _fontsReady.then(_raf).then(function () {
+        // Give the FIRST page an extra frame + short delay; the viewport meta
+        // swap is the slowest thing here and hits page 1 only.
+        var extra = (idx === 0) ? new Promise(function (r) { setTimeout(r, 200); }).then(_raf) : Promise.resolve();
+        return extra;
+      }).then(function () {
+        var h = _measure();
+        if (h < MIN_SANE_H) {
+          // Not settled yet — one more frame, then trust whatever we get.
+          return _raf().then(function () { return _measure(); });
+        }
+        return h;
+      }).then(function (measuredH) {
+        const captureH = measuredH + 8;
         _withTimeout(html2canvas(page, {
           scale: captureScale, useCORS: true, backgroundColor: '#fff',
           logging: false, width: RENDER_W,
-          height: captureH, windowWidth: RENDER_W, windowHeight: captureH
+          height: captureH, windowWidth: RENDER_W, windowHeight: captureH,
+          scrollX: 0, scrollY: 0
         }), 45000, 'Page ' + (idx + 1) + ' render').then(canvas => {
           page.style.width = oW; page.style.maxWidth = oM; page.style.minWidth = om;
           _updateRenderOverlay('Page ' + (idx + 1) + ' of ' + pages.length + ' rendered…');
@@ -2946,7 +3001,7 @@ function captureAllPages() {
           page.style.width = oW; page.style.maxWidth = oM; page.style.minWidth = om;
           reject(err);
         });
-      }, settle);
+      }).catch(reject);
     }));
   });
   return chain.then(canvases => { cleanup(); return canvases; })
@@ -3288,14 +3343,15 @@ function saveForAndroid() {
         page.style.width = oW; page.style.maxWidth = oM; page.style.minWidth = om;
         _updateRenderOverlay('Page ' + (idx + 1) + ' of ' + pages.length + ' rendered…');
         const letterCanvas = toLetterCanvas(canvas, captureScale, idx === 1);
-        const a = document.createElement('a');
-        a.download = pages.length === 1
+        const _dlname = pages.length === 1
           ? buildFileName('jpg', null)
           : buildFileName('jpg', idx + 1);
         const _durl = letterCanvas.toDataURL('image/jpeg', 0.93);
-        a.href = _durl;
-        a.click();
-        try { _shareFiles.push(dataURLtoFile(_durl, a.download)); } catch (e) {}
+        letterCanvas.toBlob(function (b) {
+          if (b) { _downloadBlob(b, _dlname); }
+          else { var a = document.createElement('a'); a.download = _dlname; a.href = _durl; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
+        }, 'image/jpeg', 0.93);
+        try { _shareFiles.push(dataURLtoFile(_durl, _dlname)); } catch (e) {}
         done++;
         if (done === pages.length) {
           restorePlaceholders();

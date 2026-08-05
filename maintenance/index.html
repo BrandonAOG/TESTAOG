@@ -2082,11 +2082,41 @@ function applyDraftData(data) {
 }
 
 function _downloadBlob(blob, filename) {
+  // Some Android browsers/WebViews (in-app browsers inside Gmail, Facebook,
+  // Messenger, some Samsung Internet configs) silently ignore a programmatic
+  // anchor download of a blob: URL. Detect support and fall back to the share
+  // sheet, then to opening the blob in a new tab so the user can save it.
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const supportsDownload = ('download' in a);
+  a.href = url;
+  a.download = filename;
+  a.rel = 'noopener';
+  a.target = '_blank';
+  document.body.appendChild(a);
+
+  let clicked = false;
+  try { a.click(); clicked = true; } catch (e) { clicked = false; }
+  document.body.removeChild(a);
+
+  const isAndroid = /Android/i.test(navigator.userAgent || '');
+  if (!clicked || !supportsDownload || isAndroid) {
+    let _shared = false;
+    try {
+      if (navigator.canShare) {
+        const f = new File([blob], filename, { type: blob.type || 'application/octet-stream' });
+        if (navigator.canShare({ files: [f] })) {
+          _shared = true;
+          navigator.share({ files: [f], title: filename })
+            .catch(function () { try { window.open(url, '_blank'); } catch (e) {} });
+        }
+      }
+    } catch (e) { _shared = false; }
+    if (!_shared && (!clicked || !supportsDownload)) {
+      try { window.open(url, '_blank'); } catch (e) {}
+    }
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 function _editPdfFilename() {

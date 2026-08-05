@@ -112,12 +112,6 @@ input[data-color]{color:transparent;text-shadow:none;caret-color:transparent;bac
 input[type=range]{-webkit-appearance:none;appearance:none;width:56px;height:4px;background:var(--b2);border-radius:2px;outline:none;cursor:pointer;touch-action:none}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--acc);cursor:pointer}
 input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--acc);cursor:pointer;border:none}
-/* Stroke-width slider: 48 point-steps (0.25–12 pt) crammed into 56px was
-   ~1.2px of travel per step — unpickable. 3× longer travel makes each 0.25 pt
-   step ~3.5px of drag. The toolbar row scrolls horizontally, so the extra
-   width never wraps or squeezes neighbors. */
-#sw-sl{width:170px}
-#tb-sw-grp{min-width:174px}
 /* SUBBAR */
 /* SUBBAR — single scrolling row, never wraps.
    This was flex-wrap:wrap, so on a narrow screen the zoom/layer/export controls
@@ -984,10 +978,6 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   <button class="tb-btn" id="btn-undo"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg><span class="lbl">Undo</span></button>
   <button class="tb-btn" id="btn-redo"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.5"/></svg><span class="lbl">Redo</span></button>
   <button class="tb-btn" id="btn-clear"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg><span class="lbl">Clear</span></button>
-  <label id="acro-annot-wrap" title="Acrobat-editable export: arrows, lines, polylines, rectangles, ellipses and pen strokes are written as REAL PDF annotations you can select, move and edit in Adobe Acrobat. Off = everything is flattened into the page (best for permit submission)." style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;color:var(--txt2);white-space:nowrap;padding:0 6px;flex-shrink:0">
-    <input type="checkbox" id="opt-acroannots" style="width:14px;height:14px;accent-color:var(--acc)">
-    <span>Acrobat-edit</span>
-  </label>
 </div>
 
 <!-- PROPERTIES ROW — contextual: only the controls the ACTIVE TOOL uses.
@@ -1201,8 +1191,8 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   <div class="sep"></div>
   <!-- STROKE WIDTH -->
   <div id="tb-sw-grp" class="sl-wrap">
-    <input type="range" id="sw-sl" min="0.5" max="30" step="0.5" value="1">
-    <span id="sw-val">1px</span>
+    <input type="range" id="sw-sl" min="1" max="30" value="5">
+    <span id="sw-val">5px</span>
   </div>
   <div class="sep" id="tb-sw-sep"></div>
   <!-- OPACITY -->
@@ -1211,21 +1201,6 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     <span id="op-val">100%</span>
   </div>
   <div class="sep" id="tb-op-sep"></div>
-   <div id="tb-image-grp" style="display:none;flex-shrink:0;align-items:center;gap:8px">
-   <span style="font-size:10px;color:#8888aa">Opacity</span>
-   <input type="range" id="img-op-sl" min="5" max="100" value="100" style="width:72px">
-   <span id="img-op-val" style="font-size:10px;color:#f0f0f2;min-width:28px;text-align:right">100%</span>
-   <div class="sep"></div>
-   <button id="img-flip-h" title="Flip horizontal" style="font-size:12px;padding:3px 9px;background:rgba(108,99,255,.18);border:1px solid rgba(108,99,255,.5);color:#9d97ff;border-radius:7px;cursor:pointer;line-height:1.3">↔</button>
-   <button id="img-flip-v" title="Flip vertical" style="font-size:12px;padding:3px 9px;background:rgba(108,99,255,.18);border:1px solid rgba(108,99,255,.5);color:#9d97ff;border-radius:7px;cursor:pointer;line-height:1.3">↕</button>
-   <div class="sep"></div>
-   <button id="img-to-front" title="Bring to front" style="font-size:10px;padding:3px 8px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.35);color:#00D4FF;border-radius:7px;cursor:pointer;white-space:nowrap">↑ Front</button>
-   <button id="img-to-back" title="Send to back" style="font-size:10px;padding:3px 8px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.35);color:#00D4FF;border-radius:7px;cursor:pointer;white-space:nowrap">↓ Back</button>
-   <div class="sep"></div>
-   <button id="img-del" title="Delete image" style="font-size:12px;padding:3px 9px;background:rgba(255,60,60,.15);border:1px solid rgba(255,60,60,.4);color:#ff6060;border-radius:7px;cursor:pointer">🗑</button>
-   <button id="img-desel" title="Deselect" style="font-size:10px;padding:3px 10px;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:#6ee7b7;border-radius:7px;cursor:pointer;font-weight:700">✓ Done</button>
-   </div>
-
 </div>
 </div>
 
@@ -1271,8 +1246,6 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     <button class="save-btn" id="btn-print">Print</button>
   </div>
 </div>
-
-
 
 
 <!-- MAIN -->
@@ -1375,6 +1348,27 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 
   <!-- VIEWPORT -->
   <div id="viewport">
+    <div id="img-sel-bar" style="display:none;position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(14,14,20,0.96);border:1.5px solid rgba(0,212,255,0.55);border-radius:14px;padding:8px 14px;align-items:center;gap:10px;z-index:50;pointer-events:auto;white-space:nowrap;box-shadow:0 4px 24px rgba(0,0,0,0.6);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);">
+  <!-- Drag handle / label -->
+  <span style="font-size:10px;font-weight:700;color:#00D4FF;text-transform:uppercase;letter-spacing:.08em;user-select:none;">✦ Image</span>
+  <div style="width:1px;height:20px;background:rgba(255,255,255,0.12);flex-shrink:0"></div>
+  <!-- Opacity -->
+  <span style="font-size:10px;color:#8888aa">Opacity</span>
+  <input type="range" id="img-op-sl" min="5" max="100" value="100" style="width:72px">
+  <span id="img-op-val" style="font-size:10px;color:#f0f0f2;min-width:28px;text-align:right">100%</span>
+  <div style="width:1px;height:20px;background:rgba(255,255,255,0.12);flex-shrink:0"></div>
+  <!-- Flip -->
+  <button id="img-flip-h" title="Flip horizontal" style="font-size:12px;padding:3px 9px;background:rgba(108,99,255,.18);border:1px solid rgba(108,99,255,.5);color:#9d97ff;border-radius:7px;cursor:pointer;line-height:1.3">↔</button>
+  <button id="img-flip-v" title="Flip vertical" style="font-size:12px;padding:3px 9px;background:rgba(108,99,255,.18);border:1px solid rgba(108,99,255,.5);color:#9d97ff;border-radius:7px;cursor:pointer;line-height:1.3">↕</button>
+  <div style="width:1px;height:20px;background:rgba(255,255,255,0.12);flex-shrink:0"></div>
+  <!-- Layer order -->
+  <button id="img-to-front" title="Bring to front" style="font-size:10px;padding:3px 8px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.35);color:#00D4FF;border-radius:7px;cursor:pointer;white-space:nowrap">↑ Front</button>
+  <button id="img-to-back"  title="Send to back"  style="font-size:10px;padding:3px 8px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.35);color:#00D4FF;border-radius:7px;cursor:pointer;white-space:nowrap">↓ Back</button>
+  <div style="width:1px;height:20px;background:rgba(255,255,255,0.12);flex-shrink:0"></div>
+  <!-- Delete / Done -->
+  <button id="img-del"   title="Delete image" style="font-size:12px;padding:3px 9px;background:rgba(255,60,60,.15);border:1px solid rgba(255,60,60,.4);color:#ff6060;border-radius:7px;cursor:pointer">🗑</button>
+  <button id="img-desel" title="Deselect" style="font-size:10px;padding:3px 10px;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:#6ee7b7;border-radius:7px;cursor:pointer;font-weight:700">✓ Done</button>
+</div>
 <div id="drop-zone">
       <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="8" y="8" width="48" height="48" rx="6"/>
@@ -1961,113 +1955,6 @@ function dbg(stage, msg, data){
   try{ console.log('%c[AOG:'+stage+']','color:#0a0;font-weight:bold', msg, data!==undefined?data:''); }catch(e){}
 }
 function dbgReset(label){ if(!AOG_DEBUG) return; _dbgLog=[]; dbg('reset', label||'new trace'); }
-// ── ALWAYS-ON IMAGE EXPORT DIAGNOSTIC (visible in F12 without enabling debug) ──
-// Prints a clear, styled line for every step of how pictures are handled on
-// export, so a picture that gets dropped, traced-to-vector, or flattened is easy
-// to spot in the console. Records also collect on window.AOG_IMGDIAG.
-window.AOG_IMGDIAG=[];
-// Footprints of page-native images the user DELETED. The original image XObject
-// still lives in the pristine page content, so on a kept-page export we paint a
-// white rectangle over each deleted image's original spot to remove it — a
-// surgical erase that avoids rebuilding (and degrading) the whole page.
-var _deletedPageImgs=[];
-// Every page-native image's source XObject name captured at import (see the image
-// extraction pass). Compared against the live overlays at export to detect which
-// pictures were deleted, so we can remove exactly those image objects.
-var _pageImgNamesAtImport=[];
-// name → {cx,cy,w,h,srcW,srcH} (canvas coords) for every page image at import,
-// so a deleted image can be matched to its actual draw in the page content stream
-// by position (pdf.js's object id does NOT match the PDF's resource name).
-var _pageImgInfoAtImport={};
-function _bytesToLatin1(u8){ var s='',i=0,n=u8.length; for(;i<n;i++) s+=String.fromCharCode(u8[i]); return s; }
-// Decode a pdf-lib page's content stream(s) to a string (inflating FlateDecode via
-// the browser's DecompressionStream — same family as the PNG CompressionStream
-// already used here). Returns a Promise<string>.
-function _getPageContentString(pdf, page){
-  return new Promise(function(resolve){
-    try{
-      var PL=window.PDFLib, c=page.node.Contents();
-      if(!c){ resolve(''); return; }
-      var streams=[];
-      if(c instanceof PL.PDFArray){ c.asArray().forEach(function(r){ streams.push((r instanceof PL.PDFRef)?pdf.context.lookup(r):r); }); }
-      else streams.push((c instanceof PL.PDFRef)?pdf.context.lookup(c):c);
-      var parts=[], i=0;
-      (function next(){
-        if(i>=streams.length){ resolve(parts.join('\n')); return; }
-        var s=streams[i++], raw=null, dict=null;
-        try{ raw=s.getContents?s.getContents():(s.contents||null); }catch(e){}
-        try{ dict=s.dict||s; }catch(e){}
-        var filt=null; try{ filt=dict.get(PL.PDFName.of('Filter')); }catch(e){}
-        var isFlate=filt && String(filt).indexOf('FlateDecode')>=0;
-        if(raw && isFlate && typeof DecompressionStream!=='undefined'){
-          try{
-            var ds=new DecompressionStream('deflate');
-            var w=ds.writable.getWriter(); w.write(raw); w.close();
-            new Response(ds.readable).arrayBuffer().then(function(ab){ parts.push(_bytesToLatin1(new Uint8Array(ab))); next(); })
-              .catch(function(){ next(); });
-          }catch(e){ next(); }
-        } else { if(raw) parts.push(_bytesToLatin1(raw)); next(); }
-      })();
-    }catch(e){ resolve(''); }
-  });
-}
-// Scan a content-stream string for image XObject draws, returning the page-space
-// CENTER of each (tracking the CTM through q/Q/cm). Only names in `imageNames`
-// (the page's Image XObjects) are reported.
-function _scanImageDraws(cs, imageNames){
-  var draws=[];
-  var re=/\/[^\s\/\[\]<>(){}]+|[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?|[A-Za-z'"*]+|[\[\]<>{}]/g;
-  var m, ops=[], ctm=[1,0,0,1,0,0], stack=[], lastName=null, lastNameStart=-1;
-  function isNum(t){ return /^[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?$/.test(t); }
-  function mul(m1,m2){ return [
-    m1[0]*m2[0]+m1[1]*m2[2],           m1[0]*m2[1]+m1[1]*m2[3],
-    m1[2]*m2[0]+m1[3]*m2[2],           m1[2]*m2[1]+m1[3]*m2[3],
-    m1[4]*m2[0]+m1[5]*m2[2]+m2[4],     m1[4]*m2[1]+m1[5]*m2[3]+m2[5] ]; }
-  while((m=re.exec(cs))){
-    var t=m[0], idx=m.index;
-    if(t.charCodeAt(0)===47){ lastName=t.slice(1); lastNameStart=idx; continue; }   // /Name
-    if(isNum(t)){ ops.push(parseFloat(t)); continue; }
-    if(t==='q'){ stack.push(ctm.slice()); ops.length=0; }
-    else if(t==='Q'){ if(stack.length) ctm=stack.pop(); ops.length=0; }
-    else if(t==='cm'){ if(ops.length>=6){ var o=ops.slice(ops.length-6); ctm=mul(o,ctm); } ops.length=0; }
-    else if(t==='Do'){
-      if(lastName && imageNames[lastName]){
-        draws.push({name:lastName,
-          x:0.5*ctm[0]+0.5*ctm[2]+ctm[4],
-          y:0.5*ctm[1]+0.5*ctm[3]+ctm[5],
-          start:lastNameStart, end:idx+t.length});   // char span of "/Name … Do"
-      }
-      ops.length=0;
-    } else { ops.length=0; }
-  }
-  return draws;
-}
-function _recordDeletedPageImg(ov){
-  try{
-    if(ov && ov._fromPdfPage && ov._origCx!=null){
-      _deletedPageImgs.push({_origCx:ov._origCx,_origCy:ov._origCy,_origW:ov._origW,_origH:ov._origH,layerIdx:ov.layerIdx});
-    }
-  }catch(e){}
-}
-function imglog(msg, data){
-  try{
-    window.AOG_IMGDIAG.push({t:Date.now(), msg:msg, data:data!==undefined?data:null});
-    console.log('%c[AOG IMG]%c '+msg,'background:#7c3aed;color:#fff;font-weight:bold;padding:1px 4px;border-radius:3px','color:#7c3aed;font-weight:bold', data!==undefined?data:'');
-  }catch(e){}
-}
-// Surface main-thread stalls in F12: anything that blocks the thread longer than
-// ~80ms (dropped frames → the "sticks then catches up" feeling) gets logged with
-// its duration, so a periodic hitch is easy to spot and time.
-try{
-  if('PerformanceObserver' in window){
-    var _lt=new PerformanceObserver(function(list){
-      list.getEntries().forEach(function(e){
-        if(e.duration>=80) console.log('%c[AOG PERF]%c main-thread stall '+Math.round(e.duration)+'ms','background:#b45309;color:#fff;font-weight:bold;padding:1px 4px;border-radius:3px','color:#b45309', '(if this coincides with a hitch, that is the cause)');
-      });
-    });
-    _lt.observe({entryTypes:['longtask']});
-  }
-}catch(_lt0){}
 window.AOG = window.AOG || {};
 window.AOG.dumpDebug=function(){
   console.log('=== AOG DEBUG DUMP ('+_dbgLog.length+' records) ===');
@@ -2421,38 +2308,6 @@ function _srcIsAogExport(){
 function _repairLigArtifacts(s){
   if(!s || typeof s!=='string') return s;
   return s.indexOf('\u08A2')===-1 ? s : s.replace(/\u08A2/g,'ti');
-}
-// ── WinAnsi safety net for PDF export ────────────────────────────────────────
-// pdf-lib's standard Helvetica uses WinAnsi encoding and THROWS on any character
-// it can't encode (e.g. page.drawText -> "WinAnsi cannot encode ..."), which aborts
-// the whole export. The classic offenders in permit/survey text are the typographic
-// PRIME marks (U+2032 feet, U+2033 inches) -- e.g. pasting  1/4"  as  1/4″  or  10′.
-// Map those and other common non-WinAnsi typography to safe ASCII, then drop any
-// remaining un-encodable char so a paste can never break the export.
-function _winAnsiSafe(s){
-  if(s==null) return s;
-  s=String(s)
-    .replace(/[′‵]/g,"'")                 // prime / reversed prime -> '  (feet)
-    .replace(/[″‴‶‷]/g,'"')     // double/triple prime -> "  (inches)
-    .replace(/[‘’‚‛]/g,"'")     // curly single quotes -> '
-    .replace(/[“”„‟]/g,'"')     // curly double quotes -> "
-    .replace(/[‐‑‒–—―−]/g,'-') // hyphens/dashes/minus -> -
-    .replace(/…/g,'...')                        // ellipsis
-    .replace(/[⁄∕]/g,'/')                  // fraction / division slash -> /
-    .replace(/•/g,'-')                          // bullet -> -
-    .replace(/™/g,'(TM)').replace(/®/g,'(R)').replace(/©/g,'(C)')
-    .replace(/[ -   　]/g,' ') // exotic spaces -> normal space
-    .replace(/[​-‏‪-‮﻿]/g,''); // zero-width / bidi marks -> drop
-  // Final guard: replace anything still outside Latin-1 (and stray C1 controls) with '?'
-  return s.replace(/[^\x09\x0A\x0D\x20-\x7E -ÿ]/g,'?');
-}
-// Build a PDF literal string safely. PDFString.of() wraps the raw text in ( )
-// WITHOUT escaping, so a lone or unbalanced parenthesis in user text (e.g.
-// "(6.8.6.1(B)") produces an invalid string object and Acrobat refuses the file.
-// Escape backslashes and parentheses (and sanitize to WinAnsi) before wrapping.
-function _pdfStrOf(s){
-  s=_winAnsiSafe(s==null?'':s);
-  return PDFLib.PDFString.of(String(s).replace(/\\/g,'\\\\').replace(/([()])/g,'\\$1'));
 }
 // Per-object line spacing. Imported multi-line paragraphs carry the SOURCE
 // PDF's real leading in o.lineH (a multiplier of font size, like TXT_LINE_H);
@@ -3348,14 +3203,14 @@ function syncPickersToSelected(){
   if(s){
     color=s.color; clrSwatch.style.background=color; clrInput.value=color;
     opacity=s.opacity; opSl.value=Math.round(opacity*100); opVal.textContent=Math.round(opacity*100)+'%';
-    if(s.strokeW){ strokeW=s.strokeW; _swSyncUI(); }
+    if(s.strokeW){ strokeW=s.strokeW; swSl.value=strokeW; swVal.textContent=strokeW+'px'; }
     if(s.fillColor!==undefined){ fillColor=s.fillColor; fillClrInput.value=fillColor; }
     if(s.fillOpacity!==undefined){ fillOpacity=s.fillOpacity; fillOpSl.value=Math.round(fillOpacity*100); fillOpVal.textContent=Math.round(fillOpacity*100)+'%'; }
     updateFillSwatch();
   } else if(m){
     color=m.color; clrSwatch.style.background=color; clrInput.value=color;
     opacity=m.opacity; opSl.value=Math.round(opacity*100); opVal.textContent=Math.round(opacity*100)+'%';
-    if(m.strokeW){ strokeW=m.strokeW; _swSyncUI(); }
+    if(m.strokeW){ strokeW=m.strokeW; swSl.value=strokeW; swVal.textContent=strokeW+'px'; }
     if(typeof syncLineStyleButtons==='function') syncLineStyleButtons(m.lineStyle);
   }
 }
@@ -3437,23 +3292,18 @@ document.addEventListener('touchmove', function(e){
 })();
 
 // ── APP STATE ──
-var tool='none', color='#ef4444', strokeW=1, opacity=1, lineStyle='solid', fillShape=false;
+var tool='none', color='#ef4444', strokeW=5, opacity=1, lineStyle='solid', fillShape=false;
 // ── Per-tool stroke width memory ──
 // Each tool keeps its OWN thickness. Changing it for one tool never affects
 // another, and switching tools restores that tool's last value (or its default).
 // Notes (comment border) default to 10pt; every other tool defaults to 5pt.
-var STROKE_DEFAULT = 1;
+var STROKE_DEFAULT = 5;
 var STROKE_DEFAULT_NOTE = 10;
 var STROKE_DEFAULT_MEASURE = 1;   // measuring lines start hairline-thin — precision first
 function _toolStrokeDefault(t){
-  // Defaults are authored in "units the slider shows": on a PDF backdrop the
-  // slider speaks TRUE POINTS, so convert to canvas px (strokeW's storage unit).
-  // Before this, a fresh line tool got strokeW=5 canvas-px (~1.3 pt) while the
-  // slider claimed 5 — dragging to "4 pt" made the line BIGGER.
-  var _ppp=(typeof _swPxPerPt==='function' && _swPxPerPt()) || 1;
-  if(t==='comment') return STROKE_DEFAULT_NOTE;   // note border slider stays px
-  if(t==='measure' || t==='pathmeasure') return STROKE_DEFAULT_MEASURE*_ppp;
-  return STROKE_DEFAULT*_ppp;
+  if(t==='comment') return STROKE_DEFAULT_NOTE;
+  if(t==='measure' || t==='pathmeasure') return STROKE_DEFAULT_MEASURE;
+  return STROKE_DEFAULT;
 }
 var _toolStroke = {};   // { toolName: lastWidth }
 // Programmatic tool switches (Set Scale, Redraw, Recalibrate) bypass the toolbar
@@ -3465,7 +3315,8 @@ function _swapStrokeForTool(newTool){
   var _w = (_toolStroke[newTool]!==undefined) ? _toolStroke[newTool] : _toolStrokeDefault(newTool);
   if(newTool!=='comment'){
     strokeW=_w;
-    _swSyncUI();   // renders the correct pt/px label — do NOT overwrite it with raw px
+    if(typeof swSl!=='undefined'&&swSl) swSl.value=strokeW;
+    if(typeof swVal!=='undefined'&&swVal) swVal.textContent=strokeW+'px';
   }
 }
 var fillColor='#ef4444', fillOpacity=0.4; // separate fill (inner) color and opacity
@@ -4575,8 +4426,6 @@ function loadImageBlob(blob, _retried, srcCap){
     var h=Math.round(img.naturalHeight*scale);
     pdfDoc=null; pgGrp(false);
     _vectorBackdropOK=false; _pdfBytes=null;  // backdrop is a raster image, not a PDF page
-    _canvasPxPerPt=null;                       // no PDF point on a raster backdrop → slider in px
-    try{ _toolStroke={}; strokeW=_toolStrokeDefault(tool||"line"); _swSyncUI(); }catch(_su){}
     resize(w,h);
     bCtx.clearRect(0,0,w,h);
     bCtx.drawImage(img,0,0,w,h);
@@ -4681,25 +4530,6 @@ var EXPLODE_IMAGES = false;   // 'Pictures & photos' starts UNCHECKED: images st
 // are stripped from the /Annots of every PDF export, so they never show on the
 // plan or in the exported file. Tick the box on import to keep them.
 var EXPLODE_SIGSEAL = false;
-// ── ACROBAT-EDITABLE EXPORT (Phase 1) ────────────────────────────────────────
-// When ON, eligible objects (plain lines, arrows, polylines, unrotated
-// rectangles/ellipses, pen strokes) are exported as REAL PDF annotations
-// (/Line /PolyLine /Square /Circle /Ink) with generated appearance streams —
-// so Acrobat can select, move, recolor and delete them like its own markups.
-// Defaults ON so the checkbox loads checked and exports are Acrobat-editable.
-var EXPORT_ACRO_ANNOTS = true;
-document.addEventListener('DOMContentLoaded', function(){
-  var _aa=document.getElementById('opt-acroannots');
-  if(_aa){
-    _aa.checked=EXPORT_ACRO_ANNOTS;
-    _aa.addEventListener('change', function(){
-      EXPORT_ACRO_ANNOTS=this.checked;
-      try{ toast(EXPORT_ACRO_ANNOTS
-        ? 'Acrobat-editable export ON — supported markups will be real annotations'
-        : 'Acrobat-editable export OFF — everything flattens into the page','info'); }catch(_t){}
-    });
-  }
-});
 
 // Show the pop-up every time a PDF is opened (Acrobat-style import choice).
 function _askPdfImportOptions(f){
@@ -5156,11 +4986,7 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
   var OPS=pdfjsLib.OPS;
   var U=pdfjsLib.Util;
   _lastLoadedDpi=Math.round(sc*72);
-  // Stroke slider works in TRUE PDF POINTS: this page was rasterized at `sc`
-  // canvas-pixels per PDF point. Set BEFORE afterLoad so tool defaults sync in pt.
-  _canvasPxPerPt = sc>0 ? sc : null;
   afterLoad();
-  try{ _toolStroke={}; strokeW=_toolStrokeDefault(tool||"line"); _swSyncUI(); }catch(_su){}
   imgOverlays=[]; _annImgsExtracted=0; textObjs=[];
 
   // ── Drawing-heavy detection ───────────────────────────────────────────────
@@ -5199,7 +5025,7 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
   // If ANY of them later fails to extract into an editable overlay, the export
   // must NOT white-cover the page — nothing would reproduce that image and the
   // page content would export blank (markups floating on white).
-  var _sizableImgs=0, _anyImgs=0, _imgUnreproduced=false;
+  var _sizableImgs=0, _imgUnreproduced=false;
   try{
     var _fnA=opList.fnArray, _agA=opList.argsArray;
     var _cm=vp.transform.slice(), _stk=[];
@@ -5212,7 +5038,6 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
       else if(_f===OPS.transform){ _cm=_mmul(_cm,_ag); }
       else if(_f===OPS.paintImageXObject || _f===OPS.paintJpegXObject || _f===OPS.paintInlineImage
               || _f===OPS.paintImageMaskXObject || _f===OPS.paintImageMaskXObjectGroup || _f===OPS.paintImageMaskXObjectRepeat){
-        _anyImgs++;   // ANY baked image, regardless of size (see keep-original guard below)
         var _cp=[[0,0],[1,0],[1,1],[0,1]].map(function(p){return {x:_cm[0]*p[0]+_cm[2]*p[1]+_cm[4], y:_cm[1]*p[0]+_cm[3]*p[1]+_cm[5]};});
         var _cxs=_cp.map(function(p){return p.x;}), _cys=_cp.map(function(p){return p.y;});
         var _iw=Math.max.apply(null,_cxs)-Math.min.apply(null,_cxs);
@@ -5398,7 +5223,6 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
           // image in the page untouched (infinitely sharp) instead of re-embedding
           // a re-rasterized copy over it. _fromPdfPage marks it as page-native.
           _fromPdfPage:true,
-          _srcName:(key!=null?String(key):null),   // source XObject name (e.g. "Im2") → lets export truly remove a deleted image
           _origCx:x0+rw/2, _origCy:y0+rh/2, _origW:rw, _origH:rh,
           // Source XObject's native pixel size — used at export to locate and
           // BLANK the original image object when this overlay has been moved, so
@@ -5425,18 +5249,6 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
       }
     }
   }catch(e){ console.warn('[Explode] image pass failed:',e); }
-  // Master roll-call of every page-native image's source name at import. At export
-  // we compare this to what's still present; any missing name = a picture the user
-  // deleted (by ANY means), and we remove that exact image XObject from the page.
-  try{
-    _pageImgNamesAtImport=[]; _pageImgInfoAtImport={};
-    imgOverlays.forEach(function(o){
-      if(o._fromPdfPage && o._srcName){
-        _pageImgNamesAtImport.push(o._srcName);
-        _pageImgInfoAtImport[o._srcName]={cx:o._origCx, cy:o._origCy, w:o._origW, h:o._origH, srcW:o._srcW, srcH:o._srcH};
-      }
-    });
-  }catch(_pin){}
   _explodeLap('image pass ('+imgCount+' images'+(EXPLODE_IMAGES?'':' — kept in backdrop')+')');
   // ── WHITE-COVER SAFETY GATE ────────────────────────────────────────────────
   // _explodedFromPage=true tells the export "every piece of page content lives in
@@ -5448,13 +5260,7 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
   // at 84% of the page — which is exactly the file that exported as a blank white
   // page with only the signature markups. If ANY sizable image is unreproduced,
   // force keep-original: annotations still export fine, the page is never erased.
-  // A baked image is un-reproduced if it wasn't extracted into an overlay. The old
-  // test only counted SIZABLE images (>=3% of page), so a SMALL picture on a fresh
-  // PDF (Pictures & photos import is OFF by default) slipped through: editing text
-  // triggered the white-cover redraw, which erased the page content — and the small
-  // baked picture with it. When images aren't being extracted, ANY baked image must
-  // keep the original page.
-  if(!(EXPLODE_OTHER && EXPLODE_IMAGES && !_denseDrawing) && (_sizableImgs>0 || (!EXPLODE_IMAGES && _anyImgs>0))) _imgUnreproduced=true;
+  if(!(EXPLODE_OTHER && EXPLODE_IMAGES && !_denseDrawing) && _sizableImgs>0) _imgUnreproduced=true;
   if(_imgUnreproduced && _explodedFromPage){
     _explodedFromPage=false;
     dbg('import','white-cover disabled: page has sizable raster image(s) with no extracted overlay copy — keeping original page content on export');
@@ -6376,12 +6182,7 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
           if(agA && agA[2] && agA[2].length===6) m2=_U2.transform(m2, agA[2]);
           if(agA && agA[3] && agA[3].length===6) m2=_U2.transform(m2, agA[3]);
         }catch(e){}
-        // Width default = ONE TRUE POINT (sc canvas-px), not 1 canvas-px. Many
-        // annots never emit a `w` operator in their appearance (the width lives
-        // only in /BS /W), so curLW stayed at the raw-px default: 1 canvas px ≈
-        // 0.3 pt at desktop render scale — exactly the reported "1 pt imports as
-        // 0.3 pt". The border dict, when present, overrides below.
-        curStroke='#000000'; curFill=null; curLW=Math.max(1,sc); curDash=false;
+        curStroke='#000000'; curFill=null; curLW=1; curDash=false;
         // Match this appearance block to its annotation by rect, so we can trust
         // the dict's subtype/lineEndings instead of guessing from subpath shapes
         // (a 3-vertex PolyLine looks exactly like a shaft+arrowhead pair).
@@ -6406,9 +6207,6 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
         curDash=false;
         try{
           var _bs=curAnn && curAnn.borderStyle;
-          // Seed the width from the border dict (in POINTS) when it carries one.
-          // A later setLineWidth in the appearance stream still overrides this.
-          if(_bs && _bs.width>0) curLW=Math.max(1,_bs.width*sc*_IMPORT_LW_SCALE);
           var _bd=_bs && _bs.dashArray;
           if(_bd) curDash=_pdfDashStyle(_bd);
         }catch(e){}
@@ -6421,15 +6219,7 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
       else if(fnA===OPS.transform){ m2=_mulA(m2,agA); }
       else if(fnA===OPS.setStrokeRGBColor){ curStroke=_annC(agA,'#000000'); }
       else if(fnA===OPS.setFillRGBColor){ curFill=_annC(agA,null); }
-      else if(fnA===OPS.setLineWidth){
-        // TRUE-POINT IMPORT FIX: width must scale by the CURRENT CTM (m2), not
-        // the bare render scale. Local-form appearances (BBox at origin) carry a
-        // scale in their form matrix — coords got it via m2, widths didn't, so a
-        // 1 pt source line imported as ~0.3 pt. For page-space appearances the
-        // matrix is identity and _ctmScale(m2) === sc, so nothing else changes.
-        var _lwScA=Math.sqrt(Math.abs(m2[0]*m2[3]-m2[1]*m2[2]))||sc;
-        curLW=Math.max(1,(agA||1)*_lwScA*_IMPORT_LW_SCALE);
-      }
+      else if(fnA===OPS.setLineWidth){ curLW=Math.max(1,(agA||1)*sc*_IMPORT_LW_SCALE); }
       else if(fnA===OPS.setDash){
         // Follow what the appearance actually draws, ignoring the [3] artifact:
         // a real coarse dash turns it on; a fine/empty array forces solid.
@@ -6459,19 +6249,7 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
         // stamped images — signed & sealed marks, signature stamps — are left
         // out entirely; the export strip below also removes the original annot,
         // so they never appear on screen or in any exported file.
-        // Our OWN picture/equipment stamps are tagged Contents='AOG-IMG' on export.
-        // Always bring those back so a plain "PDF" round-trips its pictures — the
-        // Signatures & seals gate only applies to FOREIGN image stamps (signed &
-        // sealed marks), which the user may not want re-imported by default.
-        // pdf.js 3.x exposes /Contents as contentsObj.str (plain `.contents` is
-        // undefined for Stamp annots) — check both so the AOG marker is found.
-        var _isAogImgStamp=false;
-        try{
-          var _annC2=(curAnn && (curAnn.contents!=null ? curAnn.contents
-                        : (curAnn.contentsObj && curAnn.contentsObj.str))) || '';
-          _isAogImgStamp = /^AOG-IMG/.test(String(_annC2));
-        }catch(_ae){}
-        if(!EXPLODE_SIGSEAL && !_isAogImgStamp){
+        if(!EXPLODE_SIGSEAL){
           try{ dbg('import','annotation image (stamp) skipped — Signatures & seals unticked'); }catch(_d){}
           continue;
         }
@@ -6645,13 +6423,7 @@ function _extractVectors(opList, vp, sc, w, h){
       }
       _endSub();
       // Attach current style to each subpath.
-      subs.forEach(function(s){ s.color=_hex(strokeColor); s.fillColor=_hex(fillColorV);
-        // Width scales by the CURRENT CTM, same fix as the annotation pass: a
-        // content stream that draws inside a scaled `cm` (CAD exporters do this)
-        // sets its lineWidth in that scaled space. m starts as vp.transform
-        // (scale = sc), so untransformed content is unchanged.
-        var _lwSc=Math.sqrt(Math.abs(m[0]*m[3]-m[1]*m[2]))||sc;
-        s.lineW=Math.max(1,lineW*_lwSc); s.dash=dashOn; });
+      subs.forEach(function(s){ s.color=_hex(strokeColor); s.fillColor=_hex(fillColorV); s.lineW=Math.max(1,lineW*sc); s.dash=dashOn; });
       pendingPaths=subs;
     }
     else if(fn===OPS.stroke || fn===OPS.closeStroke){
@@ -7218,11 +6990,6 @@ function renderPDFPage(n){
     page.render({canvasContext:bCtx,viewport:vp}).promise.then(function(){
       afterLoad();
       _vectorBackdropOK=true; _vecPageNum=n; try{ _pdfPageRot=((page.rotate||0)%360+360)%360; }catch(e){ _pdfPageRot=0; }  // pristine page render → vectors exportable
-      // Stroke slider now speaks TRUE PDF POINTS: this page was rendered at `sc`
-      // canvas-pixels per PDF point (pdf.js scale). "1" in the annotator = 1 pt
-      // in the export = 1 pt in Acrobat.
-      _canvasPxPerPt = sc>0 ? sc : null;
-      try{ _toolStroke={}; strokeW=_toolStrokeDefault(tool||"line"); _swSyncUI(); }catch(_su){}
       pgInfo.textContent=n+'/'+pdfDoc.numPages;
       btnPrev.disabled=n<=1; btnNext.disabled=n>=pdfDoc.numPages;
       var actualDpi=Math.round(sc*72);
@@ -7565,7 +7332,6 @@ function afterLoad(){
   commentObjs=[]; _editingComment=null; _dragComment=null; _cmtPending=null;
   _movingComment=null; _moveCmtStart=null; _cmtHandleObj=null;
   imgOverlays=[]; selImg=null; selImgDrag=null; selImgHandle=-1;
-  _deletedPageImgs=[]; _pageImgNamesAtImport=[]; _pageImgInfoAtImport={};
   selectedShape=null; selHandle=-1; selDragStart=null;
   // Belt-and-suspenders: if any load path skipped the pre-import commit, force
   // the shared text editor closed WITHOUT committing (its content belongs to the
@@ -8464,7 +8230,7 @@ function onDown(e){
         selectedLeader=other; leaderDragHandle=-1; leaderDragStart=null;
         color=other.color; clrSwatch.style.background=color; clrInput.value=color;
         opacity=other.opacity; opSl.value=Math.round(opacity*100); opVal.textContent=Math.round(opacity*100)+'%';
-        if(other.strokeW){ strokeW=other.strokeW; _swSyncUI(); }
+        if(other.strokeW){ strokeW=other.strokeW; swSl.value=strokeW; swVal.textContent=strokeW+'px'; }
         renderLeaderSelection();
         return;
       }
@@ -8482,7 +8248,7 @@ function onDown(e){
       // Sync toolbar pickers to this leader so color/width edits apply to it.
       color=lSel.color; clrSwatch.style.background=color; clrInput.value=color;
       opacity=lSel.opacity; opSl.value=Math.round(opacity*100); opVal.textContent=Math.round(opacity*100)+'%';
-      if(lSel.strokeW){ strokeW=lSel.strokeW; _swSyncUI(); }
+      if(lSel.strokeW){ strokeW=lSel.strokeW; swSl.value=strokeW; swVal.textContent=strokeW+'px'; }
       renderLeaderSelection();
       return;
     }
@@ -8540,7 +8306,7 @@ function onDown(e){
       // sync pickers to the polyline
       color=plSel.color; clrSwatch.style.background=color; clrInput.value=color;
       opacity=plSel.opacity; opSl.value=Math.round(opacity*100); opVal.textContent=Math.round(opacity*100)+'%';
-      if(plSel.strokeW){ strokeW=plSel.strokeW; _swSyncUI(); }
+      if(plSel.strokeW){ strokeW=plSel.strokeW; swSl.value=strokeW; swVal.textContent=strokeW+'px'; }
       syncLineStyleButtons(plSel.lineStyle);
       renderPolylineSelection();
       // Immediately begin dragging so a press-drag moves it in one gesture.
@@ -9666,18 +9432,17 @@ function drawMeasureLine(ctx,x1,y1,x2,y2,px){
   var label=scaleSet?formatLength(px):(Math.round(px)+'px');
   ctx.save();
   ctx.globalAlpha=1;
-  var _mlPx=ptToCanvasPx(7);
-  ctx.font='bold '+_mlPx+'px Arial,sans-serif';
+  ctx.font='bold 13px Arial,sans-serif';
   ctx.fillStyle='#fff';
   ctx.strokeStyle='#000';
-  ctx.lineWidth=Math.max(0.5,_mlPx*0.14);
+  ctx.lineWidth=3;
   ctx.textAlign='center';
   ctx.translate(midX,midY);
   ctx.rotate(ang);
-  ctx.strokeText(label,0,-_mlPx*0.7);
+  ctx.strokeText(label,0,-8);
   ctx.fillStyle=color;
   ctx.lineWidth=0;
-  ctx.fillText(label,0,-_mlPx*0.7);
+  ctx.fillText(label,0,-8);
   ctx.restore();
   resetCtx(ctx);
 }
@@ -9732,19 +9497,14 @@ function drawMeasureObjOnCtx(ctx, m, highlight){
   // label
   var midX=(m.x1+m.x2)/2, midY=(m.y1+m.y2)/2;
   var label=scaleSet?formatLength(px):(Math.round(px)+'px');
-  // label — a TRUE 7pt, scale-locked to the plan exactly like notes/text
-  // (ptToCanvasPx maps points→plan px at the page DPI). It now shrinks/grows
-  // WITH the drawing on zoom instead of floating at a constant screen size.
-  var _lblPx=ptToCanvasPx(7);
-  var _lblOff=_lblPx*0.7;
   ctx.globalAlpha=1;
-  ctx.font='bold '+_lblPx+'px Arial,sans-serif';
+  ctx.font='bold 13px Arial,sans-serif';
   ctx.textAlign='center';
   ctx.translate(midX,midY); ctx.rotate(ang);
-  ctx.lineWidth=Math.max(0.5,_lblPx*0.14); ctx.strokeStyle='#000'; ctx.setLineDash([]);
-  ctx.strokeText(label,0,-_lblOff);
+  ctx.lineWidth=3; ctx.strokeStyle='#000'; ctx.setLineDash([]);
+  ctx.strokeText(label,0,-8);
   ctx.fillStyle=highlight?'#00D4FF':m.color; ctx.lineWidth=0;
-  ctx.fillText(label,0,-_lblOff);
+  ctx.fillText(label,0,-8);
   ctx.restore();
 }
 
@@ -10564,24 +10324,7 @@ drawCv.addEventListener('dblclick',function(e){
   else if(tool==='polyline'&&plPoints.length>=2){ e.preventDefault(); closePolyline(); }
 });
 
-// PERF: this listener drives the LIVE PREVIEW for leader/pathmeasure/polyline/
-// line/measure/polygon tools, and each move does a full renderShapeAndMeasure()
-// (all objects). Raw pointer streams fire far faster than the display refresh,
-// so without coalescing a busy sheet re-rendered everything 100+ times/sec —
-// the "measure feels laggy" symptom. Keep only the latest event and process it
-// once per animation frame; the preview still tracks the cursor 1:1 visually.
-var _previewRaf=false, _previewEv=null;
 drawCv.addEventListener('mousemove',function(e){
-  _previewEv=e;
-  if(_previewRaf) return;
-  _previewRaf=true;
-  requestAnimationFrame(function(){
-    _previewRaf=false;
-    var ev=_previewEv; _previewEv=null;
-    if(ev) _runPreviewMove(ev);
-  });
-});
-function _runPreviewMove(e){
   if(tool==='leader'&&leaderStep===1){
     var pos=getPos(e);
     // Preview on shapes-cv (ABOVE the image layer) so the leader rubber-band is
@@ -10634,14 +10377,35 @@ function _runPreviewMove(e){
 
     // Draw live preview on shCv so it's visible above draw-cv
   _ensureShcvRes();  // keep shapes/notes canvas at hi-res (was: force to plan size)
-    // Re-render ALL committed objects underneath, then overlay the live preview.
-    // This used to hand-roll a partial redraw of ONLY shapeObjs + measureObjs,
-    // so every other object type (polylines, pens, leaders, notes, markups,
-    // stamps, polygons) — including everything imported from a PDF, which comes
-    // in as polylines/pens — DISAPPEARED for the duration of the measure drag and
-    // only reappeared on release. renderShapeAndMeasure() paints the full set,
-    // exactly like the line-tool preview above, so nothing vanishes.
-    renderShapeAndMeasure();
+    // Re-render committed shapes/measures, then overlay live preview
+    _clearCv(shCtx,shCv);
+    // Redraw committed shape+measure objects underneath
+    shapeObjs.forEach(function(s){
+      if(s._editing) return;
+      var layer=layers[s.layerIdx]; if(layer&&!layer.visible) return;
+      shCtx.save();
+      shCtx.translate(s.cx,s.cy); shCtx.rotate(s.angle);
+      shCtx.strokeStyle=s.color; shCtx.fillStyle=s.color;
+      shCtx.lineWidth=s.strokeW; shCtx.lineCap='round'; shCtx.lineJoin='round';
+      shCtx.globalAlpha=s.opacity;
+      if(s.lineStyle==='dashed') shCtx.setLineDash([s.strokeW*4,s.strokeW*3]);
+      else if(s.lineStyle==='dotted') shCtx.setLineDash([s.strokeW,s.strokeW*2.5]);
+      else shCtx.setLineDash([]);
+      if(s.type==='rect'){
+        if(s.fill){shCtx.fillStyle=s.fillColor||s.color;shCtx.globalAlpha=s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25;shCtx.fillRect(-s.w/2,-s.h/2,s.w,s.h);shCtx.globalAlpha=s.opacity;shCtx.fillStyle=s.color;}
+        shCtx.strokeRect(-s.w/2,-s.h/2,s.w,s.h);
+      } else if(s.type==='ellipse'){
+        shCtx.beginPath();shCtx.ellipse(0,0,Math.max(1,s.w/2),Math.max(1,s.h/2),0,0,Math.PI*2);
+        if(s.fill){shCtx.fillStyle=s.fillColor||s.color;shCtx.globalAlpha=s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25;shCtx.fill();shCtx.globalAlpha=s.opacity;shCtx.fillStyle=s.color;}
+        shCtx.stroke();
+      } else if(s.type==='cloud'){ drawCloud(shCtx,-s.w/2,-s.h/2,s.w/2,s.h/2,s.fill?{color:s.fillColor||s.color,opacity:s.fillOpacity!==undefined?s.fillOpacity:s.opacity*.25}:null); }
+      shCtx.restore();
+    });
+    measureObjs.forEach(function(m){
+      if(m._editing) return;
+      var layer=layers[m.layerIdx]; if(layer&&!layer.visible) return;
+      drawMeasureObjOnCtx(shCtx,m,false);
+    });
     // Now draw the live preview line on top
     shCtx.save();
     shCtx.globalAlpha=opacity;
@@ -10673,21 +10437,20 @@ function _runPreviewMove(e){
     var midX=(startX+mpos.x)/2, midY=(startY+mpos.y)/2;
     var liveLabel=(scaleSet?formatLength(mpx):(Math.round(mpx)+'px'));
     shCtx.globalAlpha=1;
-    var _pvPx=ptToCanvasPx(7);
-    shCtx.font='bold '+_pvPx+'px Arial,sans-serif';
+    shCtx.font='bold 13px Arial,sans-serif';
     shCtx.textAlign='center';
     shCtx.translate(midX,midY); shCtx.rotate(ang);
-    shCtx.lineWidth=Math.max(0.5,_pvPx*0.14); shCtx.strokeStyle='#000'; shCtx.setLineDash([]);
-    shCtx.strokeText(liveLabel,0,-_pvPx*0.7);
+    shCtx.lineWidth=3; shCtx.strokeStyle='#000'; shCtx.setLineDash([]);
+    shCtx.strokeText(liveLabel,0,-8);
     shCtx.fillStyle=color; shCtx.lineWidth=0;
-    shCtx.fillText(liveLabel,0,-_pvPx*0.7);
+    shCtx.fillText(liveLabel,0,-8);
     shCtx.restore();
     return;
   }
   if(!polyActive||tool!=='polygon') return;
   var pos=getPos(e);
   redrawPolyPreview(pos.x,pos.y);
-}
+});
 
 function redrawPolyPreview(mx,my){
   composite();
@@ -13344,31 +13107,6 @@ function updateSelCursor(x,y){
 }
 
 drawCv.addEventListener('mousemove',function(e){
-  // PERF: during an active drag / draw / pan the cursor never needs
-  // recomputing, yet this handler otherwise runs several linear hit-tests
-  // (findShapeObjAt / findMeasureObjAt / findPolylineObjAt / findLeaderObjAt /
-  // findCommentObjAt) on EVERY move. Since import now explodes the whole PDF
-  // into editable objects, those scans span hundreds of items and compete with
-  // the drag's own per-frame render — the "editing feels laggy" symptom. Bail
-  // out the moment any drag/placement is in flight; the live drag handler owns
-  // the frame.
-  if(isPanning ||
-     (typeof selImg!=='undefined' && selImg) ||        // image selected → its own hover handler owns the cursor; skip the heavy hit-tests here
-     (typeof selHandle!=='undefined' && selHandle!==-1) ||
-     (typeof measureDragHandle!=='undefined' && measureDragHandle!==-1) ||
-     (typeof leaderDragHandle!=='undefined' && leaderDragHandle!==-1) ||
-     (typeof plDrag!=='undefined' && plDrag) ||
-     (typeof plActive!=='undefined' && plActive) ||
-     (typeof pmActive!=='undefined' && pmActive) ||
-     (typeof _dragText!=='undefined' && _dragText) ||
-     (typeof _txtMoving!=='undefined' && _txtMoving) ||
-     (typeof _txtRotating!=='undefined' && _txtRotating) ||
-     (typeof _txtSizing!=='undefined' && _txtSizing) ||
-     (typeof selImgDrag!=='undefined' && selImgDrag) ||
-     (typeof penPathPoints!=='undefined' && penPathPoints && penPathPoints.length) ||
-     (typeof drawing!=='undefined' && drawing)){
-    return;
-  }
   var p=getPos(e);
   // Editing a text: Acrobat-style cursors on the dashed box — side edges show
   // the ↔ wrap-resize cursor, the rest of the border shows move, and the
@@ -13504,7 +13242,7 @@ drawCv.addEventListener('touchstart',function(e){
       selectedPolyline=plSelT;
       color=plSelT.color; clrSwatch.style.background=color; clrInput.value=color;
       opacity=plSelT.opacity; opSl.value=Math.round(opacity*100); opVal.textContent=Math.round(opacity*100)+'%';
-      if(plSelT.strokeW){ strokeW=plSelT.strokeW; _swSyncUI(); }
+      if(plSelT.strokeW){ strokeW=plSelT.strokeW; swSl.value=strokeW; swVal.textContent=strokeW+'px'; }
       syncLineStyleButtons(plSelT.lineStyle);
       renderPolylineSelection();
       beginPolylineDrag(sp.x,sp.y,true);
@@ -14254,7 +13992,6 @@ function updateToolbarForTool(t){
     opGrp       : document.getElementById('tb-op-grp'),
     opSep       : document.getElementById('tb-op-sep'),
     cmtGrp      : document.getElementById('cmt-clr-grp'),
-    imageGrp    : document.getElementById('tb-image-grp'),
   };
 
   // Groups by what each tool needs
@@ -14323,11 +14060,6 @@ function updateToolbarForTool(t){
   if(ids.swSep) ids.swSep.style.display = (isShape || isStroke) ? '' : 'none';
   shFlex(ids.opGrp, isShape || isStroke);
   if(ids.opSep) ids.opSep.style.display = (isShape || isStroke) ? '' : 'none';
-
-  // image controls (opacity / flip / order / delete / done) — Image tool only,
-  // shown here in the tool row just like Text/Note controls. They act on the
-  // selected picture; with none selected the buttons simply no-op.
-  shFlex(ids.imageGrp, t==='image');
 
   // ── PROPERTIES ROW: hide it entirely when the tool has no options ─────────
   // Every group above has just been shown or hidden. Rather than maintain a
@@ -14412,7 +14144,8 @@ document.querySelectorAll('.tb-btn[data-tool]').forEach(function(btn){
       var _bdVal=document.getElementById('cmt-bd-w-val'); if(_bdVal) _bdVal.textContent=_cBorderW+'px';
     } else {
       strokeW = _newW;
-      _swSyncUI();   // renders the correct pt/px label — do NOT overwrite with raw px
+      if(typeof swSl!=='undefined' && swSl) swSl.value=strokeW;
+      if(typeof swVal!=='undefined' && swVal) swVal.textContent=strokeW+'px';
     }
     document.querySelectorAll('.tb-btn[data-tool]').forEach(function(b){ b.classList.remove('active'); });
     btn.classList.add('active');
@@ -15097,44 +14830,8 @@ clrInput.addEventListener('change', function(e){ applyStrokeColor(e.target.value
 // fire — its old callback updated only the DEFAULT width, never the selected
 // line/arrow/shape/leader. Color worked (tap-based picker, separate handler),
 // width didn't — exactly the reported symptom.
-// ── STROKE WIDTH IN TRUE PDF POINTS ─────────────────────────────────────────
-// When a PDF backdrop is loaded, the canvas is rendered at _canvasPxPerPt
-// canvas-pixels per PDF point (the pdf.js render scale). The stroke slider
-// then works in REAL POINTS: "1" in the annotator = 1 pt in the exported PDF
-// = 1 pt in Acrobat. Internally strokeW stays in canvas px so every renderer
-// and exporter is untouched. Image backdrops (no pt) fall back to px.
-var _canvasPxPerPt = null;
-function _swPxPerPt(){ return (_canvasPxPerPt && _canvasPxPerPt>0) ? _canvasPxPerPt : 0; }
-function _swLabel(uiV, isPt){ return (Math.round(uiV*10)/10) + (isPt?'pt':'px'); }
-// Push the CURRENT strokeW (canvas px) back into the slider + label, converted
-// to the active unit. Called from every selection-sync and tool-switch site.
-function _swSyncUI(){
-  if(typeof swSl==='undefined'||!swSl) return;
-  var ppp=_swPxPerPt();
-  // Point mode: fine range that matches real line weights (0.25–10 pt, 0.25
-  // steps). Pixel mode (image backdrop): original coarse range.
-  if(ppp){
-    if(swSl.max!=='12'){ swSl.min='0.25'; swSl.max='12'; swSl.step='0.25'; }
-  }else{
-    if(swSl.max!=='30'){ swSl.min='0.5'; swSl.max='30'; swSl.step='0.5'; }
-  }
-  var uiV = ppp ? (strokeW/ppp) : strokeW;
-  var snap = ppp ? 4 : 2;                            // 0.25 pt vs 0.5 px steps
-  uiV = Math.max(parseFloat(swSl.min), Math.round(uiV*snap)/snap);
-  swSl.value = uiV;
-  if(typeof swVal!=='undefined'&&swVal) swVal.textContent=_swLabel(uiV, !!ppp);
-}
 function applyStrokeW(v){
-  var ppp=_swPxPerPt();
-  if(ppp){
-    // UI value is POINTS → store as (possibly fractional) canvas px. Floor at
-    // 0.25 pt (matches the point-mode slider min) so hairlines are allowed.
-    strokeW = Math.max(0.25*ppp, v*ppp);
-    swVal.textContent=_swLabel(v, true);
-  }else{
-    strokeW = Math.max(1, Math.round(v));
-    swVal.textContent=_swLabel(strokeW, false);
-  }
+  strokeW=Math.round(v); swVal.textContent=strokeW+'px';
   // Remember this width for the CURRENT tool only (note tool uses _cBorderW path).
   if(tool && tool!=='comment') _toolStroke[tool]=strokeW;
   if(selectedShape){ selectedShape.strokeW=strokeW; renderSelection(); }
@@ -15153,7 +14850,7 @@ function applyOpacityAll(v){
   if(selectedPolyline){ selectedPolyline.opacity=opacity; renderShapeAndMeasure(); renderPolylineSelection(); }
   if(selectedLeader){ selectedLeader.opacity=opacity; renderShapeAndMeasure(); renderLeaderSelection(); }
 }
-swSl.addEventListener('input',function(e){ applyStrokeW(parseFloat(e.target.value)); });
+swSl.addEventListener('input',function(e){ applyStrokeW(parseInt(e.target.value)); });
 opSl.addEventListener('input',function(e){ applyOpacityAll(parseInt(e.target.value)); });
 
 // Fill color + opacity pickers
@@ -16242,22 +15939,6 @@ function _movedExplodeObj(o){
   return false;
 }
 
-// Should this TEXT object be exported as a real Acrobat /FreeText annotation
-// (editable in Acrobat) instead of flattened vector? True for user-added text and
-// for EDITED page text — the latter is the important case: editing PDF-native text
-// used to force the whole sheet to flatten to a raster (dropping images and turning
-// every markup non-editable). Emitting it as a FreeText annotation (with an opaque
-// white background that covers the original baked words) keeps the page vector, so
-// images and markups survive untouched. Rotated text stays vector (FreeText can't
-// rotate cleanly); unedited page text is left baked in the page.
-function _textToAcro(o){
-  if(typeof EXPORT_ACRO_ANNOTS==='undefined' || !EXPORT_ACRO_ANNOTS) return false;
-  if(!o || o.text==null || !String(o.text).trim()) return false;
-  if(Math.abs(o.angle||0) >= 0.001) return false;         // rotated text → keep vector
-  if(o._fromExplode) return _movedExplodeObj(o);           // page text: only if edited/moved
-  return true;                                             // user-added text
-}
-
 // Did the page's GRAPHICS (linework/shapes/images) actually get extracted into
 // redrawable objects? White-covering the original page is only safe when they did
 // — otherwise the survey lives only in the original page and covering it erases it.
@@ -16276,21 +15957,7 @@ function _explodedGraphicsExist(){
 // extracted graphics that reproduce it. This makes erasing the site plan impossible
 // when the content wasn't captured (raster survey, annotation-only linework, etc.).
 function _shouldWhiteCoverPage(){
-  if(!(_FULL_REDRAW && _explodedFromPage && _explodedGraphicsExist())) return false;
-  // Only ERASE the pristine page when there is a real reason to: the user MOVED,
-  // resized, rotated, edited, or DELETED something that was extracted FROM it.
-  // With no such edit the original page is the best possible export — every image
-  // at its native resolution, all linework/text as true vectors, crisp at any
-  // zoom — so keep it and just lay the annotations on top (no re-embed, no trace,
-  // full picture count). This is what stopped a rotated, un-edited sheet from
-  // being needlessly rebuilt (which traced colour graphics into 2-tone vectors
-  // and dropped the image count).
-  var edited=false;
-  try{
-    edited = (typeof _anyMovedExtracted==='function' && _anyMovedExtracted())
-          || (typeof _explodedMarkupsDeleted==='function' && _explodedMarkupsDeleted());
-  }catch(e){ edited=true; }   // uncertain → keep the old safe behaviour (redraw)
-  return edited;
+  return _FULL_REDRAW && _explodedFromPage && _explodedGraphicsExist();
 }
 // Any extracted (page-derived) object the user has MOVED/resized/rotated. When the
 // page is KEPT (not white-covered), such moves can't be reflected in a native-vector
@@ -16313,12 +15980,8 @@ function _explodedMarkupsDeleted(){
     // in count means a deletion, which routes the export to the clean composite
     // (whose backdrop already reflects the deletion). Untouched/moved page images
     // stay on the fast vector path as before.
-    // NOTE: DELETED page-native images are NO LONGER counted here. They used to
-    // route the whole export to a rebuild (which degraded every other image).
-    // Instead a deleted image's original footprint is now white-covered surgically
-    // on the KEPT pristine page (see _deletedPageImgs in the vector exporter), so
-    // deleting a picture removes just that picture and leaves the rest pristine.
-    return m<_explodedMarkupCount || p<_explodedPenCount;
+    if(typeof imgOverlays!=='undefined') im=imgOverlays.filter(function(o){return o._fromPdfPage;}).length;
+    return m<_explodedMarkupCount || p<_explodedPenCount || im<_explodedPageImgCount;
   }catch(e){ return false; }
 }
 
@@ -16344,8 +16007,6 @@ function _anyMovedExtracted(){
     function _ghostRisk(o){
       if(!o || !o._fromExplode) return false;
       if(o._fromAnnot && !o._bakedHl) return false;   // original is stripped → safe
-      if(_textToAcro(o)) return false;                // edited text → FreeText annot covers its
-                                                      // own original; no raster bail needed
       return _movedExplodeObj(o);
     }
     if(typeof markupObjs!=='undefined' && markupObjs.some(_ghostRisk)) return true;
@@ -16537,587 +16198,6 @@ function _stampBackdropPatches(pdf, page, sz, sc, v2p, rot){
 //
 // Coordinate mapping: canvas is top-left origin in BASE px; PDF is bottom-left
 // origin in points. sc = base px per PDF point.  px→pt: v/sc.  y flips.
-// ── ACROBAT-EDITABLE ANNOTATION EMITTER (Phase 1) ───────────────────────────
-// Writes every _acroFlag'ed object into the page's /Annots as a REAL PDF
-// annotation with a generated /AP appearance stream, so Acrobat (and any
-// other viewer) can select, move, recolor and delete it. Coordinate mapping
-// mirrors _paintVectorAnnotations exactly (same P/W/v2p/rot pipeline).
-function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
-  if(!EXPORT_ACRO_ANNOTS) return 0;
-  var N=PDFLib.PDFName, ctx=pdf.context;
-  var VH=sz.height;
-  var v2p=sz._v2p||function(vx,vy){ return {x:vx,y:vy}; };
-  function P(cx,cy){ var _p=v2p(cx/sc, VH - cy/sc); return {x:(isFinite(_p.x)?_p.x:0), y:(isFinite(_p.y)?_p.y:0)}; }
-  function W(px){ var v=px/sc; return isFinite(v)?v:0; }
-  function f2(n){ n=+n; if(!isFinite(n)) n=0; return (Math.round(n*100)/100).toString(); }
-  function rgb01(hex){ var c=_hexToRgb(hex||'#000000')||{r:0,g:0,b:0}; return [c.r/255,c.g/255,c.b/255]; }
-  function colStr(a){ return f2(a[0])+' '+f2(a[1])+' '+f2(a[2]); }
-  function dashOf(o,sw){
-    if(o.lineStyle==='dashed') return [sw*4, sw*3];
-    if(o.lineStyle==='dotted') return [sw, sw*2.5];
-    return null;
-  }
-  var emitted=0, nmSeq=0;
-  // Page /Rotate: baked text must be counter-rotated by this so it reads upright
-  // in the final displayed orientation (geometry needs no compensation, which is
-  // why lines looked fine but text came out sideways). Mirrors the flattened
-  // painter's `rotate: degrees(deg+rotDeg)`.
-  var rotDeg=(sz && sz._rot)||0;
-  function tmRotAt(px,py,degCCW){
-    var th=(degCCW||0)*Math.PI/180, cc=Math.cos(th), ss=Math.sin(th);
-    return f2(cc)+' '+f2(ss)+' '+f2(-ss)+' '+f2(cc)+' '+f2(px)+' '+f2(py)+' Tm ';
-  }
-  // Escape a literal PDF string for use inside (...) Tj.
-  function pdfStr(s){ return _winAnsiSafe(String(s==null?'':s)).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)'); }
-
-  // Append one annotation dict (+AP stream) to the page's /Annots array.
-  // fontRef (optional): when the appearance stream draws text (/F0), the font
-  // is added to the form's /Resources so the caption renders in every viewer.
-  function addAnnot(dict, apOps, rect, strokeOp, fillOp, fontRef){
-    try{
-      // Guard: a non-finite coordinate (NaN/Infinity) serialized into Rect/BBox is
-      // exactly what makes Acrobat call the file "damaged and could not be repaired"
-      // (qpdf/pdf-lib accept it, Acrobat doesn't). Clamp to finite before use.
-      rect=[rect[0],rect[1],rect[2],rect[3]].map(function(v){ v=+v; return isFinite(v)?v:0; });
-      strokeOp=(strokeOp==null||!isFinite(+strokeOp))?1:+strokeOp;
-      if(fillOp!=null && !isFinite(+fillOp)) fillOp=1;
-      var res={ ExtGState:{ GS0:{ Type:'ExtGState', CA:strokeOp, ca:strokeOp } } };
-      if(fillOp!=null) res.ExtGState.GSF={ Type:'ExtGState', CA:fillOp, ca:fillOp };
-      if(fontRef) res.Font={ F0: fontRef };
-      var apRef=ctx.register(ctx.stream(apOps, {
-        Type:'XObject', Subtype:'Form',
-        BBox:[rect[0],rect[1],rect[2],rect[3]],
-        Resources:res
-      }));
-      dict.Type='Annot';
-      dict.Rect=[rect[0],rect[1],rect[2],rect[3]];
-      dict.F=4;                                    // print
-      dict.P=page.ref;
-      dict.NM=PDFLib.PDFString.of('AOG-'+Date.now().toString(36)+'-'+(nmSeq++));
-      dict.AP={ N: apRef };
-      // Final safety net: clamp any non-finite number in the dict's coordinate
-      // ARRAY fields (L, Vertices, CL, C, IC, QuadPoints, …). Only arrays are
-      // touched, so PDFRef/PDFString values are left intact.
-      try{ Object.keys(dict).forEach(function(k){ var v=dict[k];
-        if(Array.isArray(v)){ for(var i=0;i<v.length;i++){ if(typeof v[i]==='number' && !isFinite(v[i])) v[i]=0; } } }); }catch(_sn){}
-      var annotRef=ctx.register(ctx.obj(dict));
-      var arr=null;
-      try{ arr=page.node.Annots(); }catch(_a){}
-      if(!arr){
-        arr=ctx.obj([]);
-        page.node.set(N.of('Annots'), arr);
-      }
-      arr.push(annotRef);
-      emitted++;
-    }catch(e){ console.warn('[AcroAnnot] addAnnot failed', e); }
-  }
-
-  // Rect from page-space points, padded for stroke width (+extra e.g. arrowheads)
-  function bounds(pts, pad){
-    var x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
-    pts.forEach(function(p){
-      if(p.x<x0)x0=p.x; if(p.x>x1)x1=p.x;
-      if(p.y<y0)y0=p.y; if(p.y>y1)y1=p.y;
-    });
-    return [x0-pad, y0-pad, x1+pad, y1+pad];
-  }
-
-  function bsDict(sw, dash){
-    var bs={ W: sw, S: dash?'D':'S' };
-    if(dash) bs.D=[Math.round(dash[0]*100)/100, Math.round(dash[1]*100)/100];
-    return bs;
-  }
-  function strokePrefix(sw, dash, cArr){
-    var s='q 1 J 1 j /GS0 gs '+f2(sw)+' w '+colStr(cArr)+' RG ';
-    if(dash) s+='['+f2(dash[0])+' '+f2(dash[1])+'] 0 d ';
-    return s;
-  }
-
-  // ── Measures: arrows + label-less plain lines → /Line ─────────────────────
-  try{ measureObjs.forEach(function(m){
-    if(!m || !m._acroFlag) return;
-    var op=(m.opacity==null?1:m.opacity);
-    var swPx=Math.max(1,m.strokeW||2), sw=Math.max(0.2,W(swPx));
-    var c=rgb01(m.color), dash=dashOf(m,sw);
-    var a=P(m.x1,m.y1), b=P(m.x2,m.y2);
-    var pts=[a,b];
-    var ops=strokePrefix(sw,dash,c)+f2(a.x)+' '+f2(a.y)+' m '+f2(b.x)+' '+f2(b.y)+' l S ';
-    var pad=sw/2+2;
-    if(m.isArrow){
-      // Draw the SAME open-arrowhead as the flattened painter so the appearance
-      // matches on-screen; the /LE entry tells Acrobat it is an arrow, so an
-      // edit there regenerates its own (very similar) head.
-      var hwPx=Math.max(swPx*3.2,12);
-      var angC=Math.atan2(m.y2-m.y1,m.x2-m.x1);
-      var w1=P(m.x2-hwPx*Math.cos(angC-Math.PI/6), m.y2-hwPx*Math.sin(angC-Math.PI/6));
-      var w2=P(m.x2-hwPx*Math.cos(angC+Math.PI/6), m.y2-hwPx*Math.sin(angC+Math.PI/6));
-      ops+='[] 0 d '+f2(b.x)+' '+f2(b.y)+' m '+f2(w1.x)+' '+f2(w1.y)+' l S '
-          +f2(b.x)+' '+f2(b.y)+' m '+f2(w2.x)+' '+f2(w2.y)+' l S ';
-      pts.push(w1,w2);
-      pad=Math.max(pad, W(hwPx)+sw/2+2);
-    }
-    ops+='Q';
-    var rect=bounds(pts,pad);
-    var d={ Subtype:'Line',
-            L:[Math.round(a.x*100)/100, Math.round(a.y*100)/100,
-               Math.round(b.x*100)/100, Math.round(b.y*100)/100],
-            C:[Math.round(c[0]*1000)/1000, Math.round(c[1]*1000)/1000, Math.round(c[2]*1000)/1000],
-            CA:op, BS:bsDict(Math.round(sw*100)/100,dash) };
-    if(m.isArrow) d.LE=['None','OpenArrow'];
-    var _capInfo=null;
-    // ── Dimension line: perpendicular end ticks (baked + native /LE Butt) and a
-    // SEPARATE FreeText caption. The caption is its own annotation so moving or
-    // editing the line in Acrobat (which regenerates the line's appearance and
-    // would drop any baked-in caption) never makes the reading disappear.
-    if(!m.isArrow && m.showLabel!==false){
-      var angC2=Math.atan2(m.y2-m.y1, m.x2-m.x1);
-      var perpC=angC2+Math.PI/2;
-      var tkPx=Math.max(5,(m.strokeW||2)*2.5);
-      var tickOps='q 1 J 1 j /GS0 gs '+f2(sw)+' w '+colStr(c)+' RG ';
-      [[m.x1,m.y1],[m.x2,m.y2]].forEach(function(pt){
-        var t1=P(pt[0]+Math.cos(perpC)*tkPx, pt[1]+Math.sin(perpC)*tkPx);
-        var t2=P(pt[0]-Math.cos(perpC)*tkPx, pt[1]-Math.sin(perpC)*tkPx);
-        tickOps+=f2(t1.x)+' '+f2(t1.y)+' m '+f2(t2.x)+' '+f2(t2.y)+' l S ';
-        pts.push(t1,t2);
-      });
-      tickOps+='Q ';
-      ops=ops.replace(/Q$/, tickOps+'Q');
-      rect=bounds(pts, pad);
-      d.Rect=[rect[0],rect[1],rect[2],rect[3]];
-      // Native perpendicular end ticks that survive Acrobat edits.
-      d.LE=['Butt','Butt'];
-      var lenPx=Math.hypot(m.x2-m.x1,m.y2-m.y1);
-      var label=(typeof scaleSet!=='undefined'&&scaleSet)?formatLength(lenPx):(Math.round(lenPx)+'px');
-      d.Contents=_pdfStrOf(label);
-      _capInfo={label:label, ang:angC2};
-    }
-    addAnnot(d, ops, rect, op, null, null);
-
-    // Standalone dimension caption → its own /FreeText (transparent, borderless),
-    // oriented along the line and upright on rotated pages. Independently movable
-    // and immune to the line's regeneration.
-    if(_capInfo && fonts && fonts.bold){
-      var cLabel=_capInfo.label, cAng=_capInfo.ang;
-      var cfs=7;   // true 7pt, matches on-screen (ptToCanvasPx(7)=7*sc plan px → 7pt in page space)
-      var ctw=0; try{ ctw=fonts.bold.widthOfTextAtSize(cLabel,cfs); }catch(_e){ ctw=cLabel.length*cfs*0.55; }
-      var cperp=cAng+Math.PI/2, cliftPx=10;
-      var cox=(m.x1+m.x2)/2 + Math.cos(cperp)*-cliftPx;
-      var coy=(m.y1+m.y2)/2 + Math.sin(cperp)*-cliftPx;
-      var chX=Math.cos(cAng)*(ctw*sc)/2, chY=Math.sin(cAng)*(ctw*sc)/2;
-      var clp=P(cox-chX, coy-chY);
-      var cdeg=(-cAng*180/Math.PI)+rotDeg;
-      // fill+stroke text (2 Tr) → a thin dark outline keeps it legible over linework
-      var capAp='q BT /F0 '+f2(cfs)+' Tf 2 Tr '+f2(Math.max(0.3,cfs*0.08))+' w 0 0 0 RG '+colStr(c)+' rg '
-                +tmRotAt(clp.x,clp.y,cdeg)+'('+pdfStr(cLabel)+') Tj ET Q';
-      var crr=cdeg*Math.PI/180, cex=Math.cos(crr), cey=Math.sin(crr), cux=-Math.sin(crr), cuy=Math.cos(crr);
-      var q0={x:clp.x-cfs*0.3*cux, y:clp.y-cfs*0.3*cuy};
-      var q1={x:q0.x+ctw*cex, y:q0.y+ctw*cey};
-      var q2={x:q1.x+cfs*1.25*cux, y:q1.y+cfs*1.25*cuy};
-      var q3={x:q0.x+cfs*1.25*cux, y:q0.y+cfs*1.25*cuy};
-      var crect=bounds([q0,q1,q2,q3],2);
-      var _capD={ Subtype:'FreeText',
-                 Contents:_pdfStrOf(cLabel),
-                 DA:PDFLib.PDFString.of('/Helv '+f2(cfs)+' Tf '+colStr(c)+' rg'),
-                 Q:1, CA:op, BS:bsDict(0,null) };
-      // /Rotate tells Acrobat what angle to lay the text when it regenerates the
-      // appearance on click-to-edit. Without it, Acrobat lays text in unrotated
-      // page space and it flips sideways on a /Rotate page. Must be a multiple of
-      // 90; page rotations always are.
-      if(rotDeg) _capD.Rotate=rotDeg;
-      addAnnot(_capD, capAp, crect, op, null, fonts.bold.ref);
-    }
-  }); }catch(e){ console.warn('[AcroAnnot] lines',e); }
-
-  // ── Polylines → /PolyLine ─────────────────────────────────────────────────
-  try{ if(typeof polylineObjs!=='undefined') polylineObjs.forEach(function(pl){
-    if(!pl || !pl._acroFlag) return;
-    var op=(pl.opacity==null?1:pl.opacity);
-    var sw=Math.max(0.2,W(Math.max(1,pl.strokeW||2)));
-    var c=rgb01(pl.color), dash=dashOf(pl,sw);
-    var pts=pl.pts.map(function(p){ return P(p.x,p.y); });
-    var verts=[], ops=strokePrefix(sw,dash,c);
-    pts.forEach(function(p,i){
-      verts.push(Math.round(p.x*100)/100, Math.round(p.y*100)/100);
-      ops+=f2(p.x)+' '+f2(p.y)+(i===0?' m ':' l ');
-    });
-    ops+='S Q';
-    var rect=bounds(pts, sw/2+2);
-    addAnnot({ Subtype:'PolyLine', Vertices:verts,
-               C:[Math.round(c[0]*1000)/1000, Math.round(c[1]*1000)/1000, Math.round(c[2]*1000)/1000],
-               CA:op, BS:bsDict(Math.round(sw*100)/100,dash) },
-             ops, rect, op, null);
-  }); }catch(e){ console.warn('[AcroAnnot] polylines',e); }
-
-  // ── Leaders → /PolyLine with an open-arrow tip ────────────────────────────
-  // Vertices run shoulder → elbow → tip, so /LE places the OpenArrow at the tip
-  // (last vertex) exactly like the on-screen leader. Fully editable/movable in
-  // Acrobat; the arrowhead is also baked into the appearance so it looks right
-  // in every viewer.
-  try{ if(typeof leaderObjs!=='undefined') leaderObjs.forEach(function(o){
-    if(!o || !o._acroFlag) return;
-    var op=(o.opacity==null?1:o.opacity);
-    var swPx=Math.max(1,o.strokeW||2), sw=Math.max(0.2,W(swPx));
-    var c=rgb01(o.color);
-    var se=(typeof leaderShoulderEnd==='function')?leaderShoulderEnd(o):{x:o.x2,y:o.y2};
-    var vTip=P(o.x1,o.y1), vElbow=P(o.x2,o.y2), vSh=P(se.x,se.y);
-    var order=[vSh,vElbow,vTip];                 // last vertex = tip → arrow there
-    var verts=[], ops=strokePrefix(sw,null,c);
-    order.forEach(function(p,i){
-      verts.push(Math.round(p.x*100)/100, Math.round(p.y*100)/100);
-      ops+=f2(p.x)+' '+f2(p.y)+(i===0?' m ':' l ');
-    });
-    ops+='S ';
-    // Arrowhead at the tip (same open-V as drawLeaderOnCtx).
-    var hwPx=Math.max(swPx*3,10);
-    var angL=Math.atan2(o.y1-o.y2,o.x1-o.x2);
-    var w1=P(o.x1-hwPx*Math.cos(angL-Math.PI/6), o.y1-hwPx*Math.sin(angL-Math.PI/6));
-    var w2=P(o.x1-hwPx*Math.cos(angL+Math.PI/6), o.y1-hwPx*Math.sin(angL+Math.PI/6));
-    ops+=f2(vTip.x)+' '+f2(vTip.y)+' m '+f2(w1.x)+' '+f2(w1.y)+' l S '
-        +f2(vTip.x)+' '+f2(vTip.y)+' m '+f2(w2.x)+' '+f2(w2.y)+' l S Q';
-    var rect=bounds([vSh,vElbow,vTip,w1,w2], W(hwPx)+sw/2+2);
-    addAnnot({ Subtype:'PolyLine', Vertices:verts, LE:['None','OpenArrow'],
-               C:[Math.round(c[0]*1000)/1000, Math.round(c[1]*1000)/1000, Math.round(c[2]*1000)/1000],
-               CA:op, BS:bsDict(Math.round(sw*100)/100,null) },
-             ops, rect, op, null);
-  }); }catch(e){ console.warn('[AcroAnnot] leaders',e); }
-
-  // ── Unrotated rects/ellipses → /Square //Circle ───────────────────────────
-  try{ shapeObjs.forEach(function(s){
-    if(!s || !s._acroFlag) return;
-    var op=(s.opacity==null?1:s.opacity);
-    var sw=Math.max(0.2,W(Math.max(1,s.strokeW||1)));
-    var c=rgb01(s.color), dash=dashOf(s,sw);
-    var hasFill=!!s.fill;
-    var fc=hasFill?rgb01(s.fillColor||s.color):null;
-    var fop=hasFill?(s.fillOpacity!=null?s.fillOpacity:op*0.25):null;
-    // corners in page space (angle is ~0 for flagged shapes)
-    var p1=P(s.cx-s.w/2, s.cy+s.h/2);      // canvas bottom-left → page point
-    var p2=P(s.cx+s.w/2, s.cy-s.h/2);      // canvas top-right → page point
-    var x0=Math.min(p1.x,p2.x), y0=Math.min(p1.y,p2.y);
-    var x1=Math.max(p1.x,p2.x), y1=Math.max(p1.y,p2.y);
-    var rect=[x0-sw/2-2, y0-sw/2-2, x1+sw/2+2, y1+sw/2+2];
-    var ops='';
-    if(s.type==='rect'){
-      var re=f2(x0)+' '+f2(y0)+' '+f2(x1-x0)+' '+f2(y1-y0)+' re ';
-      if(hasFill) ops+='q /GSF gs '+colStr(fc)+' rg '+re+'f Q ';
-      ops+=strokePrefix(sw,dash,c)+re+'S Q';
-    }else{
-      // ellipse as 4 cubic beziers (k = 0.5523)
-      var cx=(x0+x1)/2, cy=(y0+y1)/2, rx=(x1-x0)/2, ry=(y1-y0)/2, k=0.5523;
-      function ell(){
-        return f2(cx+rx)+' '+f2(cy)+' m '
-          +f2(cx+rx)+' '+f2(cy+ry*k)+' '+f2(cx+rx*k)+' '+f2(cy+ry)+' '+f2(cx)+' '+f2(cy+ry)+' c '
-          +f2(cx-rx*k)+' '+f2(cy+ry)+' '+f2(cx-rx)+' '+f2(cy+ry*k)+' '+f2(cx-rx)+' '+f2(cy)+' c '
-          +f2(cx-rx)+' '+f2(cy-ry*k)+' '+f2(cx-rx*k)+' '+f2(cy-ry)+' '+f2(cx)+' '+f2(cy-ry)+' c '
-          +f2(cx+rx*k)+' '+f2(cy-ry)+' '+f2(cx+rx)+' '+f2(cy-ry*k)+' '+f2(cx+rx)+' '+f2(cy)+' c h ';
-      }
-      if(hasFill) ops+='q /GSF gs '+colStr(fc)+' rg '+ell()+'f Q ';
-      ops+=strokePrefix(sw,dash,c)+ell()+'S Q';
-    }
-    var d={ Subtype:(s.type==='rect'?'Square':'Circle'),
-            C:[Math.round(c[0]*1000)/1000, Math.round(c[1]*1000)/1000, Math.round(c[2]*1000)/1000],
-            CA:op, BS:bsDict(Math.round(sw*100)/100,dash) };
-    if(hasFill) d.IC=[Math.round(fc[0]*1000)/1000, Math.round(fc[1]*1000)/1000, Math.round(fc[2]*1000)/1000];
-    addAnnot(d, ops, rect, op, fop);
-  }); }catch(e){ console.warn('[AcroAnnot] shapes',e); }
-
-  // ── Pen strokes → /Ink ────────────────────────────────────────────────────
-  try{ if(typeof penObjs!=='undefined') penObjs.forEach(function(o){
-    if(!o || !o._acroFlag) return;
-    var op=(o.opacity==null?1:o.opacity);
-    var sw=Math.max(0.2,W(Math.max(1,o.strokeW||2)));
-    var c=rgb01(o.color), dash=dashOf(o,sw);
-    var pts=o.pts.map(function(p){ return P(p.x,p.y); });
-    if(pts.length===1) pts.push({x:pts[0].x+0.1,y:pts[0].y+0.1});
-    var flat=[], ops=strokePrefix(sw,dash,c);
-    pts.forEach(function(p,i){
-      flat.push(Math.round(p.x*100)/100, Math.round(p.y*100)/100);
-      ops+=f2(p.x)+' '+f2(p.y)+(i===0?' m ':' l ');
-    });
-    ops+='S Q';
-    var rect=bounds(pts, sw/2+2);
-    addAnnot({ Subtype:'Ink', InkList:[flat],
-               C:[Math.round(c[0]*1000)/1000, Math.round(c[1]*1000)/1000, Math.round(c[2]*1000)/1000],
-               CA:op, BS:bsDict(Math.round(sw*100)/100,dash) },
-             ops, rect, op, null);
-  }); }catch(e){ console.warn('[AcroAnnot] ink',e); }
-
-  // ── Notes → /FreeText (background + border + editable text) ────────────────
-  // Baked appearance matches the current flattened note (square box + wrapped
-  // text). The dict carries /Contents + /DA + /C so Acrobat regenerates an
-  // editable text box when the user edits it. Rotated notes are skipped at the
-  // flagging stage (FreeText can't rotate cleanly) and stay flattened.
-  try{ if(typeof commentObjs!=='undefined') commentObjs.forEach(function(c){
-    if(!c || !c._acroFlag) return;
-    var noteA=(c.opacity==null?1:c.opacity);
-    var fillA=(c.bgOpacity!==undefined?c.bgOpacity:1)*noteA;
-    var bgCol=rgb01(c.bgColor||'#FBBF24');
-    var bdCol=rgb01(c.borderColor||darkenHex(c.bgColor||'#FBBF24',0.35));
-    var txCol=rgb01(c.textColor||'#1a1a2e');
-    var bwPt=Math.max(0.4, W(Math.max(1,(c.borderStrokeW||2))));
-    // Box corners in page space (unrotated note).
-    var pTL=P(c.cx-c.w/2, c.cy-c.h/2), pBR=P(c.cx+c.w/2, c.cy+c.h/2);
-    var x0=Math.min(pTL.x,pBR.x), y0=Math.min(pTL.y,pBR.y);
-    var x1=Math.max(pTL.x,pBR.x), y1=Math.max(pTL.y,pBR.y);
-    var rect=[x0-bwPt-1, y0-bwPt-1, x1+bwPt+1, y1+bwPt+1];
-    // Fill + border.
-    var ops='q /GSF gs '+colStr(bgCol)+' rg '+f2(x0)+' '+f2(y0)+' '+f2(x1-x0)+' '+f2(y1-y0)+' re f Q ';
-    ops+='q /GS0 gs '+f2(bwPt)+' w '+colStr(bdCol)+' RG '
-        +f2(x0+bwPt/2)+' '+f2(y0+bwPt/2)+' '+f2((x1-x0)-bwPt)+' '+f2((y1-y0)-bwPt)+' re S Q ';
-    // Text: wrap exactly like the on-screen/flattened renderer.
-    var fontRef=null, fsize=W(12), daFs=12;
-    if(fonts && fonts.regular && c.text && String(c.text).trim()){
-      var fsPx=Math.max(8, Math.round((typeof cmtEffFontSize==='function')?cmtEffFontSize(c):(c.fontSize||13)));
-      var pad=(typeof cmtInnerPad==='function')?cmtInnerPad(c,'snap'):6;
-      var maxW=c.w-2*pad;
-      var lineH=fsPx*((typeof CMT_LINE_H!=='undefined')?CMT_LINE_H:1.3);
-      var halfLead=(lineH-fsPx)/2;
-      var _mc=document.createElement('canvas').getContext('2d');
-      try{ _mc.font=(typeof cmtCtxFont==='function')?cmtCtxFont(c,fsPx):(fsPx+'px Arial'); }catch(_f){ _mc.font=fsPx+'px Arial'; }
-      var lines=(typeof cmtWrapLines==='function')?cmtWrapLines(_mc,c.text,maxW):[String(c.text)];
-      var _famK=(typeof _customFamilyKey==='function')?_customFamilyKey(c.fontFamily):null;
-      var _set=(fonts.custom && _famK && fonts.custom[_famK])?fonts.custom[_famK]:fonts;
-      var f=c.bold?(c.italic?_set.boldItalic:_set.bold):(c.italic?_set.italic:_set.regular);
-      fontRef=f && f.ref ? f.ref : (fonts.regular.ref||null);
-      fsize=W(fsPx); daFs=fsize;
-      var lxN=c.cx-c.w/2, lyN=c.cy-c.h/2;
-      ops+='q BT /F0 '+f2(fsize)+' Tf '+colStr(txCol)+' rg ';
-      lines.forEach(function(line,i){
-        if(!line) return;
-        var ty=lyN+pad+halfLead+i*lineH;
-        if(ty+fsPx > lyN+c.h-pad+halfLead+0.5) return;   // overflow clip, as on screen
-        var bx=lxN+pad, by=ty+fsPx*0.80;
-        var pp=P(bx,by);
-        ops+=tmRotAt(pp.x,pp.y,rotDeg)+'('+pdfStr(line)+') Tj ';
-        // underline / strike as thin rules
-        if(c.underline||c.strike){
-          var lwTxt=0; try{ lwTxt=f.widthOfTextAtSize(line,fsize); }catch(_w){ lwTxt=line.length*fsize*0.5; }
-          if(c.underline){ var u=P(bx,ty+fsPx*0.92); ops+='ET q '+f2(Math.max(0.4,fsize*0.07))+' w '+colStr(txCol)+' RG '+f2(u.x)+' '+f2(u.y)+' m '+f2(u.x+lwTxt)+' '+f2(u.y)+' l S Q BT /F0 '+f2(fsize)+' Tf '+colStr(txCol)+' rg '; }
-          if(c.strike){ var st2=P(bx,ty+fsPx*0.55); ops+='ET q '+f2(Math.max(0.4,fsize*0.07))+' w '+colStr(txCol)+' RG '+f2(st2.x)+' '+f2(st2.y)+' m '+f2(st2.x+lwTxt)+' '+f2(st2.y)+' l S Q BT /F0 '+f2(fsize)+' Tf '+colStr(txCol)+' rg '; }
-        }
-      });
-      ops+='ET Q ';
-    }
-    var d={ Subtype:'FreeText',
-            Contents:_pdfStrOf(c.text),
-            DA:PDFLib.PDFString.of('/Helv '+f2(daFs)+' Tf '+colStr(txCol)+' rg'),
-            Q:0,
-            C:[Math.round(bgCol[0]*1000)/1000, Math.round(bgCol[1]*1000)/1000, Math.round(bgCol[2]*1000)/1000],
-            CA:noteA,
-            BS:bsDict(Math.round(bwPt*100)/100,null) };
-    // Keep text upright when Acrobat regenerates the appearance on edit (rotated
-    // pages otherwise flip it sideways). Page rotations are always multiples of 90.
-    if(rotDeg) d.Rotate=rotDeg;
-    addAnnot(d, ops, rect, noteA, fillA, fontRef);
-  }); }catch(e){ console.warn('[AcroAnnot] notes',e); }
-
-  // ── Text objects → /FreeText (editable in Acrobat) ─────────────────────────
-  // Register the four standard Helvetica variants in the document's AcroForm /DR
-  // under fixed names. When Acrobat regenerates a FreeText appearance on open, it
-  // resolves the DA font from /DR — so a bold DA (/HelvB) stays bold instead of
-  // flashing bold then reverting to plain Helvetica.
-  var _fdictDR=null;
-  try{
-    var _acro=pdf.catalog.lookup(PDFLib.PDFName.of('AcroForm'));
-    if(!_acro){ _acro=ctx.obj({}); pdf.catalog.set(PDFLib.PDFName.of('AcroForm'), ctx.register(_acro)); }
-    if(!_acro.get(PDFLib.PDFName.of('Fields'))) _acro.set(PDFLib.PDFName.of('Fields'), ctx.obj([]));
-    var _drD=_acro.lookup(PDFLib.PDFName.of('DR'));
-    if(!_drD){ _drD=ctx.obj({}); _acro.set(PDFLib.PDFName.of('DR'), _drD); }
-    _fdictDR=_drD.lookup(PDFLib.PDFName.of('Font'));
-    if(!_fdictDR){ _fdictDR=ctx.obj({}); _drD.set(PDFLib.PDFName.of('Font'), _fdictDR); }
-    [['Helv',fonts.regular],['HelvB',fonts.bold],['HelvO',fonts.italic],['HelvBO',fonts.boldItalic]].forEach(function(p){
-      try{ if(p[1]&&p[1].ref && !_fdictDR.get(PDFLib.PDFName.of(p[0]))) _fdictDR.set(PDFLib.PDFName.of(p[0]), p[1].ref); }catch(_){}
-    });
-  }catch(_af){ console.warn('[AcroAnnot] AcroForm DR setup',_af); }
-  function _daFontName(o){ return o.bold?(o.italic?'HelvBO':'HelvB'):(o.italic?'HelvO':'Helv'); }
-  // User-added text AND edited page text. For EDITED page text the original words
-  // are still baked in the reused page, so the appearance paints an OPAQUE WHITE
-  // box (sized to the wider of the new and original text) that hides them — this
-  // is what lets the sheet stay VECTOR instead of flattening to a raster and
-  // losing images/markups. New user text draws with a transparent background.
-  try{ if(typeof textObjs!=='undefined') textObjs.forEach(function(obj){
-    if(!obj || !obj._acroFlag) return;
-    var op=(obj.opacity==null?1:obj.opacity);
-    // Use the STANDARD WinAnsi Helvetica set for the annotation appearance. The
-    // text operator writes Latin-1 bytes (pdfStr), which render correctly ONLY
-    // against a WinAnsi simple font. A custom/embedded TTF is a Type0/Identity-H
-    // font whose content stream needs 2-byte glyph IDs — Latin-1 bytes there come
-    // out as tofu boxes (□□□). Helvetica keeps the edited text readable & editable.
-    var f=obj.bold?(obj.italic?fonts.boldItalic:fonts.bold):(obj.italic?fonts.italic:fonts.regular);
-    if(!f) f=fonts.regular;
-    var fontRef=(f&&f.ref)?f.ref:(fonts.regular&&fonts.regular.ref)||null;
-    var efpx=ptToCanvasPx(obj.fontSize), fsize=efpx/sc;
-    var lineH=(typeof _lineAdvOf==='function')?_lineAdvOf(obj,efpx):efpx*1.25;
-    var txCol=rgb01(obj.color||'#000000');
-    var lines=getTextLines(obj,efpx).map(function(l){ return _winAnsiSafe(_repairLigArtifacts(l)); });
-    function _wc(str){ try{ return f.widthOfTextAtSize(str,fsize)*sc; }catch(_){ return String(str).length*fsize*0.5*sc; } }
-    var maxW=0; lines.forEach(function(l){ var wv=_wc(l); if(wv>maxW)maxW=wv; });
-    var nLines=lines.length;
-    var coverBg=!!obj._fromExplode;   // edited page text must hide its baked original
-    if(coverBg && obj._oText!=null){
-      var oLines=String(obj._oText).split('\n');
-      oLines.forEach(function(l){ var wv=_wc(_winAnsiSafe(String(l))); if(wv>maxW)maxW=wv; });
-      if(oLines.length>nLines) nLines=oLines.length;
-    }
-    if(!maxW||!nLines) return;
-    var asc=fsize*TXT_ASC_F, desc=fsize*TXT_DESC_F, padX=2/sc, padY=1.5/sc;
-    var boxL=obj.x - padX*sc, boxTop=obj.y - asc*sc - padY*sc;
-    var boxW=maxW + padX*2*sc, boxH=(nLines-1)*lineH + (asc+desc)*sc + padY*2*sc;
-    var q0=P(boxL,boxTop), q1=P(boxL+boxW,boxTop), q2=P(boxL+boxW,boxTop+boxH), q3=P(boxL,boxTop+boxH);
-    var xs=[q0.x,q1.x,q2.x,q3.x], ys=[q0.y,q1.y,q2.y,q3.y];
-    var rect=[Math.min.apply(null,xs)-1, Math.min.apply(null,ys)-1, Math.max.apply(null,xs)+1, Math.max.apply(null,ys)+1];
-    // Hide the ORIGINAL baked words with a white box painted ON THE PAGE — NOT in
-    // the annotation appearance. A cover inside the appearance moves WITH the
-    // annotation when it's dragged in Acrobat, re-exposing the old text; on the
-    // page it stays put at the original spot no matter where the text is moved.
-    // Cover is anchored to the ORIGINAL position (_oX/_oY) and sized to the wider
-    // of the new and original text.
-    if(coverBg){
-      try{
-        var _oX=(obj._oX!=null?obj._oX:obj.x), _oY=(obj._oY!=null?obj._oY:obj.y);
-        var _cvBL=P(_oX - padX*sc, _oY + (nLines-1)*lineH + (desc+padY)*sc);
-        page.drawRectangle({ x:_cvBL.x, y:_cvBL.y,
-          width: W(maxW) + padX*2,
-          height: (nLines-1)*W(lineH) + (asc+desc) + padY*2,
-          rotate: PDFLib.degrees(rotDeg), color: PDFLib.rgb(1,1,1), opacity:1, borderWidth:0 });
-      }catch(_cv){ console.warn('[AcroAnnot] text cover',_cv); }
-    }
-    var ops='';
-    var align=obj.textAlign||'left';
-    ops+='q /GS0 gs BT /F0 '+f2(fsize)+' Tf '+colStr(txCol)+' rg ';
-    lines.forEach(function(ln,i){
-      if(ln==='') return;
-      var twc=_wc(ln);
-      var _off=(align==='center'?(maxW-twc)/2:align==='right'?(maxW-twc):0);
-      var pp=P(obj.x+_off, obj.y+i*lineH);
-      ops+=tmRotAt(pp.x,pp.y,rotDeg)+'('+pdfStr(ln)+') Tj ';
-    });
-    ops+='ET Q ';
-    var d={ Subtype:'FreeText',
-            Contents:_pdfStrOf(obj.text),
-            // DA points at /F0 — the SAME styled (bold/italic) font used in the
-            // appearance — and the annotation carries its own /DR mapping /F0 to
-            // that font. When Acrobat regenerates the FreeText appearance on open,
-            // it reads DA + DR and keeps the bold/italic instead of falling back to
-            // plain Helvetica (which made bold text flash bold then go normal).
-            DA:PDFLib.PDFString.of('/'+_daFontName(obj)+' '+f2(fsize)+' Tf '+colStr(txCol)+' rg'),
-            Q:(align==='center'?1:align==='right'?2:0),
-            CA:op,
-            BS:bsDict(0,null) };
-    // Also give the annotation its OWN /DR mapping the same name → styled font, so
-    // viewers that resolve the DA font from the annotation (not the AcroForm) also
-    // keep bold/italic on regenerate.
-    if(fontRef){ try{ var _nm=_daFontName(obj); var _fr={}; _fr[_nm]=fontRef; d.DR=ctx.obj({ Font: ctx.obj(_fr) }); }catch(_dr){} }
-    // No /C (transparent background): the original is hidden by the page-level
-    // white box above, so the annotation itself must NOT carry a background —
-    // otherwise dragging it would leave a white ghost box at the new location and
-    // (worse) the moving box wouldn't reveal that the original is already covered.
-    if(rotDeg) d.Rotate=rotDeg;
-    addAnnot(d, ops, rect, op, null, fontRef);
-  }); }catch(e){ console.warn('[AcroAnnot] text',e); }
-
-  if(emitted) dbg('export','Acrobat annotations emitted: '+emitted);
-  return emitted;
-}
-
-// Emit user-placed pictures as editable /Stamp annotations. Async: image bytes
-// are embedded via pdf.embedPng. Each stamp's appearance draws the picture with
-// a cm matrix that applies the image's own angle plus page-rotation compensation
-// (so it stays upright on a /Rotate page, like the text annotations). Flips are
-// baked into the rasterized bytes.
-function _emitImageStamps(pdf, page, sz, sc, list){
-  if(!list || !list.length || !window.PDFLib){ return Promise.resolve(0); }
-  var N=PDFLib.PDFName, ctx=pdf.context;
-  var VH=sz.height, v2p=sz._v2p||function(x,y){return {x:x,y:y};}, rot=sz._rot||0;
-  function P(cx,cy){ var _p=v2p(cx/sc, VH - cy/sc); return {x:(isFinite(_p.x)?_p.x:0), y:(isFinite(_p.y)?_p.y:0)}; }
-  function W(px){ var v=px/sc; return isFinite(v)?v:0; }
-  function f2(n){ n=+n; if(!isFinite(n)) n=0; return (Math.round(n*100)/100).toString(); }
-  var seq=0;
-  var jobs=list.map(function(ov){
-    return new Promise(function(resolve){
-      try{
-        // Rasterize the stamp at the image's SOURCE resolution, not its on-page
-        // display size. A small preset (e.g. a 240px equipment symbol) scaled up on
-        // the plan used to be captured at the larger display width — i.e. upsampled
-        // from the small source, so it exported blurry. Using the natural size keeps
-        // every source pixel (identical fidelity to the clean native-embed path)
-        // while the annotation stays a movable /Stamp. Page footprint is set by the
-        // cm matrix (Wp/Hp) below, independent of this raster resolution.
-        var _sw=(ov.img&&(ov.img.naturalWidth||ov.img.width))||Math.round(ov.w);
-        var _sh=(ov.img&&(ov.img.naturalHeight||ov.img.height))||Math.round(ov.h);
-        var iw=Math.max(1,Math.round(_sw)), ih=Math.max(1,Math.round(_sh));
-        var CAP=2200, dn=Math.min(1, CAP/Math.max(iw,ih));
-        var cw=Math.max(1,Math.round(iw*dn)), ch=Math.max(1,Math.round(ih*dn));
-        var cnv=document.createElement('canvas'); cnv.width=cw; cnv.height=ch;
-        var g=cnv.getContext('2d');
-        g.save();
-        g.translate(ov.flipH?cw:0, ov.flipV?ch:0);
-        g.scale(ov.flipH?-1:1, ov.flipV?-1:1);
-        try{ g.drawImage(ov.img,0,0,cw,ch); }catch(_d){ g.restore(); resolve(); return; }
-        g.restore();
-        var build=function(bytes){
-          pdf.embedPng(bytes).then(function(im){
-            try{
-              var Wp=W(ov.w), Hp=W(ov.h), C=P(ov.cx,ov.cy);
-              var phi=(rot*Math.PI/180) - (ov.angle||0);   // page-rot + image angle
-              var cphi=Math.cos(phi), sphi=Math.sin(phi);
-              // cm maps the image unit square (0..1) → centered, scaled, rotated.
-              var a=Wp*cphi, b=Wp*sphi, cM=-Hp*sphi, dM=Hp*cphi;
-              var e=C.x-0.5*(a+cM), ff=C.y-0.5*(b+dM);
-              var op=(ov.opacity!=null && isFinite(+ov.opacity))?+ov.opacity:1;
-              // Bail if any matrix/position value went non-finite — a NaN in the
-              // Stamp Rect/BBox/cm is what makes Acrobat reject the whole file.
-              if(![a,b,cM,dM,e,ff,C.x,C.y,Wp,Hp].every(isFinite)){ console.warn('[ImgStamp] non-finite geometry, skipping'); resolve(); return; }
-              var res={ XObject:{}, ExtGState:{ GS0:{ Type:'ExtGState', CA:op, ca:op } } };
-              res.XObject.Im0=im.ref;
-              var apOps='q /GS0 gs '+f2(a)+' '+f2(b)+' '+f2(cM)+' '+f2(dM)+' '+f2(e)+' '+f2(ff)+' cm /Im0 Do Q';
-              // Rect/BBox = AABB of the 4 rotated corners.
-              var cs=[[-0.5,-0.5],[0.5,-0.5],[0.5,0.5],[-0.5,0.5]].map(function(p){
-                return { x:C.x+p[0]*a+p[1]*cM, y:C.y+p[0]*b+p[1]*dM };
-              });
-              var xs=cs.map(function(p){return p.x;}), ys=cs.map(function(p){return p.y;});
-              var rect=[Math.min.apply(null,xs), Math.min.apply(null,ys),
-                        Math.max.apply(null,xs), Math.max.apply(null,ys)];
-              var apRef=ctx.register(ctx.stream(apOps, {
-                Type:'XObject', Subtype:'Form', BBox:[rect[0],rect[1],rect[2],rect[3]], Resources:res
-              }));
-              var d2={ Type:'Annot', Subtype:'Stamp', Rect:[rect[0],rect[1],rect[2],rect[3]],
-                       F:4, P:page.ref, CA:op,
-                       NM:PDFLib.PDFString.of('AOG-IMG-'+Date.now().toString(36)+'-'+(seq++)),
-                       // Marker read on re-import: lets the reopen path recognise these
-                       // as OUR OWN picture/equipment stamps and always bring them back,
-                       // instead of gating them behind the "Signatures & seals" option.
-                       Contents:PDFLib.PDFString.of('AOG-IMG'),
-                       AP:{ N:apRef } };
-              var annotRef=ctx.register(ctx.obj(d2));
-              var arr=null; try{ arr=page.node.Annots(); }catch(_a){}
-              if(!arr){ arr=ctx.obj([]); page.node.set(N.of('Annots'), arr); }
-              arr.push(annotRef);
-            }catch(_b){ console.warn('[ImgStamp] build',_b); }
-            resolve();
-          }, function(){ resolve(); });
-        };
-        if(cnv.toBlob){
-          cnv.toBlob(function(blob){
-            if(!blob){ resolve(); return; }
-            var fr=new FileReader();
-            fr.onload=function(){ build(new Uint8Array(fr.result)); };
-            fr.onerror=function(){ resolve(); };
-            fr.readAsArrayBuffer(blob);
-          },'image/png');
-        } else {
-          try{
-            var du=cnv.toDataURL('image/png'), bin=atob(du.split(',')[1]);
-            var u8=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
-            build(u8);
-          }catch(_x){ resolve(); }
-        }
-      }catch(e){ resolve(); }
-    });
-  });
-  return Promise.all(jobs).then(function(){ try{ dbg('export','image stamps emitted: '+list.length); }catch(_){ } return list.length; });
-}
-
 function _paintVectorAnnotations(page, sz, sc, fonts){
   var rgb=PDFLib.rgb, degrees=PDFLib.degrees;
   var VH=sz.height, VW=sz.width;
@@ -17129,14 +16209,11 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
   var rotDeg = rot; // 0/90/180/270
   function col(hex){ var c=_hexToRgb(hex||'#000000')||{r:0,g:0,b:0}; return rgb(c.r/255,c.g/255,c.b/255); }
   // Map a canvas point (top-left origin, base px) → unrotated PDF page point.
-  function P(cx,cy){ var _p=v2p(cx/sc, VH - cy/sc); return {x:(isFinite(_p.x)?_p.x:0), y:(isFinite(_p.y)?_p.y:0)}; }
-  function W(px){ var v=px/sc; return isFinite(v)?v:0; }                 // canvas length px → pt (scale only)
+  function P(cx,cy){ return v2p(cx/sc, VH - cy/sc); }
+  function W(px){ return px/sc; }                 // canvas length px → pt (scale only)
   var movedExplode=_movedExplodeObj;   // shared detector
   var _dbgCnt={drawn:0, skippedExplode:0, movedDrawn:0};
   function visible(o){
-    // Objects flagged for Acrobat-annotation emission are drawn by their
-    // annotation's appearance stream — flattening them too would double them.
-    if(o && o._acroFlag){ return false; }
     // The original page content is KEPT unless we perform a full white-cover redraw,
     // which happens ONLY when the page was genuinely exploded into objects that
     // reproduce it (_FULL_REDRAW && _explodedFromPage). Whenever the original is
@@ -17242,7 +16319,7 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
     var px=Math.hypot(m.x2-m.x1,m.y2-m.y1);
     var label=(typeof scaleSet!=='undefined'&&scaleSet)?formatLength(px):(Math.round(px)+'px');
     var midX=(m.x1+m.x2)/2, midY=(m.y1+m.y2)/2;
-    var fsize=7;   // true 7pt dimension label (was 16/sc ≈ 3pt — too small)
+    var fsize=13/sc;
     var deg=-ang*180/Math.PI;
     // center the text along the line, lifted 8px above it
     var tw=fonts.bold.widthOfTextAtSize(label,fsize);
@@ -17251,7 +16328,7 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
     // shift back by half text width along the line direction
     var halfX=Math.cos(ang)*(tw*sc)/2, halfY=Math.sin(ang)*(tw*sc)/2;
     var lp=P(ox-halfX, oy-halfY);
-    page.drawText(_winAnsiSafe(label),{x:lp.x, y:lp.y, size:fsize, font:fonts.bold,
+    page.drawText(label,{x:lp.x, y:lp.y, size:fsize, font:fonts.bold,
       color:col(m.color), rotate:degrees(deg+rotDeg)});
   }); }catch(e){ console.warn('[Vec] measures',e); }
 
@@ -17337,7 +16414,7 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
       // exactly as the on-screen renderer does, so the break points are the same.
       var _mc=document.createElement('canvas').getContext('2d');
       _mc.font=cmtCtxFont(c, fsPx);
-      var lines=cmtWrapLines(_mc, c.text, maxW).map(_winAnsiSafe);
+      var lines=cmtWrapLines(_mc, c.text, maxW);
 
       var _famK=_customFamilyKey(c.fontFamily);
       var _set=(fonts.custom && _famK && fonts.custom[_famK]) ? fonts.custom[_famK] : fonts;
@@ -17447,7 +16524,7 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
     var lines=getTextLines(obj,efpx);   // same wrap breaks as the screen render
     // Final safety net: strip ligature artifacts right before PDF drawing, so
     // even a session that still carries the bogus char in memory exports clean.
-    lines=lines.map(function(l){ return _winAnsiSafe(_repairLigArtifacts(l)); });
+    lines=lines.map(function(l){ return _repairLigArtifacts(l); });
     var align=obj.textAlign||'left';
     var op=(obj.opacity==null?1:obj.opacity);
     var a=(obj.angle||0);
@@ -17680,90 +16757,14 @@ function _rasterOnlyHl(m){
   // point list, which isn't expressible as a rotated rectangle) still needs raster.
   return m.type==='highlight' && !!(m.pts && m.pts.length);
 }
-// ── Acrobat-annotation eligibility marking ───────────────────────────────────
-// Flags every object that will be emitted as a REAL annotation this export so
-// (a) the vector painter does not also flatten it into the page and (b) the
-// raster overlay does not carry a second copy (pens). Flags are cleared at the
-// start of every export, so a failed run can never leave stale suppression.
-function _markAcroAnnotObjs(){
-  var lists=[
-    (typeof measureObjs!=='undefined')?measureObjs:[],
-    (typeof polylineObjs!=='undefined')?polylineObjs:[],
-    (typeof shapeObjs!=='undefined')?shapeObjs:[],
-    (typeof penObjs!=='undefined')?penObjs:[],
-    (typeof leaderObjs!=='undefined')?leaderObjs:[],
-    (typeof commentObjs!=='undefined')?commentObjs:[]
-  ];
-  lists.forEach(function(a){ try{ a.forEach(function(o){ if(o) delete o._acroFlag; }); }catch(_e){} });
-  if(!EXPORT_ACRO_ANNOTS) return 0;
-  var n=0;
-  function vis(o){ var L=layers[o.layerIdx]; return !(L && !L.visible); }
-  // IMPORTED markups round-trip as REAL annotations too. Objects extracted from
-  // the source PDF's ANNOTATIONS (_fromAnnot) are safe to emit: the export
-  // strips their original /Annots entries (both white-cover and kept-page paths
-  // drop Ink/FreeText/Line/Square/Circle/PolyLine/Polygon), and the emitter runs
-  // AFTER that strip — so nothing doubles. Content-stream extractions
-  // (_fromExplode WITHOUT _fromAnnot: CAD linework) stay flattened — their
-  // original lives in the page content, which is never stripped.
-  function skipImport(o){ return o._fromExplode && !o._fromAnnot; }
-  try{ measureObjs.forEach(function(m){
-    if(!vis(m) || skipImport(m)) return;
-    // Every measure now round-trips as a real /Line annotation: arrows, plain
-    // label-less lines, AND dimension lines with ticks+label (the label rides
-    // along as the line's caption, so it stays editable in Acrobat).
-    m._acroFlag=true; n++;
-  }); }catch(_e){}
-  try{ if(typeof leaderObjs!=='undefined') leaderObjs.forEach(function(o){
-    if(!vis(o) || skipImport(o)) return;
-    // Leader = tip→elbow→shoulder path with an arrowhead at the tip → a real
-    // /PolyLine annotation with an open-arrow line ending. Fully editable.
-    o._acroFlag=true; n++;
-  }); }catch(_e){}
-  try{ if(typeof commentObjs!=='undefined') commentObjs.forEach(function(c){
-    if(!vis(c) || skipImport(c)) return;
-    // Notes → /FreeText annotations (background + border + editable text).
-    // FreeText can't rotate cleanly, so a rotated note stays flattened by the
-    // vector painter (rare — notes are placed axis-aligned).
-    if(Math.abs(c.angle||0)<0.001 && c.w>0 && c.h>0){ c._acroFlag=true; n++; }
-  }); }catch(_e){}
-  try{ polylineObjs.forEach(function(pl){
-    if(!vis(pl) || skipImport(pl) || !pl.pts || pl.pts.length<2) return;
-    pl._acroFlag=true; n++;
-  }); }catch(_e){}
-  try{ shapeObjs.forEach(function(s){
-    if(!vis(s) || skipImport(s) || s._editing) return;
-    // Square/Circle annotations cannot rotate — rotated ones stay flattened.
-    if((s.type==='rect'||s.type==='ellipse') && Math.abs(s.angle||0)<0.001){ s._acroFlag=true; n++; }
-  }); }catch(_e){}
-  try{ penObjs.forEach(function(o){
-    if(!vis(o) || skipImport(o) || !o.pts || o.pts.length<1) return;
-    if(o.blend) return;   // ink-highlighter (multiply) stays in the raster overlay
-    o._acroFlag=true; n++;
-  }); }catch(_e){}
-  // Text → /FreeText annotation (editable in Acrobat). User-added text always;
-  // EDITED page text too (so the sheet stays vector instead of flattening). The
-  // painter skips _acroFlag objects, and _emitAcrobatAnnots draws each as a
-  // FreeText with an opaque white box that hides the original baked words.
-  try{ if(typeof textObjs!=='undefined') textObjs.forEach(function(t){
-    if(t) delete t._acroFlag;
-    if(vis(t) && _textToAcro(t)){ t._acroFlag=true; n++; }
-  }); }catch(_e){}
-  if(n) dbg('export','Acrobat-annot mode: '+n+' object(s) will be real annotations');
-  return n;
-}
-
 function _suppressVectorizedForOverlay(){
   var saved={
     shapeObjs:shapeObjs, measureObjs:measureObjs, textObjs:textObjs,
     polylineObjs:(typeof polylineObjs!=='undefined'?polylineObjs:null),
     markupObjs:(typeof markupObjs!=='undefined'?markupObjs:null),
     commentObjs:(typeof commentObjs!=='undefined'?commentObjs:null),
-    leaderObjs:(typeof leaderObjs!=='undefined'?leaderObjs:null),
-    penObjs:(typeof penObjs!=='undefined'?penObjs:null)
+    leaderObjs:(typeof leaderObjs!=='undefined'?leaderObjs:null)
   };
-  // Pen strokes flagged for Acrobat-annotation export must NOT also ride the
-  // raster overlay, or the /Ink annotation would sit on a bitmap twin.
-  if(saved.penObjs!==null) penObjs = penObjs.filter(function(o){ return !(o && o._acroFlag); });
   // Notes are painted as TRUE VECTORS now — keep them out of the raster overlay or
   // they'd be drawn twice (and the bitmap copy is the one that shifts shade on zoom).
   if(saved.commentObjs!==null) commentObjs = [];
@@ -17786,7 +16787,6 @@ function _suppressVectorizedForOverlay(){
     if(saved.markupObjs!==null) markupObjs=saved.markupObjs;
     if(saved.commentObjs!==null) commentObjs=saved.commentObjs;
     if(saved.leaderObjs!==null) leaderObjs=saved.leaderObjs;
-    if(saved.penObjs!==null) penObjs=saved.penObjs;
   };
 }
 
@@ -17940,12 +16940,7 @@ function _embedCustomExportFonts(pdf, fonts){
               // characters. Embedding the FULL font (~300-600KB/variant, only
               // for variants actually used) is Acrobat-clean.
               return pdf.embedFont(vs[v],{subset:false}).then(
-                function(f){
-                  set[v]=f;
-                  // Record the uncompressed byte length for the pre-save
-                  // /Length1 stamp (see _stampLength1PreSave).
-                  try{ f._aogLen1 = vs[v].length || vs[v].byteLength || 0; }catch(_l){}
-                },
+                function(f){ set[v]=f; },
                 function(e){ console.warn('[TrueFont] embed '+k+'/'+v+' failed', e); });
             });
           });
@@ -17963,78 +16958,6 @@ function _embedCustomExportFonts(pdf, fonts){
     });
     return chain;
   }).catch(function(e){ console.warn('[TrueFont]', e); });
-}
-
-// ── Acrobat compliance PRE-save stamp ──────────────────────────────────────
-// Instead of saving, reloading the whole document and saving AGAIN (the old
-// post-pass — the single biggest chunk of export time), force each custom
-// PDFFont to embed NOW, find the FontDescriptor objects that embedding just
-// created, and set /Length1 on their FontFile/FontFile2 streams BEFORE the
-// one and only pdf.save(). We already know the uncompressed TrueType size:
-// it's the byte length of the font file we handed to embedFont.
-// Resolves to the number of streams stamped (0 → caller falls back to the
-// reload-based _fixFontLength1 as a safety net).
-function _stampLength1PreSave(pdf, fonts){
-  try{
-    if(!window.PDFLib || !fonts || !fonts.custom) return Promise.resolve(0);
-  }catch(e){ return Promise.resolve(0); }
-  var N=PDFLib.PDFName;
-  // Collect the unique custom PDFFont objects (variants may alias each other)
-  var list=[];
-  try{
-    Object.keys(fonts.custom).forEach(function(k){
-      var set=fonts.custom[k]||{};
-      ['regular','bold','italic','boldItalic'].forEach(function(v){
-        var f=set[v];
-        if(f && list.indexOf(f)===-1) list.push(f);
-      });
-    });
-  }catch(e){ return Promise.resolve(0); }
-  if(!list.length) return Promise.resolve(0);
-  var stamped=0, chain=Promise.resolve();
-  list.forEach(function(f){
-    chain=chain.then(function(){
-      // Uncompressed length = the raw font bytes given to embedFont. pdf-lib's
-      // CustomFontEmbedder keeps them on the embedder; _aogLen1 is our own
-      // belt-and-suspenders copy recorded at embed time.
-      var len=0;
-      try{ len = (f.embedder && f.embedder.fontData && f.embedder.fontData.length) || f._aogLen1 || 0; }catch(e){}
-      if(!len) return;
-      // Snapshot existing indirect objects so we can identify what embed() adds
-      var before={};
-      try{ pdf.context.enumerateIndirectObjects().forEach(function(p){ before[p[0].toString()]=1; }); }catch(e){ return; }
-      var p=null;
-      try{ p = (typeof f.embed==='function') ? f.embed() : null; }catch(e){ p=null; }
-      return Promise.resolve(p).then(function(){
-        try{
-          pdf.context.enumerateIndirectObjects().forEach(function(pair){
-            if(before[pair[0].toString()]) return;   // pre-existing object
-            var obj=pair[1];
-            if(!obj || !obj.get) return;
-            var isFD=false;
-            try{ isFD = obj.get(N.of('Type'))===N.of('FontDescriptor') ||
-                        !!obj.get(N.of('FontFile2')) || !!obj.get(N.of('FontFile')); }catch(e){}
-            if(!isFD) return;
-            // Length1 is a FontFile/FontFile2 (TrueType) requirement; FontFile3
-            // (CFF/OTTO) uses Subtype instead — leave it alone.
-            ['FontFile','FontFile2'].forEach(function(kk){
-              var ref=null; try{ ref=obj.get(N.of(kk)); }catch(e){}
-              if(!ref) return;
-              var st=null; try{ st=pdf.context.lookup(ref); }catch(e){}
-              if(!st || !st.dict || !st.dict.set) return;
-              try{
-                if(!st.dict.get(N.of('Length1'))){
-                  st.dict.set(N.of('Length1'), PDFLib.PDFNumber.of(len));
-                  stamped++;
-                }
-              }catch(e){}
-            });
-          });
-        }catch(e){}
-      }, function(){ /* embed failed — fall through, post-pass will catch it */ });
-    });
-  });
-  return chain.then(function(){ return stamped; });
 }
 
 // ── Acrobat compliance post-pass ────────────────────────────────────────────
@@ -18128,7 +17051,6 @@ function _buildVectorPdf(attachJson, onReady){
       if(typeof window.PDFLib==='undefined') _why.push('PDFLib failed to load');
       console.error('[AOG:export] ✖ RASTER FALLBACK. Vector export needs the pristine source PDF.\n  '
                   + _why.join('\n  '));
-      imglog('⚠ EXPORT path = RASTER (flattened, whole sheet → one image). Uploaded pictures are NOT kept separate. Reasons: '+_why.join(' | '));
       dbg('export','FALLBACK to raster — vector path unavailable',
           {vectorOK:_vectorBackdropOK, pdfBytes:(_pdfBytes?_pdfBytes.byteLength:0),
            pdflib:typeof window.PDFLib, vecPage:(typeof _vecPageNum!=='undefined'?_vecPageNum:'?'),
@@ -18201,10 +17123,6 @@ function _buildVectorPdf(attachJson, onReady){
              count:_culprits.length, culprits:_culprits.slice(0,25)});
         console.warn('[AOG:export] Vector path abandoned. Moved-object report:', _culprits);
       }catch(_e){ console.warn('[AOG:export] culprit scan failed:', _e); }
-      imglog('⚠ EXPORT path = RASTER (flattened). The whole sheet becomes ONE flat image, '
-             +'so individual uploaded pictures are NOT preserved as separate images. '
-             +'Trigger: you MOVED or DELETED something that was extracted from the original page. '
-             +'See the moved-object report just above in the console.');
       dbg('export','kept page + moved extracted content → clean composite export (no white patches)');
       _xlap('EXIT: raster/composite fallback (moved or deleted extracted content)');
       _xdump();
@@ -18223,15 +17141,8 @@ function _buildVectorPdf(attachJson, onReady){
     // re-rasterization — and neither white it out nor stamp a copy over it.
     function _isUntouchedPageImg(ov){
       if(!ov._fromPdfPage) return false;
-      if(ov.flipH || ov.flipV) return false;
+      if((ov.angle||0)!==0 || ov.flipH || ov.flipV) return false;
       if((ov.opacity==null?1:ov.opacity)!==1) return false;
-      // Compare angle to the ORIGINAL baseline, NOT literal 0. A /Rotate page
-      // (this file is /Rotate 90) folds its rotation into EVERY image's angle AND
-      // its _origAngle at import, so an untouched image has angle===_origAngle —
-      // both ~90°, not 0. The old `angle!==0` test therefore flagged every image
-      // on a rotated page as "moved", forcing a needless re-embed/trace of the
-      // whole pristine page (lower pic count + the 2-tone "outer/inner" trace).
-      if(_angMoved(ov.angle, ov._origAngle||0)) return false;
       // ~2.5 canvas px ≈ under half a point on paper — invisible. A tighter
       // tolerance let click-jitter micro-nudges permanently rasterize exports.
       var eps=2.5;
@@ -18240,15 +17151,6 @@ function _buildVectorPdf(attachJson, onReady){
     }
     var fullImgs   = imgOverlays.slice();
     var untouched, movedAxis, complexList;
-    try{
-      var _wc=(typeof _shouldWhiteCoverPage==='function' && _shouldWhiteCoverPage());
-      imglog('page render mode = '+(_wc?'WHITE-COVER (original page content removed & everything redrawn — page images get re-embedded/traced)':'KEPT (pristine page reused — untouched images stay original & crisp)'),
-             { whiteCover:_wc,
-               fullRedraw:(typeof _FULL_REDRAW!=='undefined'?_FULL_REDRAW:'?'),
-               explodedFromPage:(typeof _explodedFromPage!=='undefined'?_explodedFromPage:'?'),
-               explodedGraphics:(typeof _explodedGraphicsExist==='function'?_explodedGraphicsExist():'?'),
-               anyMovedExtracted:(typeof _anyMovedExtracted==='function'?_anyMovedExtracted():'?') });
-    }catch(_wl){}
     // ROTATED-IMAGE SHARPNESS FIX: rotated images used to be baked into the
     // rasterized annotation overlay (capped resolution) while un-rotated ones
     // were embedded natively at full source resolution — so any rotated image
@@ -18270,45 +17172,14 @@ function _buildVectorPdf(attachJson, onReady){
       complexList= [];
     }
     var nativeList = movedAxis;
-    // ── ACROBAT-EDITABLE PICTURES (must run BEFORE tracing) ────────────────────
-    // With Acrobat-edit on, USER-PLACED pictures (and images from source
-    // annotation stamps) become real /Stamp annotations. This diversion happens
-    // BEFORE the vector-trace step below so a single picture can never be split
-    // into two representations — a traced-vector "outline" copy AND a raster
-    // copy. Page-NATIVE structural images stay in the normal pipeline.
-    // Total page rotation (page /Rotate + user rotate). Computed here — ABOVE the
-    // Acrobat-edit diversion — because _traceDrawable() consults it, and the
-    // diversion below now calls _traceDrawable() to decide which pictures to keep
-    // as vectors. (It was previously assigned only after the diversion block.)
-    var _totRot = (((typeof _pdfPageRot!=='undefined'?_pdfPageRot:0) + (typeof _userRotDeg!=='undefined'?_userRotDeg:0)) % 360 + 360) % 360;
-    var _acroImgList=[];
-    if(typeof EXPORT_ACRO_ANNOTS!=='undefined' && EXPORT_ACRO_ANNOTS){
-      // Keep VECTOR-traceable line-art pictures (ov._trace) in the normal pipeline
-      // so they still export as TRUE VECTORS (drawSvgPath) even with Acrobat-edit
-      // on — otherwise they'd be flattened into raster /Stamp annotations and lose
-      // their crisp vector linework. Only NON-traceable user/annotation pictures
-      // (photos, colour graphics) become editable raster /Stamps — equipment symbols
-      // included, so they stay MOVABLE in Acrobat. _emitImageStamps rasterizes them
-      // at full source resolution (not on-page display size) so they stay crisp.
-      _acroImgList = nativeList.filter(function(ov){ return ov && (!ov._fromPdfPage || ov._fromAnnot) && !_traceDrawable(ov); });
-      if(_acroImgList.length){
-        nativeList = nativeList.filter(function(ov){ return _acroImgList.indexOf(ov)===-1; });
-      }
-    }
     // ── TRACED LINE-ART → TRUE VECTOR PATHS ─────────────────────────
     // Overlays that were traced at insert time (ov._trace) are pulled out of
     // the raster embed list and drawn with page.drawSvgPath instead: real
     // PDF path operators, infinitely sharp, no JPEG ringing. Only the plain
     // case qualifies (no flip/rotate, uniform stretch, unrotated page) —
     // anything else falls back to the proven raster embed.
+    var _totRot = (((typeof _pdfPageRot!=='undefined'?_pdfPageRot:0) + (typeof _userRotDeg!=='undefined'?_userRotDeg:0)) % 360 + 360) % 360;
     function _traceDrawable(ov){
-      if(window.AOG_NOTRACE) return false;   // F12 escape hatch: keep every picture as a real image
-      // Page-native pictures are NEVER traced: tracing turns a colour graphic into
-      // a lossy 2-tone outline (the "outer/inner split"), and the trace draw is
-      // fragile on /Rotate pages. A MOVED page image re-embeds as its native-
-      // resolution raster instead (crisp, and the embed is rotation-aware), so the
-      // export looks like the pristine original — just relocated.
-      if(ov._fromPdfPage) return false;
       if(!ov._trace || !ov._trace.paths || !ov._trace.paths.length) return false;
       // Rotated pages (/Rotate 90 etc.) are now supported: the trace draw wraps
       // drawSvgPath in a graphics-state rotation about the image center. Only
@@ -18321,26 +17192,6 @@ function _buildVectorPdf(attachJson, onReady){
     var tracedList = nativeList.filter(_traceDrawable);
     if(tracedList.length) nativeList = nativeList.filter(function(ov){ return tracedList.indexOf(ov)===-1; });
     dbg('export','image classification',{mode:(_FULL_REDRAW?'full-redraw':'legacy'), total:fullImgs.length, keptOriginal:untouched.length, redrawn:movedAxis.length, rotated:complexList.length, tracedVector:tracedList.length});
-    try{
-      var _fromPage=fullImgs.filter(function(o){return o._fromPdfPage;}).length;
-      var _fromAnn =fullImgs.filter(function(o){return o._fromAnnot;}).length;
-      var _userUp  =fullImgs.filter(function(o){return !o._fromPdfPage && !o._fromAnnot;}).length;
-      imglog('EXPORT path = VECTOR (original PDF page reused → its native images are preserved as-is)');
-      imglog('pictures in editor: '+fullImgs.length+
-             '  (from PDF page: '+_fromPage+', from PDF annotations: '+_fromAnn+', you added: '+_userUp+')');
-      imglog('how each is exported →', {
-        kept_as_original_page_image: untouched.length,
-        re_embedded_because_moved: movedAxis.length,
-        converted_to_VECTOR_lineart_not_an_image: tracedList.length,
-        exported_as_editable_STAMP: (typeof _acroImgList!=='undefined'?_acroImgList.length:0)
-      });
-      if(tracedList.length){
-        imglog('⚠ '+tracedList.length+' picture(s) are being TRACED into vector line-art instead of staying as images '
-               +'— this is the usual reason the exported pic count is lower than what you uploaded. '
-               +'Set window.AOG_NOTRACE=1 in this console, then export again to keep them as real images.',
-               tracedList.map(function(o){return {w:Math.round(o.w),h:Math.round(o.h),fromPage:!!o._fromPdfPage};}));
-      }
-    }catch(_il){}
     // Page-native images the user MOVED: instead of covering the old spot with a
     // patch, we BLANK the source image XObject in the reloaded PDF so its original
     // draw renders nothing at all — a clean removal exactly like Acrobat, with no
@@ -18361,10 +17212,6 @@ function _buildVectorPdf(attachJson, onReady){
     imgOverlays = complexList;                                  // native images excluded from overlay
     // Pull the vectorized types out of the raster overlay so they aren't drawn
     // twice (raster + vector). Restored right after compositing.
-    // Flag objects headed for REAL Acrobat annotations BEFORE the overlay is
-    // built, so their raster copies (pens) are left out and the painter skips
-    // them. Clears stale flags first, so OFF mode always fully unflags.
-    try{ _markAcroAnnotObjs(); }catch(_ma){ console.warn('[AcroAnnot] mark failed',_ma); }
     var _restoreVec = (VEC_ANNO_TYPES ? _suppressVectorizedForOverlay() : function(){});
     // Split HIGHLIGHTS into their own overlay. On screen they render with
     // multiply blending (linework/text stays readable through the tint), but a
@@ -19018,87 +17865,25 @@ function _buildVectorPdf(attachJson, onReady){
               // Traced line-art first (same layer as native images: under the
               // annotation overlay). drawSvgPath interprets path coords y-DOWN
               // from the anchor, so anchor at the image's top-left corner.
-              // (MOVED page images no longer get a white-patch over their old spot;
-              // their ORIGINAL draw is removed at the source in the block below, then
-              // re-embedded at the new location by the native-image pass.)
-              // DELETED or MOVED page-native images: TRUE removal at the source. For a
-              // present at import but no longer among the live overlays was deleted.
-              // We find its ACTUAL draw in the page content stream by position (the
-              // pdf.js object id does NOT equal the PDF resource name), then swap the
-              // real image XObject for an empty form so it draws nothing.
+              // MOVED page-native images: the content stream still draws the
+              // original at its old spot. Cover that footprint with white FIRST
+              // (before traced vectors and re-embeds draw), so it can't ghost
+              // behind the moved copy. These diagrams sit on white, so the cover
+              // is invisible — and it's what lets a moved picture keep the WHOLE
+              // export vector instead of forcing the flattened composite.
               chain=chain.then(function(){
-                return new Promise(function(resolveDel){
-                  try{
-                    var PL=window.PDFLib;
-                    var live={};
-                    imgOverlays.forEach(function(o){ if(o._fromPdfPage && o._srcName) live[o._srcName]=true; });
-                    var targets=[];
-                    // DELETED: a page-image name from import that's no longer present.
-                    (_pageImgNamesAtImport||[]).forEach(function(nm,ix,arr){
-                      if(!nm || live[nm] || arr.indexOf(nm)!==ix) return;
-                      var info=_pageImgInfoAtImport[nm]; if(!info) return;
-                      var c=v2p(info.cx/sc, VH-info.cy/sc);
-                      targets.push({key:nm, kind:'deleted', x:c.x, y:c.y});
-                    });
-                    // MOVED / RESIZED / ROTATED / FLIPPED: the ORIGINAL draw must go
-                    // (the native pass re-embeds the picture at its new spot). Matched
-                    // by the image's ORIGINAL centre, where the pristine page drew it.
-                    imgOverlays.forEach(function(ov){
-                      if(!ov._fromPdfPage || ov._origCx==null || !ov._srcName) return;
-                      if(!_layerVisible(ov)) return;
-                      if(_isUntouchedPageImg(ov)) return;   // untouched → leave original in place
-                      var c=v2p(ov._origCx/sc, VH-ov._origCy/sc);
-                      targets.push({key:ov._srcName, kind:'moved', x:c.x, y:c.y});
-                    });
-                    if(!targets.length){ resolveDel(); return; }
-                    var _res=page.node.Resources();
-                    var _xo=_res ? _res.get(PL.PDFName.of('XObject')) : null;
-                    if(_xo && _xo instanceof PL.PDFRef) _xo=pdf.context.lookup(_xo);
-                    if(!_xo || !_xo.keys){ imglog('WARNING: no page /XObject dict - cannot remove deleted images'); resolveDel(); return; }
-                    var imageNames={};
-                    _xo.keys().forEach(function(k){
-                      try{
-                        var ref=_xo.get(k), obj=(ref instanceof PL.PDFRef)?pdf.context.lookup(ref):ref;
-                        var d=obj&&obj.dict?obj.dict:obj;
-                        var sub=d&&d.get?d.get(PL.PDFName.of('Subtype')):null;
-                        if(sub && String(sub)==='/Image') imageNames[String(k).replace(/^\//,'')]=true;
-                      }catch(e){}
-                    });
-                    _getPageContentString(pdf, page).then(function(cs){
-                      if(!cs){ imglog('WARNING: page content decoded empty - cannot source-remove images'); resolveDel(); return; }
-                      var draws=_scanImageDraws(cs, imageNames);
-                      imglog('scanned page content: '+draws.length+' image draw(s), '+Object.keys(imageNames).length+' image XObject(s); source-removing '+targets.length+' original(s) [deleted+moved]');
-                      var consumed={}, ranges=[];
-                      targets.forEach(function(t){
-                        var best=-1, bd=1e18;
-                        draws.forEach(function(dw,di){ if(consumed[di]) return; var dd=Math.hypot(dw.x-t.x, dw.y-t.y); if(dd<bd){ bd=dd; best=di; } });
-                        if(best>=0 && bd<40){
-                          consumed[best]=true;
-                          ranges.push({s:draws[best].start, e:draws[best].end});
-                          imglog('OK '+t.kind+' image ORIGINAL removed at source: /'+draws[best].name+'  (this exact draw only; off by '+Math.round(bd)+'pt)');
-                        } else {
-                          imglog('WARNING: no unclaimed image draw near '+t.kind+' '+t.key+' (nearest off '+(best>=0?Math.round(bd):'inf')+'pt) - original may still show', {target:{x:Math.round(t.x),y:Math.round(t.y)}, draws:draws.map(function(d){return {n:d.name,x:Math.round(d.x),y:Math.round(d.y)};})});
-                        }
-                      });
-                      if(ranges.length){
-                        // Blank exactly the matched "/Name … Do" spans (same length →
-                        // every other offset stays valid), then replace the page content
-                        // with the edited (uncompressed) stream. Only the targeted draws
-                        // vanish; a shared image's other copies are untouched.
-                        ranges.sort(function(a,b){ return a.s-b.s; });
-                        var out='', prev=0;
-                        ranges.forEach(function(r){ if(r.s<prev) return; out+=cs.slice(prev,r.s); for(var k=r.s;k<r.e;k++) out+=' '; prev=r.e; });
-                        out+=cs.slice(prev);
-                        try{
-                          var _newContent=pdf.context.register(pdf.context.stream(out));
-                          page.node.set(PL.PDFName.of('Contents'), _newContent);
-                          imglog('page content rewritten: '+ranges.length+' image draw(s) removed surgically (shared-object copies preserved)');
-                        }catch(e){ imglog('WARNING: could not re-set page content: '+(e&&e.message)); }
-                      }
-                      resolveDel();
-                    }).catch(function(err){ imglog('WARNING: could not decode page content: '+(err&&err.message)); resolveDel(); });
-                  }catch(_dw){ console.warn('[VectorExport] deleted-image removal failed:',_dw); imglog('WARNING: deleted-image removal threw: '+(_dw&&_dw.message)); resolveDel(); }
-                });
+                try{
+                  imgOverlays.forEach(function(ov){
+                    if(!ov._fromPdfPage || ov._origCx==null) return;
+                    if(!_layerVisible(ov)) return;
+                    if(_isUntouchedPageImg(ov)) return;
+                    var _pw=ov._origW/sc+1, _ph=ov._origH/sc+1;
+                    var _bl=v2p((ov._origCx-ov._origW/2-0.5)/sc, VH-(ov._origCy+ov._origH/2+0.5)/sc);
+                    page.drawRectangle({x:_bl.x, y:_bl.y, width:_pw, height:_ph,
+                      rotate:PDFLib.degrees(rot), color:PDFLib.rgb(1,1,1), borderWidth:0});
+                    dbg('export','moved page image: original footprint covered white at ('+Math.round(ov._origCx)+','+Math.round(ov._origCy)+')');
+                  });
+                }catch(_mw){ console.warn('[VectorExport] moved-image whiteout failed:',_mw); }
               });
               tracedList.forEach(function(ov){
                 chain=chain.then(function(){
@@ -19222,51 +18007,31 @@ function _buildVectorPdf(attachJson, onReady){
               // Paint the true-vector annotations LAST so they sit crisply on top.
               if(VEC_ANNO_TYPES){
                 chain=chain.then(function(){
-                  // Acrobat-editable mode: emit flagged objects as REAL
-                  // annotations FIRST (they were skipped by the painter and
-                  // overlay). Runs after the extracted-annot strip, so the new
-                  // /Annots entries are never stripped.
-                  try{ _emitAcrobatAnnots(pdf, page, sz, sc, _fonts); }
-                  catch(e){ console.warn('[AcroAnnot] emit failed:',e); }
                   try{ _paintVectorAnnotations(page, sz, sc, _fonts); }
                   catch(e){ console.warn('[VectorExport] vector anno paint failed:',e); }
-                  // Async: user pictures → editable /Stamp annotations.
-                  return _emitImageStamps(pdf, page, sz, sc, _acroImgList)
-                    .catch(function(e){ console.warn('[AcroAnnot] image stamps failed:',e); });
                 });
               }
               return chain.then(function(){
                 _xlap('overlays+annotations done, starting pdf.save()');
+                // The /Length1 post-pass reloads and re-parses the ENTIRE saved
+                // PDF (decompressing every keyless stream) just to stamp Length1
+                // on embedded TrueType font programs. Those only exist when a
+                // CUSTOM font was embedded this export — standard Helvetica
+                // exports have no FontFile2, so the reload was pure wasted time
+                // on the largest file in the pipeline. Skip it when unneeded.
                 var _hasTrueFonts=false;
                 try{ _hasTrueFonts=!!(_fonts && _fonts.custom && Object.keys(_fonts.custom).length>0); }catch(_hf){}
-                // SINGLE-SAVE Length1: stamp /Length1 onto the font streams
-                // BEFORE saving (forcing the fonts to embed now), so the old
-                // save→reload→stamp→save-again round trip is gone. If the
-                // pre-stamp couldn't do its job (pdf-lib internals changed,
-                // embed failed, …) fall back to the reload-based post-pass so
-                // Acrobat-strict compliance is never lost.
-                var _pre = _hasTrueFonts ? _stampLength1PreSave(pdf,_fonts) : Promise.resolve(-1);
-                return _pre.then(function(_stamped){
-                  if(_stamped>0){ dbg('export','Length1 pre-stamped on '+_stamped+' font stream(s) — single-save path'); }
-                  var _postFix;
-                  if(!_hasTrueFonts){
-                    _postFix=function(b){ _xlap('Length1 pass skipped (no embedded TrueType fonts)'); return b; };
-                  } else if(_stamped>0){
-                    _postFix=function(b){ _xlap('Length1 pre-stamped before save — post-pass skipped'); return b; };
-                  } else {
-                    dbg('export','Length1 pre-stamp found nothing — falling back to reload post-pass');
-                    _postFix=_fixFontLength1;
-                  }
-                  if(attachJson){
-                    var jb=new TextEncoder().encode(attachJson);
-                    return pdf.attach(jb, AOG_PDF_ATTACH, {
-                      mimeType:'application/json',
-                      description:'AOG editable annotation data',
-                      creationDate:new Date(), modificationDate:new Date()
-                    }).then(function(){ return pdf.save(); }).then(_postFix);
-                  }
-                  return pdf.save().then(_postFix);
-                });
+                var _postFix=_hasTrueFonts ? _fixFontLength1
+                                           : function(b){ _xlap('Length1 post-pass skipped (no embedded TrueType fonts)'); return b; };
+                if(attachJson){
+                  var jb=new TextEncoder().encode(attachJson);
+                  return pdf.attach(jb, AOG_PDF_ATTACH, {
+                    mimeType:'application/json',
+                    description:'AOG editable annotation data',
+                    creationDate:new Date(), modificationDate:new Date()
+                  }).then(function(){ return pdf.save(); }).then(_postFix);
+                }
+                return pdf.save().then(_postFix);
               });
             });
           }).then(function(bytes){ _xlap('EXIT: vector PDF assembled'); _xdump(); if(bytes) done(bytes); })
@@ -19729,12 +18494,6 @@ var SAVE_STORE      = 'autosave';
 var SAVE_DEBOUNCE   = IS_IPHONE ? 5000 : 2500; // longer on iPhone — gives iOS time to free memory after drawing
 var _saveDb         = null;
 var _saveTimer      = null;
-// Autosave encodes the whole backdrop+layers with toDataURL, a 1-3s SYNCHRONOUS
-// block on big pages. If it lands while you're interacting (e.g. clicking a
-// picture then reaching for a handle) the thread freezes and the cursor can't
-// update. Track the last pointer activity and hold the save off until you pause.
-var _lastInteract   = 0;
-var _saveDeferStart = 0;
 var _saveIndicator  = document.getElementById('save-indicator');
 var _lastSaveTime   = 0;
 
@@ -20049,30 +18808,7 @@ function buildProjectRecord(quality, cb){
 function doSave(){
   if(!baseLoaded||!_saveDb) return;
   // Don't save while user is actively drawing or pinching (memory already high)
-  // Don't serialize the whole document to IndexedDB while the user is actively
-  // manipulating something — that heavy write lands mid-gesture and shows up as a
-  // periodic "moves, then sticks, then catches up" stall (autosave debounced from
-  // a PRIOR edit firing during the CURRENT drag). Reschedule and save once idle.
-  var _busy = drawing || pinching ||
-    (typeof selImgDrag!=='undefined' && selImgDrag) ||
-    (typeof selHandle!=='undefined' && selHandle!==-1) ||
-    (typeof measureDragHandle!=='undefined' && measureDragHandle!==-1) ||
-    (typeof leaderDragHandle!=='undefined' && leaderDragHandle!==-1) ||
-    (typeof plDrag!=='undefined' && plDrag) ||
-    (typeof _mkDrag!=='undefined' && _mkDrag) ||
-    (typeof _dragText!=='undefined' && _dragText) ||
-    (typeof _txtMoving!=='undefined' && _txtMoving) ||
-    (typeof _txtRotating!=='undefined' && _txtRotating) ||
-    (typeof _txtSizing!=='undefined' && _txtSizing) ||
-    (typeof isPanning!=='undefined' && isPanning);
-  var _recentInteract = (Date.now()-_lastInteract) < 1000;
-  if(_busy || _recentInteract){
-    if(!_saveDeferStart) _saveDeferStart=Date.now();
-    // Hold off the heavy save while busy/interacting — but never starve it: after
-    // ~20s of continuous activity, let it run so work still gets persisted.
-    if(_busy || (Date.now()-_saveDeferStart) < 20000){ scheduleSave(); return; }
-  }
-  _saveDeferStart=0;
+  if(drawing||pinching) { scheduleSave(); return; }
   setSaveStatus('saving');
 
   // RELIABLE CACHE POINT. Reaching here PROVES IndexedDB is open, so this is where
@@ -20259,13 +18995,7 @@ function checkForSavedSession(){
 function _rederivePageImgProvenance(){
   try{
     if(typeof imgOverlays==='undefined' || !imgOverlays.length) return Promise.resolve();
-    // NEVER reclassify an ANNOTATION-derived image (_fromAnnot) as a page image.
-    // These came from Stamp annotations (e.g. our own equipment pictures). If one
-    // were re-tagged _fromPdfPage it would export as "untouched page content" and
-    // NOT be re-emitted — yet the export strips the Stamp that actually carried it,
-    // so the picture vanished on the next export. Only genuine page-content images
-    // (no provenance yet, and not from an annotation) may be matched below.
-    var needs=imgOverlays.filter(function(o){ return !o._fromPdfPage && !o._fromAnnot; });
+    var needs=imgOverlays.filter(function(o){ return !o._fromPdfPage; });
     if(!needs.length) return Promise.resolve();
     if(typeof _pdfBytes==='undefined' || !_pdfBytes || typeof pdfjsLib==='undefined') return Promise.resolve();
     return pdfjsLib.getDocument({data:_pdfBytes.slice(0)}).promise.then(function(doc){
@@ -20274,14 +19004,7 @@ function _rederivePageImgProvenance(){
         var vw=(rot===90||rot===270)? (page.view[3]-page.view[1]) : (page.view[2]-page.view[0]);
         var scale=baseCv.width/vw;
         var vp=page.getViewport({scale:scale, rotation:page.rotate});
-        // Annotations DISABLED: only PAGE-CONTENT images should produce match
-        // rects here. With annotations on, a Stamp annotation's image (our own
-        // equipment pictures) added a rect that an imported overlay matched,
-        // mis-tagging it as a page image. That is exactly what dropped pictures
-        // from the next export.
-        var _amDisable=(pdfjsLib.AnnotationMode && pdfjsLib.AnnotationMode.DISABLE);
-        if(_amDisable==null) _amDisable=0;
-        return page.getOperatorList({annotationMode:_amDisable}).then(function(op){
+        return page.getOperatorList().then(function(op){
           var OPS=pdfjsLib.OPS, U=pdfjsLib.Util;
           var m=[1,0,0,1,0,0], stk=[], rects=[];
           for(var i=0;i<op.fnArray.length;i++){
@@ -20903,45 +19626,6 @@ function _imgScaledSource(ov, targetW, targetH){
   }catch(e){ return src; }
 }
 
-// ── DRAG PROXY ──────────────────────────────────────────────────────────────
-// While an image is being moved/resized/rotated it is redrawn every frame. Doing
-// that from the full-resolution source with high-quality smoothing is very heavy
-// for large photos (the "sticks/pauses while sizing" symptom, worse when zoomed
-// in). Build ONE small downscaled proxy at drag start and draw that (cheap) every
-// frame; the real, full-quality draw returns the moment the drag ends.
-function _buildDragProxy(ov){
-  try{
-    var src=ov.img; if(!src) return null;
-    var sw=src.naturalWidth||src.width, sh=src.naturalHeight||src.height;
-    if(!sw||!sh) return null;
-    // Target size ≈ current on-screen backing footprint (frozen eff), with room to
-    // grow, capped so the per-frame draw stays cheap. If the source is already
-    // small there's nothing to gain — use it directly.
-    var effNow=(selCv&&selCv._effSaved)?selCv._effSaved:(window.devicePixelRatio||1)*Math.max(1,zoom);
-    var disp=Math.max(ov.w,ov.h)*effNow;
-    var maxSide=Math.min(Math.max(320, Math.round(disp*1.6)), 1600);
-    var scale=Math.min(1, maxSide/Math.max(sw,sh));
-    if(scale>=0.999) return src;                 // source already small enough
-    var pw=Math.max(1,Math.round(sw*scale)), ph=Math.max(1,Math.round(sh*scale));
-    var c=document.createElement('canvas'); c.width=pw; c.height=ph;
-    var x=c.getContext('2d');
-    try{ x.imageSmoothingEnabled=true; x.imageSmoothingQuality='medium'; }catch(e){}
-    x.drawImage(src,0,0,pw,ph);
-    return c;
-  }catch(e){ return null; }
-}
-// Fast per-frame draw of an overlay from a (small) proxy source — low smoothing,
-// since the proxy is already near display size.
-function _drawImgOvFast(ctx, ov, src){
-  ctx.save();
-  try{ ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='low'; }catch(e){}
-  ctx.globalAlpha = ov.opacity!==undefined ? ov.opacity : 1;
-  ctx.translate(ov.cx, ov.cy);
-  ctx.rotate(ov.angle||0);
-  ctx.scale(ov.flipH?-1:1, ov.flipV?-1:1);
-  ctx.drawImage(src, -ov.w/2, -ov.h/2, ov.w, ov.h);
-  ctx.restore();
-}
 function _drawImgOv(ctx, ov){
   ctx.save();
   _imgSmooth(ctx);
@@ -21019,24 +19703,14 @@ function renderImgSelection(){
   // annotation one (ceiling 3×): a selected image is drawn ONLY on this canvas,
   // so with the lower eff it rendered visibly blurrier while selected than the
   // same image looked the moment it was deselected.
+  var eff = (typeof _computeImgEff==='function') ? _computeImgEff()
+          : ((typeof _computeAnnoEff==='function') ? _computeAnnoEff() : 1);
+  // Viewport sharp mode: cover only the region (full plan × region eff would
+  // exceed the canvas limits and blank the selected image at high zoom).
   var _rX=0, _rY=0, _rW=drawCv.width, _rH=drawCv.height;
   if(_vpRegion){ _rX=_vpRegion.x0; _rY=_vpRegion.y0; _rW=_vpRegion.w; _rH=_vpRegion.h; }
-  var _imgDragging=(typeof selImgDrag!=='undefined' && selImgDrag);
-  var eff, bw, bh;
-  if(_imgDragging && selCv.width>1 && selCv._effSaved){
-    // During a live move/resize/rotate, FREEZE the backing-store resolution.
-    // _computeImgEff depends on the image's own w/h, so while resizing, eff (and
-    // thus the canvas size) changed every frame — reallocating and CLEARING the
-    // canvas each frame, which shows as on-screen glitching/flicker. Reuse the
-    // size locked in when the drag began; pointer-up re-renders at final quality.
-    eff=selCv._effSaved; bw=selCv.width; bh=selCv.height;
-  } else {
-    eff=(typeof _computeImgEff==='function') ? _computeImgEff()
-        : ((typeof _computeAnnoEff==='function') ? _computeAnnoEff() : 1);
-    bw=Math.max(1,Math.round(_rW*eff)); bh=Math.max(1,Math.round(_rH*eff));
-    if(selCv.width!==bw||selCv.height!==bh){ selCv.width=bw; selCv.height=bh; }
-    selCv._effSaved=eff;
-  }
+  var bw=Math.max(1,Math.round(_rW*eff)), bh=Math.max(1,Math.round(_rH*eff));
+  if(selCv.width!==bw||selCv.height!==bh){ selCv.width=bw; selCv.height=bh; }
   // CSS box = EXACTLY the (integer) region size — same rule as _sizeAnnoCanvas /
   // syncImgCv — so the selected image snaps identically to the deselected one
   // (no sub-pixel hop on select/deselect or zoom at desktop DPR 1). Backing
@@ -21047,12 +19721,9 @@ function renderImgSelection(){
   selCtx.setTransform(_eX,0,0,_eY, -_rX*_eX, -_rY*_eY);
   _clearCv(selCtx,selCv);
   // Draw the image itself ONLY during an active drag/resize (imgCv skips it
-  // then). Use a small pre-built PROXY so the per-frame resample is cheap; the
-  // full-resolution, high-quality draw returns on pointer-up (imgCv re-renders).
-  if((typeof selImgDrag!=='undefined') && selImgDrag){
-    if(!selImgDrag._proxy) selImgDrag._proxy=_buildDragProxy(selImg)||selImg.img;
-    _drawImgOvFast(selCtx, selImg, selImgDrag._proxy);
-  }
+  // then). When just selected, imgCv already shows it — drawing it here too
+  // would double-composite semi-transparent images and darken them on select.
+  if((typeof selImgDrag!=='undefined') && selImgDrag) _drawImgOv(selCtx, selImg);
   // Dashed bounding box
   var lw=1.5/zoom, ov=selImg, a=ov.angle||0;
   selCtx.save();
@@ -21415,12 +20086,7 @@ function handleImgPointerMove(e, sp){
     selImg.cy = d.cy + newCx_local*sinA + newCy_local*cosA;
   }
 
-  // Draw the OTHER (non-selected) images once per drag — they don't change while
-  // you move/resize this one. Re-running renderImgOverlays every frame re-drew all
-  // of them (and re-synced imgCv) each move, a big per-frame cost that added to the
-  // sizing glitch. The selected image lives on selCv and updates every frame.
-  if(!d._baseDrawn){ renderImgOverlays(); d._baseDrawn=true; }
-  renderImgSelection();
+  renderImgOverlays(); renderImgSelection();
   return true;
 }
 
@@ -21878,14 +20544,12 @@ var EQUIP_PRESETS=[
   function choose(p){
     close();
     var cached=_imgCache[p.key];
-    if(cached){ cached._isEquip=true; _enterImgPlacementMode(cached); return; }
+    if(cached){ _enterImgPlacementMode(cached); return; }
     var img=new Image();
     var start=function(){
       // Force a full decode into a canvas BEFORE the first on-screen draw.
       // Without this, iOS Safari's lazy decode garbles the first placement.
       var ras=_rasterizeImg(img);
-      ras._isEquip=true;               // tag so export keeps these on the clean
-                                       // native-embed path (same as Acrobat-edit OFF)
       _imgCache[p.key]=ras;
       _enterImgPlacementMode(ras);
     };
@@ -21964,7 +20628,7 @@ _imgFileInput.addEventListener('change',function(){
 // ══════════════════════════════════════════════════════════════
 
 // ── Image overlay selection bar ───────────────────────────────
-var _imgSelBar     = document.getElementById('tb-image-grp');
+var _imgSelBar     = document.getElementById('img-sel-bar');
 var _imgOpSl       = document.getElementById('img-op-sl');
 var _imgOpVal      = document.getElementById('img-op-val');
 var _imgFlipHBtn   = document.getElementById('img-flip-h');
@@ -21975,17 +20639,11 @@ var _imgToFrontBtn = document.getElementById('img-to-front');
 var _imgToBackBtn  = document.getElementById('img-to-back');
 
 function showImgBar(ov){
-  // The image controls now live in the #tb2 tool row and are shown/hidden by the
-  // active tool (updateToolbarForTool), exactly like the Text tool's controls.
-  // Selecting a picture just syncs the opacity readout to it.
-  if(typeof tool!=='undefined' && tool==='image') _imgSelBar.style.display='flex';
+  _imgSelBar.style.display='flex';
   _imgOpSl.value=Math.round((ov.opacity!==undefined?ov.opacity:0.75)*100);
   _imgOpVal.textContent=_imgOpSl.value+'%';
 }
-// Deselecting a picture does NOT hide the row — the controls stay put while the
-// Image tool is active (like every other tool tab). The row is hidden only when
-// you switch to a different tool (updateToolbarForTool).
-function hideImgBar(){ }
+function hideImgBar(){ _imgSelBar.style.display='none'; }
 
 function applyImgOp(v){
   if(!selImg) return;
@@ -22037,7 +20695,6 @@ if(_imgToBackBtn) _imgToBackBtn.addEventListener('click',function(){
 _imgDelBtn.addEventListener('click',function(){
   if(!selImg) return;
   captureState();
-  _recordDeletedPageImg(selImg);
   var idx=imgOverlays.indexOf(selImg);
   if(idx>-1) imgOverlays.splice(idx,1);
   commitImgSelection(); hideImgBar(); pushUndo();
@@ -22131,7 +20788,6 @@ document.addEventListener('keydown',function(e){
   if((e.key==='Delete'||e.key==='Backspace')&&selImg){
     e.preventDefault();
     captureState();
-    _recordDeletedPageImg(selImg);
     var idx=imgOverlays.indexOf(selImg);
     if(idx>-1) imgOverlays.splice(idx,1);
     commitImgSelection(); pushUndo();
@@ -22894,12 +21550,6 @@ drawCv.addEventListener('mousemove', function(e){
   // resize/move cursor flicker ("faint cursor"). Only the image path manages
   // the cursor while an image overlay is selected.
 }, { passive: true });
-
-// Record pointer activity so autosave (doSave) can hold off until you pause,
-// keeping its 1-3s encode off the moment you're clicking/hovering handles.
-['mousedown','mousemove','touchstart','touchmove','wheel'].forEach(function(_ev){
-  drawCv.addEventListener(_ev, function(){ _lastInteract=Date.now(); }, {passive:true});
-});
 
 // Clear image cursor when mouse leaves the canvas entirely and no drag is active
 drawCv.addEventListener('mouseleave', function(){

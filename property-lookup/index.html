@@ -41,6 +41,9 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <link rel="preconnect" href="https://basemap.nationalmap.gov" crossorigin>   <!-- USGS Topo basemap tiles -->
 <link rel="preconnect" href="https://mapservices.weather.noaa.gov" crossorigin> <!-- NWS warnings / NOAA overlays -->
 <link rel="preconnect" href="https://tiledimageservices2.arcgis.com" crossorigin> <!-- Collier 2026 LERC tiles -->
+<link rel="preconnect" href="https://services2.arcgis.com" crossorigin>       <!-- Collier hosted org: parcels, address points, EC, projects — the busiest data host -->
+<link rel="dns-prefetch" href="https://gismapserver.leegov.com">              <!-- Lee parcels + building footprints -->
+<link rel="dns-prefetch" href="https://agis3.charlottecountyfl.gov">           <!-- Charlotte parcels + footprints -->
 <link rel="dns-prefetch" href="https://ags.colliergov.net">                  <!-- county flood cross-check queries -->
 <link rel="dns-prefetch" href="https://unpkg.com">
 <link rel="dns-prefetch" href="https://tile.openstreetmap.org">
@@ -433,6 +436,14 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   /* neighbor labels are hoverable for their own address tooltip, and clickable to look up that address */
   .leaflet-marker-icon.nbr-hit{pointer-events:auto!important;cursor:pointer}
   .nbr-hit .nbr-num{pointer-events:auto;cursor:pointer}
+  /* Elevation-Certificate 📝 note marker on the map */
+  .ec-note-wrap{pointer-events:none}
+  .ec-note{pointer-events:auto;cursor:pointer;width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+    font-size:14px;line-height:1;background:rgba(10,16,22,.82);border:1px solid #ffb000;border-radius:6px;
+    box-shadow:0 1px 6px rgba(0,0,0,.45);transition:transform .12s ease}
+  .ec-note:hover{transform:scale(1.25)}
+  /* thin stem connecting the raised note down to its point, so it's clear which structure it marks */
+  .ec-note-stem{width:2px;height:16px;margin:0 auto;background:linear-gradient(to bottom, #ffb000, rgba(255,176,0,0));pointer-events:none}
   .crosshair{position:absolute;z-index:999;bottom:18px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10.5px;color:var(--dim);background:var(--crosshair-bg);border:1px solid var(--line);padding:5px 12px;border-radius:20px;pointer-events:none}
 
   .empty{text-align:center;color:var(--faint);font-family:var(--mono);font-size:12px;padding:26px 10px;line-height:1.6}
@@ -479,6 +490,14 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .suggest .sg .pin{color:var(--faint);flex:none}
   .suggest .sg .sgsrc{margin-left:auto;color:var(--faint);font-size:9.5px;flex:none;padding-top:1px}
   .suggest .sgmsg{padding:10px 12px;font-family:var(--mono);font-size:11px;color:var(--faint)}
+  /* clickable disambiguation rows shown inside #results (outside .suggest, so restyle here) */
+  .sg.lotpick{padding:10px 12px;font-family:var(--mono);font-size:12px;color:var(--ink);
+    border-bottom:1px solid var(--drop-line);line-height:1.4;display:flex;gap:8px;align-items:flex-start;
+    border-radius:6px;transition:background .12s,color .12s}
+  .sg.lotpick:hover,.sg.lotpick:focus{background:var(--search-bg);color:var(--signal);outline:none}
+  .sg.lotpick:last-child{border-bottom:none}
+  .sg.lotpick .sgsrc{margin-left:auto;color:var(--faint);font-size:9.5px;flex:none;padding-top:1px}
+  @media (max-width:640px){ .sg.lotpick{padding:13px 12px;font-size:13px} }
 
   /* ---- Our blue flood-zone labels (replace FEMA's baked-in black ones) ---- */
   .floodlbl{ color:#39d3ff; font-family:var(--mono); font-size:11px; font-weight:700;
@@ -1049,7 +1068,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     <div class="hint"><b>OR</b> tap anywhere on the map to query that exact point — most reliable for getting the right parcel.</div>
 
     <details class="adv" id="adv">
-      <summary>Live county source (nightly data)</summary>
+      <summary>Live county source</summary>
       <div class="arow">
         <input id="liveUrl" type="text" placeholder="Paste a county parcel layer URL…" autocomplete="off">
         <button id="liveTest">Test</button>
@@ -1424,14 +1443,14 @@ const STORE = {
 let lastLoc=null;
 function saveLoc(lat,lng){ lastLoc={lat,lng}; STORE.set('fl_loc', JSON.stringify({lat,lng,z:(typeof map!=='undefined'&&map.getZoom)?map.getZoom():18})); }
 
-/* Pre-wired LIVE county parcel feeds (queryable polygon layers w/ owner, updated nightly).
+/* Pre-wired LIVE county parcel feeds (queryable polygon layers w/ owner; refresh cadence set by each county).
    Each county may list MULTIPLE candidate endpoints — the tool tries them in order at runtime
    and uses the first that returns a parcel at the clicked point. If all fail (down, moved,
    CORS-blocked) it silently falls back to the dated statewide FDOR roll. Keyed by county name.
    ⚠️ Endpoints marked "verify" were located via the county's public GIS but not test-queried
    from this build environment; confirm in a browser. Layer must allow public CORS. */
 const COUNTY_LIVE = {
-  COLLIER : { label:"Collier County (Property Appraiser, nightly)", urls:[
+  COLLIER : { label:"Collier County (Property Appraiser)", urls:[
     // ✅ PRIMARY: the parcel layer that carries the correct SiteStreetAddress, SiteCity, SiteZipCode,
     // Folio and OwnerLine1 in one place. Using this first means the live-feed card reads the right
     // address directly (no poisoned address-point reverse-lookup that mislabeled this block as "669"
@@ -1440,8 +1459,8 @@ const COUNTY_LIVE = {
     // Secondary: the lean parcels layer (owner/folio/acres only, no address) as a fallback.
     "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Parcels/FeatureServer/42/query"
   ]},
-  LEE     : { label:"Lee County (Property Appraiser, nightly)", urls:[
-    // ✅ confirmed: Lee's hosted parcels layer on ArcGIS Online (CORS-friendly), updated nightly.
+  LEE     : { label:"Lee County (Property Appraiser)", urls:[
+    // ✅ confirmed: Lee's hosted parcels layer on ArcGIS Online (CORS-friendly).
     // Fields: O_NAME (owner), STRAP (parcel), SITEADDR/SITECITY, JUST (value), HEATEDAREA, S_1AMOUNT/S_1DATE (sale).
     "https://services2.arcgis.com/LvWGAAhHwbCJ2GMP/arcgis/rest/services/Lee_County_Parcels/FeatureServer/0/query",
     // Secondary candidates on Lee's enterprise server (CORS not guaranteed):
@@ -1489,6 +1508,44 @@ const COUNTY_LIVE = {
     "https://services7.arcgis.com/8l7Qq5t0CPLAJwJK/arcgis/rest/services/Matix/FeatureServer/0/query"
   ]}
 };
+
+/* ---------- Building-footprint layers (optional, per county) ----------------------------------
+   Used ONLY to nudge the map marker from the parcel CENTROID onto the actual house/structure. We
+   query each county's footprint layer for polygons that INTERSECT the resolved parcel geometry,
+   pick the LARGEST (the main building, not a shed/pool cage), and drop the marker on its centroid.
+   Spatial-intersect means we don't depend on any matching field names -- geometry is enough -- so a
+   county only needs a queryable polygon layer here. Everything degrades silently: no config, no
+   layer, no hit, or any error -> we keep the parcel-centroid marker we already compute. This never
+   changes which PARCEL is shown, only where the dot sits within it, so a stale/missing footprint is
+   cosmetic at worst. Coordinates come back as 4326 via outSR; source layers may be in state-plane. */
+const COUNTY_FOOTPRINTS = {
+  // Lee County Property Appraiser building footprints (authoritative, maintained by LeePA GIS).
+  LEE: "https://gismapserver.leegov.com/gisserver910/rest/services/DataExplorer/LandRecords/MapServer/8/query",
+  // Charlotte County building structures (AGIS_CHARCO layer 39, from county ortho/LiDAR).
+  CHARLOTTE: "https://agis3.charlottecountyfl.gov/arcgis/rest/services/Essentials/AGIS_CHARCO/MapServer/39/query"
+  // Sarasota & Collier: add their footprint layer /query URLs here when confirmed.
+};
+
+/* ---------- Development-project status layers (optional, per county) --------------------------
+   Polygon layers of active development/permit PROJECTS with a build-status field. Used to show a
+   badge when the searched parcel falls inside an active project — "Under Construction", "Under
+   Review", "Complete" — which flags new-construction / new-subdivision lots that the address &
+   appraiser data haven't caught up to yet (exactly the 9541 Caymas / 1209 Forest case). Queried by
+   spatial intersect (no field-name matching needed beyond the ones named here), async, and degrades
+   to nothing on any miss/error. These are DEVELOPMENT-project polygons (often subdivision-sized),
+   not per-house permits — so the badge means "this lot is in an active project," not one specific
+   building. Coordinates requested as 4326; source layers may be state-plane. */
+/* Development-project (build status) layers — DISABLED. Collier's only published GIS projects layer
+   (CityViewProjects/4) is a stale snapshot (last edited Nov 2025), so it would wrongly show finished
+   projects as "Under Construction" and miss anything newer — worse than showing nothing. Collier's
+   live permit/project data only lives in the CityView portal (cvportal.colliercountyfl.gov), which is
+   an address-searched web app, not a queryable GIS layer. Leaving this map EMPTY disables the badge,
+   the query, and the diagnostic line everywhere (all call sites guard on COUNTY_PROJECTS[county]).
+   To re-enable, add a county entry with a fresh { url, statusField, nameField, typeField, linkField }.
+   Previous Collier config (re-add only if a current layer is confirmed):
+     COLLIER: { url:"https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/CityViewProjects/FeatureServer/4/query",
+                statusField:"Status", nameField:"ProjectName", typeField:"ProjectType", linkField:"PortalLink" } */
+const COUNTY_PROJECTS = {};
 
 /* ---------- Forerunner resident portals (flood zone + Elevation Certificate by address) ----------
    Forerunner is a commercial floodplain platform, NOT an ArcGIS REST feed — it has no public
@@ -1622,10 +1679,11 @@ const DOCS_CITY = {
 };
 const DOCS_COUNTY = {
   COLLIER: {
-    // ✅ Collier's Elevation Certificates live inside the county's DFIRM 2024 Experience app
-    //    (same app as the flood-zone viewer): search the address there and open the EC record/PDF.
-    //    The old ags2 layer URL was an unverified guess — dropped so we always send users to the app.
-    ecLayer: null,
+    // ✅ VERIFIED: Collier's Elevation Certificates point layer (Elevation_Certificates_view, layer
+    //    36). Each point carries Certificate = a direct link to the scanned EC PDF (apps4.collier.gov),
+    //    BFE = base flood elevation, StreetAddress. Point-intersect by parcel returns the on-file EC.
+    //    Still link to the DFIRM app below as a fallback for anything the point layer misses.
+    ecLayer: "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Elevation_Certificates_view/FeatureServer/36/query",
     ecMap:   "https://experience.arcgis.com/experience/70ae02cb985c4d288556ba5d00629fc7",
     ecNote:  "Unincorporated Collier County: Elevation Certificates are in the county's DFIRM 2024 map app — search the address, click the parcel, and open the EC record. Keeps historic & current ECs for structures built after Sept 14, 1979 in zones A/V. Flood hotline (239) 252-2942.",
     permit:  "https://cvportal.collier.gov/cityviewweb/",
@@ -1640,6 +1698,15 @@ const DOCS_COUNTY = {
     permitBy:"address"
   }
 };
+/* Countywide Elevation Certificate layers — apply for the WHOLE county regardless of city. Collier's
+   EC point layer covers Naples & Marco Island addresses too (they show on the county GIS map), so we
+   query it whenever the county matches, even when the address is inside an incorporated city that also
+   has its own portal. The city's own EC portal link still shows alongside — this just ADDS the county
+   certificate/PDF when one is on file. Keyed by normalized county name. */
+const COUNTY_EC_LAYERS = {
+  COLLIER: "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Elevation_Certificates_view/FeatureServer/36/query"
+};
+
 /* Resolve documents config: city first (by municipality), else county. */
 function resolveDocs(cityName, countyName){
   if(cityName && DOCS_CITY[norm(cityName)]) return { cfg:DOCS_CITY[norm(cityName)], inCity:true };
@@ -4369,11 +4436,49 @@ function syncWeatherBtn(){ if(btnWeather) btnWeather.classList.toggle('active', 
 
 /* ---------- Helpers ---------- */
 const results = document.getElementById('results');
+/* When the address search finds several lots sharing one number+street, doSearch() renders each
+   as a .sg.lotpick row carrying its coords + authoritative folio. Clicking a row resolves THAT
+   exact lot — same deterministic path as a single hit (center map, runLookup with folioHint so the
+   correct parcel is fetched rather than re-guessed from the point). Delegated so it covers rows from
+   both the FIND button and the suggestion-click search paths. */
+results.addEventListener('click', async (e)=>{
+  const row=e.target.closest('.sg.lotpick'); if(!row) return;
+  const lat=parseFloat(row.dataset.lat), lng=parseFloat(row.dataset.lng);
+  if(!isFinite(lat)||!isFinite(lng)) return;
+  const folio=row.dataset.folio||null, cty=row.dataset.cty||null, label=row.dataset.label||'';
+  [...results.querySelectorAll('.sg.lotpick')].forEach(r=>r.style.opacity=r===row?'1':'.45');
+  addToHistory(label);
+  const addrEl=document.getElementById('addr'); if(addrEl && label) addrEl.value=label;
+  results.insertAdjacentHTML('afterbegin', setStatus('busy','Pinpointing the parcel…'));
+  map.setView([lat,lng],18);
+  const baseCtx={ raw:label, hn:houseNum(label), toks:new Set(streetTokens(label)), unit:searchUnit(label) };
+  const _ctx=Object.assign({}, baseCtx, { folioHint:folio||null, countyHint:cty });
+  await runLookup(lat,lng,_ctx);
+  const fol=folio?` · Folio ${esc(folio)}`:'';
+  const conf=`<div class="note matchconf noprint" style="padding:2px 2px 4px">Selected: <b style="color:var(--ink)">${esc(label)}</b>${fol} — authoritative county parcel; confirm the marker is on the right lot.</div>`;
+  results.insertAdjacentHTML('afterbegin',conf);
+});
+// Delegated handler: "Copy" buttons injected into result cards (e.g. copy a parcel folio to paste
+// into a permit portal). Uses the async clipboard API with a legacy fallback, and briefly confirms.
+if(results) results.addEventListener('click', async (e)=>{
+  const btn = e.target && e.target.closest ? e.target.closest('.copyfolio') : null;
+  if(!btn) return;
+  e.preventDefault();
+  const val = btn.getAttribute('data-folio') || '';
+  if(!val) return;
+  let ok=false;
+  try{ if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(val); ok=true; } }catch(_){}
+  if(!ok){ try{ const ta=document.createElement('textarea'); ta.value=val; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); ok=document.execCommand('copy'); document.body.removeChild(ta); }catch(_){}
+  }
+  const prev = btn.textContent;
+  btn.textContent = ok ? 'Copied ✓' : 'Copy failed';
+  setTimeout(()=>{ btn.textContent = prev; }, 1400);
+});
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 function pointGeom(lat,lng){ return encodeURIComponent(JSON.stringify({x:lng,y:lat,spatialReference:{wkid:4326}})); }
 
-/* ---------- Live county source (optional, nightly data) ---------- */
+/* ---------- Live county source (optional) ---------- */
 let liveSource = { url:null, info:null };
 
 function normalizeLayerUrl(u){
@@ -4455,6 +4560,16 @@ async function diagnoseLiveFeeds(){
   const reg = cn ? COUNTY_LIVE[norm(cn)] : null;
   const targets=[];
   if(reg){ (reg.urls||(reg.url?[reg.url]:[])).forEach(u=>targets.push({label:reg.label,url:u})); }
+  // Also probe the authoritative address-point resolver layer (address→folio) and the building
+  // footprint layer (marker-on-structure), if this county has them wired. These aren't in COUNTY_LIVE
+  // — they power resolution and marker placement — but health-checking them here is exactly what you
+  // want when a Collier address resolves oddly or the dot won't sit on the house.
+  const _res = cn ? COUNTY_PARCEL_RESOLVERS[norm(cn)] : null;
+  if(_res && _res.addrPointUrl) targets.push({label:'address-point resolver (address→folio)',url:_res.addrPointUrl});
+  const _fp = cn ? COUNTY_FOOTPRINTS[norm(cn)] : null;
+  if(_fp) targets.push({label:'building footprints (marker→structure)',url:_fp});
+  const _pj = cn ? COUNTY_PROJECTS[norm(cn)] : null;
+  if(_pj && _pj.url) targets.push({label:'development projects (build status)',url:_pj.url});
   const manual=document.getElementById('liveUrl').value.trim();
   if(manual) targets.push({label:'your pasted URL',url:manual});
   if(!targets.length){ out.innerHTML='<span style="color:var(--faint)">No pre-wired feed for '+(cn?esc(titleCase(cn))+' County':'this point')+'. Paste a candidate URL above to test it.</span>'; return; }
@@ -4466,8 +4581,14 @@ async function diagnoseLiveFeeds(){
     const p=await probeEndpoint(t.url);
     const tag=({ok:'LIVE-OK',badpath:'BAD PATH',cors:'CORS-BLOCKED',unreachable:'UNREACHABLE'})[p.verdict];
     const mark=({ok:'✓',badpath:'△',cors:'⊘',unreachable:'✗'})[p.verdict];
+    // Address-point / footprint layers aren't parcel feeds, so don't report them by owner/parcel —
+    // just confirm they're reachable & queryable, prefixed with their role.
+    const _isAux = /address-point|footprint|development projects/i.test(t.label||'');
     let extra='';
-    if(p.verdict==='ok') extra=(p.name?' · '+esc(p.name):'')+(p.owner?' · owner→'+esc(p.owner):'')+(p.pid?' · parcel→'+esc(p.pid):'')+(p.lastEdit?' · updated '+p.lastEdit.toLocaleDateString():'');
+    if(p.verdict==='ok'){
+      if(_isAux) extra=' · '+esc(t.label)+(p.name?' ('+esc(p.name)+')':'')+(p.lastEdit?' · updated '+p.lastEdit.toLocaleDateString():'');
+      else extra=(p.name?' · '+esc(p.name):'')+(p.owner?' · owner→'+esc(p.owner):'')+(p.pid?' · parcel→'+esc(p.pid):'')+(p.lastEdit?' · updated '+p.lastEdit.toLocaleDateString():'');
+    } else if(t.label){ extra=' · '+esc(t.label); }
     lines.push('<div style="margin-top:6px;border-top:1px solid #1c242e;padding-top:6px">'+
       '<span style="color:'+color[p.verdict]+';font-weight:600">'+mark+' '+tag+'</span>'+extra+
       '<br><span style="color:var(--faint);word-break:break-all">'+esc(p.root)+'</span>'+
@@ -4573,10 +4694,11 @@ function ecDetect(fields){
   const F=fields.map(f=>String(f).toUpperCase());
   const find=res=>{ for(const re of res){ const i=F.findIndex(f=>re.test(f)); if(i>=0) return fields[i]; } return null; };
   return {
-    date: find([/ISSUE.?DATE/,/CERT.?DATE/,/SURVEY.?DATE/,/^DATE$/,/EFF.?DATE/,/_DATE$/]),
+    date: find([/ISSUE.?DATE/,/CERT.?DATE/,/SURVEY.?DATE/,/^DATE$/,/EFF.?DATE/,/_DATE$/,/DATE.?ENTERED/,/^DATEENTERED$/]),
     permit: find([/PERMIT/,/RECORD.?N/,/CASE.?N/]),
-    addr: find([/SITE.?ADDR/,/SITUS/,/^ADDRESS$/,/LOCATION/,/PHY.?ADDR/]),
-    link: find([/URL$/,/HYPERLINK/,/DOC.?LINK/,/PDF/,/^LINK$/,/WEBLINK/,/DOC.?PATH/])
+    addr: find([/SITE.?ADDR/,/SITUS/,/^ADDRESS$/,/LOCATION/,/PHY.?ADDR/,/^STREETADDRESS$/,/STREET.?ADDR/]),
+    link: find([/URL$/,/HYPERLINK/,/DOC.?LINK/,/PDF/,/^LINK$/,/WEBLINK/,/DOC.?PATH/,/^CERTIFICATE$/,/CERT.?URL/]),
+    bfe:  find([/^BFE$/,/BASE.?FLOOD/,/^STATIC.?BFE$/])
   };
 }
 async function queryEC(ecLayerUrl, lat, lng){
@@ -4590,14 +4712,28 @@ async function queryEC(ecLayerUrl, lat, lng){
       hasAtt=!!m.hasAttachments;
       if(m.objectIdField) oidField=m.objectIdField;
     }catch(e){/* keep going; query may still work */}
-    // point-intersect query, return all fields + OBJECTID
+    // point-intersect query, return all fields + OBJECTID. EC layers are POINT features, so a bare
+    // point-vs-point intersect would almost never coincide — use a small search radius (meters) so the
+    // certificate point on the structure is found near the resolved parcel point.
     const params=`geometry=${pointGeom(lat,lng)}&geometryType=esriGeometryPoint&inSR=4326`+
-      `&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=false&f=json`;
+      `&spatialRel=esriSpatialRelIntersects&distance=60&units=esriSRUnit_Meter`+
+      `&outFields=*&returnGeometry=true&outSR=4326&f=json`;
     const j=await (await fetch(root+'/query?'+params,{signal:ctrl.signal})).json();
     if(j.error) throw new Error(j.error.message||'service error');
     const feats=(j.features||[]);
     if(!feats.length){ clearTimeout(t); return { features:[], docs:[], hasAtt }; }
-    const f0=feats[0];
+    // Pick the EC point NEAREST the query location — the 60m radius can return a neighbour's
+    // certificate on a dense street, and taking the arbitrary first feature is what caused the wrong
+    // house's EC to show. Nearest-by-distance keeps it on the searched structure.
+    const _mPerDegLat=111320, _mPerDegLng=111320*Math.cos(lat*Math.PI/180);
+    let f0=feats[0], f0d=Infinity;
+    for(const f of feats){
+      const g=f.geometry; const gx=g?(g.x!=null?g.x:g.X):null, gy=g?(g.y!=null?g.y:g.Y):null;
+      if(gx==null||gy==null) continue;
+      const dx=(gx-lng)*_mPerDegLng, dy=(gy-lat)*_mPerDegLat; const d=Math.hypot(dx,dy);
+      if(d<f0d){ f0d=d; f0=f; }
+    }
+    const ecDistM = isFinite(f0d)?Math.round(f0d):null;
     const det=ecDetect(Object.keys(f0.attributes));
     const oid=f0.attributes[oidField] ?? f0.attributes.OBJECTID ?? f0.attributes.FID;
     const docs=[];
@@ -4614,7 +4750,14 @@ async function queryEC(ecLayerUrl, lat, lng){
     }
     clearTimeout(t);
     const date=det.date?pick(f0.attributes,det.date):null;
-    return { features:feats, docs, det, oid, date, hasAtt };
+    let bfe=null;
+    if(det.bfe){ const b=pick(f0.attributes,det.bfe); if(b!=null && b!=='' && isFinite(Number(b))) bfe=Number(b); }
+    const ecAddr=det.addr?pick(f0.attributes,det.addr):null;
+    // EC point's own coordinates (WGS84, outSR=4326) — used to drop the 📝 note marker on the map.
+    let ecLat=null, ecLng=null;
+    try{ const g0=f0.geometry; const gx=g0?(g0.x!=null?g0.x:g0.X):null, gy=g0?(g0.y!=null?g0.y:g0.Y):null;
+         if(gx!=null && gy!=null){ ecLng=Number(gx); ecLat=Number(gy); } }catch(e){}
+    return { features:feats, docs, det, oid, date, bfe, ecAddr, ecDistM, hasAtt, ecLat, ecLng };
   }catch(e){ clearTimeout(t); return { err:e.message }; }
 }
 
@@ -4757,6 +4900,79 @@ function featCentroid(f){
   let best=null,ba=-1;
   for(const r of rings){ let a=0; for(let i=0,n=r.length,j=n-1;i<n;j=i++){ a+=r[j][0]*r[i][1]-r[i][0]*r[j][1]; } a=Math.abs(a); if(a>ba){ba=a;best=r;} }
   return best?ringCentroid(best):null;
+}
+// Shoelace area of an Esri polygon feature's largest ring, in squared-degrees (units don't matter —
+// we only compare footprints against each other to find the biggest). Cheap and geometry-only.
+function _featRingArea(f){
+  const rings=(f.geometry&&f.geometry.rings)||[]; let ba=0;
+  for(const r of rings){ let a=0; for(let i=0,n=r.length,j=n-1;i<n;j=i++){ a+=r[j][0]*r[i][1]-r[i][0]*r[j][1]; } a=Math.abs(a); if(a>ba) ba=a; }
+  return ba;
+}
+/* Return [lng,lat] of the MAIN building on a parcel, or null. Queries the county's footprint layer
+   (COUNTY_FOOTPRINTS) for polygons intersecting the parcel geometry, then picks the largest that is
+   actually inside the parcel and returns its centroid. Purely cosmetic: used to move the marker onto
+   the house instead of the lot center. Any failure returns null so the caller keeps the parcel
+   centroid. `parcelRings` are the subject parcel's WGS84 rings; `countyName` selects the layer. */
+async function structureCentroidForParcel(countyName, parcelFeature, parcelRings){
+  try{
+    const url = countyName ? COUNTY_FOOTPRINTS[norm(countyName)] : null;
+    if(!url || !parcelFeature || !parcelRings || !parcelRings.length) return null;
+    // Spatial-intersect query using the parcel polygon as the geometry filter.
+    const geom = JSON.stringify({ rings: parcelRings, spatialReference:{ wkid:4326 } });
+    const params = 'f=json&where=1%3D1'
+      + '&geometry='+encodeURIComponent(geom)
+      + '&geometryType=esriGeometryPolygon&inSR=4326&outSR=4326'
+      + '&spatialRel=esriSpatialRelIntersects&returnGeometry=true&outFields=&resultRecordCount=50';
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(), 8000);
+    const r=await fetch(url+'?'+params,{signal:ctrl.signal}); clearTimeout(t);
+    if(!r.ok) return null; const j=await r.json(); if(!j || j.error) return null;
+    const feats=(j.features||[]).filter(f=>f&&f.geometry&&f.geometry.rings&&f.geometry.rings.length);
+    if(!feats.length) return null;
+    // Prefer footprints whose OWN centroid falls inside the parcel (guards against a neighbour's
+    // building that merely touches the boundary), then take the largest of those.
+    let best=null, bestArea=-1;
+    for(const f of feats){
+      const c=featCentroid(f); if(!c) continue;
+      const inside = pointInPolygon(c[0], c[1], parcelRings);
+      if(!inside) continue;
+      const ar=_featRingArea(f);
+      if(ar>bestArea){ bestArea=ar; best=c; }
+    }
+    // NO fallback to a merely-intersecting footprint: a neighbour's building that overlaps the lot
+    // boundary would drag the marker onto the wrong house (seen on tight Cape Coral lots). If nothing's
+    // centroid is INSIDE this parcel, return null so the caller keeps the correct parcel-centroid dot.
+    return best || null;
+  }catch(e){ return null; }
+}
+/* Look up an active development-project status for a parcel (COUNTY_PROJECTS). Spatial-intersect: does
+   any project polygon overlap this parcel? Returns { status, name, type, link } for the most relevant
+   one, or null. Priority when several overlap: Under Construction > Under Review > Complete (show the
+   most "active" signal). Purely informational; any failure returns null. */
+async function projectStatusForParcel(countyName, parcelRings){
+  try{
+    const cfg = countyName ? COUNTY_PROJECTS[norm(countyName)] : null;
+    if(!cfg || !parcelRings || !parcelRings.length) return null;
+    const geom = JSON.stringify({ rings: parcelRings, spatialReference:{ wkid:4326 } });
+    const out = [cfg.statusField,cfg.nameField,cfg.typeField,cfg.linkField].filter(Boolean).join(',');
+    const params = 'f=json&where=1%3D1'
+      + '&geometry='+encodeURIComponent(geom)
+      + '&geometryType=esriGeometryPolygon&inSR=4326&outSR=4326'
+      + '&spatialRel=esriSpatialRelIntersects&returnGeometry=false'
+      + '&outFields='+encodeURIComponent(out)+'&resultRecordCount=25';
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(), 8000);
+    const r=await fetch(cfg.url+'?'+params,{signal:ctrl.signal}); clearTimeout(t);
+    if(!r.ok) return null; const j=await r.json(); if(!j || j.error) return null;
+    const feats=(j.features||[]); if(!feats.length) return null;
+    const rank = s => /under construction/i.test(s)?3 : /under review/i.test(s)?2 : /complete/i.test(s)?1 : 0;
+    let best=null, bestR=-1;
+    for(const f of feats){
+      const a=f.attributes||{}; const st=(a[cfg.statusField]||'').trim(); if(!st) continue;
+      const rr=rank(st);
+      if(rr>bestR){ bestR=rr; best={ status:st, name:(a[cfg.nameField]||'').trim(),
+        type:(a[cfg.typeField]||'').trim(), link:(a[cfg.linkField]||'').trim() }; }
+    }
+    return best;
+  }catch(e){ return null; }
 }
 /* Pick the hosted-file address point that belongs to a SPECIFIC parcel.
    The county sqft file is keyed by address points; selecting merely the point nearest the
@@ -8972,6 +9188,82 @@ async function drawHomeWithinTract(lat, lng, tractAcres, info){
    an address field + geometry. The subject parcel's number is highlighted. Best-effort: silent on
    any failure, and skipped when zoomed out too far to be readable. */
 const nbrNumLayer = L.layerGroup();
+
+/* ---------- Elevation Certificate 📝 note marker ----------
+   When a live EC record is found (e.g. Collier's Elevation_Certificates_view layer), drop a small
+   note symbol on the map at the certificate point. Clicking it opens the EC PDF directly (first
+   doc link — Collier's `Certificate` field is a direct apps4.collier.gov PDF URL). If the record
+   has no downloadable file, the click shows a small popup explaining that instead. Cleared on
+   every new lookup so a stale note never lingers on the wrong property. */
+const ecNoteLayer = L.layerGroup();
+function clearEcNote(){ try{ ecNoteLayer.clearLayers(); if(map.hasLayer(ecNoteLayer)) map.removeLayer(ecNoteLayer); }catch(e){} }
+function _ecMakeNote(latN, lngN, pdf){
+  const tip = pdf ? 'Elevation Certificate on file — click to open the PDF'
+                  : 'Elevation Certificate record here (no PDF attached — see the EC card)';
+  /* iconAnchor pushes the note ABOVE the point (with a small stem) so it never sits on top of the
+     address-number label, which renders AT the point. */
+  const icon = L.divIcon({ className:'ec-note-wrap',
+    html:`<div class="ec-note" title="${esc(tip)}">📝</div><div class="ec-note-stem"></div>`,
+    iconSize:null, iconAnchor:[11,40] });
+  const mk = L.marker([latN, lngN], { icon, interactive:true, keyboard:false, zIndexOffset:1200 });
+  if(pdf){
+    mk.on('click', ()=>{ try{ window.open(pdf, '_blank', 'noopener'); }catch(e){} });
+  } else {
+    mk.bindPopup(`<div style="font:12px/1.4 system-ui;max-width:220px">An Elevation Certificate record exists at this point, but no PDF is attached to it. Open the county EC map (linked in the Elevation Certificate card) to view it.</div>`);
+  }
+  return mk;
+}
+function addEcNoteMarker(ec){
+  try{
+    if(!ec || ec.err || ec.ecLat==null || ec.ecLng==null || !isFinite(ec.ecLat) || !isFinite(ec.ecLng)) return;
+    const pdf = (ec.docs && ec.docs.length) ? ec.docs[0].url : null;
+    _ecMakeNote(ec.ecLat, ec.ecLng, pdf).addTo(ecNoteLayer);
+    if(!map.hasLayer(ecNoteLayer)) ecNoteLayer.addTo(map);
+  }catch(e){/* best-effort — never break the lookup */}
+}
+
+/* ---- Neighborhood EC notes: when zoomed to a street/neighborhood level, query the wired EC layer
+   for ALL certificate points in the visible extent and drop a 📝 note on each — so zooming out
+   shows which neighbors also have an Elevation Certificate on file. Each note opens its own PDF.
+   Active only after a lookup wired an EC layer (window.__ecAreaUrl). Debounced, capped, and keyed
+   by extent so panning slightly doesn't refire identical queries. */
+const EC_AREA_MINZOOM = 14;          // below this the notes would be unreadable clutter
+const EC_AREA_MAX     = 200;         // cap features per view
+let _ecAreaKey='', _ecAreaBusy=false, _ecAreaTimer=null;
+async function refreshEcAreaNotes(){
+  const url = window.__ecAreaUrl;
+  if(!url) return;
+  if(map.getZoom() < EC_AREA_MINZOOM){ return; }   // keep the subject note; just don't add area notes
+  const b=map.getBounds();
+  const key=[b.getWest().toFixed(4),b.getSouth().toFixed(4),b.getEast().toFixed(4),b.getNorth().toFixed(4),map.getZoom()>=EC_AREA_MINZOOM].join('|');
+  if(key===_ecAreaKey || _ecAreaBusy) return;
+  _ecAreaBusy=true;
+  try{
+    const root=ecLayerRoot(url);
+    const geom=encodeURIComponent(JSON.stringify({xmin:b.getWest(),ymin:b.getSouth(),xmax:b.getEast(),ymax:b.getNorth(),spatialReference:{wkid:4326}}));
+    const params=`geometry=${geom}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects`+
+      `&outFields=*&returnGeometry=true&outSR=4326&resultRecordCount=${EC_AREA_MAX}&f=json`;
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),12000);
+    const j=await (await fetch(root+'/query?'+params,{signal:ctrl.signal})).json();
+    clearTimeout(t);
+    if(j.error) throw new Error(j.error.message||'service error');
+    const feats=j.features||[];
+    // Detect the PDF-link field once from the first feature's attribute names.
+    const det = feats.length ? ecDetect(Object.keys(feats[0].attributes)) : null;
+    ecNoteLayer.clearLayers();
+    for(const f of feats){
+      const g=f.geometry; const gx=g?(g.x!=null?g.x:g.X):null, gy=g?(g.y!=null?g.y:g.Y):null;
+      if(gx==null||gy==null) continue;
+      let pdf=null;
+      if(det && det.link){ const u=pick(f.attributes,det.link); if(u && /^https?:/i.test(u)) pdf=u; }
+      _ecMakeNote(Number(gy), Number(gx), pdf).addTo(ecNoteLayer);
+    }
+    if(feats.length && !map.hasLayer(ecNoteLayer)) ecNoteLayer.addTo(map);
+    _ecAreaKey=key;
+  }catch(e){/* best-effort; try again on next move */}
+  finally{ _ecAreaBusy=false; }
+}
+map.on('moveend zoomend', ()=>{ clearTimeout(_ecAreaTimer); _ecAreaTimer=setTimeout(refreshEcAreaNotes, 350); });
 let nbrNumOn = true;   // labels follow the parcel view by default; tied to the parcel result
 // Rings ([[ [lng,lat], ... ]]) of the SUBJECT parcel currently highlighted, in WGS84. Set when a
 // parcel is drawn and used to suppress gap-fill address points that fall on the SAME lot — a deep
@@ -9130,6 +9422,36 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
     if(subjIdx<0 && want && !haveAnchor){   // no anchor — first same-number match
       for(let i=0;i<labels.length;i++){ if(labels[i].hn===want){ subjIdx=i; break; } }
     }
+    // LIVE-ADDRESS OVERRIDE: the compact file / GIS point layer can be STALE for the selected lot —
+    // a parcel re-addressed 1215 → 1209 Forest Ave still shows the old number as its map label even
+    // though the live Property Appraiser feed (already fetched into __parcelMeta) has the new one.
+    // For the SUBJECT label only, replace the stale text with the live site address so the selected
+    // lot relabels to the authoritative number the moment it resolves.
+    //
+    // SAFETY: __parcelMeta holds the LAST parcel rendered, which — on a through-lot / corner-lot
+    // ambiguity — can be a NEIGHBOUR the live query wrongly resolved to (e.g. searched 1209 Forest but
+    // the live layer returned 1201 9th Ave N). Blindly trusting it would stamp the wrong address onto
+    // the map. So we ONLY override when the live site address's house number matches the number the
+    // USER actually searched (`want`). If they disagree, the live result is for a different lot than
+    // the user asked about — leave the map's own label alone rather than propagate the wrong address.
+    try{
+      const liveSite = (window.__parcelMeta && window.__parcelMeta.site) ? String(window.__parcelMeta.site).trim() : '';
+      if(subjIdx>=0 && liveSite){
+        const liveStreet = liveSite.split(',')[0].trim();        // "1209 FOREST AVE" (drop city/zip)
+        const liveHn = houseNum(liveStreet);
+        const curTxt = String(labels[subjIdx].txt||'').trim();
+        // House number the user searched (falls back to the subject label's own number for map clicks).
+        const wantHn = (want!=null && String(want).trim()!=='') ? String(want).trim() : (labels[subjIdx].hn||null);
+        const numsAgree = !wantHn || !liveHn || (String(liveHn)===String(wantHn));
+        // Only override when (a) the live address differs from what's shown, AND (b) its house number
+        // agrees with what the user searched — so a wrong-parcel live result can't hijack the label.
+        if(liveStreet && numsAgree && liveStreet.toUpperCase()!==curTxt.toUpperCase()){
+          labels[subjIdx].txt = liveStreet;
+          if(liveHn) labels[subjIdx].hn = liveHn;
+          labels[subjIdx].liveOverride = true;
+        }
+      }
+    }catch(e){}
     // GROUP labels by coordinate. Condo/tower units all share ONE coordinate, so a group with
     // 2+ members is a stack. Singletons render as normal labels. Stacks render as a single
     // collapsed badge ("⊞ N units") that FANS OUT its individual unit labels on hover and
@@ -9378,6 +9700,65 @@ function isAddressLike(s){
 }
 
 /* Render a parcel from any county layer using auto-detected field names */
+/* Build + inject the development-project status badge into the parcel card (async result). Shows the
+   most-active overlapping project's status with a matching icon, the project name/type, and a link to
+   the county portal when available. No-op when there's no active project. */
+function injectProjectBadge(ps){
+  try{
+    if(!ps || !ps.status) return;
+    const st=ps.status;
+    let icon='●', cls='live';
+    if(/under construction/i.test(st)){ icon='🏗'; cls='live'; }
+    else if(/under review/i.test(st)){ icon='📋'; cls='unk'; }
+    else if(/complete/i.test(st)){ icon='✓'; cls='live'; }
+    const nm = ps.name ? esc(ps.name) : '';
+    const ty = ps.type ? ' · '+esc(ps.type) : '';
+    const lk = (ps.link && /^https?:\/\//i.test(ps.link))
+      ? ` · <a href="${esc(ps.link)}" target="_blank" rel="noopener" style="color:var(--signal)">county portal ↗</a>` : '';
+    const html = `<div class="note" style="padding-top:4px" data-projbadge="1">`
+      + `<span class="badge ${cls}" style="font-size:9px">${icon} ${esc(st)}</span>`
+      + (nm?` <b>${nm}</b>`:'') + `<span class="muted" style="font-size:10px">${ty}${lk} — Collier development project</span></div>`;
+    // Insert just after the PARCEL & OWNER header if present, else at the top of results.
+    const container=document.getElementById('results'); if(!container) return;
+    if(container.querySelector('[data-projbadge]')) return;   // avoid dupes on re-entry
+    // Anchor: the "Parcel & Owner" card header (h2). Insert the badge right after its .ch header row
+    // so it sits at the top of that card. Fall back to top-of-results if the header isn't found.
+    let anchor=null;
+    const h2=[...container.querySelectorAll('h2')].find(el=>/parcel\s*&\s*owner/i.test(el.textContent||''));
+    if(h2){ anchor = h2.closest('.ch') || h2; }
+    const node=document.createElement('div'); node.innerHTML=html; const badge=node.firstChild;
+    if(anchor && anchor.parentNode){ anchor.parentNode.insertBefore(badge, anchor.nextSibling); }
+    else { container.insertAdjacentElement('afterbegin', badge); }
+  }catch(e){}
+}
+/* Build a small informational badge from the Collier address-point layer's STATUS + POINTTYPE for the
+   parcel currently shown (matched by folio digits). Shows ONLY when noteworthy — a non-Current status
+   (Temporary/Pending/Retired/etc.) or a POINTTYPE worth flagging (Vacant Land, Multi Family, etc.).
+   Returns '' when nothing notable, so the normal single-family/current case stays clean. */
+function addrPointBadgeHTML(pid){
+  try{
+    const m=window.__addrPtMeta; if(!m) return '';
+    // Only badge the parcel the address point actually resolved (guard against a mismatched render).
+    if(pid!=null){ const pd=String(pid).replace(/\D/g,''); if(m.folioDigits && pd && pd!==m.folioDigits) return ''; }
+    const status=(m.status||'').trim();
+    const pt=(m.pointType||'').trim();
+    const bits=[];
+    // STATUS: anything other than Current is worth surfacing.
+    if(status && status.toLowerCase()!=='current'){
+      const cls = /temporary|pending|unofficial/i.test(status) ? 'unk' : 'warnbox';
+      bits.push(`<span class="badge ${cls==='unk'?'unk':'live'}" style="font-size:9px">⚑ ${esc(status)} address</span>`);
+    }
+    // POINTTYPE: flag the ones that change how you'd treat the site. Plain "Single Family" is the
+    // normal case and not shown.
+    if(pt && !/^single family$/i.test(pt) && !/^building$/i.test(pt)){
+      if(/vacant land/i.test(pt)) bits.push(`<span class="badge unk" style="font-size:9px">▢ Vacant land (county)</span>`);
+      else if(/multi family/i.test(pt)) bits.push(`<span class="badge live" style="font-size:9px">▤ Multi-family</span>`);
+      else if(/commercial|dock|utility asset|other structure/i.test(pt)) bits.push(`<span class="badge live" style="font-size:9px">● ${esc(pt)}</span>`);
+    }
+    if(!bits.length) return '';
+    return `<div class="note" style="padding-top:4px">${bits.join(' ')} <span class="muted" style="font-size:10px">— per Collier addressing</span></div>`;
+  }catch(e){ return ''; }
+}
 function renderParcelGeneric(a, d){
   let h='';
   const owner = d.owner?pick(a,d.owner):null;
@@ -9432,6 +9813,7 @@ let runId=0;
 async function runLookup(lat,lng,searchCtx){
   const myId=++runId;
   window.__parcelMeta=null;   // cleared each lookup; set when a parcel renders
+  window.__addrPtMeta=null;   // cleared each lookup; set by the Collier address-point resolver
   // Collected for the "Export to Excel" feature (imports into the Estimate sheet).
   window.__exportData={ lat:lat, lng:lng, today:new Date().toLocaleDateString('en-US') };
   // marker
@@ -9440,6 +9822,7 @@ async function runLookup(lat,lng,searchCtx){
   if(parcelLayer){ map.removeLayer(parcelLayer); parcelLayer=null; }
   if(homeParcelLayer){ map.removeLayer(homeParcelLayer); homeParcelLayer=null; }
   clearNeighborNumbers(); _nbrCtx=null;
+  clearEcNote();   // remove any 📝 EC note from a previous property
   _subjRings=null;   // reset per lookup; drawParcel re-sets it only for a normal home lot
   saveLoc(lat,lng);
   document.getElementById('coordReadout').textContent=`lat ${lat.toFixed(5)}   lng ${lng.toFixed(5)}`;
@@ -9458,8 +9841,13 @@ async function runLookup(lat,lng,searchCtx){
     ? arcQuery(_utilUrl, lat, lng, '*', false).catch(e=>({__err:e.message}))
     : Promise.resolve(null);
 
-  let [parcel,flood,city,county,live,util] = await Promise.all([pParcel,pFlood,pCity,pCounty,pLive,pUtil]);
+  // Gate the render on the FAST core queries only (parcel, city, county, live feed). Flood and utility
+  // are the slow ones (flood has a 9-14s timeout) and their cards appear lower in the panel — so we
+  // await them individually right where they're consumed instead of holding the whole panel behind
+  // them. This lets parcel/owner/jurisdiction paint as soon as they're ready.
+  let [parcel,city,county,live] = await Promise.all([pParcel,pCity,pCounty,pLive]);
   if(myId!==runId) return; // a newer query superseded this one
+  let flood, util;   // resolved later, at their card
 
   let html='';
   let parcelYearBuilt=null;   // captured from whichever parcel source answers; used for Naples § 56-41 generator gating
@@ -9625,9 +10013,18 @@ async function runLookup(lat,lng,searchCtx){
   // up to ~15s on its own), which dominated the total search time. Firing it here lets it
   // overlap; the permits card just awaits the already-running promise.
   const _docCfgEC = resolveDocs(cityName, countyName).cfg;
-  const pEC = (_docCfgEC && _docCfgEC.ecLayer)
-    ? queryEC(_docCfgEC.ecLayer, lat, lng).catch(e=>({err:e.message}))
+  // Prefer a city/county DOCS-specific EC layer; otherwise fall back to a COUNTYWIDE EC layer (Collier's
+  // covers Naples & Marco addresses too). This is what makes county ECs show for incorporated-city
+  // addresses, while the city's own portal link still renders separately below.
+  const _ecLayerUrl = (_docCfgEC && _docCfgEC.ecLayer) ? _docCfgEC.ecLayer
+                     : (countyName ? COUNTY_EC_LAYERS[norm(countyName)] : null);
+  const pEC = _ecLayerUrl
+    ? queryEC(_ecLayerUrl, lat, lng).catch(e=>({err:e.message}))
     : Promise.resolve(null);
+  // Remember the layer for the neighborhood 📝 notes (moveend refresh); reset the extent key so
+  // the current view re-queries under the new layer/property.
+  window.__ecAreaUrl = _ecLayerUrl || null; _ecAreaKey='';
+  if(_ecLayerUrl){ clearTimeout(_ecAreaTimer); _ecAreaTimer=setTimeout(refreshEcAreaNotes, 900); }
 
   /* ---- Aerial & Street View: scout the property first (keyless deep-links + Esri aerial) ---- */
   html += renderAerialScout(lat, lng);
@@ -9668,6 +10065,24 @@ async function runLookup(lat,lng,searchCtx){
     const cl = await pCountyLive;
     if(myId!==runId) return;
     if(cl){ liveRes=cl.res; liveMeta=cl.meta; liveErr=cl.err; }
+  }
+  // FOLIO PIN: when the search was resolved authoritatively to a specific parcel (folioHint from
+  // resolveCountyParcel), the coordinate-based live/parcel queries above can still land on the wrong
+  // lot on a through-lot / corner lot — the matched address point sits on the boundary and point-in-
+  // polygon picks the neighbour (searched 1209 Forest Ave → resolved 1201 9th Ave N). Re-fetch the
+  // EXACT parcel by its folio and use that as the live record, so the outline, marker, owner and
+  // address all agree with the folio shown in the "Matched" banner. Falls back silently on any error.
+  if(searchCtx && searchCtx.folioHint){
+    try{
+      const _pin = await fetchCountyParcelFeatureByFolio(searchCtx.countyHint||countyName, searchCtx.folioHint);
+      if(myId!==runId) return;
+      if(_pin && _pin.features && _pin.features[0]){
+        liveRes = _pin; liveErr = null;
+        if(!liveMeta) liveMeta = {};
+        // Recenter marker on the true parcel centroid so the pin sits on the right lot.
+        try{ const _c=featCentroid(_pin.features[0]); if(_c){ liveRes.__ngLng=_c[0]; liveRes.__ngLat=_c[1]; } }catch(e){}
+      }
+    }catch(e){}
   }
   // RE-ANCHOR THE STATEWIDE ROLL: the statewide parcel (`parcel`) was queried at the raw geocoded
   // point, which can land on the NEIGHBOUR's lot (the off-by-one geocoder drift). When the live-feed
@@ -9835,7 +10250,16 @@ async function runLookup(lat,lng,searchCtx){
     const le=liveMeta&&liveMeta.lastEdit;
     html += `<div class="freshline"><span class="badge live">● LIVE</span> ${esc((liveMeta&&liveMeta.name)||'county parcel service')}${le?' · updated '+esc(le.toLocaleDateString()):' · real-time query'}</div>`;
     html += renderParcelGeneric(liveRes.features[0].attributes, det);
+    html += addrPointBadgeHTML(det.pid?pick(liveRes.features[0].attributes,det.pid):null);
     if(liveRes.__ngLat && marker){ try{ marker.setLatLng([liveRes.__ngLat, liveRes.__ngLng]); saveLoc(liveRes.__ngLat, liveRes.__ngLng); }catch(e){} }
+    // CENTER-OF-LOT: place the marker at the parcel's geometric centroid rather than the address
+    // point (which sits at the front edge of the lot). This looks right on empty/large lots and new
+    // subdivisions with no building yet. For counties WITH a footprint layer (Lee/Charlotte) the
+    // async structure nudge below moves it onto the house; everywhere else this centroid is final.
+    try{
+      const _cc = featCentroid(liveRes.features[0]);
+      if(_cc && isFinite(_cc[0]) && isFinite(_cc[1]) && marker){ marker.setLatLng([_cc[1], _cc[0]]); saveLoc(_cc[1], _cc[0]); }
+    }catch(e){}
     { const _a=liveRes.features[0].attributes;
       const _siteBox = det.site?[pick(_a,det.site), (det.city?pick(_a,det.city):null)].filter(Boolean).join(', '):null;
       // MAP-CLICK ADDRESS FILL: when the lookup came from clicking the map (no searchCtx — typed
@@ -9847,6 +10271,29 @@ async function runLookup(lat,lng,searchCtx){
         pid:   det.pid?pick(_a,det.pid):null,
         site:  det.site?[pick(_a,det.site), (det.city?pick(_a,det.city):null)].filter(Boolean).join(', '):null
       });
+      // STRUCTURE NUDGE (cosmetic): for counties with a footprint layer, move the marker from the lot
+      // CENTROID onto the main building. Runs async so it never blocks rendering; if it finds nothing
+      // (no layer, no hit, error) the parcel-centroid marker stays. _subjRings holds the parcel rings.
+      if(_subjRings && COUNTY_FOOTPRINTS[norm(countyName)]){
+        const _myId=myId;
+        structureCentroidForParcel(countyName, liveRes.features[0], _subjRings).then(sc=>{
+          if(_myId!==runId) return;                 // superseded by a newer lookup
+          if(sc && isFinite(sc[0]) && isFinite(sc[1]) && marker){
+            try{ marker.setLatLng([sc[1], sc[0]]); saveLoc(sc[1], sc[0]); }catch(e){}
+          }
+        }).catch(()=>{});
+      }
+      // DEVELOPMENT-PROJECT STATUS (informational): for counties with a projects layer, check whether
+      // this parcel sits inside an active project and show a badge (Under Construction / Under Review /
+      // Complete). Async — never blocks render; injects into the parcel card when it resolves. Flags
+      // new-construction lots the address/appraiser data lags on. _subjRings holds the parcel rings.
+      if(_subjRings && COUNTY_PROJECTS[norm(countyName)]){
+        const _myIdP=myId;
+        projectStatusForParcel(countyName, _subjRings).then(ps=>{
+          if(_myIdP!==runId) return;
+          injectProjectBadge(ps);
+        }).catch(()=>{});
+      }
       // Neighbor house-number labels: anchor on the subject's number (from its address) + the
       // matched point so the right lot is highlighted. Runs after fitBounds so the view is settled.
       try{
@@ -9963,6 +10410,7 @@ async function runLookup(lat,lng,searchCtx){
     if(useTxt) html += fieldRow('Existing use', esc(useTxt));
     if(sp&&sy) html += fieldRow('Last sale', sp+' ('+esc(sy)+')');
     if(legal) html += fieldRow('Legal', '<span style="font-size:11px">'+esc(legal)+'</span>');
+    html += addrPointBadgeHTML(pid);
     { const vurl = appraiserParcelLink(countyName, pid);
       if(vurl) html += `<a class="palink" href="${esc(vurl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Verify on ${esc(titleCase(countyName))} County Property Appraiser${pid?' (parcel '+esc(String(pid))+')':''}</a>`;
     }
@@ -9971,6 +10419,23 @@ async function runLookup(lat,lng,searchCtx){
       pid:   pid||null,
       site:  [site, siteCity].filter(Boolean).join(', ')||null
     });
+    // CENTER-OF-LOT for roll-fallback counties: move the marker from the search point to the parcel
+    // centroid, then (where a footprint layer exists) onto the building via the async nudge.
+    try{
+      const _cc = featCentroid(parcel.features[0]);
+      if(_cc && isFinite(_cc[0]) && isFinite(_cc[1]) && marker){ marker.setLatLng([_cc[1], _cc[0]]); saveLoc(_cc[1], _cc[0]); }
+    }catch(e){}
+    if(_subjRings && COUNTY_FOOTPRINTS[norm(countyName)]){
+      const _myId2=myId;
+      structureCentroidForParcel(countyName, parcel.features[0], _subjRings).then(sc=>{
+        if(_myId2!==runId) return;
+        if(sc && isFinite(sc[0]) && isFinite(sc[1]) && marker){ try{ marker.setLatLng([sc[1], sc[0]]); saveLoc(sc[1], sc[0]); }catch(e){} }
+      }).catch(()=>{});
+    }
+    if(_subjRings && COUNTY_PROJECTS[norm(countyName)]){
+      const _myId3=myId;
+      projectStatusForParcel(countyName, _subjRings).then(ps=>{ if(_myId3!==runId) return; injectProjectBadge(ps); }).catch(()=>{});
+    }
     try{
       const _sHN = houseNum(site||'') || (searchCtx&&searchCtx.hn) || null;
       _nbrCtx={ hn:_sHN, lat:lat, lng:lng, pid:(pid!=null?String(pid):null) };
@@ -10065,7 +10530,21 @@ async function runLookup(lat,lng,searchCtx){
     html += `</div></div>`;
   }
 
+  /* ---- EARLY PAINT (pre-flood) ----------------------------------------------------------
+     Jurisdiction, parcel/owner, live-feed and HOA cards are fully built now from the fast-core
+     queries. Paint them immediately with a loading tail, BEFORE awaiting the slow flood query
+     (9-14s timeout). The full render further below replaces this once flood + enrichment resolve —
+     no data is lost, the user just sees their parcel/owner result in ~1s instead of waiting on flood. */
+  if(myId===runId && html){
+    results.innerHTML = '<div class="cardflow">' + html
+      + '<div class="card noprint"><div class="cb"><div class="freshline">'
+      + '<span class="badge live">● LOADING</span> pulling flood, wind, zoning, permits &amp; utilities…'
+      + '</div></div></div></div>';
+    document.body.classList.add('has-results');
+  }
+
   /* ---- Flood ---- */
+  flood = await pFlood; if(myId!==runId) return;   // deferred: awaited here, not in the fast-core batch
   /* Both the FEMA Flood Hazard card and the Elevation Certificate card now live in the Flood tab,
      and for some cities (Naples) the resident portal and the EC lookup are the SAME URL. Record
      whatever portal this card links so the EC card below can reference it instead of re-linking. */
@@ -10325,11 +10804,17 @@ async function runLookup(lat,lng,searchCtx){
 
   // --- Elevation Certificate (live attempt where a layer is wired) ---
   let ecRendered=false;
-  if(docCfg && docCfg.ecLayer){
+  if(_ecLayerUrl){
     const ec = await pEC;
     if(myId!==runId) return;
     if(ec && !ec.err && ec.features && ec.features.length){
-      html += `<div class="freshline"><span class="badge live">● LIVE</span> elevation certificate on file at this point</div>`;
+      addEcNoteMarker(ec);   // 📝 note on the map at the EC point — click opens the PDF
+      html += `<div class="freshline"><span class="badge live">● LIVE</span> elevation certificate on file at this point <span class="muted" style="font-size:11px">(📝 marked on the map — click it to open the PDF)</span></div>`;
+      if(ec.ecDistM!=null && ec.ecDistM>25){
+        html += `<div class="note">⚠ Nearest certificate is ~${ec.ecDistM} m away — it may belong to an adjacent property. Check the certificate address below before relying on it.</div>`;
+      }
+      if(ec.ecAddr) html += fieldRow('Certificate address', esc(String(ec.ecAddr)));
+      if(ec.bfe!=null) html += fieldRow('Base flood elev. (per EC)', esc(String(ec.bfe))+' ft');
       if(ec.date) html += fieldRow('Cert / issue date', esc(String(ec.date)));
       if(ec.docs && ec.docs.length){
         for(const d of ec.docs){
@@ -10376,6 +10861,18 @@ async function runLookup(lat,lng,searchCtx){
   html += `<div class="note warnbox" style="margin-top:10px"><b>Surveys &amp; site plans aren't a public map layer.</b> They live in <b>${esc(docJur)}</b>'s building-permit file and are retrieved from its permitting portal by ${docCfg&&docCfg.permitBy==='permit'?'permit record number':'address or parcel/STRAP number'}${strap?` (this parcel: <b style="color:var(--ink)">${esc(strap)}</b>)`:''}. Not every record is digitized.</div>`;
   if(portal){
     html += `<a class="palink" href="${esc(portal)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(docJur)} permitting portal (survey / site plan / permits)</a>`;
+    // Prominent "check permits for THIS parcel" action. The CityView / permit portals are POST-search
+    // pages (no reliable address-in-URL prefill), so we open the search page AND surface the parcel's
+    // folio/address with a one-tap Copy so the user pastes it straight into the portal's search box.
+    if(strap){
+      const copyVal = esc(String(strap));
+      html += `<div class="note" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">`
+        + `<b>Check active permits for this parcel:</b> paste this folio into the portal's <i>Search for a Property</i> box `
+        + `<span style="display:inline-flex;align-items:center;gap:6px">`
+        + `<code style="color:var(--ink);background:var(--unk-bg);padding:1px 6px;border-radius:4px">${copyVal}</code>`
+        + `<button type="button" class="copyfolio" data-folio="${copyVal}" style="font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid var(--unk-line);background:var(--unk-bg);color:var(--dim);cursor:pointer">Copy</button>`
+        + `</span></div>`;
+    }
   } else if(countyName){
     html += `<a class="palink" href="https://www.google.com/search?q=${encodeURIComponent(titleCase(countyName)+' County Florida building permit portal search by address')}" target="_blank" rel="noopener" style="margin-top:8px">↗ Find ${esc(titleCase(countyName))} County permitting portal</a>`;
   }
@@ -10385,6 +10882,7 @@ async function runLookup(lat,lng,searchCtx){
      Source order: (1) local territory GeoJSON via in-browser point-in-polygon, (2) a live REST
      /query override the user supplies. Real provider, or an honest "no data" + a loader. */
   const localProps = findUtilityAt(lat,lng);                       // local data first (offline, reliable)
+  util = await pUtil; if(myId!==runId) return;                     // deferred: awaited here, not in the fast-core batch
   const restHit    = (util && !util.__err && util.features && util.features[0]) ? util.features[0].attributes : null;
   const utilHit    = localProps || restHit;
   const hitSource  = localProps ? 'local' : (restHit ? 'rest' : null);
@@ -10691,10 +11189,12 @@ async function countyNameAt(lat,lng){
    interpolating geocoder does. Counties WITHOUT such a layer simply aren't listed here and fall
    through to the normal geocoder path.
 
-   Collier note: the county's Site_Address_Points layer mis-files several blocks under the wrong
-   street (e.g. Bougainvillea Rd parcels recorded as "8th St N"), so it is NOT trustworthy for
-   address resolution. The Parcel/FeatureServer/2 "Parcels" layer, by contrast, carries the correct
-   SiteStreetAddress ("652 BOUGAINVILLEA RD" -> Folio 17860400008). We resolve against THAT. */
+   Collier note: the county's Site_Address_Points layer historically mis-files some blocks under the
+   wrong street (e.g. Bougainvillea Rd parcels recorded as "8th St N"), so its street text is NOT
+   trusted for the final address. We use it ONLY to look up the folio (FLN) for a typed address, with
+   a street-match guard, then resolve the real parcel from the Parcel/FeatureServer/2 layer BY that
+   folio — which carries the correct SiteStreetAddress. So a mis-filed point can't win, but a
+   correctly-filed one lets us catch recently re-addressed lots the parcel layer's text lags on. */
 const COUNTY_PARCEL_RESOLVERS = {
   COLLIER: {
     url: "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Parcel/FeatureServer/2/query",
@@ -10702,7 +11202,17 @@ const COUNTY_PARCEL_RESOLVERS = {
     cityField: "SiteCity",
     zipField:  "SiteZipCode",
     folioField:"Folio",
-    ownerField:"OwnerLine1"
+    ownerField:"OwnerLine1",
+    // Collier's authoritative NG911 address-point layer (Site Address Points, editable view). Each
+    // point carries FLN = the folio/parcel id. We use it as a PRE-STEP: resolve the typed address to
+    // its folio here, then pull the real parcel from the trusted Parcel layer above BY that folio.
+    // This nails re-addressed lots the parcel layer's own address text can lag on. STUBADDRESS holds
+    // "9541 Caymas Ter"; ADDRNUM the number; FULLNAME the street; MUNICIPALITY the city; STATUS filters
+    // out retired points (the view already excludes 'Retired'). SR 2236 → we request outSR=4326.
+    addrPointUrl:   "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Site_Address_Points_b/FeatureServer/3/query",
+    apAddrField:    "STUBADDRESS",
+    apFolioField:   "FLN",
+    apCityField:    "MUNICIPALITY"
   },
   // Charlotte County's own live parcel layer (the same layer that draws the correct per-parcel
   // address labels on the map). Site address = FullPropertyAddress, parcel id = ACCOUNT,
@@ -10730,6 +11240,67 @@ async function resolveCountyParcel(countyName, searchCtx){
   const cfg = countyName ? COUNTY_PARCEL_RESOLVERS[norm(countyName)] : null;
   if(!cfg || !searchCtx || !searchCtx.hn) return null;
   const hn = String(searchCtx.hn).replace(/'/g,"''");
+  // ADDRESS-POINT PRE-STEP (additive, safe): if this county has an authoritative address-point layer
+  // carrying a folio (Collier's FLN), resolve the typed address there to get the folio, then pull the
+  // REAL parcel from the trusted parcel layer BY that folio. This catches recently re-addressed lots
+  // the parcel layer's own address text hasn't caught up to. Guard against the layer's known mis-filed
+  // blocks by requiring the point's own address to match what the user typed; on any doubt or failure
+  // we simply fall through to the existing address-on-parcel-layer logic below (nothing removed).
+  if(cfg.addrPointUrl && cfg.apFolioField){
+    try{
+      const apWhere = `${cfg.apAddrField} LIKE '${hn} %' OR ${cfg.apAddrField} = '${hn}'`;
+      const apOut = [cfg.apAddrField,cfg.apFolioField,cfg.apCityField,'STATUS','POINTTYPE'].filter(Boolean);
+      const apParams = `where=${encodeURIComponent(apWhere)}`+
+        `&outFields=${encodeURIComponent(apOut.join(','))}`+
+        `&returnGeometry=false&resultRecordCount=50&f=json`;
+      const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),9000);
+      const r=await fetch(cfg.addrPointUrl+'?'+apParams,{signal:ctrl.signal}); clearTimeout(t);
+      if(r.ok){
+        const j=await r.json();
+        if(!j.error && j.features && j.features.length){
+          const wantCoreAP = new Set(streetCore(searchCtx.raw||''));
+          const DIRSUFAP = new Set([...Object.values(DIRMAP), ...Object.values(SUFMAP)]);
+          const wantDSAP = streetTokens(searchCtx.raw||'').filter(x=>DIRSUFAP.has(x));
+          // Collect address points that exactly match house# + typed street tokens, dedup by folio.
+          // Also remember each folio's STATUS + POINTTYPE (from the point) for a panel badge later.
+          const folioHits=new Map();
+          const folioMeta=new Map();
+          for(const f of j.features){
+            const a=f.attributes||{}; const addr=a[cfg.apAddrField]; const fln=a[cfg.apFolioField];
+            if(!addr || !fln) continue;
+            if(houseNum(addr)!==searchCtx.hn) continue;
+            const toks=new Set(streetTokens(addr));
+            if(wantCoreAP.size){ let ov=false; wantCoreAP.forEach(x=>{ if(toks.has(x)) ov=true; }); if(!ov) continue; }
+            if(wantDSAP.length && !wantDSAP.every(x=>toks.has(x))) continue;
+            const digits=String(fln).replace(/\D/g,''); if(!digits) continue;
+            if(!folioHits.has(digits)){ folioHits.set(digits, String(fln).trim());
+              folioMeta.set(digits, { status:(a.STATUS||'').trim(), pointType:(a.POINTTYPE||'').trim() }); }
+          }
+          // Only act when the address points agree on a SINGLE folio — otherwise it's ambiguous
+          // (multi-unit / mis-file) and we defer to the parcel-layer logic below.
+          if(folioHits.size===1){
+            const folio=[...folioHits.values()][0];
+            const _meta=[...folioMeta.values()][0]||null;
+            const pinFeat=await fetchCountyParcelFeatureByFolio(countyName, folio).catch(()=>null);
+            if(pinFeat && pinFeat.features && pinFeat.features[0]){
+              const pf=pinFeat.features[0]; const pa=pf.attributes||{};
+              const c=featCentroid(pf);
+              if(c){
+                const label=[pa[cfg.addrField], pa[cfg.cityField], pa[cfg.zipField]].filter(Boolean).join(', ')
+                           || (searchCtx.raw||'');
+                // Stash the point's status/type by folio digits so the renderer can show a badge for
+                // THIS parcel only (cleared each lookup). Purely informational, high-confidence fields.
+                try{ window.__addrPtMeta = { folioDigits:String(folio).replace(/\D/g,''), status:(_meta&&_meta.status)||'', pointType:(_meta&&_meta.pointType)||'' }; }catch(e){}
+                return { lat:c[1], lng:c[0], label,
+                  folio: pa[cfg.folioField]||folio, owner: pa[cfg.ownerField]||null,
+                  src: titleCase(countyName)+' County parcel', multi:false };
+              }
+            }
+          }
+        }
+      }
+    }catch(e){ /* fall through to parcel-layer resolution */ }
+  }
   // Pull every parcel whose site address STARTS with the house number, then match the street locally
   // (suffix-folded) so Rd/Ct/Road/etc. don't cause misses or false hits.
   const where = `${cfg.addrField} LIKE '${hn} %' OR ${cfg.addrField} = '${hn}'`;
@@ -10783,6 +11354,23 @@ async function resolveCountyParcel(countyName, searchCtx){
    right parcel/owner but the WRONG site address & living area (those come from the poisoned
    address-point layer). Keyed by the exact folio the resolver already matched, so it can't drift.
    Returns { addr, city, zip, folio, owner } or null. */
+// Like lookupCountyParcelByFolio, but returns the FULL feature (geometry + all attributes) in the
+// same shape as a live-feed query result, so runLookup can drop it in as `liveRes`. Used to pin the
+// exact matched parcel on through-lots / corner lots where a coordinate query hits the neighbour.
+async function fetchCountyParcelFeatureByFolio(countyName, folio){
+  const cfg = countyName ? COUNTY_PARCEL_RESOLVERS[norm(countyName)] : null;
+  if(!cfg || !folio) return null;
+  const fol=String(folio).replace(/'/g,"''");
+  const where = `${cfg.folioField}='${fol}'`;
+  const params = `where=${encodeURIComponent(where)}&outFields=*&returnGeometry=true&outSR=4326&f=json`;
+  try{
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),10000);
+    const r=await fetch(cfg.url+'?'+params,{signal:ctrl.signal}); clearTimeout(t);
+    if(!r.ok) return null; const j=await r.json(); if(j.error) return null;
+    const f=(j.features||[])[0]; if(!f) return null;
+    return { features:[f], __authByFolio:true, __byFolioPin:true };
+  }catch(e){ return null; }
+}
 async function lookupCountyParcelByFolio(countyName, folio){
   const cfg = countyName ? COUNTY_PARCEL_RESOLVERS[norm(countyName)] : null;
   if(!cfg || !folio) return null;
@@ -10827,8 +11415,8 @@ async function doSearch(){
       if(!pr){ continue; }
       if(pr && pr.multi && pr.candidates && pr.candidates.length){
         // Several lots share this number+street — show them rather than guess one.
-        const list=pr.candidates.slice(0,8).map(c=>`<div class="sg" style="cursor:default"><span>${esc(c.label)}</span>${c.folio?`<span class="sgsrc">${esc(c.folio)}</span>`:''}</div>`).join('');
-        results.innerHTML=setStatus('err',`Found ${pr.candidates.length} lots matching “${esc(q)}”. Pick the exact one on the map, or add a unit/more detail.`)+`<div style="margin-top:6px">${list}</div>`;
+        const list=pr.candidates.slice(0,8).map(c=>`<div class="sg lotpick" style="cursor:pointer" data-lat="${c.lat}" data-lng="${c.lng}" data-folio="${esc(c.folio||'')}" data-cty="${esc(cty)}" data-label="${esc(c.label)}"><span>${esc(c.label)}</span>${c.folio?`<span class="sgsrc">${esc(c.folio)}</span>`:''}</div>`).join('');
+        results.innerHTML=setStatus('err',`Found ${pr.candidates.length} lots matching “${esc(q)}”. Click one below (or pick it on the map), or add a unit/more detail.`)+`<div style="margin-top:6px">${list}</div>`;
         // Still center the map on the first candidate so the user sees the area.
         map.setView([pr.candidates[0].lat,pr.candidates[0].lng],18);
         return;
@@ -10837,7 +11425,12 @@ async function doSearch(){
         addToHistory(pr.label || q);
         results.innerHTML=setStatus('busy','Pinpointing the parcel…');
         map.setView([pr.lat,pr.lng], 18);
-        await runLookup(pr.lat, pr.lng, searchCtx);
+        // Pass the authoritatively-matched folio + county down to runLookup. On a through-lot / corner
+        // lot the coordinate alone can sit on the boundary and make the point-in-polygon parcel query
+        // resolve to the NEIGHBOUR (e.g. 1209 Forest's address point lands on 1201 9th Ave N). The
+        // folio lets runLookup fetch the EXACT parcel that was matched instead of re-guessing by point.
+        const _ctx = Object.assign({}, searchCtx, { folioHint: pr.folio||null, countyHint: cty });
+        await runLookup(pr.lat, pr.lng, _ctx);
         const fol = pr.folio ? ` · Folio ${esc(pr.folio)}` : '';
         const conf = `<div class="note matchconf noprint" style="padding:2px 2px 4px">Matched (${esc(pr.src)}): <b style="color:var(--ink)">${esc(pr.label)}</b>${fol} — authoritative county parcel; confirm the marker is on the right lot.</div>`;
         results.insertAdjacentHTML('afterbegin',conf);
@@ -11050,8 +11643,8 @@ async function chooseSuggestion(it){
     const pr=await resolveCountyParcel(county, searchCtx).catch(()=>null);
     if(pr && pr.multi && pr.candidates && pr.candidates.length){
       addrEl.value=fullAddr; STORE.set('fl_addr',fullAddr);
-      const list=pr.candidates.slice(0,8).map(c=>`<div class="sg" style="cursor:default"><span>${esc(c.label)}</span>${c.folio?`<span class="sgsrc">${esc(c.folio)}</span>`:''}</div>`).join('');
-      results.innerHTML=setStatus('err',`Found ${pr.candidates.length} lots matching “${esc(basis)}”. Pick the exact one on the map, or add a unit/more detail.`)+`<div style="margin-top:6px">${list}</div>`;
+      const list=pr.candidates.slice(0,8).map(c=>`<div class="sg lotpick" style="cursor:pointer" data-lat="${c.lat}" data-lng="${c.lng}" data-folio="${esc(c.folio||'')}" data-cty="${esc(county)}" data-label="${esc(c.label)}"><span>${esc(c.label)}</span>${c.folio?`<span class="sgsrc">${esc(c.folio)}</span>`:''}</div>`).join('');
+      results.innerHTML=setStatus('err',`Found ${pr.candidates.length} lots matching “${esc(basis)}”. Click one below (or pick it on the map), or add a unit/more detail.`)+`<div style="margin-top:6px">${list}</div>`;
       map.setView([pr.candidates[0].lat,pr.candidates[0].lng],18);
       return;
     }
