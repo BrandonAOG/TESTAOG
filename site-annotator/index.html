@@ -18113,9 +18113,19 @@ function _buildVectorPdf(attachJson, onReady){
     // BEFORE the vector-trace step below so a single picture can never be split
     // into two representations — a traced-vector "outline" copy AND a raster
     // copy. Page-NATIVE structural images stay in the normal pipeline.
+    // Total page rotation (page /Rotate + user rotate). Computed here — ABOVE the
+    // Acrobat-edit diversion — because _traceDrawable() consults it, and the
+    // diversion below now calls _traceDrawable() to decide which pictures to keep
+    // as vectors. (It was previously assigned only after the diversion block.)
+    var _totRot = (((typeof _pdfPageRot!=='undefined'?_pdfPageRot:0) + (typeof _userRotDeg!=='undefined'?_userRotDeg:0)) % 360 + 360) % 360;
     var _acroImgList=[];
     if(typeof EXPORT_ACRO_ANNOTS!=='undefined' && EXPORT_ACRO_ANNOTS){
-      _acroImgList = nativeList.filter(function(ov){ return ov && (!ov._fromPdfPage || ov._fromAnnot); });
+      // Keep VECTOR-traceable line-art pictures (ov._trace) in the normal pipeline
+      // so they still export as TRUE VECTORS (drawSvgPath) even with Acrobat-edit
+      // on — otherwise they'd be flattened into raster /Stamp annotations and lose
+      // their crisp vector linework. Only NON-traceable user/annotation pictures
+      // (photos, colour graphics) become editable raster /Stamps.
+      _acroImgList = nativeList.filter(function(ov){ return ov && (!ov._fromPdfPage || ov._fromAnnot) && !_traceDrawable(ov); });
       if(_acroImgList.length){
         nativeList = nativeList.filter(function(ov){ return _acroImgList.indexOf(ov)===-1; });
       }
@@ -18126,7 +18136,6 @@ function _buildVectorPdf(attachJson, onReady){
     // PDF path operators, infinitely sharp, no JPEG ringing. Only the plain
     // case qualifies (no flip/rotate, uniform stretch, unrotated page) —
     // anything else falls back to the proven raster embed.
-    var _totRot = (((typeof _pdfPageRot!=='undefined'?_pdfPageRot:0) + (typeof _userRotDeg!=='undefined'?_userRotDeg:0)) % 360 + 360) % 360;
     function _traceDrawable(ov){
       if(window.AOG_NOTRACE) return false;   // F12 escape hatch: keep every picture as a real image
       // Page-native pictures are NEVER traced: tracing turns a colour graphic into
