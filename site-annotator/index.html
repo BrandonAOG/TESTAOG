@@ -16912,6 +16912,24 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
   }); }catch(e){ console.warn('[AcroAnnot] notes',e); }
 
   // ── Text objects → /FreeText (editable in Acrobat) ─────────────────────────
+  // Register the four standard Helvetica variants in the document's AcroForm /DR
+  // under fixed names. When Acrobat regenerates a FreeText appearance on open, it
+  // resolves the DA font from /DR — so a bold DA (/HelvB) stays bold instead of
+  // flashing bold then reverting to plain Helvetica.
+  var _fdictDR=null;
+  try{
+    var _acro=pdf.catalog.lookup(PDFLib.PDFName.of('AcroForm'));
+    if(!_acro){ _acro=ctx.obj({}); pdf.catalog.set(PDFLib.PDFName.of('AcroForm'), ctx.register(_acro)); }
+    if(!_acro.get(PDFLib.PDFName.of('Fields'))) _acro.set(PDFLib.PDFName.of('Fields'), ctx.obj([]));
+    var _drD=_acro.lookup(PDFLib.PDFName.of('DR'));
+    if(!_drD){ _drD=ctx.obj({}); _acro.set(PDFLib.PDFName.of('DR'), _drD); }
+    _fdictDR=_drD.lookup(PDFLib.PDFName.of('Font'));
+    if(!_fdictDR){ _fdictDR=ctx.obj({}); _drD.set(PDFLib.PDFName.of('Font'), _fdictDR); }
+    [['Helv',fonts.regular],['HelvB',fonts.bold],['HelvO',fonts.italic],['HelvBO',fonts.boldItalic]].forEach(function(p){
+      try{ if(p[1]&&p[1].ref && !_fdictDR.get(PDFLib.PDFName.of(p[0]))) _fdictDR.set(PDFLib.PDFName.of(p[0]), p[1].ref); }catch(_){}
+    });
+  }catch(_af){ console.warn('[AcroAnnot] AcroForm DR setup',_af); }
+  function _daFontName(o){ return o.bold?(o.italic?'HelvBO':'HelvB'):(o.italic?'HelvO':'Helv'); }
   // User-added text AND edited page text. For EDITED page text the original words
   // are still baked in the reused page, so the appearance paints an OPAQUE WHITE
   // box (sized to the wider of the new and original text) that hides them — this
@@ -16977,10 +16995,19 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     ops+='ET Q ';
     var d={ Subtype:'FreeText',
             Contents:_pdfStrOf(obj.text),
-            DA:PDFLib.PDFString.of('/Helv '+f2(fsize)+' Tf '+colStr(txCol)+' rg'),
+            // DA points at /F0 — the SAME styled (bold/italic) font used in the
+            // appearance — and the annotation carries its own /DR mapping /F0 to
+            // that font. When Acrobat regenerates the FreeText appearance on open,
+            // it reads DA + DR and keeps the bold/italic instead of falling back to
+            // plain Helvetica (which made bold text flash bold then go normal).
+            DA:PDFLib.PDFString.of('/'+_daFontName(obj)+' '+f2(fsize)+' Tf '+colStr(txCol)+' rg'),
             Q:(align==='center'?1:align==='right'?2:0),
             CA:op,
             BS:bsDict(0,null) };
+    // Also give the annotation its OWN /DR mapping the same name → styled font, so
+    // viewers that resolve the DA font from the annotation (not the AcroForm) also
+    // keep bold/italic on regenerate.
+    if(fontRef){ try{ var _nm=_daFontName(obj); var _fr={}; _fr[_nm]=fontRef; d.DR=ctx.obj({ Font: ctx.obj(_fr) }); }catch(_dr){} }
     // No /C (transparent background): the original is hidden by the page-level
     // white box above, so the annotation itself must NOT carry a background —
     // otherwise dragging it would leave a white ghost box at the new location and
