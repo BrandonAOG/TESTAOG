@@ -18125,7 +18125,12 @@ function _buildVectorPdf(attachJson, onReady){
       // on — otherwise they'd be flattened into raster /Stamp annotations and lose
       // their crisp vector linework. Only NON-traceable user/annotation pictures
       // (photos, colour graphics) become editable raster /Stamps.
-      _acroImgList = nativeList.filter(function(ov){ return ov && (!ov._fromPdfPage || ov._fromAnnot) && !_traceDrawable(ov); });
+      // EQUIPMENT SYMBOLS (ov.img._isEquip) are also kept out of the stamp path:
+      // they're colour bitmaps that render clean through the native-embed pipeline
+      // (full source resolution, alpha preserved) — the exact same output as when
+      // Acrobat-edit is OFF, which is the look the user wants. The capped, re-encoded
+      // /Stamp path degraded them.
+      _acroImgList = nativeList.filter(function(ov){ return ov && (!ov._fromPdfPage || ov._fromAnnot) && !_traceDrawable(ov) && !(ov.img && ov.img._isEquip); });
       if(_acroImgList.length){
         nativeList = nativeList.filter(function(ov){ return _acroImgList.indexOf(ov)===-1; });
       }
@@ -21700,12 +21705,14 @@ var EQUIP_PRESETS=[
   function choose(p){
     close();
     var cached=_imgCache[p.key];
-    if(cached){ _enterImgPlacementMode(cached); return; }
+    if(cached){ cached._isEquip=true; _enterImgPlacementMode(cached); return; }
     var img=new Image();
     var start=function(){
       // Force a full decode into a canvas BEFORE the first on-screen draw.
       // Without this, iOS Safari's lazy decode garbles the first placement.
       var ras=_rasterizeImg(img);
+      ras._isEquip=true;               // tag so export keeps these on the clean
+                                       // native-embed path (same as Acrobat-edit OFF)
       _imgCache[p.key]=ras;
       _enterImgPlacementMode(ras);
     };
