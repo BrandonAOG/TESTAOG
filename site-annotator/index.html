@@ -2059,6 +2059,19 @@ function imglog(msg, data){
     console.log('%c[AOG IMG]%c '+msg,'background:#7c3aed;color:#fff;font-weight:bold;padding:1px 4px;border-radius:3px','color:#7c3aed;font-weight:bold', data!==undefined?data:'');
   }catch(e){}
 }
+// Surface main-thread stalls in F12: anything that blocks the thread longer than
+// ~80ms (dropped frames → the "sticks then catches up" feeling) gets logged with
+// its duration, so a periodic hitch is easy to spot and time.
+try{
+  if('PerformanceObserver' in window){
+    var _lt=new PerformanceObserver(function(list){
+      list.getEntries().forEach(function(e){
+        if(e.duration>=80) console.log('%c[AOG PERF]%c main-thread stall '+Math.round(e.duration)+'ms','background:#b45309;color:#fff;font-weight:bold;padding:1px 4px;border-radius:3px','color:#b45309', '(if this coincides with a hitch, that is the cause)');
+      });
+    });
+    _lt.observe({entryTypes:['longtask']});
+  }
+}catch(_lt0){}
 window.AOG = window.AOG || {};
 window.AOG.dumpDebug=function(){
   console.log('=== AOG DEBUG DUMP ('+_dbgLog.length+' records) ===');
@@ -13293,6 +13306,7 @@ drawCv.addEventListener('mousemove',function(e){
   // out the moment any drag/placement is in flight; the live drag handler owns
   // the frame.
   if(isPanning ||
+     (typeof selImg!=='undefined' && selImg) ||        // image selected → its own hover handler owns the cursor; skip the heavy hit-tests here
      (typeof selHandle!=='undefined' && selHandle!==-1) ||
      (typeof measureDragHandle!=='undefined' && measureDragHandle!==-1) ||
      (typeof leaderDragHandle!=='undefined' && leaderDragHandle!==-1) ||
@@ -19807,7 +19821,23 @@ function buildProjectRecord(quality, cb){
 function doSave(){
   if(!baseLoaded||!_saveDb) return;
   // Don't save while user is actively drawing or pinching (memory already high)
-  if(drawing||pinching) { scheduleSave(); return; }
+  // Don't serialize the whole document to IndexedDB while the user is actively
+  // manipulating something — that heavy write lands mid-gesture and shows up as a
+  // periodic "moves, then sticks, then catches up" stall (autosave debounced from
+  // a PRIOR edit firing during the CURRENT drag). Reschedule and save once idle.
+  var _busy = drawing || pinching ||
+    (typeof selImgDrag!=='undefined' && selImgDrag) ||
+    (typeof selHandle!=='undefined' && selHandle!==-1) ||
+    (typeof measureDragHandle!=='undefined' && measureDragHandle!==-1) ||
+    (typeof leaderDragHandle!=='undefined' && leaderDragHandle!==-1) ||
+    (typeof plDrag!=='undefined' && plDrag) ||
+    (typeof _mkDrag!=='undefined' && _mkDrag) ||
+    (typeof _dragText!=='undefined' && _dragText) ||
+    (typeof _txtMoving!=='undefined' && _txtMoving) ||
+    (typeof _txtRotating!=='undefined' && _txtRotating) ||
+    (typeof _txtSizing!=='undefined' && _txtSizing) ||
+    (typeof isPanning!=='undefined' && isPanning);
+  if(_busy){ scheduleSave(); return; }
   setSaveStatus('saving');
 
   // RELIABLE CACHE POINT. Reaching here PROVES IndexedDB is open, so this is where
