@@ -2755,9 +2755,8 @@ function _androidOfferShare(files, kind) {
   bar.style.cssText = 'position:fixed;left:10px;right:10px;bottom:14px;z-index:999999;background:#16181d;color:#f0f0f2;border:1px solid rgba(255,255,255,0.18);border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px;box-shadow:0 10px 28px rgba(0,0,0,0.5);font-family:inherit;';
   var msg = document.createElement('div');
   msg.style.cssText = 'flex:1;font-size:13px;line-height:1.45;min-width:0;';
-  msg.innerHTML = '<b style="color:#FBBF24;">Tap SHARE to save or send</b><br><span style="color:#aab;">' +
-    'Choose <b>Save to ' + (kind === 'pdf' ? 'Files' : 'Photos') + '</b> to keep a copy, or pick an app to send it. ' +
-    'A copy may also be in your <b>' + (kind === 'pdf' ? 'Files → Downloads' : 'Photos/Gallery → Download') + '</b>.</span>';
+  msg.innerHTML = '<b style="color:#4ade80;">✓ Saved to your phone</b><br><span style="color:#aab;">' +
+    (kind === 'pdf' ? 'Find it in your <b>Files → Downloads</b>.' : 'Find it in <b>Photos/Gallery → Download</b>.') + '</span>';
   var shareBtn = document.createElement('button');
   shareBtn.textContent = '📤 SHARE IT';
   shareBtn.style.cssText = 'background:#FBBF24;color:#111;border:none;border-radius:8px;padding:11px 14px;font-weight:bold;font-size:12px;cursor:pointer;flex-shrink:0;letter-spacing:0.5px;';
@@ -2772,18 +2771,25 @@ function _androidOfferShare(files, kind) {
   closeBtn.onclick = kill;
   bar.appendChild(msg); bar.appendChild(shareBtn); bar.appendChild(closeBtn);
   document.body.appendChild(bar);
-  timer = setTimeout(kill, 30000);
+  timer = setTimeout(kill, 15000);
 }
 
 function saveSmart() {
-  if (isAndroidDevice()) {
-    saveForAndroid();       // Android: instant save to Downloads, then share offer
+  // Desktop always downloads directly — no share sheet. Checked FIRST, because
+  // desktop Chrome/Edge now report navigator.canShare({files}) = true, so
+  // without this guard a desktop would be routed into the share-sheet path
+  // (captureAndShare) and never actually download the images. This mirrors the
+  // site-visit form, which already guards desktop first.
+  if (_isDesktopDevice()) {
+    saveForAndroid();
+  } else if (isAndroidDevice()) {
+    saveForAndroid();
   } else if (canShareFiles()) {
-    captureAndShare();      // iOS with Web Share → native Share Sheet
+    captureAndShare();
   } else if (isIOSDevice()) {
-    captureAndShare();      // iOS with no file-share support → falls back to overlay internally
+    captureAndShare();
   } else {
-    saveForAndroid();       // desktop → download
+    saveForAndroid();
   }
 }
 
@@ -2833,7 +2839,7 @@ function captureAndShare() {
         var fname = buildFilename('jpg', idx + 1, pages.length);
         var restoreFill = fitPageToSheet(page);
         var capH = measureFullHeight(page);
-        return _withTimeout(html2canvas(page, { scale: captureScale, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } }), 45000, 'Page ' + (idx + 1) + ' render')
+        return _withTimeout(html2canvas(page, { scale: captureScale, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, ignoreElements: function(el){ return !!(el.classList && el.classList.contains("tbl-clear-btn")); } }), 45000, 'Page ' + (idx + 1) + ' render')
           .then(function (canvas) {
             restoreFill();
             _updateRenderOverlay('Page ' + (idx + 1) + ' of ' + pages.length + ' rendered…');
@@ -2879,7 +2885,18 @@ function captureAndShare() {
 }
 
 // Direct-download fallback (Android/desktop without file sharing).
+// Uses blob: URLs downloaded SEQUENTIALLY with a gap. A data: URL click in a
+// standalone Android PWA gets treated as a navigation (opens a new page) and
+// drops every page after the first; blob: URLs download cleanly.
 function downloadResults(results) {
+  function dataURLtoBlob(dataURL) {
+    var parts = dataURL.split(',');
+    var mime = (parts[0].match(/:(.*?);/) || [])[1] || 'image/jpeg';
+    var bin = atob(parts[1]);
+    var arr = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }
   var i = 0;
   (function next() {
     if (i >= results.length) {
@@ -2888,13 +2905,12 @@ function downloadResults(results) {
       return;
     }
     var r = results[i++];
+    var url = URL.createObjectURL(dataURLtoBlob(r.dataURL));
     var link = document.createElement('a');
-    link.download = r.fname;
-    link.href = r.dataURL;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(next, 700);
+    link.download = r.fname; link.href = url;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    setTimeout(next, 600);
   })();
 }
 
@@ -2948,69 +2964,66 @@ function saveForAndroid() {
     setTimeout(() => setStatus(''), msg.indexOf('⚠') === 0 ? 5000 : 4000);
     if (wasDark) document.body.classList.add('dark-mode');
   }
-  var captureScale = _isDesktopDevice() ? 1.5 : 2;
-  // Render EVERY page to a data-URL FIRST, then save/share. The old code fired
-  // link.click() once per page inside the render loop — but Android Chrome only
-  // honors ONE programmatic download per user gesture, so the 2nd page was
-  // silently dropped and techs got just one of the two pages. Collect all pages,
-  // then: (a) on Android prefer the native Share Sheet with BOTH files at once
-  // (the intended behavior), falling back to sequential downloads spaced apart so
-  // the browser doesn't discard the second; (b) elsewhere, download sequentially.
-  // Download each page (spaced out for Android's one-download-per-gesture rule),
-  // then run an optional callback once the last click has fired.
-  function _sequentialDownload(results, doneMsg, afterDone) {
-    var i = 0;
-    (function next() {
-      if (i >= results.length) {
-        finish(doneMsg);
-        if (typeof afterDone === 'function') afterDone();
-        return;
-      }
-      var r = results[i++];
-      var link = document.createElement('a');
-      link.download = r.fname;
-      link.href = r.dataURL;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(next, 700);   // space downloads so each is its own action
-    })();
-  }
+  let completed = 0, failed = false;
+  const _shareFiles = [];
   whenReadyToCapture().then(() => {
     _updateRenderOverlay('Rendering ' + pages.length + ' page(s)…');
-    var jobs = Array.prototype.map.call(pages, function (page, idx) {
-      var restoreFill = fitPageToSheet(page);
-      var capH = measureFullHeight(page);
-      return _withTimeout(html2canvas(page, { scale: captureScale, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } }), 45000, 'Page ' + (idx + 1) + ' render')
-        .then(function (canvas) {
-          restoreFill();
-          _updateRenderOverlay('Page ' + (idx + 1) + ' of ' + pages.length + ' rendered…');
-          canvas = fitToLetter(canvas);
-          var fname = buildFilename('jpg', idx + 1, pages.length);
+    var captureScale = _isDesktopDevice() ? 1.5 : 2;
+    // Render + download pages SEQUENTIALLY (not two clicks in one tick).
+    // Each page downloads via a blob: URL, never a data: URL — in a
+    // standalone Android PWA a data: URL link.click() gets treated as a
+    // NAVIGATION (opens the image as a new page) instead of a download,
+    // which aborts the loop and drops every page after the first. A blob:
+    // URL downloads cleanly, and a small gap between pages keeps the second
+    // download from being swallowed while the first is still starting.
+    function canvasToBlob(canvas) {
+      return new Promise(function (resolve) {
+        if (canvas.toBlob) { canvas.toBlob(function (b) { resolve(b); }, 'image/jpeg', 0.85); }
+        else {
+          // Fallback for very old engines without toBlob.
           var durl = canvas.toDataURL('image/jpeg', 0.85);
-          return { fname: fname, dataURL: durl, file: _aogShareFileFromDataURL(durl, fname) };
-        })
-        .catch(function (err) { restoreFill(); throw err; });
+          var bin = atob(durl.split(',')[1]);
+          var arr = new Uint8Array(bin.length);
+          for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+          resolve(new Blob([arr], { type: 'image/jpeg' }));
+        }
+      });
+    }
+    function _delay(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+    var seq = Promise.resolve();
+    Array.prototype.forEach.call(pages, function (page, idx) {
+      seq = seq.then(function () {
+        const restoreFill = fitPageToSheet(page);
+        const capH = measureFullHeight(page);
+        return _withTimeout(html2canvas(page, { scale: captureScale, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, ignoreElements: function(el){ return !!(el.classList && el.classList.contains("tbl-clear-btn")); } }), 45000, 'Page ' + (idx + 1) + ' render')
+          .then(function (canvas) {
+            restoreFill();
+            _updateRenderOverlay('Page ' + (idx + 1) + ' of ' + pages.length + ' rendered…');
+            canvas = fitToLetter(canvas);
+            var fname = buildFilename('jpg', idx + 1, pages.length);
+            return canvasToBlob(canvas).then(function (blob) {
+              _downloadBlob(blob, fname);                     // blob: URL → real download, no page navigation
+              try { _shareFiles.push(new File([blob], fname, { type: 'image/jpeg' })); } catch (e) {}
+              completed++;
+              // Gap before the next page's download so it isn't swallowed.
+              return _delay(600);
+            });
+          })
+          .catch(function (err) {
+            restoreFill();
+            if (!failed) { failed = true; finish('⚠ Could not render page ' + (idx + 1) + ' — try again.'); }
+          });
+      });
     });
-    Promise.all(jobs).then(function (results) {
-      var files = results.map(function (r) { return r.file; }).filter(Boolean);
+    seq.then(function () {
+      if (failed) return;
       if (isAndroidDevice()) {
-        // DELIVER BOTH, reliably:
-        //  1) auto-download the file(s) so a copy lands in Downloads, and
-        //  2) show a SHARE button. We do NOT auto-open the share sheet here —
-        //     after the render + spaced downloads, the original tap's "user
-        //     gesture" has expired (~5s limit, and it doesn't survive Promise/
-        //     setTimeout hops), so navigator.share() would silently fail. The
-        //     SHARE button is a FRESH gesture, so the sheet always opens.
-        _sequentialDownload(results, 'Saved to Downloads. Tap SHARE to send or Save to Files/Photos.', function () {
-          _androidOfferShare(files, 'jpg');
-        });
+        finish('Saved — check Photos/Gallery (Download album).');
+        _androidOfferShare(_shareFiles, 'jpg');
       } else {
-        // Desktop / non-Android: download each page, spaced out.
-        _sequentialDownload(results, results.length + ' image(s) sent to your Downloads folder.');
+        finish(pages.length + ' image(s) sent to your Downloads folder.');
       }
-    }).catch(function (err) {
-      finish('⚠ Could not render pages — try again.');
     });
   });
 }
@@ -3210,7 +3223,7 @@ function _downloadBlob(blob, filename) {
   var a = document.createElement('a');
   a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
 }
 
 function _editPdfFilename() {
@@ -3220,6 +3233,48 @@ function _editPdfFilename() {
     }
   } catch (e) {}
   return 'AOG Electrical Checklist - RESUMABLE.pdf';
+}
+
+// Runs on html2canvas's CLONED document right before it rasterizes. Some
+// mobile browsers (seen on Android 10 / Chrome WebView) throw
+// "Error parsing CSS component value, unexpected EOF" while html2canvas
+// re-parses stylesheet text — most often the external Google Fonts sheet
+// (modern @font-face / unicode-range syntax) or any declaration that
+// computes to an empty or unbalanced value on that device. We can't rely on
+// catching the exact culprit per device, so we defensively strip web-font
+// stylesheets and font links from the CLONE (captured text uses Arial in the
+// mirrors, so appearance is unaffected) and clear any inline style value with
+// unbalanced parens. This never touches the live page — only the throwaway clone.
+function _sanitizeCloneForCapture(clonedDoc) {
+  try {
+    // NOTE: we deliberately do NOT remove the font <link> or the whole fonts
+    // stylesheet — doing so can make html2canvas fail to render a page
+    // ("Could not render page 1"). We only clean up the specific constructs
+    // that cause the "unexpected EOF" parse error, leaving @font-face intact
+    // so fonts still resolve during the render.
+    // 1) Remove only @import lines from clone <style> blocks (a known parser
+    //    tripwire). @font-face rules are left untouched.
+    Array.prototype.forEach.call(clonedDoc.querySelectorAll('style'), function (styleEl) {
+      var txt = styleEl.textContent || '';
+      if (/@import/i.test(txt)) {
+        styleEl.textContent = txt.replace(/@import[^;]*;/gi, '');
+      }
+    });
+    // 2) Clear any inline style value with unbalanced parens (the actual EOF trigger).
+    var balanced = function (v) { var d = 0; for (var i = 0; i < v.length; i++) { var c = v[i]; if (c === '(') d++; else if (c === ')') { d--; if (d < 0) return false; } } return d === 0; };
+    var all = clonedDoc.querySelectorAll('[style]');
+    Array.prototype.forEach.call(all, function (el) {
+      var s = el.getAttribute('style') || '';
+      if (s.indexOf('(') !== -1 && !balanced(s)) {
+        // Rebuild the style string, dropping only the malformed declarations.
+        var kept = s.split(';').filter(function (decl) {
+          if (!decl.trim()) return false;
+          return balanced(decl);
+        });
+        el.setAttribute('style', kept.join(';'));
+      }
+    });
+  } catch (e) { /* never let sanitation abort the capture */ }
 }
 
 async function saveFillablePdf() {
@@ -3278,7 +3333,7 @@ async function saveFillablePdf() {
     var jobs = Array.prototype.map.call(pages, function (page, jIdx) {
       var restoreFill = (typeof fitPageToSheet === 'function') ? fitPageToSheet(page) : function(){};
       var capH = (typeof measureFullHeight === 'function') ? measureFullHeight(page) : page.scrollHeight;
-      return _withTimeout(html2canvas(page, { scale: captureScale, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } }), 45000, 'Page ' + (jIdx + 1) + ' render')
+      return _withTimeout(html2canvas(page, { scale: captureScale, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, onclone: _sanitizeCloneForCapture, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } }), 45000, 'Page ' + (jIdx + 1) + ' render')
         .then(function (canvas) {
           restoreFill();
           _updateRenderOverlay('Page ' + (jIdx + 1) + ' of ' + pages.length + ' rendered…');
@@ -3318,16 +3373,12 @@ async function saveFillablePdf() {
     var fname = _editPdfFilename();
     var blob = new Blob([bytes], { type: 'application/pdf' });
 
-    // Android: DELIVER BOTH, reliably — auto-download the PDF, then show the
-    // SHARE button. We don't auto-open the share sheet: building the PDF is async
-    // (await), so the tap's user gesture has expired and navigator.share() would
-    // silently fail. The SHARE button is a fresh gesture, so the sheet opens.
+    // Android: save straight to Downloads, then offer to share — no share-sheet hunting.
     if (/Android/i.test(navigator.userAgent || '')) {
-      var _apdf = new File([blob], fname, { type: 'application/pdf' });
       _downloadBlob(blob, fname);
-      setStatus('Saved to Downloads. Tap SHARE to send or Save to Files.');
-      setTimeout(function(){ setStatus(''); }, 5000);
-      try { _androidOfferShare([_apdf], 'pdf'); } catch (e) {}
+      setStatus('Resumable PDF saved — check Files → Downloads.');
+      setTimeout(function(){ setStatus(''); }, 4000);
+      try { _androidOfferShare([new File([blob], fname, { type: 'application/pdf' })], 'pdf'); } catch (e) {}
       return;
     }
     // On iOS devices that support file sharing, use the native share sheet.
