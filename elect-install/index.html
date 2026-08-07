@@ -80,8 +80,13 @@ body.dark-mode {
   --icon-color-primary: #00FFC8;
   --icon-color-section: #00FFC8;
   --icon-color-gps: #10B981;
+  /* Safe-area insets as variables. html2canvas 1.4.1 crashes on a literal
+     env() in a parsed value ("unexpected EOF"), but tolerates var()/px. We
+     default these and let @supports raise them on devices that have insets,
+     so the live layout is unchanged while the capture engine is safe. */
+  --sai-top: 0px;
+  --sai-bottom: 24px;
 }
-
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { width: 100%; height: 100%; overflow-x: clip; }
 
@@ -93,7 +98,7 @@ body {
   max-width: 1050px;
   margin: 0 auto;
   padding: 0;
-  padding-bottom: env(safe-area-inset-bottom, 24px);
+  padding-bottom: var(--sai-bottom);
   -webkit-text-size-adjust: 100%;
   overflow-x: clip;
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -116,7 +121,7 @@ body.dark-mode {
   z-index: 99999;
   width: 100%;
   background: var(--panel); padding: 4px 8px;
-  padding-top: calc(4px + env(safe-area-inset-top, 0px));
+  padding-top: calc(4px + var(--sai-top));
   display: flex; justify-content: flex-start; gap: 4px; flex-wrap: nowrap; align-items: center;
   overflow-x: auto;
   overflow-y: hidden;
@@ -151,13 +156,13 @@ body.dark-mode {
 
 /* Keep buttons readable on phones — they scroll instead of shrinking */
 @media (max-width: 480px) {
-  .action-bar { padding: 4px 4px; padding-top: calc(4px + env(safe-area-inset-top, 0px)); gap: 3px; }
+  .action-bar { padding: 4px 4px; padding-top: calc(4px + var(--sai-top)); gap: 3px; }
 }
 
 @media (max-width: 360px) {
 }
 
-@media (max-width: 768px) { .action-bar { padding: 4px 8px; padding-top: calc(4px + env(safe-area-inset-top, 0px)); gap: 4px; } }
+@media (max-width: 768px) { .action-bar { padding: 4px 8px; padding-top: calc(4px + var(--sai-top)); gap: 4px; } }
 
 /* Under 480px: put "Team Member" + input on one line, and "Double Checked By" + input on the next line */
 @media screen and (max-width: 480px) {
@@ -1688,6 +1693,15 @@ body.dark-mode .ft-label { color: #7DD3FC; }
   }
 }
 </style>
+<style id="sai-supports">
+/* Safe-area insets live here in their OWN style element so the capture
+   sanitizer can remove this whole element from the html2canvas clone.
+   html2canvas 1.4.1 throws "unexpected EOF" on literal env(); the live page
+   still gets real insets from this rule, the flat capture doesn't need them. */
+@supports (padding-top: env(safe-area-inset-top)) {
+  :root { --sai-top: env(safe-area-inset-top, 0px); --sai-bottom: env(safe-area-inset-bottom, 24px); }
+}
+</style>
 <style id="pdf-btn-toggle">
 /* === TEMP: hide the regular PDF button. To restore, delete this rule AND remove the 'pdf-btn-hidden' class from the PDF button(s). === */
 .pdf-btn-hidden { display: none !important; }
@@ -1958,7 +1972,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
 
 <div class="app-footer" style="text-align:center;font-family:Arial,sans-serif;font-size:11px;color:var(--text-muted);margin:18px 16px 40px;line-height:1.6;">
   <span class="footer-text" title="">© 2026 Always On Generators · CONFIDENTIAL</span><br>
-  <span id="ver-span" title="">v1.1</span>
+  <span id="ver-span" title="">v1.0</span>
 </div>
 
 
@@ -3247,32 +3261,57 @@ function _editPdfFilename() {
 // unbalanced parens. This never touches the live page — only the throwaway clone.
 function _sanitizeCloneForCapture(clonedDoc) {
   try {
-    // NOTE: we deliberately do NOT remove the font <link> or the whole fonts
-    // stylesheet — doing so can make html2canvas fail to render a page
-    // ("Could not render page 1"). We only clean up the specific constructs
-    // that cause the "unexpected EOF" parse error, leaving @font-face intact
-    // so fonts still resolve during the render.
-    // 1) Remove only @import lines from clone <style> blocks (a known parser
-    //    tripwire). @font-face rules are left untouched.
+    // ROOT CAUSE (confirmed from an on-device error report): html2canvas 1.4.1's
+    // CSS parser throws "unexpected EOF" when it meets env()/calc()/min()/max()
+    // and some clip-path values. These only resolve to a triggering form on
+    // phones with a safe-area inset (notch / gesture bar), which is why it failed
+    // on one phone and not on desktop. None of these affect the flat captured
+    // page, so we neutralize them ON THE CLONE ONLY — the live page is untouched.
+    var KILL_RE = /(env|clip-path|conic-gradient)\s*\(/i;
+
+    // 1) Remove the safe-area <style> element outright — it's the only place a
+    //    literal env() lives, and env() is the confirmed crash trigger. Removing
+    //    the whole element avoids fragile regex-editing of nested @supports.
+    var sai = clonedDoc.getElementById('sai-supports');
+    if (sai && sai.parentNode) sai.parentNode.removeChild(sai);
+
+    // 2) Scrub any remaining <style> blocks that still contain a killer function
+    //    or an @import (defensive — normally none do after step 1).
     Array.prototype.forEach.call(clonedDoc.querySelectorAll('style'), function (styleEl) {
       var txt = styleEl.textContent || '';
-      if (/@import/i.test(txt)) {
-        styleEl.textContent = txt.replace(/@import[^;]*;/gi, '');
-      }
+      if (!txt || (!KILL_RE.test(txt) && txt.indexOf('@import') === -1)) return;
+      txt = txt.replace(/@import[^;]*;/gi, '');
+      txt = txt.replace(/\{([^{}]*)\}/g, function (m, body) {
+        var kept = body.split(';').filter(function (decl) {
+          return decl.trim() && !KILL_RE.test(decl);
+        });
+        return '{' + kept.join(';') + (kept.length ? ';' : '') + '}';
+      });
+      styleEl.textContent = txt;
     });
-    // 2) Clear any inline style value with unbalanced parens (the actual EOF trigger).
+
+    // 3) Scrub inline styles that use the offending functions or are unbalanced.
     var balanced = function (v) { var d = 0; for (var i = 0; i < v.length; i++) { var c = v[i]; if (c === '(') d++; else if (c === ')') { d--; if (d < 0) return false; } } return d === 0; };
-    var all = clonedDoc.querySelectorAll('[style]');
-    Array.prototype.forEach.call(all, function (el) {
+    Array.prototype.forEach.call(clonedDoc.querySelectorAll('[style]'), function (el) {
       var s = el.getAttribute('style') || '';
-      if (s.indexOf('(') !== -1 && !balanced(s)) {
-        // Rebuild the style string, dropping only the malformed declarations.
+      if (!s) return;
+      if (KILL_RE.test(s) || (s.indexOf('(') !== -1 && !balanced(s))) {
         var kept = s.split(';').filter(function (decl) {
           if (!decl.trim()) return false;
+          if (KILL_RE.test(decl)) return false;
           return balanced(decl);
         });
         el.setAttribute('style', kept.join(';'));
       }
+    });
+
+    // 3) Belt-and-suspenders: also clear these props via the CSSOM on every
+    //    cloned element, in case they came from a matched stylesheet rule.
+    Array.prototype.forEach.call(clonedDoc.querySelectorAll('*'), function (el) {
+      if (!el.style) return;
+      ['clip-path', '-webkit-clip-path'].forEach(function (p) {
+        try { el.style.removeProperty(p); } catch (e) {}
+      });
     });
   } catch (e) { /* never let sanitation abort the capture */ }
 }
