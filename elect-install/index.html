@@ -1958,7 +1958,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
 
 <div class="app-footer" style="text-align:center;font-family:Arial,sans-serif;font-size:11px;color:var(--text-muted);margin:18px 16px 40px;line-height:1.6;">
   <span class="footer-text" title="">© 2026 Always On Generators · CONFIDENTIAL</span><br>
-  <span id="ver-span" title="">v1.0</span>
+  <span id="ver-span" title="">v1.1</span>
 </div>
 
 
@@ -3410,7 +3410,62 @@ async function saveFillablePdf() {
     cleanup();
     setStatus('Could not build PDF: ' + (err && err.message ? err.message : err));
     setTimeout(function(){ setStatus(''); }, 6000);
+    try { _showPdfDebugPanel(err); } catch (e) {}
   }
+}
+
+// TEMPORARY on-screen debug panel — shows the real error from THIS device so it
+// can be screenshotted. Remove once the PDF issue is resolved.
+function _showPdfDebugPanel(err) {
+  var sheets = [];
+  try {
+    for (var i = 0; i < document.styleSheets.length; i++) {
+      var s = document.styleSheets[i];
+      var readable = true;
+      try { void s.cssRules; } catch (e) { readable = false; }
+      sheets.push((s.href || '(inline)') + (readable ? '' : ' [CORS-BLOCKED]'));
+    }
+  } catch (e) { sheets.push('sheet-scan failed: ' + e); }
+  var info = [
+    'PDF ERROR (screenshot this & send it):',
+    '',
+    'message: ' + (err && err.message ? err.message : String(err)),
+    'name: ' + (err && err.name ? err.name : '(none)'),
+    'html2canvas: ' + (window.html2canvas && window.html2canvas.version ? window.html2canvas.version : 'unknown'),
+    'UA: ' + navigator.userAgent,
+    '',
+    'stylesheets (' + sheets.length + '):',
+    sheets.join('\n'),
+    '',
+    'stack:',
+    (err && err.stack ? String(err.stack).slice(0, 800) : '(no stack)')
+  ].join('\n');
+
+  var old = document.getElementById('pdf-debug-panel');
+  if (old) old.parentNode.removeChild(old);
+  var box = document.createElement('div');
+  box.id = 'pdf-debug-panel';
+  box.setAttribute('style', 'position:fixed;left:8px;right:8px;top:8px;z-index:2147483647;background:#111;color:#0f0;font:12px/1.4 monospace;padding:12px;border:2px solid #0f0;border-radius:8px;max-height:80vh;overflow:auto;white-space:pre-wrap;word-break:break-word;box-shadow:0 4px 20px rgba(0,0,0,.6)');
+  var pre = document.createElement('div');
+  pre.textContent = info;
+  var row = document.createElement('div');
+  row.setAttribute('style', 'display:flex;gap:8px;margin-top:10px');
+  var copyBtn = document.createElement('button');
+  copyBtn.textContent = 'COPY';
+  copyBtn.setAttribute('style', 'flex:1;padding:10px;background:#0f0;color:#000;border:0;border-radius:6px;font-weight:bold');
+  copyBtn.onclick = function () {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(info); copyBtn.textContent = 'COPIED'; }
+      else { var t = document.createElement('textarea'); t.value = info; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); copyBtn.textContent = 'COPIED'; }
+    } catch (e) { copyBtn.textContent = 'COPY FAILED'; }
+  };
+  var closeBtn = document.createElement('button');
+  closeBtn.textContent = 'CLOSE';
+  closeBtn.setAttribute('style', 'flex:1;padding:10px;background:#333;color:#fff;border:0;border-radius:6px;font-weight:bold');
+  closeBtn.onclick = function () { box.parentNode && box.parentNode.removeChild(box); };
+  row.appendChild(copyBtn); row.appendChild(closeBtn);
+  box.appendChild(pre); box.appendChild(row);
+  document.body.appendChild(box);
 }
 
 /* ── LOAD: accepts a .json draft OR a resumable .pdf and refills the form ── */
