@@ -1184,6 +1184,15 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
       <input type="text" data-color readonly tabindex="0" inputmode="none" id="clr-input" value="#ef4444" title="Stroke color">
     </div>
   </div>
+  <!-- LINE ENDINGS: a SIBLING of the stroke group. Nested inside it, the parent's
+       flex-direction:column stacked these two under the colour swatch. -->
+  <div id="tb-le-grp" style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
+    <span style="font-size:8px;color:var(--txt2);letter-spacing:.5px">ENDS</span>
+    <div style="display:flex;align-items:center;gap:3px">
+      <select id="le-start-sel" title="Line START ending" style="background:var(--surf2);border:1.5px solid var(--b2);color:var(--txt);border-radius:6px;padding:1px 2px;font-size:10px;outline:none;cursor:pointer;height:30px;width:80px;-webkit-appearance:none;text-align:center"></select>
+      <select id="le-end-sel" title="Line END ending" style="background:var(--surf2);border:1.5px solid var(--b2);color:var(--txt);border-radius:6px;padding:1px 2px;font-size:10px;outline:none;cursor:pointer;height:30px;width:80px;-webkit-appearance:none;text-align:center"></select>
+    </div>
+  </div>
   <!-- FILL COLOR + OPACITY -->
   <div id="tb-fill-grp" style="display:contents">
   <div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
@@ -3424,6 +3433,17 @@ var fillOpVal=document.getElementById('fill-op-val');
 // ── Sync toolbar pickers to reflect selected item's current style ──
 function syncPickersToSelected(){
   var s=selectedShape, m=selectedMeasure;
+  // Line endings follow the same rule as the other pickers: show whatever the
+  // selected object actually has, so drawing an arrow reads "Open" at the End
+  // instead of leaving the dropdowns on their stale defaults.
+  try{
+    if(window._syncLeSelects){
+      var _leTgt = selectedMeasure ||
+                   (typeof selectedPolyline!=='undefined' ? selectedPolyline : null) ||
+                   (typeof selectedLeader!=='undefined' ? selectedLeader : null);
+      _syncLeSelects(_leTgt);
+    }
+  }catch(_sl){}
   if(s){
     color=s.color; clrSwatch.style.background=color; clrInput.value=color;
     opacity=s.opacity; opSl.value=Math.round(opacity*100); opVal.textContent=Math.round(opacity*100)+'%';
@@ -6465,6 +6485,10 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
       // PolyLines, inventing arrowheads that don't exist in the PDF.
       var _le=(curAnn && curAnn.lineEndings) || null;
       var _hasEnding = !!(_le && ((_le[0]&&_le[0]!=='None') || (_le[1]&&_le[1]!=='None')));
+      // Keep the ACTUAL /LE names so all ten survive a round trip; the old code
+      // only recorded "is it an arrow", collapsing Butt/Diamond/Circle/etc.
+      var _leS=(_le && LE_NAMES.indexOf(_le[0])>=0) ? _le[0] : 'None';
+      var _leE=(_le && LE_NAMES.indexOf(_le[1])>=0) ? _le[1] : 'None';
       var _isLine = !!(curAnn && curAnn.subtype==='Line');
       var shaft=null, head=null;
       if(_isLine && _hasEnding && curSubs.length===2){
@@ -6493,7 +6517,7 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
           id:Date.now()+(made++), x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y,
           color:shaft.stroke||'#000000', strokeW:Math.max(1,shaft.lw), opacity:1,
           lineStyle:(shaft.dash||'solid'), layerIdx:activeLayerIdx,
-          showLabel:false, isArrow:true, _editing:false, _fromExplode:true, _fromAnnot:true,
+          showLabel:false, isArrow:true, leStart:_leS, leEnd:_leE, _editing:false, _fromExplode:true, _fromAnnot:true,
           _oX1:p1.x,_oY1:p1.y,_oX2:p2.x,_oY2:p2.y
         });
         curSubs=[]; return;
@@ -6506,7 +6530,7 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
           x1:_lp.pts[0].x, y1:_lp.pts[0].y, x2:_lp.pts[1].x, y2:_lp.pts[1].y,
           color:_lp.stroke||'#000000', strokeW:Math.max(1,_lp.lw), opacity:1,
           lineStyle:(_lp.dash||'solid'), layerIdx:activeLayerIdx,
-          showLabel:false, isArrow:false, _editing:false, _fromExplode:true, _fromAnnot:true,
+          showLabel:false, isArrow:false, leStart:_leS, leEnd:_leE, _editing:false, _fromExplode:true, _fromAnnot:true,
           _oX1:_lp.pts[0].x,_oY1:_lp.pts[0].y,_oX2:_lp.pts[1].x,_oY2:_lp.pts[1].y
         });
         curSubs=[]; return;
@@ -9627,6 +9651,9 @@ function onUp(e){
       // Stay selected after placement so endpoints/size can be adjusted
       // immediately — no second click needed (matches touch behaviour).
       newLine._editing=true;
+      // Endings only -- isArrow stays false so this remains a LINE for the
+      // hit-test, whatever ending it is given.
+      applyLeDefaults(newLine);
       selectedMeasure=newLine;
       measureDragHandle=-1; measureDragStart=null;
       renderShapeAndMeasure();
@@ -9684,6 +9711,9 @@ function onUp(e){
         color:color, strokeW:strokeW, opacity:opacity, lineStyle:lineStyle,
         layerIdx:activeLayerIdx, showLabel:false, isArrow:true, _editing:false
       };
+      // Real /LE names rather than relying on the legacy isArrow flag, so the
+      // ENDS dropdowns reflect what was drawn; falls back to an open arrowhead.
+      applyLeDefaults(newA, 'OpenArrow');
       measureObjs.push(newA);
       // Stay selected after placement so endpoints/size can be adjusted
       // immediately — no second click needed.
@@ -9767,15 +9797,35 @@ function drawFinalShape(ctx,x1,y1,x2,y2,isTouch){
 
 function drawShapeOnCtx(ctx,t,x1,y1,x2,y2,final){
   ctx.beginPath();
+  // LIVE ENDINGS while dragging. The preview reads the same leStartDefault /
+  // leEndDefault the committed object will get, so what you drag out is what you
+  // end up with -- previously the preview always drew a plain line, or a fixed
+  // open arrowhead, regardless of what the ENDS dropdowns said.
+  var _pvS=(typeof leStartDefault!=='undefined')?leStartDefault:'None';
+  var _pvE=(typeof leEndDefault!=='undefined')?leEndDefault:'None';
   if(t==='line'||t==='measure'){
     ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    if(t==='line' && typeof drawLineEnding==='function' && (_pvS!=='None'||_pvE!=='None')){
+      var angL=Math.atan2(y2-y1,x2-x1), swL=Math.max(strokeW||2,1);
+      drawLineEnding(ctx,x1,y1,angL+Math.PI,_pvS,swL,color);
+      drawLineEnding(ctx,x2,y2,angL,_pvE,swL,color);
+    }
   } else if(t==='arrow'){
-    var ang=Math.atan2(y2-y1,x2-x1),hw=Math.max(strokeW*3,10);
+    var ang=Math.atan2(y2-y1,x2-x1), swA=Math.max(strokeW||2,1);
     ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x2,y2); ctx.lineTo(x2-hw*Math.cos(ang-Math.PI/6),y2-hw*Math.sin(ang-Math.PI/6));
-    ctx.moveTo(x2,y2); ctx.lineTo(x2-hw*Math.cos(ang+Math.PI/6),y2-hw*Math.sin(ang+Math.PI/6));
-    ctx.stroke();
+    // Same fallback the Arrow tool commits with: open arrowhead unless the
+    // dropdown says otherwise.
+    var _aS=_pvS, _aE=(_pvE==='None')?'OpenArrow':_pvE;
+    if(typeof drawLineEnding==='function'){
+      drawLineEnding(ctx,x1,y1,ang+Math.PI,_aS,swA,color);
+      drawLineEnding(ctx,x2,y2,ang,_aE,swA,color);
+    } else {
+      var hw=Math.max(strokeW*3,10);
+      ctx.beginPath();
+      ctx.moveTo(x2,y2); ctx.lineTo(x2-hw*Math.cos(ang-Math.PI/6),y2-hw*Math.sin(ang-Math.PI/6));
+      ctx.moveTo(x2,y2); ctx.lineTo(x2-hw*Math.cos(ang+Math.PI/6),y2-hw*Math.sin(ang+Math.PI/6));
+      ctx.stroke();
+    }
   } else if(t==='rect'){
     if(fillShape){
       ctx.save();
@@ -9946,15 +9996,11 @@ function drawMeasureObjOnCtx(ctx, m, highlight){
   // main line
   ctx.beginPath(); ctx.moveTo(m.x1,m.y1); ctx.lineTo(m.x2,m.y2); ctx.stroke();
   // Arrow: draw a solid arrowhead at P2, no ticks/label
-  if(m.isArrow){
-    ctx.setLineDash([]);
-    var hw=Math.max(m.strokeW*3.2,12);
-    ctx.beginPath();
-    ctx.moveTo(m.x2,m.y2);
-    ctx.lineTo(m.x2-hw*Math.cos(ang-Math.PI/6), m.y2-hw*Math.sin(ang-Math.PI/6));
-    ctx.moveTo(m.x2,m.y2);
-    ctx.lineTo(m.x2-hw*Math.cos(ang+Math.PI/6), m.y2-hw*Math.sin(ang+Math.PI/6));
-    ctx.stroke();
+  if(_leAny(m)){
+    // Start ending faces back down the line, end ending faces along it.
+    var _sw=Math.max(m.strokeW||2,1);
+    drawLineEnding(ctx, m.x1, m.y1, ang+Math.PI, _leOf(m,'start'), _sw, m.color);
+    drawLineEnding(ctx, m.x2, m.y2, ang,         _leOf(m,'end'),   _sw, m.color);
     ctx.restore();
     return;
   }
@@ -10866,6 +10912,19 @@ function _runPreviewMove(e){
     else if(lineStyle==='dotted') shCtx.setLineDash([strokeW,strokeW*2.5]);
     else shCtx.setLineDash([]);
     shCtx.beginPath(); shCtx.moveTo(startX,startY); shCtx.lineTo(lpos.x,lpos.y); shCtx.stroke();
+    // LIVE ENDINGS. The Line tool draws its own drag preview here instead of
+    // going through drawShapeOnCtx (which is what the Arrow tool uses), so the
+    // endings have to be drawn in both places or the line preview stays plain.
+    try{
+      var _lS=(typeof leStartDefault!=='undefined')?leStartDefault:'None';
+      var _lE=(typeof leEndDefault!=='undefined')?leEndDefault:'None';
+      if(typeof drawLineEnding==='function' && (_lS!=='None'||_lE!=='None')){
+        var _la=Math.atan2(lpos.y-startY, lpos.x-startX);
+        var _lw=Math.max(strokeW||2,1);
+        drawLineEnding(shCtx, startX, startY, _la+Math.PI, _lS, _lw, color);
+        drawLineEnding(shCtx, lpos.x, lpos.y, _la,         _lE, _lw, color);
+      }
+    }catch(_lp3){}
     shCtx.restore();
     return;
   }
@@ -11079,6 +11138,84 @@ function drawStamp(ctx,type,x,y,s){
 // ══════════════════════════════════════════════════════════════
 var textObjs   = [];       // [{id,x,y,text,color,fontSize,opacity,layerIdx}]
 var editingObj = null;     // text object currently being edited
+
+// ==== PDF LINE ENDINGS =======================================================
+// The ten /LE values Acrobat offers on Start and End. Stored on an object as
+// leStart / leEnd; the legacy isArrow flag maps to leEnd='OpenArrow'.
+var LE_NAMES=['None','OpenArrow','ClosedArrow','ROpenArrow','RClosedArrow',
+              'Butt','Diamond','Circle','Square','Slash'];
+// Short labels: the toolbar is tight, and "Closed (reverse)" was clipping to
+// nonsense. Full names go in each option's title attribute instead.
+var LE_LABELS={None:'None', OpenArrow:'Open', ClosedArrow:'Closed',
+               ROpenArrow:'R-Open', RClosedArrow:'R-Closed',
+               Butt:'Butt', Diamond:'Diamond', Circle:'Round',
+               Square:'Square', Slash:'Slash'};
+var LE_TITLES={None:'None', OpenArrow:'Open arrow', ClosedArrow:'Closed arrow',
+               ROpenArrow:'Open arrow (reverse)', RClosedArrow:'Closed arrow (reverse)',
+               Butt:'Butt (perpendicular tick)', Diamond:'Diamond', Circle:'Round',
+               Square:'Square', Slash:'Slash'};
+function _leOf(o, which){
+  if(!o) return 'None';
+  var v = (which==='start') ? o.leStart : o.leEnd;
+  if(v && LE_NAMES.indexOf(v)>=0) return v;
+  if(which==='end' && o.isArrow) return 'OpenArrow';   // legacy objects
+  return 'None';
+}
+function _leAny(o){ return _leOf(o,'start')!=='None' || _leOf(o,'end')!=='None'; }
+// Stamp the ENDS dropdowns' current values onto a newly created object. Every
+// creator must call this: without it a tool produced objects with no endings,
+// selecting one synced the dropdowns back to None, and the choice looked like it
+// had been forgotten. `fallbackEnd` lets the Arrow tool default to an arrowhead.
+function applyLeDefaults(o, fallbackEnd){
+  if(!o) return o;
+  try{
+    var s=(typeof leStartDefault!=='undefined') ? leStartDefault : 'None';
+    var e=(typeof leEndDefault!=='undefined') ? leEndDefault : 'None';
+    o.leStart = s;
+    o.leEnd   = (e==='None' && fallbackEnd) ? fallbackEnd : e;
+  }catch(_e){}
+  return o;
+}
+// Geometry for one ending, in a local frame: the tip sits at (0,0) and +x runs
+// BACK along the line. Returns {paths:[[[x,y],...],...], closed:bool, fill:bool}
+// so canvas and PDF can share one definition and stay identical.
+function _leGeom(name, sw){
+  var h=Math.max(sw*3.2,12);           // head length, matching the old arrow
+  var r=Math.max(sw*1.6,5);            // radius for round/square/diamond
+  switch(name){
+    case 'OpenArrow':    return {paths:[[[h*Math.cos(Math.PI/6), -h*Math.sin(Math.PI/6)],[0,0],[h*Math.cos(Math.PI/6), h*Math.sin(Math.PI/6)]]], closed:false, fill:false};
+    case 'ClosedArrow':  return {paths:[[[h*Math.cos(Math.PI/6), -h*Math.sin(Math.PI/6)],[0,0],[h*Math.cos(Math.PI/6), h*Math.sin(Math.PI/6)]]], closed:true,  fill:true};
+    case 'ROpenArrow':   return {paths:[[[-h*Math.cos(Math.PI/6), -h*Math.sin(Math.PI/6)],[0,0],[-h*Math.cos(Math.PI/6), h*Math.sin(Math.PI/6)]]], closed:false, fill:false};
+    case 'RClosedArrow': return {paths:[[[-h*Math.cos(Math.PI/6), -h*Math.sin(Math.PI/6)],[0,0],[-h*Math.cos(Math.PI/6), h*Math.sin(Math.PI/6)]]], closed:true,  fill:true};
+    case 'Butt':         return {paths:[[[0,-r],[0,r]]], closed:false, fill:false};
+    case 'Slash':        return {paths:[[[-r*0.7,-r],[r*0.7,r]]], closed:false, fill:false};
+    case 'Diamond':      return {paths:[[[0,-r],[r,0],[0,r],[-r,0]]], closed:true, fill:true};
+    case 'Square':       return {paths:[[[-r,-r],[r,-r],[r,r],[-r,r]]], closed:true, fill:true};
+    case 'Circle':       return {circle:r, closed:true, fill:true};
+    default:             return null;
+  }
+}
+// Draw an ending on canvas. (x,y) is the endpoint; ang points ALONG the line
+// toward that endpoint, so the local +x axis is the reverse of it.
+function drawLineEnding(ctx, x, y, ang, name, sw, color){
+  var g=_leGeom(name, sw); if(!g) return;
+  ctx.save();
+  ctx.setLineDash([]);
+  ctx.translate(x,y); ctx.rotate(ang+Math.PI);
+  ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=sw;
+  if(g.circle){
+    ctx.beginPath(); ctx.arc(0,0,g.circle,0,Math.PI*2);
+    if(g.fill) ctx.fill(); else ctx.stroke();
+  } else {
+    g.paths.forEach(function(pa){
+      ctx.beginPath();
+      pa.forEach(function(pt,i){ if(i===0) ctx.moveTo(pt[0],pt[1]); else ctx.lineTo(pt[0],pt[1]); });
+      if(g.closed) ctx.closePath();
+      if(g.fill) ctx.fill(); else ctx.stroke();
+    });
+  }
+  ctx.restore();
+}
 
 // ==== PER-SELECTION TEXT COLOUR ==============================================
 // A text object stores ONE colour in o.color. o.runs adds an optional override:
@@ -14484,6 +14621,16 @@ function drawPolylineOnCtx(ctx, pl, sc){
   ctx.moveTo(pl.pts[0].x*sc, pl.pts[0].y*sc);
   for(var i=1;i<pl.pts.length;i++) ctx.lineTo(pl.pts[i].x*sc, pl.pts[i].y*sc);
   ctx.stroke();
+  // LINE ENDINGS at the two open ends. Direction comes from the FIRST and LAST
+  // segment rather than the overall span, so a bent polyline points correctly.
+  if(typeof _leAny==='function' && _leAny(pl)){
+    var _n=pl.pts.length;
+    var _a0=Math.atan2(pl.pts[0].y-pl.pts[1].y, pl.pts[0].x-pl.pts[1].x);
+    var _a1=Math.atan2(pl.pts[_n-1].y-pl.pts[_n-2].y, pl.pts[_n-1].x-pl.pts[_n-2].x);
+    var _swP=Math.max(pl.strokeW||2,1)*sc;
+    drawLineEnding(ctx, pl.pts[0].x*sc,    pl.pts[0].y*sc,    _a0, _leOf(pl,'start'), _swP, pl.color);
+    drawLineEnding(ctx, pl.pts[_n-1].x*sc, pl.pts[_n-1].y*sc, _a1, _leOf(pl,'end'),   _swP, pl.color);
+  }
   ctx.restore();
 }
 
@@ -14630,6 +14777,19 @@ function redrawPolylinePreview(mx,my){
   for(var i=1;i<pts.length;i++) shCtx.lineTo(pts[i].x,pts[i].y);
   shCtx.stroke();
   shCtx.setLineDash([]);
+  // Live endings on the in-progress polyline, aimed along the FIRST and LAST
+  // segment so a bend does not send the head off in the wrong direction.
+  try{
+    var _pS=(typeof leStartDefault!=='undefined')?leStartDefault:'None';
+    var _pE=(typeof leEndDefault!=='undefined')?leEndDefault:'None';
+    if(pts.length>=2 && typeof drawLineEnding==='function' && (_pS!=='None'||_pE!=='None')){
+      var _nn=pts.length, _swp=Math.max(strokeW||2,1);
+      var _b0=Math.atan2(pts[0].y-pts[1].y, pts[0].x-pts[1].x);
+      var _b1=Math.atan2(pts[_nn-1].y-pts[_nn-2].y, pts[_nn-1].x-pts[_nn-2].x);
+      drawLineEnding(shCtx, pts[0].x, pts[0].y, _b0, _pS, _swp, color);
+      drawLineEnding(shCtx, pts[_nn-1].x, pts[_nn-1].y, _b1, _pE, _swp, color);
+    }
+  }catch(_pv){}
   // Waypoint dots
   shCtx.fillStyle=color;
   plPoints.forEach(function(pt){
@@ -14668,6 +14828,7 @@ function closePolyline(){
     color:color, strokeW:strokeW, opacity:opacity, lineStyle:lineStyle,
     layerIdx:activeLayerIdx
   };
+  applyLeDefaults(_newPl);
   polylineObjs.push(_newPl);
   plPoints=[]; plActive=false;
   renderShapeAndMeasure(); composite(); pushUndo();
@@ -14845,6 +15006,7 @@ function updateToolbarForTool(t){
     opSep       : document.getElementById('tb-op-sep'),
     cmtGrp      : document.getElementById('cmt-clr-grp'),
     imageGrp    : document.getElementById('tb-image-grp'),
+    leGrp       : document.getElementById('tb-le-grp'),
   };
 
   // Groups by what each tool needs
@@ -14854,6 +15016,10 @@ function updateToolbarForTool(t){
   var NOTE      = ['comment'];
   var MARKUP    = ['highlight']; // strike/underline markup removed (now Text/Note-only)
   var NONE      = ['eraser','pan','stamp','image'];
+  // Line endings apply only to tools that produce an OPEN path with two ends.
+  // Narrower than STROKE on purpose: pen and polygon have no meaningful ends,
+  // and putting arrowheads on a dimension line would misread it.
+  var ENDS      = ['line','arrow','polyline'];
 
   function sh(el, show){ if(el) el.style.display = show ? (el._origDisplay || '') : 'none'; }
   function shFlex(el, show){ if(el) el.style.display = show ? 'flex' : 'none'; }
@@ -14862,7 +15028,7 @@ function updateToolbarForTool(t){
   // Save original displays on first call
   if(!updateToolbarForTool._init){
     updateToolbarForTool._init = true;
-    ['fontSizeGrp','lsGrp','lsSep','fillBtn','fillSep','strokeGrp','fillGrp','swGrp','swSep','opGrp','opSep'].forEach(function(k){
+    ['fontSizeGrp','lsGrp','lsSep','fillBtn','fillSep','strokeGrp','fillGrp','swGrp','swSep','opGrp','opSep','leGrp'].forEach(function(k){
       if(ids[k]) ids[k]._origDisplay = ids[k].style.display || '';
     });
   }
@@ -14892,6 +15058,16 @@ function updateToolbarForTool(t){
 
   // markup color picker (markup tools only)
   shFlex(ids.markupGrp, isMarkup);
+
+  // line endings (line / arrow / polyline only)
+  shFlex(ids.leGrp, ENDS.indexOf(t) > -1);
+
+  // Re-sync the stroke slider on EVERY tool change. Its point-mode range
+  // (0.25-12 pt) is applied only inside _swSyncUI, behind a `max!=='12'` guard,
+  // so a tool whose stroke group was hidden and then re-shown came back still
+  // carrying the old 0.5-30 px attributes -- imported objects read correctly in
+  // points while a new markup used the stale scale.
+  try{ if(typeof _swSyncUI==='function') _swSyncUI(); }catch(_sw){}
 
   // line style + fill button (shapes + stroke tools, not note/text/none)
   var showLS = isShape || isStroke;
@@ -15358,6 +15534,49 @@ document.querySelectorAll('.ls-btn').forEach(function(btn){
     if(selectedPolyline){ selectedPolyline.lineStyle=lineStyle; renderShapeAndMeasure(); renderPolylineSelection(); }
   });
 });
+
+// ---- LINE ENDINGS (the ten PDF /LE values, on Start and End) ----------------
+// Defaults for newly drawn lines; applied live to whatever is selected.
+var leStartDefault='None', leEndDefault='None';
+(function(){
+  var ss=document.getElementById('le-start-sel'), es=document.getElementById('le-end-sel');
+  if(!ss||!es) return;
+  LE_NAMES.forEach(function(n){
+    [ss,es].forEach(function(sel){
+      var o=document.createElement('option');
+      o.value=n; o.textContent=LE_LABELS[n]||n;
+      o.title=LE_TITLES[n]||n;
+      sel.appendChild(o);
+    });
+  });
+  function apply(which, val){
+    if(which==='start') leStartDefault=val; else leEndDefault=val;
+    var tgt=selectedMeasure||selectedPolyline||selectedLeader;
+    if(tgt){
+      if(which==='start') tgt.leStart=val; else tgt.leEnd=val;
+      // DO NOT touch isArrow here. It is the object's TYPE, not a style flag:
+      // the Arrow tool hit-tests `aHit.isArrow` and the Line tool `!mHit.isArrow`,
+      // so flipping it when an ending changed made a line unselectable with the
+      // Line tool (and an arrow unselectable once its endings were cleared).
+      // Endings are appearance; identity stays put.
+      try{ renderShapeAndMeasure(); }catch(_r){}
+      try{ if(selectedMeasure) renderMeasureSelection(); }catch(_r2){}
+      try{ if(selectedPolyline) renderPolylineSelection(); }catch(_r3){}
+      try{ if(selectedLeader) renderLeaderSelection(); }catch(_r4){}
+      try{ pushUndo(); }catch(_u){}
+      dbg('line','ending applied',{which:which, val:val});
+    }
+  }
+  ss.addEventListener('change', function(e){ apply('start', e.target.value); });
+  es.addEventListener('change', function(e){ apply('end', e.target.value); });
+  // Reflect the selected object's endings back into the two dropdowns.
+  window._syncLeSelects=function(o){
+    try{
+      ss.value = o ? _leOf(o,'start') : leStartDefault;
+      es.value = o ? _leOf(o,'end')   : leEndDefault;
+    }catch(_s){}
+  };
+})();
 
 fillBtn.addEventListener('click',function(){
   fillShape=!fillShape; fillBtn.classList.toggle('active',fillShape);
@@ -17304,18 +17523,41 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     var pts=[a,b];
     var ops=strokePrefix(sw,dash,c)+f2(a.x)+' '+f2(a.y)+' m '+f2(b.x)+' '+f2(b.y)+' l S ';
     var pad=sw/2+2;
-    if(m.isArrow){
-      // Draw the SAME open-arrowhead as the flattened painter so the appearance
-      // matches on-screen; the /LE entry tells Acrobat it is an arrow, so an
-      // edit there regenerates its own (very similar) head.
-      var hwPx=Math.max(swPx*3.2,12);
+    if(_leAny(m)){
+      // Bake the SAME geometry the canvas draws, from the shared _leGeom table,
+      // so the appearance matches on screen. The /LE entry alongside it lets
+      // Acrobat regenerate its own equivalent if the line is edited there.
       var angC=Math.atan2(m.y2-m.y1,m.x2-m.x1);
-      var w1=P(m.x2-hwPx*Math.cos(angC-Math.PI/6), m.y2-hwPx*Math.sin(angC-Math.PI/6));
-      var w2=P(m.x2-hwPx*Math.cos(angC+Math.PI/6), m.y2-hwPx*Math.sin(angC+Math.PI/6));
-      ops+='[] 0 d '+f2(b.x)+' '+f2(b.y)+' m '+f2(w1.x)+' '+f2(w1.y)+' l S '
-          +f2(b.x)+' '+f2(b.y)+' m '+f2(w2.x)+' '+f2(w2.y)+' l S ';
-      pts.push(w1,w2);
-      pad=Math.max(pad, W(hwPx)+sw/2+2);
+      [['start', m.x1, m.y1, angC+Math.PI], ['end', m.x2, m.y2, angC]].forEach(function(E){
+        var nm=_leOf(m, E[0]); if(nm==='None') return;
+        var g=_leGeom(nm, swPx); if(!g) return;
+        var ca=Math.cos(E[3]+Math.PI), sa=Math.sin(E[3]+Math.PI);
+        var toPage=function(lx,ly){ return P(E[1]+lx*ca-ly*sa, E[2]+lx*sa+ly*ca); };
+        ops+='[] 0 d ';
+        if(g.circle){
+          // Four Beziers: PDF has no arc operator.
+          var k=g.circle*0.5523, C=g.circle;
+          var p0=toPage(C,0), p1=toPage(C,-k), p2=toPage(k,-C), p3=toPage(0,-C),
+              p4=toPage(-k,-C), p5=toPage(-C,-k), p6=toPage(-C,0), p7=toPage(-C,k),
+              p8=toPage(-k,C), p9=toPage(0,C), pa2=toPage(k,C), pb2=toPage(C,k);
+          ops+=f2(p0.x)+' '+f2(p0.y)+' m '
+              +f2(p1.x)+' '+f2(p1.y)+' '+f2(p2.x)+' '+f2(p2.y)+' '+f2(p3.x)+' '+f2(p3.y)+' c '
+              +f2(p4.x)+' '+f2(p4.y)+' '+f2(p5.x)+' '+f2(p5.y)+' '+f2(p6.x)+' '+f2(p6.y)+' c '
+              +f2(p7.x)+' '+f2(p7.y)+' '+f2(p8.x)+' '+f2(p8.y)+' '+f2(p9.x)+' '+f2(p9.y)+' c '
+              +f2(pa2.x)+' '+f2(pa2.y)+' '+f2(pb2.x)+' '+f2(pb2.y)+' '+f2(p0.x)+' '+f2(p0.y)+' c '
+              +(g.fill?'f ':'S ');
+          [p0,p3,p6,p9].forEach(function(q){ pts.push(q); });
+        } else {
+          g.paths.forEach(function(pa){
+            pa.forEach(function(pt,i){
+              var q=toPage(pt[0],pt[1]); pts.push(q);
+              ops+=f2(q.x)+' '+f2(q.y)+(i===0?' m ':' l ');
+            });
+            ops+=(g.closed ? (g.fill?'h f ':'h S ') : 'S ');
+          });
+        }
+        pad=Math.max(pad, W(Math.max(swPx*3.2,12))+sw/2+2);
+      });
     }
     ops+='Q';
     var rect=bounds(pts,pad);
@@ -17324,7 +17566,7 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
                Math.round(b.x*100)/100, Math.round(b.y*100)/100],
             C:[Math.round(c[0]*1000)/1000, Math.round(c[1]*1000)/1000, Math.round(c[2]*1000)/1000],
             CA:op, BS:bsDict(Math.round(sw*100)/100,dash) };
-    if(m.isArrow) d.LE=['None','OpenArrow'];
+    if(_leAny(m)) d.LE=[_leOf(m,'start'), _leOf(m,'end')];
     var _capInfo=null;
     // ── Dimension line: perpendicular end ticks (baked + native /LE Butt) and a
     // SEPARATE FreeText caption. The caption is its own annotation so moving or
@@ -17401,12 +17643,49 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
       verts.push(Math.round(p.x*100)/100, Math.round(p.y*100)/100);
       ops+=f2(p.x)+' '+f2(p.y)+(i===0?' m ':' l ');
     });
-    ops+='S Q';
-    var rect=bounds(pts, sw/2+2);
-    addAnnot({ Subtype:'PolyLine', Vertices:verts,
-               C:[Math.round(c[0]*1000)/1000, Math.round(c[1]*1000)/1000, Math.round(c[2]*1000)/1000],
-               CA:op, BS:bsDict(Math.round(sw*100)/100,dash) },
-             ops, rect, op, null);
+    ops+='S ';
+    var _padP=sw/2+2;
+    // Same shared _leGeom the canvas uses, so screen and PDF agree.
+    if(_leAny(pl)){
+      var _nP=pl.pts.length, _swPx=Math.max(1,pl.strokeW||2);
+      [['start', pl.pts[0], pl.pts[1]], ['end', pl.pts[_nP-1], pl.pts[_nP-2]]].forEach(function(E){
+        var nm=_leOf(pl, E[0]); if(nm==='None') return;
+        var g=_leGeom(nm, _swPx); if(!g) return;
+        var ang=Math.atan2(E[1].y-E[2].y, E[1].x-E[2].x);
+        var ca=Math.cos(ang+Math.PI), sa=Math.sin(ang+Math.PI);
+        var toPage=function(lx,ly){ return P(E[1].x+lx*ca-ly*sa, E[1].y+lx*sa+ly*ca); };
+        ops+='[] 0 d ';
+        if(g.circle){
+          var k=g.circle*0.5523, C2=g.circle;
+          var q0=toPage(C2,0), q1=toPage(C2,-k), q2=toPage(k,-C2), q3=toPage(0,-C2),
+              q4=toPage(-k,-C2), q5=toPage(-C2,-k), q6=toPage(-C2,0), q7=toPage(-C2,k),
+              q8=toPage(-k,C2), q9=toPage(0,C2), qa=toPage(k,C2), qb=toPage(C2,k);
+          ops+=f2(q0.x)+' '+f2(q0.y)+' m '
+              +f2(q1.x)+' '+f2(q1.y)+' '+f2(q2.x)+' '+f2(q2.y)+' '+f2(q3.x)+' '+f2(q3.y)+' c '
+              +f2(q4.x)+' '+f2(q4.y)+' '+f2(q5.x)+' '+f2(q5.y)+' '+f2(q6.x)+' '+f2(q6.y)+' c '
+              +f2(q7.x)+' '+f2(q7.y)+' '+f2(q8.x)+' '+f2(q8.y)+' '+f2(q9.x)+' '+f2(q9.y)+' c '
+              +f2(qa.x)+' '+f2(qa.y)+' '+f2(qb.x)+' '+f2(qb.y)+' '+f2(q0.x)+' '+f2(q0.y)+' c '
+              +(g.fill?'f ':'S ');
+          [q0,q3,q6,q9].forEach(function(q){ pts.push(q); });
+        } else {
+          g.paths.forEach(function(pa){
+            pa.forEach(function(pt,i){
+              var q=toPage(pt[0],pt[1]); pts.push(q);
+              ops+=f2(q.x)+' '+f2(q.y)+(i===0?' m ':' l ');
+            });
+            ops+=(g.closed ? (g.fill?'h f ':'h S ') : 'S ');
+          });
+        }
+        _padP=Math.max(_padP, W(Math.max(_swPx*3.2,12))+sw/2+2);
+      });
+    }
+    ops+='Q';
+    var rect=bounds(pts, _padP);
+    var _dP={ Subtype:'PolyLine', Vertices:verts,
+              C:[Math.round(c[0]*1000)/1000, Math.round(c[1]*1000)/1000, Math.round(c[2]*1000)/1000],
+              CA:op, BS:bsDict(Math.round(sw*100)/100,dash) };
+    if(_leAny(pl)) _dP.LE=[_leOf(pl,'start'), _leOf(pl,'end')];
+    addAnnot(_dP, ops, rect, op, null);
   }); }catch(e){ console.warn('[AcroAnnot] polylines',e); }
 
   // ── Leaders → /PolyLine with an open-arrow tip ────────────────────────────
@@ -17867,6 +18146,20 @@ function _gcPdfBytes(bytes, attachJson, attachName){
       return PDFLib.PDFDocument.create().then(function(dst){
         return dst.copyPages(src, src.getPageIndices()).then(function(pages){
           pages.forEach(function(pg){ dst.addPage(pg); });
+          // CARRY THE ACROFORM. copyPages does not bring it across, and /DR
+          // inside it is what resolves the font names our /DA strings use --
+          // without it Acrobat cannot find /Calibri and reports Helvetica in the
+          // properties dialog even though the appearance draws real Carlito.
+          try{
+            var _srcAF=src.catalog.lookup(PDFLib.PDFName.of('AcroForm'));
+            if(_srcAF && PDFLib.PDFObjectCopier && PDFLib.PDFObjectCopier.for){
+              var _copied=PDFLib.PDFObjectCopier.for(src.context, dst.context).copy(_srcAF);
+              dst.catalog.set(PDFLib.PDFName.of('AcroForm'), dst.context.register(_copied));
+              _d('GC: AcroForm /DR carried across');
+            } else if(_srcAF){
+              _d('GC: PDFObjectCopier unavailable - AcroForm /DR NOT carried');
+            }
+          }catch(_af){ console.warn('[GC] AcroForm copy failed:',_af); }
           // The attachment lives on the catalog, so it does not survive the copy
           // either -- rewrite it onto the clean document.
           if(!attachJson) return dst.save();
