@@ -226,7 +226,7 @@ body.dark-mode .action-bar {
   border: 1px solid rgba(211,94,19,0.4); background: rgba(211,94,19,0.05);
   border-radius: 0; cursor: pointer; transition: all 0.15s ease;
   font-family: Arial, sans-serif; color: var(--cyan); text-transform: uppercase;
-  clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+  clip-path: polygon(6px 0%, 100% 0%, 94% 100%, 0% 100%);
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
   white-space: nowrap; flex-shrink: 0;
 }
@@ -1693,15 +1693,6 @@ body.dark-mode .ft-label { color: #7DD3FC; }
   }
 }
 </style>
-<style id="sai-supports">
-/* Safe-area insets live here in their OWN style element so the capture
-   sanitizer can remove this whole element from the html2canvas clone.
-   html2canvas 1.4.1 throws "unexpected EOF" on literal env(); the live page
-   still gets real insets from this rule, the flat capture doesn't need them. */
-@supports (padding-top: env(safe-area-inset-top)) {
-  :root { --sai-top: env(safe-area-inset-top, 0px); --sai-bottom: env(safe-area-inset-bottom, 24px); }
-}
-</style>
 <style id="pdf-btn-toggle">
 /* === TEMP: hide the regular PDF button. To restore, delete this rule AND remove the 'pdf-btn-hidden' class from the PDF button(s). === */
 .pdf-btn-hidden { display: none !important; }
@@ -1972,7 +1963,7 @@ body.dark-mode .ft-label { color: #7DD3FC; }
 
 <div class="app-footer" style="text-align:center;font-family:Arial,sans-serif;font-size:11px;color:var(--text-muted);margin:18px 16px 40px;line-height:1.6;">
   <span class="footer-text" title="">© 2026 Always On Generators · CONFIDENTIAL</span><br>
-  <span id="ver-span" title="">v1.0</span>
+  <span id="ver-span" title="">v1.1</span>
 </div>
 
 
@@ -1980,6 +1971,27 @@ body.dark-mode .ft-label { color: #7DD3FC; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 
 <script>
+// ===== SAFE-AREA INSETS (set via JS, NOT via CSS env()) =====
+// html2canvas 1.4.1 crashes ("unexpected EOF") if it ever parses a literal
+// env() in a stylesheet. So no stylesheet contains env(): instead we read the
+// inset from a temporary probe element (inline env() on the element only, never
+// in a parsed sheet), then write plain px values to --sai-top/--sai-bottom.
+(function initSafeAreaInsets() {
+  try {
+    var probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,24px);';
+    document.documentElement.appendChild(probe);
+    var cs = getComputedStyle(probe);
+    var top = cs.paddingTop || '0px';
+    var bottom = cs.paddingBottom || '24px';
+    document.documentElement.style.setProperty('--sai-top', top);
+    document.documentElement.style.setProperty('--sai-bottom', bottom);
+    probe.parentNode.removeChild(probe);
+  } catch (e) {
+    document.documentElement.style.setProperty('--sai-top', '0px');
+    document.documentElement.style.setProperty('--sai-bottom', '24px');
+  }
+})();
 // ===== FORCE ACTION BAR TO SCROLL WITH PAGE =====
 
 // ===== THEME =====
