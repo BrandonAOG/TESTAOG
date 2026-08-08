@@ -9041,6 +9041,11 @@ function onDown(e){
       aHit._editing=true;
       selectedMeasure=aHit;
       measureDragHandle=-1; measureDragStart=null;
+      // Redraw the SHAPES canvas too. _editing=true only excludes this object
+      // from FUTURE shCv redraws -- the copy already painted there stays until
+      // one happens, so dragging left a ghost at the original position. Same
+      // reason the note path calls this on select.
+      renderShapeAndMeasure(); composite();
       renderMeasureSelection();
       syncPickersToSelected();
       return;
@@ -9100,6 +9105,7 @@ function onDown(e){
       mHit._editing=true;
       selectedMeasure=mHit;
       measureDragHandle=-1; measureDragStart=null;
+      renderShapeAndMeasure(); composite();   // clear the resting copy (see above)
       renderMeasureSelection();
       syncPickersToSelected();
       return;
@@ -14874,6 +14880,7 @@ function holdFire(){
       mHit._editing=true;
       selectedMeasure=mHit;
       measureDragHandle=-1; measureDragStart=null;
+      renderShapeAndMeasure(); composite();   // clear the resting copy (see above)
       renderMeasureSelection();
       syncPickersToSelected();
       toast('Hold & drag endpoints to adjust','',2000);
@@ -22197,6 +22204,10 @@ function buildProjectRecord(quality, cb){
     // recorded at IMPORT against the overlays still alive. A restore never runs
     // the import, so that list came back empty, no deletion was detected, and the
     // pristine page kept its pictures -- gone from the screen but back in the PDF.
+    // Canvas pixels per PDF point. Set only when a PDF is RENDERED, so after a
+    // restore it was null and the stroke slider dropped back to its pixel range
+    // (0.5-30 px) instead of true points (0.25-12 pt).
+    canvasPxPerPt:  (typeof _canvasPxPerPt!=='undefined' ? _canvasPxPerPt : null),
     pageImgNames:   (typeof _pageImgNamesAtImport!=='undefined' && _pageImgNamesAtImport)
                     ? _pageImgNamesAtImport.slice() : [],
     pageImgInfo:    (function(){ try{ return JSON.parse(JSON.stringify(
@@ -22355,6 +22366,10 @@ function doSave(){
     // recorded at IMPORT against the overlays still alive. A restore never runs
     // the import, so that list came back empty, no deletion was detected, and the
     // pristine page kept its pictures -- gone from the screen but back in the PDF.
+    // Canvas pixels per PDF point. Set only when a PDF is RENDERED, so after a
+    // restore it was null and the stroke slider dropped back to its pixel range
+    // (0.5-30 px) instead of true points (0.25-12 pt).
+    canvasPxPerPt:  (typeof _canvasPxPerPt!=='undefined' ? _canvasPxPerPt : null),
     pageImgNames:   (typeof _pageImgNamesAtImport!=='undefined' && _pageImgNamesAtImport)
                     ? _pageImgNamesAtImport.slice() : [],
     pageImgInfo:    (function(){ try{ return JSON.parse(JSON.stringify(
@@ -22719,6 +22734,10 @@ function doRestore(rec){
       try{ if(typeof _deletedPageImgs!=='undefined')
         _deletedPageImgs = Array.isArray(rec.deletedPageImgs) ? rec.deletedPageImgs.slice() : []; }catch(_dp){}
       try{
+        if(typeof _canvasPxPerPt!=='undefined' && rec.canvasPxPerPt) _canvasPxPerPt=rec.canvasPxPerPt;
+        if(typeof _swSyncUI==='function') _swSyncUI();   // put the slider back in pt
+      }catch(_px){}
+      try{
         if(typeof _pageImgNamesAtImport!=='undefined')
           _pageImgNamesAtImport = Array.isArray(rec.pageImgNames) ? rec.pageImgNames.slice() : [];
         if(typeof _pageImgInfoAtImport!=='undefined')
@@ -22739,6 +22758,10 @@ function doRestore(rec){
           if(typeof _userRotDeg!=='undefined') _userRotDeg = rec.userRotDeg || 0;
           try{ if(typeof _deletedPageImgs!=='undefined')
             _deletedPageImgs = Array.isArray(rec.deletedPageImgs) ? rec.deletedPageImgs.slice() : []; }catch(_dp2){}
+          try{
+            if(typeof _canvasPxPerPt!=='undefined' && rec.canvasPxPerPt) _canvasPxPerPt=rec.canvasPxPerPt;
+            if(typeof _swSyncUI==='function') _swSyncUI();   // put the slider back in pt
+          }catch(_px){}
           try{
             if(typeof _pageImgNamesAtImport!=='undefined')
               _pageImgNamesAtImport = Array.isArray(rec.pageImgNames) ? rec.pageImgNames.slice() : [];
