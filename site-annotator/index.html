@@ -62,8 +62,13 @@ body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,sans
 #tb2 .sep{height:22px}
 #tb2 .tb-btn{height:30px;min-width:30px}
 #tb2 .tb-btn .lbl{display:none}
+/* No min-width: it reserved a fixed 52px slot so controls began at the same
+   offset on every tool, but short names (AREA, TEXT, NOTE) then showed a visible
+   gap before the first control, and every row paid the full 52px even when the
+   label needed 20. The row already aligns itself under the active tool button,
+   so the fixed slot was buying very little. */
 #tb2-label{font-size:8px;letter-spacing:1px;color:var(--txt2);text-transform:uppercase;
-  flex-shrink:0;margin-right:6px;min-width:52px}
+  flex-shrink:0;margin-right:6px;white-space:nowrap}
 /* Slides the options under whichever tool is active, so the pointer barely moves
    between picking a tool and using its controls. Width is set from JS. */
 /* flex:0 0 0px would PIN flex-basis at 0 and silently beat any width we set from
@@ -1189,8 +1194,8 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   <div id="tb-le-grp" style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
     <span style="font-size:8px;color:var(--txt2);letter-spacing:.5px">ENDS</span>
     <div style="display:flex;align-items:center;gap:3px">
-      <select id="le-start-sel" title="Line START ending" style="background:var(--surf2);border:1.5px solid var(--b2);color:var(--txt);border-radius:6px;padding:1px 2px;font-size:10px;outline:none;cursor:pointer;height:30px;width:80px;-webkit-appearance:none;text-align:center"></select>
-      <select id="le-end-sel" title="Line END ending" style="background:var(--surf2);border:1.5px solid var(--b2);color:var(--txt);border-radius:6px;padding:1px 2px;font-size:10px;outline:none;cursor:pointer;height:30px;width:80px;-webkit-appearance:none;text-align:center"></select>
+      <select id="le-start-sel" title="Line START ending" style="background:var(--surf2);border:1.5px solid var(--b2);color:var(--txt);border-radius:6px;padding:1px 1px;font-size:9px;outline:none;cursor:pointer;height:30px;width:62px;-webkit-appearance:none;text-align:center"></select>
+      <select id="le-end-sel" title="Line END ending" style="background:var(--surf2);border:1.5px solid var(--b2);color:var(--txt);border-radius:6px;padding:1px 1px;font-size:9px;outline:none;cursor:pointer;height:30px;width:62px;-webkit-appearance:none;text-align:center"></select>
     </div>
   </div>
   <!-- FILL COLOR + OPACITY -->
@@ -3717,7 +3722,13 @@ function resizeLayers(w,h){
   });
 }
 
+// Set whenever the visible canvases are redrawn. The eyedropper snapshots every
+// canvas into one offscreen copy when it opens; zooming or panning redraws the
+// real canvases but left that snapshot stale, so it sampled the OLD rendering at
+// the OLD scale and reported the colour from the wrong spot.
+var _eyeCompStale = true;
 function composite(){
+  _eyeCompStale = true;
   dCtx.clearRect(0,0,drawCv.width,drawCv.height);
   // A 0x0 canvas is an illegal drawImage source (InvalidStateError), and an
   // unallocated layer has nothing to show anyway — skip it.
@@ -4369,29 +4380,81 @@ btnZi.addEventListener('click',function(){ zoomAt(1.25,viewport.clientWidth/2,vi
 btnZo.addEventListener('click',function(){ zoomAt(0.8,viewport.clientWidth/2,viewport.clientHeight/2); });
 btnFit.addEventListener('click',fitToVP);
 
-viewport.addEventListener('wheel',function(e){
-  e.preventDefault();
+// Bound on WINDOW, not on #viewport. Full-screen overlays -- the colour picker's
+// backdrop (#ccp-backdrop, position:fixed inset:0) and the eyedropper's own
+// (#ccp-drop) -- sit above the viewport, so with either open the pointer was
+// never over #viewport: this handler did not run, nothing called preventDefault,
+// and the BROWSER applied its default instead (Ctrl+scroll zoomed the whole
+// page, toolbars and all). Listening on window means the sheet pans and zooms
+// the same way whatever is layered on top, with no forwarding shims.
+// Wheel events arrive faster than the screen refreshes -- a mouse spin or a
+// trackpad flick can fire several per frame, and running clampPan/applyTransform
+// (and a zoom re-render) on each one is what made scrolling feel laggy. Deltas
+// are accumulated here and applied ONCE per animation frame instead.
+// Keyboard page zoom. Ctrl/Cmd with +, - or = scales the whole UI and is easy to
+// hit by accident next to Ctrl+S. Blocked here for the same reason as Ctrl+wheel.
+// Ctrl+0 is deliberately NOT blocked -- that is the reset, and the way back if
+// the zoom has already drifted.
+window.addEventListener('keydown', function(e){
+  if(!(e.ctrlKey || e.metaKey)) return;
+  var k=e.key;
+  if(k==='+' || k==='-' || k==='=' || k==='_' ||
+     e.code==='NumpadAdd' || e.code==='NumpadSubtract'){
+    e.preventDefault();
+  }
+}, {passive:false});
+var _whDX=0,_whDY=0,_whZoom=1,_whX=0,_whY=0,_whPending=false;
+function _whFlush(){
+  _whPending=false;
   var r=viewport.getBoundingClientRect();
+  if(_whZoom!==1){
+    zoomAt(_whZoom, _whX-r.left, _whY-r.top);
+    _whZoom=1;
+  }
+  if(_whDX||_whDY){
+    panX-=_whDX; panY-=_whDY;
+    _whDX=_whDY=0;
+    clampPan(); applyTransform();
+  }
+}
+window.addEventListener('wheel',function(e){
+  // BROWSER PAGE ZOOM: always swallow Ctrl+wheel, wherever the pointer is.
+  // A page cannot read or set the browser's zoom level -- there is no API -- so
+  // the only way to stop the whole UI scaling (and being awkward to reset) is to
+  // never let the gesture reach the browser. Over the canvas it zooms the SHEET;
+  // over toolbars and popups it now does nothing at all, instead of falling
+  // through to the browser as it did before. Trackpad pinch also arrives as
+  // ctrlKey wheel, so this covers that too.
+  var _overUI=false;
+  try{
+    var _t=e.target;
+    _overUI = !!(_t && _t.closest && _t.closest('#tb, #ccp, select, textarea, input[type=range]'));
+  }catch(_ig){}
+  if(e.ctrlKey){
+    e.preventDefault();
+    if(_overUI) return;              // swallowed, but do not zoom the sheet either
+  } else if(_overUI){
+    return;                          // let the toolbar/select scroll normally
+  } else {
+    e.preventDefault();
+  }
   var dy=e.deltaY;
   // Normalise for deltaMode: 0=pixels (trackpad), 1=lines (mouse), 2=pages
   if(e.deltaMode===1) dy*=20;   // typical line height
   if(e.deltaMode===2) dy*=300;
   if(e.ctrlKey){
-    // Ctrl + scroll wheel → zoom centred on cursor
+    // Ctrl + scroll wheel -> zoom centred on cursor. Factors MULTIPLY, so
+    // coalescing several events into one frame gives the same total zoom.
     var factor=Math.pow(0.9985, dy);
-    // Clamp to ±15% per event so a fast spin can't jump too far
-    factor=Math.max(0.85, Math.min(1.15, factor));
-    zoomAt(factor, e.clientX-r.left, e.clientY-r.top);
+    factor=Math.max(0.85, Math.min(1.15, factor));   // cap per event
+    _whZoom*=factor; _whX=e.clientX; _whY=e.clientY;
   } else if(e.shiftKey){
-    // Shift + scroll wheel → pan left/right
-    panX -= dy;
-    clampPan(); applyTransform();
+    _whDX+=dy;                                        // pan left/right
   } else {
-    // Plain scroll wheel → pan vertically (also support horizontal via deltaX)
-    panX -= e.deltaX * (e.deltaMode===0 ? 1 : 20);
-    panY -= dy;
-    clampPan(); applyTransform();
+    _whDX+=e.deltaX*(e.deltaMode===0?1:20);
+    _whDY+=dy;                                        // pan up/down
   }
+  if(!_whPending){ _whPending=true; requestAnimationFrame(_whFlush); }
 },{passive:false});
 
 function startPan(x,y){ isPanning=true; lastPanX=x; lastPanY=y; }
@@ -11146,9 +11209,12 @@ var LE_NAMES=['None','OpenArrow','ClosedArrow','ROpenArrow','RClosedArrow',
               'Butt','Diamond','Circle','Square','Slash'];
 // Short labels: the toolbar is tight, and "Closed (reverse)" was clipping to
 // nonsense. Full names go in each option's title attribute instead.
+// Kept SHORT: the properties row scrolls sideways with a hidden scrollbar, so
+// anything past the right edge is invisible rather than obviously cut off. Full
+// names live in each option's title attribute.
 var LE_LABELS={None:'None', OpenArrow:'Open', ClosedArrow:'Closed',
-               ROpenArrow:'R-Open', RClosedArrow:'R-Closed',
-               Butt:'Butt', Diamond:'Diamond', Circle:'Round',
+               ROpenArrow:'R-Open', RClosedArrow:'R-Clsd',
+               Butt:'Butt', Diamond:'Diamnd', Circle:'Round',
                Square:'Square', Slash:'Slash'};
 var LE_TITLES={None:'None', OpenArrow:'Open arrow', ClosedArrow:'Closed arrow',
                ROpenArrow:'Open arrow (reverse)', RClosedArrow:'Closed arrow (reverse)',
@@ -11416,24 +11482,6 @@ function applyTextRunStyle(o, a, b, patch){
 }
 // Back-compat wrapper used by the colour control.
 function applyTextRunColor(o, a, b, col){ applyTextRunStyle(o, a, b, {c:col}); }
-function _applyTextRunColorLegacy(o, a, b, col){
-  if(!o || !(b>a)) return;
-  var len=String(o.text||'').length;
-  a=Math.max(0,Math.min(len,a)); b=Math.max(0,Math.min(len,b));
-  if(!(b>a)) return;
-  var base=o.color||'#000000';
-  var runs=o.runs ? o.runs.slice() : [{len:len, c:base}];
-  if(_runsTotal(runs)!==len) runs=[{len:len, c:base}];
-  var out=[], pos=0;
-  runs.forEach(function(r){
-    var s=pos, e=pos+r.len; pos=e;
-    if(e<=a || s>=b){ out.push({len:r.len, c:r.c}); return; }
-    if(s<a) out.push({len:a-s, c:r.c});
-    out.push({len:Math.min(e,b)-Math.max(s,a), c:col});
-    if(e>b) out.push({len:e-b, c:r.c});
-  });
-  o.runs=out; _normRuns(o);
-}
 // Character offset of each wrapped/split line within o.text. getTextLines either
 // splits on \n or word-wraps; wrapping consumes the space at each break, so walk
 // the source and skip whitespace between lines instead of assuming offsets.
@@ -11477,14 +11525,6 @@ function _segCtxFont(o, sg, fpx){
   // mixed-size line stays in the same units as the rest of the renderer.
   var px=fpx*((sg.fs||o.fontSize||12)/(o.fontSize||12));
   return (sg.i?'italic ':'')+(sg.b?'bold ':'')+px+'px '+(o.fontFamily||'Arial')+',sans-serif';
-}
-// Tallest run size on a line, in points.
-function _lineMaxFs(o, line, off){
-  var segs=_lineSegs(o, line, off);
-  if(!segs) return +(o.fontSize||12);
-  var m=+(o.fontSize||12);
-  segs.forEach(function(s){ if(s.fs>m) m=s.fs; });
-  return m;
 }
 // Draw one line honouring colour runs, matching _fillFitLine's fit behaviour.
 function _fillFitLineRuns(c, o, line, off, x, y, fw, nat, align, fpx){
@@ -13336,6 +13376,16 @@ function _aogRestoreTextCol(){
 }
 function commitText(){
   if(textOv.style.display==='none') return;
+  // _textAnchorRight is a GLOBAL that reflects the last-drawn object, and the
+  // right-anchor repositioning below is guarded on it. Re-editing a committed
+  // leader label could reach here with the flag already reset, so editingObj.x
+  // was never recomputed from _anchorX and the label jumped on commit. The
+  // object records the truth -- restore from it before anything reads the flag.
+  try{
+    if(editingObj && editingObj._anchorRight!==undefined){
+      _textAnchorRight = (editingObj._anchorRight===true && editingObj._anchorX!=null);
+    }
+  }catch(_ar2){}
   // No session open → this is a spurious call (e.g. _openTextEdit's leading
   // commitText() on touch, where onDown force-showed the textarea to raise the
   // iOS keyboard). Bail before the "new text" branch can push a duplicate from
@@ -14936,7 +14986,14 @@ function _alignPropsRow(){
       var want = toolLeft;
       var rowPadR = parseFloat(getComputedStyle(row).paddingRight) || 0;
       var avail   = row.clientWidth - rowPadL - rowPadR;      // usable content width
-      var max     = Math.max(0, avail - content);
+      // Keep a margin in hand. Without it a row that only just fits gets indented
+      // right up to the edge, and the last control sits flush against the window
+      // where it reads as cut off. Wide rows (Leader carries the whole text set
+      // plus stroke) then start flush left and use every available pixel.
+      // Tuned by eye: raise this to pull wide rows further left, lower it to keep
+      // options sitting more precisely under the tool button that opened them.
+      var _PROPS_ROW_MARGIN = 80;
+      var max     = Math.max(0, avail - content - _PROPS_ROW_MARGIN);
       var left    = Math.max(0, Math.min(want, max));
       gap.style.width = left + 'px';
       gap.style.flexBasis = left + 'px';   // belt and braces — flex-basis wins over width
@@ -15052,7 +15109,12 @@ function updateToolbarForTool(t){
   shFlex(ids.fontFamilyGrp, showTextFmt);
   shFlex(ids.textFmtGrp, showTextFmt);
   shFlex(ids.textAlignGrp, showTextFmt);
-  shFlex(ids.textSpaceGrp, showTextFmt);
+  // LINE / GAP / A<->V / T<->% is paragraph typography -- four controls wide, and
+  // the widest block on the row. The Leader tool showed the entire text set on
+  // top of stroke and markup colour, which pushed the last controls off the right
+  // edge (the row scrolls with a hidden scrollbar, so they were simply invisible).
+  // A one-line callout label does not need paragraph spacing, so it is text-only.
+  shFlex(ids.textSpaceGrp, showTextFmt && !isLeader);
   shFlex(ids.txtBgGrp, showTextFmt);
   if(ids.textFmtSep) ids.textFmtSep.style.display = showTextFmt ? '' : 'none';
 
@@ -15451,6 +15513,13 @@ function closeStampPicker(){
       // Always re-render the canvas so the note box shows the new size
       renderShapeAndMeasure(); composite();
       if(_editingComment) _cmtAutoGrow(_editingComment);
+      // The textarea width was computed from target.w BEFORE _cmtAutoGrow ran,
+      // and auto-grow calls fitCommentToText which can change the box. Only the
+      // HEIGHT was re-applied after that (repositionCommentEditorHeight), so at a
+      // larger font the editor kept its old narrow width and the text clipped off
+      // the right edge until commit redrew it. Re-run the FULL reposition, which
+      // recomputes width, height and font size together.
+      try{ if(_editingComment===target) repositionCommentEditor(target); }catch(_rp){}
 
       // Desktop: restore focus + cursor position (safe; skipped silently on iOS)
       if(!('ontouchstart' in window)){
@@ -15465,7 +15534,10 @@ function closeStampPicker(){
       var _ref = target;
       setTimeout(function(){
         if(textOv.style.display !== 'none') textOv.style.fontSize = Math.max(1, cmtEffFontSize(_ref) * zoom) + 'px';
-        if(_editingComment === _ref) _cmtAutoGrow(_ref);
+        if(_editingComment === _ref){
+          _cmtAutoGrow(_ref);
+          try{ repositionCommentEditor(_ref); }catch(_rp2){}
+        }
       }, 0);
     });
   }
@@ -15615,7 +15687,34 @@ fontSizeSel.addEventListener('change',function(e){
     try{ dbg('text','selection resized',{a:_fsSel.a,b:_fsSel.b,fs:FONT_SIZE}); }catch(_d){}
     return;
   }
+  var _oldFs = (ref && ref.fontSize) ? ref.fontSize : FONT_SIZE;
   if(ref){ ref.fontSize = FONT_SIZE; }
+  // _textAnchorRight is a GLOBAL, set when a leader is first drawn. Re-open a
+  // committed leader label and it still holds whatever the last-drawn object
+  // used, so the box anchored the wrong way and the text landed over the arrow.
+  // The object itself records the truth (_anchorRight/_anchorX, written at
+  // commit) -- the same restore the editor-open path does at line ~12652.
+  try{
+    if(ref && ref._anchorRight!==undefined){
+      _textAnchorRight = (ref._anchorRight===true && ref._anchorX!=null);
+    }
+  }catch(_ar){}
+  // A right-anchored label's x is derived from its RIGHT edge (x = _anchorX -
+  // width) and was only recomputed at COMMIT. The selection chrome draws at o.x,
+  // so after a size change the text moved (editor anchors to _anchorX) while the
+  // dashed box stayed at the old x. Recompute it now, with the same formula
+  // commit uses, so box and glyphs stay together live.
+  try{
+    if(ref && _textAnchorRight && ref._anchorX!=null){
+      var _lnsA = String(textOv.value!=null?textOv.value:(ref.text||'')).split('\n');
+      var _fpxA = ptToCanvasPx(FONT_SIZE);
+      var _mwA  = measureLinesWFull(_lnsA, _fpxA, ref.fontFamily||'Arial', ref.bold, ref.italic);
+      var _eaA  = ref.angle||0;
+      var _ayA  = (ref._anchorY!=null ? ref._anchorY : ref.y);
+      ref.x = ref._anchorX - _mwA*Math.cos(_eaA);
+      ref.y = _ayA - _mwA*Math.sin(_eaA);
+    }
+  }catch(_rx){}
 
   if(textOv.style.display !== 'none'){
     // Apply font size directly without focus() — focus is blocked on iOS.
@@ -15629,6 +15728,31 @@ fontSizeSel.addEventListener('change',function(e){
     textOv.style.transform = scaleV < 0.99 ? 'scale('+scaleV.toFixed(3)+')' : 'none';
     textOv.style.height    = 'auto';
     textOv.style.height    = Math.max(40, textOv.scrollHeight) + 'px';
+    // Width and POSITION were never recomputed here -- only size, transform and
+    // height. repositionTextOverlay recomputes all of it. But it also REUSES
+    // textOv._editBoxW, a width locked in at initial placement so the text does
+    // not re-wrap while panning or zooming -- and that lock still held the width
+    // measured at the OLD font size, so bigger text overflowed it and clipped.
+    // Drop the lock first: a font-size change is exactly when the box must be
+    // re-measured rather than preserved.
+    // SCALE the locked wrap width by the font-size ratio rather than clearing it.
+    // The lock exists so text does not re-wrap while panning, but it held the
+    // width measured at the OLD size, so bigger text clipped. Clearing it made
+    // boxW fall back to half the viewport -- far wider than the text -- which
+    // moved the glyphs away from the object's own x/y and left the selection box
+    // sitting somewhere else. Scaling keeps the box proportional to the text, so
+    // it grows just enough and stays put.
+    // Applies to right-anchored labels (leaders) too: their box pins its RIGHT
+    // edge and extends leftward, so a proportionally wider box keeps the text
+    // snug against the anchor while giving it room to grow. Rotated labels are
+    // excluded -- they size the box to measured CONTENT on every reposition, so
+    // scaling a stale lock would fight that.
+    try{
+      if(textOv._editBoxW && _oldFs > 0 && !(ref && ref.angle)){
+        textOv._editBoxW = textOv._editBoxW * (FONT_SIZE / _oldFs);
+      }
+    }catch(_bw){}
+    try{ repositionTextOverlay(false); }catch(_rp){}
 
     // Desktop only: restore focus + cursor (silently fails on iOS, that's fine)
     if(!('ontouchstart' in window)){
@@ -17791,6 +17915,14 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
   // resolves. Acrobat reads /DA -- NOT the appearance stream -- to fill its font
   // dropdown, so a note painted in Carlito while declaring /Helv reported
   // "Helvetica" in the properties bar and would revert to it on edit.
+  // `ref` is the APPEARANCE-STREAM font (Type0 for custom families). /DR must get
+  // the SIMPLE sibling instead -- see _embedSimpleWinAnsi. Returning the Type0 ref
+  // would restore the scrambling, so when no simple copy exists we register
+  // nothing and the caller falls back to naming /Helv in /DA.
+  function _drRefFor(fontObj, ref){
+    try{ if(fontObj && fontObj._aogSimpleRef) return fontObj._aogSimpleRef; }catch(_e){}
+    return null;
+  }
   function _ensureDR(name, ref){
     if(!name || !ref) return;
     try{
@@ -17849,10 +17981,11 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
       // /DA font name must match what the appearance actually paints, and must
       // be resolvable through /DR. Standard set keeps the Helv* names; a custom
       // family gets its own name (Calibri, CalibriB, ...) registered below.
-      var _daNm = _isCustomF && _famK
+      var _drN = _drRefFor(f, fontRef);
+      var _daNm = (_isCustomF && _famK && _drN)
         ? (_famK + (c.bold?(c.italic?'BI':'B'):(c.italic?'I':'')))
         : (c.bold?(c.italic?'HelvBO':'HelvB'):(c.italic?'HelvO':'Helv'));
-      _ensureDR(_daNm, fontRef);
+      if(_drN) _ensureDR(_daNm, _drN);
       function _tjOf(line){
         if(_isCustomF && f && typeof f.encodeText==='function'){
           try{ return f.encodeText(_winAnsiSafe(String(line==null?'':line))).toString()+' Tj '; }
@@ -17946,10 +18079,11 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     var fontRef=(f&&f.ref)?f.ref:(fonts.regular&&fonts.regular.ref)||null;
     // /DA must name the font actually painted, and it must resolve via /DR --
     // Acrobat's font dropdown reads /DA, not the appearance stream.
-    var _daNmT = _isCustomT && _famKT
+    var _drT = _drRefFor(f, fontRef);
+    var _daNmT = (_isCustomT && _famKT && _drT)
       ? (_famKT + (obj.bold?(obj.italic?'BI':'B'):(obj.italic?'I':'')))
       : _daFontName(obj);
-    _ensureDR(_daNmT, fontRef);
+    if(_drT) _ensureDR(_daNmT, _drT);
     var _segFonts={};
     // Same encoding rule as _tjTxt but for an explicitly chosen face: a custom
     // family embeds as Type0/Identity-H and needs glyph ids, not Latin-1 bytes.
@@ -18087,6 +18221,16 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     // Annotation-level /DR too, mapping the same name → styled font, for viewers
     // that resolve the DA font from the annotation rather than the AcroForm.
     if(fontRef){ try{ var _frm={}; _frm[_daNmT]=fontRef; d.DR=ctx.obj({ Font: ctx.obj(_frm) }); }catch(_dr){} }
+    // Rich content so per-run colour/size/weight survive an Acrobat edit.
+    try{
+      var _rcFam=(obj.fontFamily||'Helvetica');
+      var _rc=_rcForTextObj(obj, lines, _offsE, _rcFam);
+      if(_rc){
+        d.RC=PDFLib.PDFString.of(_rc);
+        d.DS=PDFLib.PDFString.of('font:'+(obj.bold?'bold ':'')+(obj.italic?'italic ':'')
+              +f2(fsize)+'pt '+_rcFam+';color:'+String(obj.color||'#000000').toUpperCase());
+      }
+    }catch(_rce){ console.warn('[AcroAnnot] /RC build failed',_rce); }
     // ROUND-TRIP MARKER: "AOG-TEXT:<bgOpacity>" tells the import this is a TEXT
     // object, not a note, and carries the highlight alpha (which otherwise exists
     // only as the /GSF ExtGState value inside the appearance stream, where the
@@ -19143,6 +19287,153 @@ function _loadFontBytes(k){
 // Embeds every custom font family actually used by current text objects into the
 // given pdf-lib document. Populates fonts.custom[key] = {regular,bold,italic,
 // boldItalic} (missing variants fall back within the family). Never rejects.
+// SIMPLE (non-Type0) COPY FOR /DR ---------------------------------------------
+// pdf-lib embeds TrueType as Type0/Identity-H, whose content-stream operands are
+// 2-byte GLYPH IDS. That is correct for the appearance stream we write, but a
+// /DA font must be a SIMPLE font: /DA drives Acrobat's own layout when it
+// regenerates an appearance, and that machinery emits plain byte codes. Pointing
+// /DA at the Type0 font made Acrobat read each byte as half a glyph id, so
+// clicking into a label scrambled it -- and left the font box blank, since a
+// Type0 cannot appear in a dropdown meant for simple fonts.
+//
+// So: build a second dictionary over the SAME embedded FontFile2 bytes, declared
+// /TrueType with /WinAnsiEncoding. Identical glyphs, an encoding Acrobat can lay
+// out with. Only the descriptor and widths are duplicated, not the font data.
+// SIMPLE (non-Type0) COPY FOR /DR ---------------------------------------------
+// pdf-lib embeds TrueType as Type0/Identity-H, whose operands are 2-byte GLYPH
+// IDS. Correct for the appearance stream we write, but a /DA font must be SIMPLE:
+// /DA drives Acrobat's own layout when it regenerates an appearance, and that
+// emits plain byte codes. Pointing /DA at the Type0 font made Acrobat read each
+// byte as half a glyph id, scrambling the text on edit.
+//
+// This builds a second dictionary over the SAME embedded FontFile2 bytes,
+// declared /TrueType with /WinAnsiEncoding. Metrics come from the font's own
+// tables via fontkit -- an earlier version guessed them and measured widths
+// through the Type0 object (which indexes by glyph id, not byte code), and
+// Acrobat rejected the result with "Incorrect PDEObject type".
+var _AOG_SIMPLE_DR = true;
+// WinAnsi bytes 128-159 are NOT Latin-1: they carry typographic characters.
+// Widths must be looked up for the codepoint the byte actually encodes.
+var _WINANSI_HI = [0x20AC,0x0000,0x201A,0x0192,0x201E,0x2026,0x2020,0x2021,
+                   0x02C6,0x2030,0x0160,0x2039,0x0152,0x0000,0x017D,0x0000,
+                   0x0000,0x2018,0x2019,0x201C,0x201D,0x2022,0x2013,0x2014,
+                   0x02DC,0x2122,0x0161,0x203A,0x0153,0x0000,0x017E,0x0178];
+function _winAnsiCodePoint(b){
+  if(b>=128 && b<=159) return _WINANSI_HI[b-128] || 0;
+  return b;                                   // 32-127 and 160-255 are Latin-1
+}
+// RICH CONTENT (/RC) ---------------------------------------------------------
+// /DA carries ONE colour, size and weight. When Acrobat regenerates a FreeText
+// appearance -- which it does the moment you click into it -- it lays the text
+// out from /DA and every per-run colour we baked into the appearance stream is
+// lost, so a part-red label came back solid black. Acrobat's own rich text lives
+// in /RC as XHTML spans and takes precedence over /DA when present, so writing
+// the runs there is what makes them survive an edit.
+function _xmlEsc(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+function _rcSpanStyle(st, fam){
+  var css='font-family:'+fam+';font-size:'+(Math.round((st.fs||12)*10)/10)+'pt';
+  css+=';color:'+String(st.c||'#000000').toUpperCase();
+  if(st.b)  css+=';font-weight:bold';
+  if(st.i)  css+=';font-style:italic';
+  var dec=[];
+  if(st.u)  dec.push('underline');
+  if(st.st) dec.push('line-through');
+  if(dec.length) css+=';text-decoration:'+dec.join(' ');
+  return css;
+}
+// Build the /RC XHTML for a text object. `lines` are the wrapped lines and
+// `offs` their character offsets, so runs map onto the same breaks the
+// appearance stream used.
+function _rcForTextObj(obj, lines, offs, fam){
+  try{
+    var base=_runStyle(null,obj), out='';
+    for(var i=0;i<lines.length;i++){
+      var ln=lines[i]||'', segs=null;
+      try{ segs=_lineSegs(obj, ln, offs[i]); }catch(_e){ segs=null; }
+      var inner='';
+      if(segs && segs.length){
+        segs.forEach(function(sg){
+          inner+='<span style="'+_rcSpanStyle(sg,fam)+'">'+_xmlEsc(sg.s)+'</span>';
+        });
+      } else {
+        inner='<span style="'+_rcSpanStyle(base,fam)+'">'+_xmlEsc(ln)+'</span>';
+      }
+      out+='<p dir="ltr">'+(inner||'<span>&#160;</span>')+'</p>';
+    }
+    return '<?xml version="1.0"?>'
+         + '<body xmlns="http://www.w3.org/1999/xhtml" '
+         + 'xmlns:xfa="http://www.xfa.org/schema/xfa-data/1.0/" '
+         + 'xfa:APIVersion="Acrobat:8.0.0" xfa:spec="2.4">'
+         + out + '</body>';
+  }catch(e){ return null; }
+}
+function _embedSimpleWinAnsi(pdf, ttfBytes, baseName, pdfLibFont){
+  if(!_AOG_SIMPLE_DR) return null;
+  try{
+    if(!window.fontkit) return null;
+    // Normalise ONCE. If these arrive as an ArrayBuffer, `.length` is undefined,
+    // /Length1 goes out missing, and Acrobat reports "Cannot extract the embedded
+    // font" -- the length of the UNCOMPRESSED font file is mandatory for a
+    // FontFile2 stream.
+    var bytes = (ttfBytes instanceof Uint8Array) ? ttfBytes : new Uint8Array(ttfBytes);
+    if(!bytes || !bytes.length) return null;
+    var fk = window.fontkit.create(bytes);
+    if(!fk) return null;
+    // /BaseFont and /FontName must match the PostScript name in the font's own
+    // `name` table. A made-up name ("Calibri-regular") also reads to Acrobat as a
+    // broken embed -- the real name here is "Carlito-Regular".
+    var psName = String(fk.postscriptName || baseName).replace(/[^A-Za-z0-9-]/g,'');
+    if(!psName) psName = baseName;
+    var upm = fk.unitsPerEm || 1000;
+    var S = function(v){ return Math.round((v||0) * 1000 / upm); };
+    var bb = fk.bbox || {minX:-500,minY:-300,maxX:1500,maxY:1000};
+
+    var ctx=pdf.context, N=PDFLib.PDFName.of;
+    var fileRef=ctx.register(ctx.flateStream(bytes, { Length1: bytes.length }));
+
+    // Widths indexed by BYTE CODE, resolved through the WinAnsi table.
+    var widths=[];
+    for(var b=32;b<=255;b++){
+      var w=0, cp=_winAnsiCodePoint(b);
+      if(cp){
+        try{
+          var g=fk.glyphForCodePoint(cp);
+          if(g && isFinite(g.advanceWidth)) w=S(g.advanceWidth);
+        }catch(_g){}
+      }
+      widths.push(w||0);
+    }
+
+    var italic = fk.italicAngle || 0;
+    var flags = 32;                          // nonsymbolic
+    if(italic) flags |= 64;
+    var desc=ctx.register(ctx.obj({
+      Type:'FontDescriptor',
+      FontName:N(psName),
+      Flags:flags,
+      FontBBox:[S(bb.minX), S(bb.minY), S(bb.maxX), S(bb.maxY)],
+      ItalicAngle: italic,
+      Ascent:  S(fk.ascent  || 0.75*upm),
+      Descent: S(fk.descent || -0.25*upm),
+      CapHeight: S(fk.capHeight || 0.7*upm),
+      StemV: 80,
+      MissingWidth: 0,
+      FontFile2: fileRef
+    }));
+    return ctx.register(ctx.obj({
+      Type:'Font', Subtype:'TrueType', BaseFont:N(psName),
+      FirstChar:32, LastChar:255,
+      Widths: widths,
+      Encoding:'WinAnsiEncoding',
+      FontDescriptor: desc
+    }));
+  }catch(e){ console.warn('[TrueFont] simple WinAnsi copy failed for '+baseName, e); return null; }
+}
+
 function _embedCustomExportFonts(pdf, fonts){
   var need={};          // family key → {regular:true, bold:true, …} actually used
   try{
@@ -19194,6 +19485,12 @@ function _embedCustomExportFonts(pdf, fonts){
                   // Record the uncompressed byte length for the pre-save
                   // /Length1 stamp (see _stampLength1PreSave).
                   try{ f._aogLen1 = vs[v].length || vs[v].byteLength || 0; }catch(_l){}
+                  // Simple sibling for /DR, so /DA can name a font Acrobat can
+                  // actually lay out with.
+                  try{
+                    f._aogSimpleRef = _embedSimpleWinAnsi(
+                      pdf, vs[v], (k+'-'+v).replace(/[^A-Za-z0-9-]/g,''), f);
+                  }catch(_sw){}
                 },
                 function(e){ console.warn('[TrueFont] embed '+k+'/'+v+' failed', e); });
             });
@@ -24961,6 +25258,22 @@ window.addEventListener('orientationchange', function(){
     cx.globalAlpha=1;cx.globalCompositeOperation='source-over';
     return true}
 
+  // Rebuild the snapshot if anything has been redrawn, or if the wrapper has
+  // moved or resized under us. Cheap in practice: the flag only trips once per
+  // redraw, not once per pointer move.
+  function refreshComposite(){
+    if(!dropping) return;
+    var stale = (typeof _eyeCompStale!=='undefined' && _eyeCompStale);
+    if(!stale && compRect){
+      try{
+        var r=document.querySelector('#canvas-wrap').getBoundingClientRect();
+        if(Math.abs(r.left-compRect.left)>0.5 || Math.abs(r.top-compRect.top)>0.5 ||
+           Math.abs(r.width-compRect.width)>0.5 || Math.abs(r.height-compRect.height)>0.5) stale=true;
+      }catch(_e){}
+    }
+    if(stale){ buildComposite(); try{ _eyeCompStale=false; }catch(_f){} }
+  }
+
   function pixAt(x,y){                        // screen coords -> hex or null
     if(!comp)return null;
     var px=Math.floor(x-compRect.left),py=Math.floor(y-compRect.top);
@@ -24993,11 +25306,21 @@ window.addEventListener('orientationchange', function(){
   eye.addEventListener('click',function(){
     pop.style.display='none';back.style.display='none';
     if(!buildComposite()){pop.style.display='block';back.style.display='block';return}
+    try{ _eyeCompStale=false; }catch(_e){}
     dropping=true;drop.style.display='block';tip.style.display='block'});
+
+  // The eyedropper overlay sits above the viewport and swallows wheel events, so
+  // the page could not be scrolled or zoomed while picking. Forward them to the
+  // viewport's own handler instead of duplicating its logic, then rebuild the
+  // snapshot and re-read under the cursor so the loupe tracks the new view.
+
+
+
 
   var lastPt=null,touched=false;
   function track(e){
     var t=!!(e.touches&&e.touches.length),p=t?e.touches[0]:e;
+    refreshComposite();
     lastPt={x:p.clientX,y:p.clientY};
     var c=pixAt(p.clientX,p.clientY);
     // lift the loupe further clear of a fingertip than of a mouse cursor
