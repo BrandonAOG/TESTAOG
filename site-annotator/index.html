@@ -3576,6 +3576,27 @@ var fillColor='#ef4444', fillOpacity=0.4; // separate fill (inner) color and opa
 var stampType='north';
 var layers=[], activeLayerIdx=0, _soloIdx=-1;
 var zoom=1, panX=0, panY=0;
+// CROSSHAIR CURSOR. The system 'crosshair' is drawn by the OS at a fixed size and
+// runs large on Windows. This is a compact 15x15 replacement: a 5px gap at the
+// centre so the point you are aiming at stays visible, and a white halo under the
+// black arms so it reads over dark linework as well as white paper. Hotspot is
+// dead centre (7,7). Falls back to the system crosshair if the data URI fails.
+// Adjust SIZE/GAP below to taste, then update the hotspot to floor(SIZE/2).
+var AOG_CROSSHAIR = (function(){
+  var S=15, C=7, GAP=2.5, ARM=6.5;
+  var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+S+'" height="'+S+'">'
+    + '<g stroke="#fff" stroke-width="2.6" stroke-linecap="round" opacity=".9">'
+    + '<line x1="'+C+'" y1="'+(C-ARM)+'" x2="'+C+'" y2="'+(C-GAP)+'"/>'
+    + '<line x1="'+C+'" y1="'+(C+GAP)+'" x2="'+C+'" y2="'+(C+ARM)+'"/>'
+    + '<line x1="'+(C-ARM)+'" y1="'+C+'" x2="'+(C-GAP)+'" y2="'+C+'"/>'
+    + '<line x1="'+(C+GAP)+'" y1="'+C+'" x2="'+(C+ARM)+'" y2="'+C+'"/></g>'
+    + '<g stroke="#111" stroke-width="1" stroke-linecap="round">'
+    + '<line x1="'+C+'" y1="'+(C-ARM)+'" x2="'+C+'" y2="'+(C-GAP)+'"/>'
+    + '<line x1="'+C+'" y1="'+(C+GAP)+'" x2="'+C+'" y2="'+(C+ARM)+'"/>'
+    + '<line x1="'+(C-ARM)+'" y1="'+C+'" x2="'+(C-GAP)+'" y2="'+C+'"/>'
+    + '<line x1="'+(C+GAP)+'" y1="'+C+'" x2="'+(C+ARM)+'" y2="'+C+'"/></g></svg>';
+  return 'url("data:image/svg+xml;utf8,'+encodeURIComponent(svg)+'") '+C+' '+C+', crosshair';
+})();
 var drawing=false, startX=0, startY=0, lastPenX=0, lastPenY=0;
 var compositedSnap=null;
 var undoStack=[], redoStack=[];
@@ -4123,7 +4144,7 @@ function applyTransform(){
   var _ox=0,_oy=0;
   try{ var _pr=(scene.offsetParent||viewport).getBoundingClientRect(); _ox=_pr.left; _oy=_pr.top; }catch(e){}
   var _tx=Math.round((_ox+panX)*_dpr)/_dpr-_ox, _ty=Math.round((_oy+panY)*_dpr)/_dpr-_oy;
-  scene.style.transform='translate('+_tx+'px,'+_ty+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if(typeof _vpUpdate==='function') _vpUpdate(); if(typeof _setAnnoRes==='function') _setAnnoRes(false); if(typeof _setImgRes==='function') _setImgRes(false); if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); if(AOG_DEBUG) _zoomDbgTrace(_dpr,_tx,_ty); }
+  scene.style.transform='translate('+_tx+'px,'+_ty+'px) scale('+zoom+')'; document.getElementById('zoom-lbl').textContent=Math.round(zoom*100)+'%'; if(typeof _vpUpdate==='function') _vpUpdate(); if(typeof _setAnnoRes==='function') _setAnnoRes(false); if(typeof _setImgRes==='function') _setImgRes(false); /* Shape chrome: images re-render via _setImgRes on every zoom, but the rect/ellipse/cloud selection had no equivalent -- its handles kept the bitmap drawn at the zoom it was selected at, and the CSS scale stretched them, so they grew and shrank with the sheet instead of staying a constant screen size like the picture handles. */ if(selectedShape && typeof renderSelection==='function'){ try{ renderSelection(); }catch(_rs){} } if(_editingComment) repositionCommentEditor(_editingComment); if(typeof repositionTextOverlay==='function') repositionTextOverlay(); if(_pendingImg&&_pendingImgPos) _drawImgGhost(_pendingImgPos.x,_pendingImgPos.y); if(AOG_DEBUG) _zoomDbgTrace(_dpr,_tx,_ty); }
 
 // ── ZOOM WOBBLE TRACER ────────────────────────────────────────────────────────
 // Turn on with ?debug in the URL or AOGDEBUG(true) in the console, then zoom at
@@ -12174,7 +12195,7 @@ function showTextHover(x, y){
     selCtx.fillText('✎ edit', 0, _topH-8/zoom);
     selCtx.restore();
   } else {
-    drawCv.style.cursor='crosshair';
+    drawCv.style.cursor=AOG_CROSSHAIR;
     drawTextCursorAt(x, y, 0.35);
     selCtx.save();
     selCtx.globalAlpha=0.45;
@@ -14088,7 +14109,7 @@ var HANDLE_CURSORS=['nw-resize','n-resize','ne-resize','e-resize',
                     'grab','grab','grab','grab']; // 8-11 = rotate
 
 function updateSelCursor(x,y){
-  if(!selectedShape){ drawCv.style.cursor = (tool==='none') ? 'default' : 'crosshair'; return; }
+  if(!selectedShape){ drawCv.style.cursor = (tool==='none') ? 'default' : AOG_CROSSHAIR; return; }
   var h=getHandleAt(x,y,false);
   if(h>=0){
     // Comments: side-center handles are axis-locked (top/bottom = vertical,
@@ -14117,7 +14138,7 @@ function updateSelCursor(x,y){
     }
     return;
   }
-  drawCv.style.cursor='crosshair';
+  drawCv.style.cursor=AOG_CROSSHAIR;
 }
 
 drawCv.addEventListener('mousemove',function(e){
@@ -14166,7 +14187,7 @@ drawCv.addEventListener('mousemove',function(e){
   else if(tool!=='text'){ clearTextHover(); }
   if(selectedMeasure&&measureDragHandle===-1){
     var mh=getMeasureHandleAt(selectedMeasure,p.x,p.y,false);
-    if(mh===0||mh===1) drawCv.style.cursor='crosshair';
+    if(mh===0||mh===1) drawCv.style.cursor=AOG_CROSSHAIR;
     else if(mh===-2) drawCv.style.cursor='move';
     else drawCv.style.cursor='default';
     return;
@@ -14175,7 +14196,7 @@ drawCv.addEventListener('mousemove',function(e){
   // Show move cursor when hovering over re-selectable shape
   if((tool==='rect'||tool==='ellipse'||tool==='cloud')&&!selectedShape&&baseLoaded){
     var hit=findShapeObjAt(p.x,p.y,false);
-    drawCv.style.cursor=hit?'move':'crosshair';
+    drawCv.style.cursor=hit?'move':AOG_CROSSHAIR;
   }
   // Comment tool: show appropriate cursor
   if(tool==='comment'&&baseLoaded){
@@ -14187,34 +14208,34 @@ drawCv.addEventListener('mousemove',function(e){
         var _hs={cx:hovered.cx,cy:hovered.cy,w:hovered.w,h:hovered.h,angle:0};
         drawCv.style.cursor = isOnCommentBorder(_hs,p.x,p.y,false) ? 'move' : 'text';
       } else {
-        drawCv.style.cursor='crosshair';
+        drawCv.style.cursor=AOG_CROSSHAIR;
       }
     }
   }
   // Show pointer cursor when hovering measure with measure tool
   if(tool==='measure'&&!selectedMeasure&&baseLoaded){
     var mh2=findMeasureObjAt(p.x,p.y,false);
-    drawCv.style.cursor=mh2?'move':'crosshair';
+    drawCv.style.cursor=mh2?'move':AOG_CROSSHAIR;
   }
   // Arrow tool: pointer when hovering an existing arrow
   if(tool==='arrow'&&baseLoaded){
     if(selectedMeasure&&measureDragHandle===-1){ /* handled above */ }
-    else { var ah2=findMeasureObjAt(p.x,p.y,false); drawCv.style.cursor=(ah2&&ah2.isArrow)?'move':'crosshair'; }
+    else { var ah2=findMeasureObjAt(p.x,p.y,false); drawCv.style.cursor=(ah2&&ah2.isArrow)?'move':AOG_CROSSHAIR; }
   }
   // Polyline tool: pointer when hovering an existing polyline / its vertices
   if(tool==='polyline'&&!plActive&&baseLoaded){
     var ph2=findPolylineObjAt(p.x,p.y,false);
     var pv2=selectedPolyline&&findPolylineVertexAt(selectedPolyline,p.x,p.y,false)!==-1;
-    drawCv.style.cursor=pv2?'grab':((ph2||selectedPolyline)?'move':'crosshair');
+    drawCv.style.cursor=pv2?'grab':((ph2||selectedPolyline)?'move':AOG_CROSSHAIR);
   }
   // Leader tool: show grab cursor over the selected leader's handles/body,
   // pointer over any re-selectable leader, crosshair otherwise.
   if(tool==='leader'&&leaderStep===0&&baseLoaded){
     if(selectedLeader){
       var lhh=getLeaderHandleAt(selectedLeader,p.x,p.y,false);
-      drawCv.style.cursor = (lhh>=0) ? 'crosshair' : (lhh===-2 ? 'move' : 'default');
+      drawCv.style.cursor = (lhh>=0) ? AOG_CROSSHAIR : (lhh===-2 ? 'move' : 'default');
     } else {
-      drawCv.style.cursor = findLeaderObjAt(p.x,p.y,false) ? 'move' : 'crosshair';
+      drawCv.style.cursor = findLeaderObjAt(p.x,p.y,false) ? 'move' : AOG_CROSSHAIR;
     }
   }
 },{passive:true});
@@ -15248,7 +15269,7 @@ document.querySelectorAll('.tb-btn[data-tool]').forEach(function(btn){
     // button into view — release the manual-scroll latch so alignment runs.
     _tbUserMovedManually = false;
     updateToolbarForTool(tool);
-    var cur=tool==='none'?'default':tool==='text'?'text':tool==='eraser'?'cell':tool==='pan'?'grab':tool==='stamp'?'copy':tool==='image'?'move':'crosshair';
+    var cur=tool==='none'?'default':tool==='text'?'text':tool==='eraser'?'cell':tool==='pan'?'grab':tool==='stamp'?'copy':tool==='image'?'move':AOG_CROSSHAIR;
     drawCv.style.cursor=cur;
     if(tool==='stamp'){ openStampPicker(); return; }
   });
@@ -16250,7 +16271,7 @@ btnSetScale.addEventListener('click',function(){
   _swapStrokeForTool('measure'); tool='measure';
   document.querySelectorAll('.tb-btn[data-tool]').forEach(function(b){ b.classList.remove('active'); });
   document.querySelector('.tb-btn[data-tool="measure"]').classList.add('active');
-  drawCv.style.cursor='crosshair';
+  drawCv.style.cursor=AOG_CROSSHAIR;
   scaleStatus.textContent='Draw a line of known length...';
   toast('Draw a line on the plan, then enter its length in the Properties panel.','ok',4000);
 });
@@ -16318,7 +16339,7 @@ document.getElementById('scale-redraw').addEventListener('click',function(){
   document.querySelectorAll('.tb-btn[data-tool]').forEach(function(b){ b.classList.remove('active'); });
   var mb=document.querySelector('.tb-btn[data-tool="measure"]');
   if(mb) mb.classList.add('active');
-  drawCv.style.cursor='crosshair';
+  drawCv.style.cursor=AOG_CROSSHAIR;
   toast('Draw a new reference line, then enter its real length.','ok',4000);
 });
 
@@ -16422,7 +16443,7 @@ unitIn.addEventListener('change',function(){ scaleUnit=unitIn.value.trim()||'ft'
     document.querySelectorAll('.tb-btn[data-tool]').forEach(function(b){ b.classList.remove('active'); });
     var mb=document.querySelector('.tb-btn[data-tool="measure"]');
     if(mb) mb.classList.add('active');
-    drawCv.style.cursor='crosshair';
+    drawCv.style.cursor=AOG_CROSSHAIR;
     scaleStatus.textContent='Draw a new reference line...';
     toast('Draw a line of known length to recalibrate the scale.','ok',4000);
   });
@@ -23169,8 +23190,8 @@ function _enterImgPlacementMode(img){
   _pendingImg    = img;
   _pendingImgPos = null;
   // Crosshair cursor for the whole viewport
-  drawCv.style.cursor  = 'crosshair';
-  viewport.style.cursor = 'crosshair';
+  drawCv.style.cursor  = AOG_CROSSHAIR;
+  viewport.style.cursor = AOG_CROSSHAIR;
   // Show persistent instruction toast (dismissed manually on place/cancel)
   var _toastEl = document.getElementById('toast');
   if(_toastEl){ _toastEl.textContent='Click to place image · Esc to cancel'; _toastEl.className='show ok'; clearTimeout(_toastTimer); }
@@ -23642,13 +23663,25 @@ document.addEventListener('keydown',function(e){
   }
   // Normalise key so Shift/Caps Lock don't break combos (Cmd+Shift+Z = 'Z', not 'z')
   var _k=(e.key||'').length===1 ? e.key.toLowerCase() : e.key;
+  // Home = fit the canvas to the viewport. This was Ctrl+0, but the browser needs
+  // that for its own zoom reset -- claiming it meant a mis-zoomed page could not
+  // be fixed from the keyboard at all. Home is unused elsewhere in the app and
+  // reads as "back to the start". Ignored while typing, where Home means
+  // start-of-line, like every other bare-key shortcut here.
+  if(!e.ctrlKey && !e.metaKey && !e.altKey && e.key==='Home'){
+    var _ae=document.activeElement;
+    var _typing = _ae && (_ae.tagName==='INPUT' || _ae.tagName==='TEXTAREA' || _ae.isContentEditable);
+    if(!_typing){ e.preventDefault(); fitToVP(); return; }
+  }
   if(e.ctrlKey||e.metaKey){
     if(_k==='c'){ if(window.AOG_copySelected&&window.AOG_copySelected()){ e.preventDefault(); } return; }
     if(_k==='v'){ if(window.AOG_hasClip&&window.AOG_hasClip()){ e.preventDefault(); window.AOG_pasteClip(); } return; }
     if(_k==='z'){ e.preventDefault(); e.shiftKey?redoFn():undoFn(); return; }
     if(_k==='y'){ e.preventDefault(); redoFn(); return; }
     if(_k==='s'){ e.preventDefault(); btnPng.click(); return; }
-    if(e.key==='0'){ e.preventDefault(); fitToVP(); return; }
+    // Ctrl+0 is deliberately NOT claimed: it is the browser's zoom reset, and the
+    // only way back if page zoom has drifted. Canvas fit is on Home (see above).
+    if(e.key==='0'){ return; }
     if(_k==='p'){ e.preventDefault(); btnPrint.click(); return; }
     if(e.key==='='||e.key==='+'){ e.preventDefault(); zoomAt(1.25,viewport.clientWidth/2,viewport.clientHeight/2); return; }
     if(e.key==='-'){ e.preventDefault(); zoomAt(0.8,viewport.clientWidth/2,viewport.clientHeight/2); return; }
@@ -23683,6 +23716,103 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Enter'&&selectedShape){ commitSelection(); return; }
   if(e.key==='Enter'&&tool==='pathmeasure'&&pmActive){ closePathMeasure(); return; }
   if(e.key==='Enter'&&tool==='polyline'&&plActive){ closePolyline(); return; }
+  // ABORT AN IN-PROGRESS DRAW. Escape calls closePolyline/closePathMeasure/
+  // closePolygon, which COMMIT the shape -- so there was no way to abandon one
+  // half-drawn except finishing it and deleting it. Delete now discards the
+  // points outright. Checked before the selection handlers below: while a draw is
+  // active it is what the key should act on.
+  if(e.key==='Delete'||e.key==='Backspace'){
+    var _aborted=false;
+    try{
+      if(typeof plActive!=='undefined' && plActive){
+        plPoints=[]; plActive=false; _aborted=true;
+      } else if(typeof pmActive!=='undefined' && pmActive){
+        if(typeof pmPoints!=='undefined') pmPoints=[];
+        pmActive=false; _aborted=true;
+      } else if(typeof polyActive!=='undefined' && polyActive){
+        if(typeof polyPoints!=='undefined') polyPoints=[];
+        polyActive=false; _aborted=true;
+      } else if(typeof selectedShape!=='undefined' && selectedShape &&
+                (!(typeof editShapeObj!=='undefined' && editShapeObj)) &&
+                !selectedShape._textObj && !selectedShape._cmtObj){
+        // UNCOMMITTED POSE. On desktop a freshly drawn rect/ellipse/cloud stays in
+        // transform mode: selectedShape holds the pose but NOTHING has been pushed
+        // into shapeObjs yet and editShapeObj is null. There is no array entry to
+        // splice, so the selection handler below could never delete it -- Delete
+        // simply did nothing on a shape you had just drawn. Discard the pose.
+        selectedShape=null; selHandle=-1; selDragStart=null;
+        try{ if(compositedSnap) dCtx.putImageData(compositedSnap,0,0); }catch(_cs2){}
+        try{ if(selCv.width>1){ selCv.width=1; selCv.height=1; } }catch(_sv){}
+        _aborted=true;
+      } else if(typeof drawing!=='undefined' && drawing){
+        // Drag-drawn shapes (rect / ellipse / cloud / line / arrow / pen): the
+        // in-progress state is the `drawing` flag, not a point list. Cancelling
+        // mirrors what a pinch already does mid-drag -- drop the flag and restore
+        // the pre-drag composite so the rubber-band preview leaves nothing behind.
+        drawing=false;
+        try{ if(compositedSnap) dCtx.putImageData(compositedSnap,0,0); }catch(_cs){}
+        try{ dCtx.beginPath(); lctx().beginPath(); }catch(_bp){}
+        _aborted=true;
+      }
+    }catch(_ab){}
+    if(_aborted){
+      e.preventDefault();
+      try{ if(shCv && shCv.width>1){ shCv.width=1; shCv.height=1; } }catch(_sc){}
+      try{ renderShapeAndMeasure(); }catch(_r){}
+      composite();
+      dbg('tool','in-progress draw discarded');
+      return;
+    }
+  }
+  // Delete/Backspace only ever handled a selected LEADER or IMAGE -- pressing it
+  // on a shape, line, polyline, note or text object did nothing at all, so the
+  // only way to remove those was the eraser. Same shape as the two handlers
+  // below: capture, splice, clear the selection, re-render, push undo.
+  if(e.key==='Delete'||e.key==='Backspace'){
+    var _delList=null, _delObj=null, _delClear=null;
+    if(typeof selectedPolyline!=='undefined' && selectedPolyline){
+      _delList=polylineObjs; _delObj=selectedPolyline;
+      _delClear=function(){ selectedPolyline=null; };
+    } else if(typeof selectedMeasure!=='undefined' && selectedMeasure){
+      _delList=measureObjs; _delObj=selectedMeasure;
+      _delClear=function(){ selectedMeasure=null; measureDragHandle=-1; measureDragStart=null; };
+    } else if(typeof selectedShape!=='undefined' && selectedShape){
+      // selectedShape is a COPY of the shape's properties, built for the toolbar
+      // pickers -- not the object in shapeObjs. indexOf() on it never matches,
+      // which is why Delete did nothing on a rect, ellipse or cloud. The real
+      // object is editShapeObj; a text or comment wrapper points at its own via
+      // _textObj / _cmtObj.
+      var _s=selectedShape;
+      var _real=(typeof editShapeObj!=='undefined' && editShapeObj) ? editShapeObj : null;
+      if(_s._textObj && typeof textObjs!=='undefined' && textObjs.indexOf(_s._textObj)>-1){
+        _delList=textObjs; _delObj=_s._textObj;
+      } else if(_s._cmtObj && typeof commentObjs!=='undefined' && commentObjs.indexOf(_s._cmtObj)>-1){
+        _delList=commentObjs; _delObj=_s._cmtObj;
+      } else if(_real && shapeObjs.indexOf(_real)>-1){
+        _delList=shapeObjs; _delObj=_real;
+      } else if(_real && typeof commentObjs!=='undefined' && commentObjs.indexOf(_real)>-1){
+        _delList=commentObjs; _delObj=_real;
+      } else if(_real && typeof textObjs!=='undefined' && textObjs.indexOf(_real)>-1){
+        _delList=textObjs; _delObj=_real;
+      }
+      _delClear=function(){ selectedShape=null; selHandle=-1; selDragStart=null;
+                            if(typeof editShapeObj!=='undefined') editShapeObj=null; };
+    }
+    if(_delList && _delObj){
+      var _di=_delList.indexOf(_delObj);
+      if(_di>-1){
+        e.preventDefault();
+        captureState();
+        _delList.splice(_di,1);
+        if(_delClear) _delClear();
+        if(selCv.width>1){ selCv.width=1; selCv.height=1; }
+        try{ renderShapeAndMeasure(); }catch(_r){}
+        try{ renderTextObjs(); }catch(_r2){}
+        composite(); pushUndo();
+        return;
+      }
+    }
+  }
   if((e.key==='Delete'||e.key==='Backspace')&&selectedLeader){
     e.preventDefault();
     captureState();
@@ -23734,7 +23864,7 @@ function placePreset(text, cx, cy){
 function armLabelPlacement(text){
   if(!baseLoaded){ toast('Open a site plan first','warn'); return; }
   _pendingLabel = text;
-  viewport.style.cursor = 'crosshair';
+  viewport.style.cursor = AOG_CROSSHAIR;
   toast('Tap where you want to place "'+text+'"','ok',0); // 0 = stay until dismissed
 }
 
@@ -24396,7 +24526,7 @@ function _imgHoverCursor(clientX, clientY){
   } else if(_imgHitTest(selImg, p.x, p.y)){
     drawCv.style.cursor = 'move';
   } else {
-    drawCv.style.cursor = 'crosshair';
+    drawCv.style.cursor = AOG_CROSSHAIR;
   }
 }
 
