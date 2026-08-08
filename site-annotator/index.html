@@ -3622,6 +3622,7 @@ var _textAnchorRight = false;
 // gets tagged _leaderLabel so its stretch handles can keep the leader-side
 // edge pinned (left-hanging AND right-hanging labels alike).
 var _textLeaderPending = false;
+var _textLeaderPendingId = null;   // leader that the pending label belongs to
 var _textAnchorRight = false;
 var textBgColor    = '#ffffff';
 var textBgOpacity  = 1;
@@ -9352,6 +9353,26 @@ function onMove(e){
       var mdx=lp.x-leaderDragStart.x, mdy=lp.y-leaderDragStart.y;
       o.x1=lo.x1+mdx; o.y1=lo.y1+mdy;
       o.x2=lo.x2+mdx; o.y2=lo.y2+mdy;
+      // Carry the LABEL along. A leader is an arrow plus a SEPARATE text object,
+      // and only the arrow moved -- repositioning one left its wording behind.
+      // The label's stored anchor moves too, or the next edit snaps it back.
+      try{
+        if(!leaderDragStart._lbl){
+          leaderDragStart._lbl=[];
+          (textObjs||[]).forEach(function(t){
+            if(t && t._leaderLabel && t._leaderId!=null && t._leaderId===o.id){
+              leaderDragStart._lbl.push({t:t, x:t.x, y:t.y,
+                ax:(t._anchorX!=null?t._anchorX:null), ay:(t._anchorY!=null?t._anchorY:null)});
+            }
+          });
+        }
+        leaderDragStart._lbl.forEach(function(L){
+          L.t.x=L.x+mdx; L.t.y=L.y+mdy;
+          if(L.ax!=null) L.t._anchorX=L.ax+mdx;
+          if(L.ay!=null) L.t._anchorY=L.ay+mdy;
+        });
+        if(leaderDragStart._lbl.length) renderTextObjs();
+      }catch(_lm){}
     }
     renderLeaderSelection();
     return;
@@ -9702,6 +9723,9 @@ function onUp(e){
       // Text anchor: horizontal drags place text just past the shoulder end on
       // that side; vertical drags place it just past the shoulder end above/below.
       _textLeaderPending=true;   // tag the label this session commits
+      // Which leader it belongs to, so the label travels with the arrow when
+      // the leader is repositioned -- they are separate objects otherwise.
+      try{ _textLeaderPendingId=_leaderObj.id; }catch(_lp){ _textLeaderPendingId=null; }
       var _se=leaderShoulderEnd(_leaderObj);
       if(_ld.vertical){
         textX=_se.x; textY=_se.y + (_ld.sign>0 ? 2 : -2);
@@ -9795,10 +9819,32 @@ function onUp(e){
   // keep editing (change color/width, drag again) and moving the cursor away
   // does NOT deselect it. Deselection only happens on an explicit click-off.
   if(selectedLeader && leaderDragHandle!==-1){
+    var _ldObj=selectedLeader;
     leaderDragHandle=-1; leaderDragStart=null;
     renderShapeAndMeasure();   // bake nothing; just refresh static layer (selected one is skipped)
     renderLeaderSelection();   // keep handles visible over the live leader
     pushUndo();
+    // STILL UNLABELLED? Re-open the editor at the new shoulder end. Placing a
+    // leader opens the text box straight away, so repositioning it first meant
+    // committing an empty label and losing the chance to type. Only when the
+    // leader genuinely has no wording yet -- an existing label is left alone.
+    try{
+      var _hasLbl=(textObjs||[]).some(function(t){
+        return t && t._leaderLabel && t._leaderId!=null && t._leaderId===_ldObj.id
+               && String(t.text||'').trim()!=='';
+      });
+      if(!_hasLbl && typeof leaderShoulderEnd==='function' && typeof showTextOverlay==='function'){
+        var _se2=leaderShoulderEnd(_ldObj);
+        var _vert=Math.abs(_ldObj.sdy||0) > Math.abs(_ldObj.sdx||0);
+        var _sgn=(_vert ? (_ldObj.sdy||0) : (_ldObj.sdx||0)) > 0 ? 1 : -1;
+        textOv.value='';
+        _textLeaderPending=true;
+        _textLeaderPendingId=_ldObj.id;
+        if(_vert){ textX=_se2.x; textY=_se2.y + (_sgn>0 ? 2 : -2); _textAnchorRight=false; }
+        else     { textX=_se2.x + (_sgn>0 ? 2 : -2); textY=_se2.y; _textAnchorRight=(_sgn<0); }
+        showTextOverlay(textX, textY);
+      }
+    }catch(_rl){}
     return;
   }
   // End measure endpoint drag
@@ -11325,6 +11371,7 @@ function handleLeaderClick(x,y,e){
     renderShapeAndMeasure();
     composite();
     _textLeaderPending=true;   // tag the label this session commits
+    try{ _textLeaderPendingId=_lobj.id; }catch(_lp2){ _textLeaderPendingId=null; }
     var _se=leaderShoulderEnd(_lobj);
     if(_ld.vertical){
       textX=_se.x; textY=_se.y + (_ld.sign>0 ? 2 : -2);
@@ -13746,7 +13793,7 @@ function commitText(){
              letterSpacing:textLetterSpacing||undefined,
              hScale:(textHScale&&textHScale!==100)?textHScale:undefined,
              _anchorRight:_textAnchorRight, _anchorX:textX, _anchorY:textY};
-    if(_textLeaderPending) obj._leaderLabel=true;
+    if(_textLeaderPending){ obj._leaderLabel=true; obj._leaderId=_textLeaderPendingId; }
     textObjs.push(obj); renderTextObjs(); pushUndo(); _aogRestoreTextCol();
     // (No transform box — a freshly placed text just sits there. Re-click to edit.)
   }
