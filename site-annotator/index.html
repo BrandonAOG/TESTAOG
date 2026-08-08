@@ -5148,7 +5148,15 @@ function _explodePDFPage(n){
       }
       if(!_renderOK){
         // Backdrop render failed → plain flatten so the user still sees the page.
-        page.render({canvasContext:bCtx, viewport:vp}).promise.then(function(){
+        // annotationMode DISABLE: the page is rasterised WITHOUT its annotations.
+        // They are extracted separately as movable objects, so drawing them into
+        // the backdrop too left a painted copy behind whenever one was dragged --
+        // a callout's fill and border stayed put while the object moved away.
+        // Every other render() in this file already passes this; these two were
+        // relying on pdf.js's default, which draws them.
+        page.render({canvasContext:bCtx, viewport:vp,
+                     annotationMode:((pdfjsLib.AnnotationMode&&pdfjsLib.AnnotationMode.DISABLE)||0)
+                    }).promise.then(function(){
           _lastLoadedDpi=Math.round(sc*72); afterLoad(); imgOverlays=[]; _annImgsExtracted=0; textObjs=[];
           _vectorBackdropOK=true; _vecPageNum=n; try{ _pdfPageRot=((page.rotate||0)%360+360)%360; }catch(e){ _pdfPageRot=0; }  // pristine page → vectors exportable
           _finishExplode(n,w,h,sc,true);
@@ -6095,11 +6103,59 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
       // that have no home in the annotation dictionary: the note's border colour
       // and the background alpha. Files exported before this marker existed fall
       // back to the border-width heuristic below.
+      // The BACKGROUND colour, captured before importBd gets overwritten by a
+      // border source. /C on a FreeText is the background; importBd started life
+      // holding it too, but now also takes the appearance stream's STROKE colour
+      // -- so using importBd as a background painted leader labels solid in their
+      // BORDER colour, hiding the text behind a filled box.
+      var importBgC = importBd;
       var _ftTitle='', _mT=null, _mN=null, _hiOp=0, _bgOpIn=null;
       try{ _ftTitle=String((an.title!=null?an.title:(an.titleObj&&an.titleObj.str))||''); }catch(_tt){}
-      _mT=/^AOG-TEXT(?::([0-9.]+))?/.exec(_ftTitle);
-      _mN=/^AOG-NOTE(?::([0-9a-fA-F]{6}))?(?::([0-9.]+))?/.exec(_ftTitle);
+      _mT=/^AOG-TEXT(?::(-?[0-9.]+))?(?::(-?[0-9.]+))?(?::(-?[0-9.]+))?(?::([01]))?(?::(-?[0-9.]+))?/.exec(_ftTitle);
+      _mN=/^AOG-NOTE(?::([0-9a-fA-F]{6}))?(?::([0-9.]+))?(?::(-?[0-9.]+))?/.exec(_ftTitle);
+      // Object rotation in degrees -> radians for the rebuilt object.
+      var _angDeg=0;
+      if(_mT && _mT[5]!=null) _angDeg=parseFloat(_mT[5])||0;
+      else if(_mN && _mN[3]!=null) _angDeg=parseFloat(_mN[3])||0;
+      var _angRad=(_angDeg*Math.PI)/180;
+      if(_angDeg) dbg('freetext','restored object rotation '+_angDeg+' deg');
       if(_mT && _mT[1]!=null) _hiOp=parseFloat(_mT[1])||0;
+      // Exact text origin, as fractions of the rect (see the emitter).
+      var _oxF=(_mT && _mT[2]!=null) ? parseFloat(_mT[2]) : null;
+      var _oyF=(_mT && _mT[3]!=null) ? parseFloat(_mT[3]) : null;
+      if(!isFinite(_oxF)) _oxF=null;
+      if(!isFinite(_oyF)) _oyF=null;
+      // ROTATION. The fractions are recorded in PAGE space; the rect read here is
+      // in VIEWPORT space, after pdf.js has applied the page's /Rotate. At 90 and
+      // 270 the axes swap, so an x-fraction was being applied as a y-fraction and
+      // rotated labels landed in the wrong place. Verified against a real pair of
+      // exports: unrotated 0.0295,0.7281 -> rotated 0.7281,0.9661, i.e. at 90
+      // vx = 1 - oy and vy = ox.
+      try{
+        // Read the rotation from the VIEWPORT we were handed, not the global.
+        // _pdfPageRot is assigned inside the page-render callbacks, which have not
+        // necessarily run by the time this pass executes -- it read 0 on a /Rotate
+        // 90 file, so the conversion below was skipped entirely and rotated labels
+        // kept landing wrong. vp.rotation is always correct here; page.rotate is a
+        // second fallback.
+        var _pr=0;
+        try{
+          if(vp && isFinite(vp.rotation)) _pr=vp.rotation;
+          else if(page && isFinite(page.rotate)) _pr=page.rotate;
+          else if(typeof _pdfPageRot!=='undefined') _pr=_pdfPageRot;
+        }catch(_pe){ _pr=0; }
+        _pr=((_pr%360)+360)%360;
+        if(_oxF!=null && _oyF!=null && _pr){
+          var _ax=_oxF, _ay=_oyF;
+          if(_pr===90){       _oxF=1-_ay; _oyF=_ax; }
+          else if(_pr===180){ _oxF=1-_ax; _oyF=1-_ay; }
+          else if(_pr===270){ _oxF=_ay;   _oyF=1-_ax; }
+          dbg('freetext','origin un-rotated for /Rotate '+_pr
+              +': '+_ax.toFixed(4)+','+_ay.toFixed(4)
+              +' -> '+_oxF.toFixed(4)+','+_oyF.toFixed(4));
+        }
+      }catch(_rr){}
+      var _wasLeader=!!(_mT && _mT[4]==='1');
       if(_mN){
         if(_mN[1]) importBd='#'+_mN[1];                  // the REAL border colour
         if(_mN[2]!=null) _bgOpIn=parseFloat(_mN[2]);
@@ -6163,6 +6219,18 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
       // If anything fails, fall back to a plain editable TEXT object so the
       // content is never lost.
       var cw=Math.max(60, x1-x0), ch=Math.max(40, y1-y0);
+      // An annotation's /Rect is always AXIS-ALIGNED -- for a rotated note it is
+      // the bounding box of the turned quad, so at 90 or 270 its width is the
+      // note's HEIGHT and vice versa. Taking cw/ch straight from the rect and then
+      // drawing that box rotated gave a border turned the right way but with its
+      // sides swapped. Swap them back for quarter turns.
+      try{
+        var _qa=Math.abs(((_angDeg%360)+360)%360);
+        if(Math.abs(_qa-90)<0.5 || Math.abs(_qa-270)<0.5){
+          var _sw=cw; cw=ch; ch=_sw;
+          dbg('freetext','note box w/h swapped back for '+Math.round(_qa)+' deg rotation');
+        }
+      }catch(_qs){}
       // Use the colors recovered from the import. Fill = the box's real color;
       // border = the annotation's own color (fall back to a darker shade of the
       // fill if the PDF didn't store one, or stored the same color as the fill so
@@ -6188,7 +6256,13 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
       // No /C AND no border = genuinely bare text (e.g. Acrobat's Typewriter tool,
       // /IT /FreeTextTypewriter, which pdf.js does not expose to us directly).
       var _asPlainText = !!_mT || (!_mN && !importBd && !importBw);
-      if(_asPlainText){ dbg('freetext','importing FreeText as TEXT',{text:txt.slice(0,30), marker:_ftTitle||'(none)', hiOp:_hiOp}); }
+      dbg('freetext','IMPORT "'+String(txt).slice(0,18)+'"'
+          +' as='+(_asPlainText?'TEXT':'NOTE')
+          +' marker='+(_ftTitle||'(none)')
+          +' leaderFlag='+(!!(_mT&&_mT[4]==='1'))
+          +' origin='+((_mT&&_mT[2]!=null)?(_mT[2]+','+_mT[3]):'(inferred)')
+          +' bgOp='+_hiOp
+          +' rect='+Math.round(x0)+','+Math.round(y0)+' '+Math.round(x1-x0)+'x'+Math.round(y1-y0));
       var noteOK=false;
       if(!_asPlainText) try{
         var nc={
@@ -6196,6 +6270,9 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
           cx:(x0+x1)/2, cy:(y0+y1)/2,
           w:cw, h:ch,
           text: txt, textColor: col,
+          // Rotation restored from the marker, same as text objects. Without it a
+          // rotated note came back flat while its box came back turned.
+          angle:_angRad,
           bgColor:noteBg, bgOpacity:(_bgOpIn!=null?_bgOpIn:1),
           borderColor:noteBd, borderStrokeW:noteBw,
           fontSize: Math.max(8, Math.round(fpx/sc)),
@@ -6218,14 +6295,20 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
         try{
           textObjs.push({
             id: Date.now()+Math.floor(Math.random()*100000)+textObjs.length,
-            x: x0, y: y0 + fpx*0.85,
+            // Exact origin when the marker carries it; the 0.85em guess only as a
+            // fallback for files exported before it existed.
+            x: (_oxF!=null ? x0+_oxF*(x1-x0) : x0),
+            y: (_oyF!=null ? y0+_oyF*(y1-y0) : y0 + fpx*0.85),
             text: txt, color: col, fontSize: fpx/sc,
             opacity:1, layerIdx:activeLayerIdx,
             bold:_ftBold, italic:_ftItal, underline:false, strike:false,
-            fontFamily:_ftFam, textAlign:'left', angle:0,
+            fontFamily:_ftFam, textAlign:'left', angle:_angRad,
             // Highlight recovered from the marker (/T alpha) + /C colour. Without
             // these two the text came back with its background stripped.
-            bgColor:(importBd||'#ffff00'), bgOpacity:_hiOp,
+            bgColor:(importBgC||'#ffff00'), bgOpacity:_hiOp,
+            // Restores the callout: border, and a background filling the box
+            // rather than hugging each line.
+            _leaderLabel:_wasLeader,
             _fromFreeText:true
           });
           dbg('freetext','FALLBACK to text',{text:txt.slice(0,30), x:Math.round(x0), y:Math.round(y0)});
@@ -6260,7 +6343,17 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
       };
       for(var si=shapeObjs.length-1; si>=0; si--){
         var s=shapeObjs[si];
-        if(!s._fromExplode) continue;
+        // Accept _fromAnnot too. A callout border is baked into its FreeText's
+        // appearance; on re-import that rectangle is read back as a SEPARATE
+        // shape and re-exported as a /Square, so each label arrived as two
+        // objects and dragging the text left the box behind. Shapes built from
+        // /Square annotations arrive via the annot-vec path and may carry
+        // _fromAnnot without _fromExplode, so this test never saw them.
+        if(!s._fromExplode && !s._fromAnnot) continue;
+        try{ dbg('freetext','candidate frame shape '+s.type
+             +' fromExplode='+(!!s._fromExplode)+' fromAnnot='+(!!s._fromAnnot)
+             +' at '+Math.round(s.cx)+','+Math.round(s.cy)
+             +' '+Math.round(s.w)+'x'+Math.round(s.h)); }catch(_cs){}
         if(s.type!=='rect' && s.type!=='ellipse') continue;
         var sx0=s.cx-s.w/2, sy0=s.cy-s.h/2, sx1=s.cx+s.w/2, sy1=s.cy+s.h/2;
         for(var k=0;k<_ftRects.length;k++){
@@ -6562,8 +6655,27 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
       // highlighter stroke a SECOND time as a solid polyline at slightly
       // different geometry — the "shows up twice / pulled onto the page wrong"
       // duplicates. Popups have no drawable appearance we want either.
+      // FreeText belongs to the freetext pass for the same reason as Ink: its
+      // appearance stream draws the callout BORDER as a stroked rectangle, and
+      // that fell through to the polyline catch-all below -- so every bordered
+      // label came back as its text PLUS a loose polyline tracing the box,
+      // selectable and deletable on its own. The freetext pass rebuilds the
+      // border from _leaderLabel, so nothing is lost by skipping it here.
       var _skipSub = curAnn && curAnn.subtype;
-      if(_skipSub==='Ink' || _skipSub==='Popup'){ curSubs=[]; return; }
+      // NB: do NOT skip Line/PolyLine/Square/Circle here. An earlier version did,
+      // on the assumption that the annot-vec pass already imports them from their
+      // dictionaries -- but on a real Acrobat template that pass reports
+      // {lines:0, arrows:0, shapes:0, polylines:0}, so this appearance walk is the
+      // ONLY thing importing them. Skipping it made every line, arrow, rect and
+      // ellipse disappear on import. Ink and FreeText ARE genuinely owned by their
+      // own passes and stay skipped.
+      if(_skipSub==='Ink' || _skipSub==='Popup' || _skipSub==='FreeText'){
+        if(_skipSub==='FreeText' && curSubs.length){
+          dbg('import','skipped '+curSubs.length+' path(s) from a FreeText appearance'
+              +' (callout border -- rebuilt by the freetext pass)');
+        }
+        curSubs=[]; return;
+      }
       // Arrow ONLY when the annotation itself declares a non-"None" line ending.
       // The old shape heuristic (2 subpaths, one with 3 pts) misfired on 3-vertex
       // PolyLines, inventing arrowheads that don't exist in the PDF.
@@ -6663,6 +6775,48 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
       //
       // Preserve the source dash pattern too: these conduits are stroked with a
       // dash array in the PDF, and hardcoding 'solid' redrew them as solid lines.
+      // LEADER REBUILD. A leader exports as a /PolyLine (arrow + shoulder) plus a
+      // /FreeText (label). Without this the polyline came back as a loose
+      // polyline object -- selectable with the polyline tool, deletable on its
+      // own, and left behind when the label was moved. The /T marker written by
+      // the leader emitter carries the shoulder geometry needed to rebuild the
+      // single leader object the app actually works with.
+      var _ldTitle='';
+      try{ _ldTitle=String((curAnn && (curAnn.title!=null?curAnn.title
+                    :(curAnn.titleObj&&curAnn.titleObj.str)))||''); }catch(_lt){}
+      var _ldM=/^AOG-LEADER:([^:]*):(-?[0-9.]+):(-?[0-9.]+):(-?[0-9.]+)/.exec(_ldTitle);
+      if(_ldM && typeof leaderObjs!=='undefined'){
+        var _lp=null;
+        curSubs.forEach(function(sp){ if(!_lp && sp.pts && sp.pts.length>=2) _lp=sp; });
+        if(_lp){
+          // Vertices run shoulder-end -> ELBOW -> tip. The leader object stores the
+          // tip in x1,y1 and the ELBOW in x2,y2 -- the shoulder is derived from the
+          // elbow using sdx/sdy/shoulderLen. Taking the first vertex as x2,y2 put
+          // the bend at the far end of the shoulder instead, so the imported leader
+          // came back as a straight line with no shoulder.
+          var _pts=_lp.pts, _tip=_pts[_pts.length-1];
+          var _elb=(_pts.length>=3) ? _pts[_pts.length-2] : _pts[0];
+          var _lo={
+            id:Date.now()+(made++),
+            x1:_tip.x, y1:_tip.y, x2:_elb.x, y2:_elb.y,
+            // shoulderDir is NUMERIC (-1 or 1) -- see the sdx<0 assignments in the
+            // drag/normalise code. The regex captures it as a string, and a string
+            // flowing into that arithmetic misbehaves, so coerce it back.
+            shoulderDir:(parseFloat(_ldM[1])<0?-1:1),
+            sdx:parseFloat(_ldM[2])||0, sdy:parseFloat(_ldM[3])||0,
+            shoulderLen:parseFloat(_ldM[4])||0,
+            color:(_lp.stroke||_lp.fill||'#000000'),
+            strokeW:Math.max(1.5,_lp.lw||2), opacity:1,
+            layerIdx:activeLayerIdx, _fromExplode:true, _fromAnnot:true
+          };
+          leaderObjs.push(_lo);
+          dbg('import','LEADER rebuilt '+_ldTitle
+              +' tip='+Math.round(_tip.x)+','+Math.round(_tip.y)
+              +' elbow='+Math.round(_elb.x)+','+Math.round(_elb.y)
+              +' verts='+_pts.length);
+          curSubs=[]; return;
+        }
+      }
       curSubs.forEach(function(sp){
         if(sp.pts.length<2) return;
         // Stroked paths use the STROKE color; only a genuinely filled path uses
@@ -6896,6 +7050,17 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
       pen:     penObjs.filter(function(o){return o&&o._fromExplode;}).length
     };
     _dbgAnnotVec.totalVectors = _dbgAnnotVec.lines+_dbgAnnotVec.arrows+_dbgAnnotVec.shapes+_dbgAnnotVec.polylines;
+    // Inline, not an object: the console collapses objects and this count is the
+    // one that says whether the appearance walk and this pass are BOTH importing
+    // the same annotations (which would double every line, arrow and shape).
+    try{
+      var _avTot=0, _avStr='';
+      for(var _k in _dbgAnnotVec){ if(typeof _dbgAnnotVec[_k]==='number'){ _avTot+=_dbgAnnotVec[_k]; _avStr+=_k+'='+_dbgAnnotVec[_k]+' '; } }
+      dbg('annot-vec','line/shape annots → editable vectors: '+_avStr+'| total='+_avTot
+          +' | polylineObjs now='+((typeof polylineObjs!=='undefined'&&polylineObjs)?polylineObjs.length:'?')
+          +' measureObjs='+((typeof measureObjs!=='undefined'&&measureObjs)?measureObjs.length:'?')
+          +' shapeObjs='+((typeof shapeObjs!=='undefined'&&shapeObjs)?shapeObjs.length:'?'));
+    }catch(_av){}
     dbg('annot-vec','line/shape annots → editable vectors', _dbgAnnotVec);
   }catch(_e){ console.warn('[dbg] annot-vec count failed:', _e); }
 
@@ -7572,7 +7737,11 @@ function renderPDFPage(n){
     var vp=page.getViewport({scale:sc});
     var w=Math.round(vp.width),h=Math.round(vp.height);
     resize(w,h);
-    page.render({canvasContext:bCtx,viewport:vp}).promise.then(function(){
+    // See above: without annotationMode DISABLE the annotations are baked into
+    // the backdrop as well as extracted, so dragging one leaves a copy behind.
+    page.render({canvasContext:bCtx, viewport:vp,
+                 annotationMode:((pdfjsLib.AnnotationMode&&pdfjsLib.AnnotationMode.DISABLE)||0)
+                }).promise.then(function(){
       afterLoad();
       _vectorBackdropOK=true; _vecPageNum=n; try{ _pdfPageRot=((page.rotate||0)%360+360)%360; }catch(e){ _pdfPageRot=0; }  // pristine page render → vectors exportable
       // Stroke slider now speaks TRUE PDF POINTS: this page was rendered at `sc`
@@ -8194,6 +8363,9 @@ var layerTmps=layers.map(function(l){
   }); }catch(ex){ console.warn('[Rotate] leaderObjs transform failed:',ex); }
 
   // Point-array tools (pen, polyline, polygon, path-measure): rotate every pt.
+  // NB: the import baselines are rotated by _rotSnaps(), called inside each of the
+  // object loops above. An earlier version of this file rotated them AGAIN here,
+  // which turned every snapshot twice and corrupted _movedExplodeObj's comparison.
   function _rotPtsArr(arr){
     if(typeof arr==='undefined') return;
     arr.forEach(function(o){
@@ -9109,7 +9281,7 @@ function onMove(e){
       selHandle=-2;
       selDragStart={x:_cmtPending.x,y:_cmtPending.y,   // anchor at ORIGINAL press → no jump
         shape:{type:'comment',cx:selectedShape.cx,cy:selectedShape.cy,
-               w:selectedShape.w,h:selectedShape.h,angle:0,
+               w:selectedShape.w,h:selectedShape.h,angle:(selectedShape.angle||0),
                color:selectedShape.color,strokeW:selectedShape.strokeW,
                opacity:1,fill:false,lineStyle:'solid'},
         rotAngleOffset:0,origFontSize:null,origH:selectedShape.h};
@@ -11861,7 +12033,17 @@ function renderTextObjs(){
     // "dfdf" would otherwise leave a white sliver between bars. Fixed extents make
     // adjacent bars overlap into one continuous block — matching the PDF exporter.
     // Empty lines still get no highlight; a space/letter only its own width.
-    if(obj.bgOpacity&&obj.bgOpacity>0){
+    // CALLOUT FILL. Normal text draws its background as a per-line bar sized to
+    // each line's width -- correct for a highlighter, wrong for a callout, where
+    // the fill must match the single border box. Fill the SAME rect the border
+    // strokes so the two agree, then skip the per-line bars below.
+    // Both parts of the callout are drawn HERE, before the rotated/unrotated glyph
+    // branches below set up their own transforms -- the helper applies its own
+    // translate+rotate, so calling it inside a branch would compound them.
+    var _calloutFilled=false;
+    if(obj.bgOpacity>0) _calloutFilled=_drawCalloutBox(tCtx, obj, 'fill');
+    _drawCalloutBox(tCtx, obj, 'stroke');
+    if(!_calloutFilled && obj.bgOpacity&&obj.bgOpacity>0){
       var _padX=2, _padY=1.5, _lineH=_lineAdvOf(obj,fpx);
       tCtx.save();
       tCtx.globalAlpha=obj.opacity*obj.bgOpacity;
@@ -11923,6 +12105,9 @@ function renderTextObjs(){
         }
       });
     } else {
+      // LEADER CALLOUT BOX. Acrobat's Text Callout draws a border around its
+      // label; ours had none, so a leader read as loose text next to a line.
+      // Drawn from the same metrics the glyphs use, so it tracks size changes.
       var _offsU=_lineOffsets(obj,lines);
       lines.forEach(function(line,i){
         var ly=obj.y+i*_lineAdvOf(obj,fpx);
@@ -12271,9 +12456,14 @@ function handleCommentDown(e, sp, isTouch){
       }
       e.preventDefault();
       selHandle=sh;
+      // NB: angle must be the note's REAL angle. The resize maths transforms the
+      // pointer into the object's LOCAL frame using orig.angle, so a hardcoded 0
+      // resized a rotated note as if it were upright -- the wrong edge moved and
+      // the box crept sideways. Notes only gain an angle from a canvas rotation,
+      // which is why this never surfaced before.
       selDragStart={x:sp.x,y:sp.y,
         shape:{type:'comment',cx:selectedShape.cx,cy:selectedShape.cy,
-               w:selectedShape.w,h:selectedShape.h,angle:0,
+               w:selectedShape.w,h:selectedShape.h,angle:(selectedShape.angle||0),
                color:selectedShape.color,strokeW:selectedShape.strokeW,
                opacity:1,fill:false,lineStyle:'solid'},
         rotAngleOffset:0,origFontSize:null,origH:selectedShape.h};
@@ -12281,7 +12471,14 @@ function handleCommentDown(e, sp, isTouch){
       // drag (otherwise the box ghosts at its old position). One redraw now; the
       // per-frame work stays lightweight (renderSelection only).
       _dragComment=selectedShape._commentObj;
-      drawCv.style.cursor = (typeof HANDLE_CURSORS!=='undefined' && HANDLE_CURSORS[sh]) ? HANDLE_CURSORS[sh] : 'nwse-resize';
+      // HANDLE_CURSORS is a fixed table indexed by handle number, so it assumes the
+      // note is upright: on a rotated note every handle showed an arrow pointing
+      // the wrong way. Shapes, text and images already go through
+      // rotatedResizeCursor, which turns the arrow with the object -- notes were
+      // the one path still using the static table.
+      drawCv.style.cursor = (typeof rotatedResizeCursor==='function' && sh>=0 && sh<=7)
+        ? rotatedResizeCursor(sh, (selectedShape && selectedShape.angle) || 0)
+        : ((typeof HANDLE_CURSORS!=='undefined' && HANDLE_CURSORS[sh]) ? HANDLE_CURSORS[sh] : 'nwse-resize');
       renderShapeAndMeasure(); composite();
       renderSelection();
       return;
@@ -12302,7 +12499,7 @@ function handleCommentDown(e, sp, isTouch){
         selHandle=-2;
         selDragStart={x:sp.x,y:sp.y,
           shape:{type:'comment',cx:selectedShape.cx,cy:selectedShape.cy,
-                 w:selectedShape.w,h:selectedShape.h,angle:0,
+                 w:selectedShape.w,h:selectedShape.h,angle:(selectedShape.angle||0),
                  color:selectedShape.color,strokeW:selectedShape.strokeW,
                  opacity:1,fill:false,lineStyle:'solid'},
           rotAngleOffset:0,origFontSize:null,origH:selectedShape.h};
@@ -12373,7 +12570,7 @@ function handleCommentDown(e, sp, isTouch){
       selHandle=-2;
       selDragStart={x:sp.x,y:sp.y,
         shape:{type:'comment',cx:tempSel.cx,cy:tempSel.cy,
-               w:tempSel.w,h:tempSel.h,angle:0,
+               w:tempSel.w,h:tempSel.h,angle:(tempSel.angle||0),
                color:tempSel.color,strokeW:tempSel.strokeW,
                opacity:1,fill:false,lineStyle:'solid'},
         rotAngleOffset:0,origFontSize:null,origH:tempSel.h};
@@ -12439,6 +12636,22 @@ function _drawTextChrome(o){
   selCtx.strokeStyle='rgba(0,212,255,0.9)'; selCtx.lineWidth=lw;
   selCtx.setLineDash([5/zoom,3/zoom]); selCtx.globalAlpha=1;
   selCtx.strokeRect(-pad,d.top-pad,d.w+pad*2,d.h+pad*2);
+  // LIVE CALLOUT BOX. renderTextObjs skips the object being edited, so a leader
+  // label's border only appeared after commit. Draw it here from the same
+  // _textBoxDims the dashed chrome uses -- solid, in the label's own colour, so
+  // what you see while typing is what gets committed.
+  if(o._leaderLabel && o.calloutBox!==false){
+    try{
+      var _cpad=CALLOUT_PAD/zoom, _cb=_calloutBounds(o);
+      selCtx.save();
+      selCtx.setLineDash([]);
+      selCtx.strokeStyle=o.color||'#000000';
+      selCtx.lineWidth=Math.max(1,(o.borderStrokeW||1))/zoom;
+      selCtx.strokeRect(-_cpad, _cb.top-_cpad, _cb.w+_cpad*2, _cb.h+_cpad*2);
+      selCtx.restore();
+      selCtx.setLineDash([5/zoom,3/zoom]);
+    }catch(_lc){}
+  }
   // Acrobat-style circular handles: corners + edge midpoints on the dashed box.
   // Left/right handles (and corners, which sit in the side bands) drag the wrap
   // width; the text reflows live. Drawn while the caret is still active.
@@ -13586,6 +13799,81 @@ var selectedShape = null;
 var selHandle     = -1;   // -1=none, 0-7=resize, 8-11=rotate, -2=move
 var selDragStart  = null;
 
+// Gap between a leader label's glyphs and its callout border, in canvas px.
+// Small on purpose: the box should hug the text the way Acrobat's Text Callout
+// does. Raise for a roomier box.
+var CALLOUT_PAD   = 2.5;
+// Draw a leader label's callout box, rotation included. The rect is expressed in
+// the label's LOCAL frame (origin at its baseline anchor) and the context is
+// translated+rotated first -- the same approach _drawTextChrome uses -- so the
+// box turns with the glyphs instead of staying axis-aligned. mode 'fill' paints
+// the background, 'stroke' the border; both read the same bounds so they agree.
+// True INK bounds of a text block, relative to its first baseline. _textBoxDims
+// returns the LINE-BOX instead: its height is lines x line-height, which at the
+// tight 0.92 leading is shorter than ascent+descent, so descenders hung below the
+// callout; and its top centres the half-leading, which left a gap above the caps.
+// The dashed edit chrome wants the line box, so that function is left alone --
+// the callout wants the glyphs.
+function _calloutBounds(o){
+  var fpx=ptToCanvasPx(o.fontSize);
+  var lines=getTextLines(o,fpx);
+  var adv=_lineAdvOf(o,fpx);
+  var asc=null, desc=null;
+  // Measure the ACTUAL INK. The font's ascent includes internal leading -- space
+  // reserved above the caps that no glyph ever occupies -- so sizing from it left
+  // an obvious gap on top while the descent hugged the tails underneath. Canvas
+  // reports the real extent of the drawn glyphs, which is what "hug the text"
+  // means. Falls back to font metrics where actualBoundingBox is unavailable.
+  try{
+    var c=(typeof tCtx!=='undefined' && tCtx) ? tCtx : null;
+    if(c){
+      c.save();
+      c.font=(o.italic?'italic ':'')+(o.bold?'bold ':'')+fpx+'px '+(o.fontFamily||'Arial')+',sans-serif';
+      var m0=c.measureText(lines[0]||'');
+      var mN=c.measureText(lines[lines.length-1]||'');
+      if(isFinite(m0.actualBoundingBoxAscent))  asc =m0.actualBoundingBoxAscent;
+      if(isFinite(mN.actualBoundingBoxDescent)) desc=mN.actualBoundingBoxDescent;
+      c.restore();
+    }
+  }catch(_m){}
+  var fm=_textOvFontMetrics(fpx,o.fontFamily||'Arial',o.bold,o.italic);
+  if(asc===null) asc=fm.asc;
+  // DESCENT from font metrics, not ink. Measured ink descent is only as deep as
+  // whatever characters happen to be present, so a g or y crossed the bottom edge
+  // while the export -- laying out in Carlito rather than the browser's font --
+  // pushed slightly deeper still. The font's own descent contains any descender
+  // and does not change as you type, so the box keeps a stable height. Ascent
+  // stays ink-based: the font's ascent includes internal leading and left a
+  // visible gap above the caps.
+  desc=Math.max(desc||0, fm.desc);
+  return {
+    w:   measureLinesWDrawn(o,lines,fpx),
+    top: -asc,
+    h:   (Math.max(1,lines.length)-1)*adv + asc + desc
+  };
+}
+function _drawCalloutBox(ctx, o, mode){
+  if(!o || !o._leaderLabel || o.calloutBox===false) return false;
+  try{
+    var d=_calloutBounds(o), p=CALLOUT_PAD;
+    ctx.save();
+    ctx.translate(o.x, o.y);
+    if(o.angle) ctx.rotate(o.angle);
+    ctx.setLineDash([]);
+    if(mode==='fill'){
+      ctx.globalAlpha=(o.opacity==null?1:o.opacity)*(o.bgOpacity||0);
+      ctx.fillStyle=o.bgColor||'#ffff00';
+      ctx.fillRect(-p, d.top-p, d.w+p*2, d.h+p*2);
+    } else {
+      ctx.globalAlpha=(o.opacity==null?1:o.opacity);
+      ctx.strokeStyle=o.color||'#000000';
+      ctx.lineWidth=Math.max(1,(o.borderStrokeW||1));
+      ctx.strokeRect(-p, d.top-p, d.w+p*2, d.h+p*2);
+    }
+    ctx.restore();
+    return true;
+  }catch(_e){ return false; }
+}
 var HANDLE_SIZE   = 9;
 var ROT_OFFSET    = 46;  // px from corner to rotation handle (screen space) — kept far from resize corners
 var ROT_COLOR     = '#db2777'; // deep pink — visible on white backgrounds
@@ -13817,7 +14105,19 @@ function renderSelection(){
     // all of which hug the box. 60 screen-px is comfortably past the largest
     // handle/offset at any zoom.
     var _m=60/zoom + (s.strokeW||2)*2 + 8;
-    _dirtyNow={x:s.cx-s.w/2-_m, y:s.cy-s.h/2-_m, w:s.w+2*_m, h:s.h+2*_m};
+    // A ROTATED note covers more than w x h about its centre, so the upright box
+    // below cleared too little and the corners sticking outside it were never
+    // erased -- the smear that followed the note while dragging. Use the bounding
+    // box of the four ROTATED corners instead. (Notes only gain an angle from a
+    // canvas rotation, which is why this only ever showed after rotating.)
+    var _dw=s.w, _dh=s.h;
+    var _da=(s.angle||0);
+    if(Math.abs(_da)>0.001){
+      var _ca=Math.abs(Math.cos(_da)), _sa=Math.abs(Math.sin(_da));
+      _dw=s.w*_ca + s.h*_sa;
+      _dh=s.w*_sa + s.h*_ca;
+    }
+    _dirtyNow={x:s.cx-_dw/2-_m, y:s.cy-_dh/2-_m, w:_dw+2*_m, h:_dh+2*_m};
   }
   if(_dirtyNow && _selPrevDirty){
     var _ux=Math.min(_dirtyNow.x,_selPrevDirty.x);
@@ -14115,6 +14415,15 @@ function updateSelCursor(x,y){
     // Comments: side-center handles are axis-locked (top/bottom = vertical,
     // left/right = horizontal); corners resize diagonally like a normal box.
     if(selectedShape.type==='comment' && h>=0 && h<=7){
+      // This branch returns BEFORE the rotation-aware line below, so notes were
+      // the only object type still getting fixed, upright cursors -- on a rotated
+      // note every arrow pointed the wrong way. rotatedResizeCursor already maps a
+      // handle to the octant it actually occupies on screen, which is right for
+      // side handles as well as corners.
+      var _cA=(selectedShape.angle||0);
+      if(Math.abs(_cA)>0.001){
+        drawCv.style.cursor=rotatedResizeCursor(h,_cA); return;
+      }
       var cmtCur;
       if(h===1||h===5) cmtCur='ns-resize';        // top/bottom center → vertical
       else if(h===3||h===7) cmtCur='ew-resize';   // left/right center → horizontal
@@ -17271,7 +17580,20 @@ function _movedExplodeObj(o){
 function _textToAcro(o){
   if(typeof EXPORT_ACRO_ANNOTS==='undefined' || !EXPORT_ACRO_ANNOTS) return false;
   if(!o || o.text==null || !String(o.text).trim()) return false;
-  if(Math.abs(o.angle||0) >= 0.001) return false;         // rotated text → keep vector
+  // ROTATION. This used to refuse ANY rotated text, which meant that rotating the
+  // canvas -- which adds dRad to every text object's angle (see rotateCanvas) --
+  // silently disqualified every label from becoming a /FreeText. They were then
+  // skipped by the painter too (visible() skips _acroFlag... and without the flag
+  // they are drawn, but on the REBUILT page they land in the backdrop raster), so
+  // a rotated sheet exported with no editable labels at all.
+  // Right-angle rotations are fine: the appearance stream carries the rotation in
+  // its text matrix (tmRotAt) and /Rotate tells Acrobat how to regenerate it.
+  // Arbitrary angles still stay vector -- Acrobat cannot regenerate those cleanly.
+  var _oaDeg=Math.abs(((o.angle||0)*180/Math.PI)%360);
+  var _isRightAngle=(Math.abs(_oaDeg)<0.5)||(Math.abs(_oaDeg-90)<0.5)
+                  ||(Math.abs(_oaDeg-180)<0.5)||(Math.abs(_oaDeg-270)<0.5)
+                  ||(Math.abs(_oaDeg-360)<0.5);
+  if(!_isRightAngle) return false;                        // odd angle → keep vector
   if(o._fromExplode) return _movedExplodeObj(o);           // page text: only if edited/moved
   return true;                                             // user-added text
 }
@@ -17860,7 +18182,18 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     ops+=f2(vTip.x)+' '+f2(vTip.y)+' m '+f2(w1.x)+' '+f2(w1.y)+' l S '
         +f2(vTip.x)+' '+f2(vTip.y)+' m '+f2(w2.x)+' '+f2(w2.y)+' l S Q';
     var rect=bounds([vSh,vElbow,vTip,w1,w2], W(hwPx)+sw/2+2);
+    // LEADER MARKER. A leader is one object in the app (arrow + shoulder + label)
+    // but two annotations in the PDF, and nothing recorded that they belong
+    // together -- so on re-import the arrow came back as a loose POLYLINE and the
+    // label as loose TEXT, selectable and deletable independently. /T carries the
+    // shape the app needs to rebuild it: shoulder direction, unit vector and
+    // length. The label's own /T already ends in :1 to mark it as a leader label.
+    var _ldT='AOG-LEADER:'+String(o.shoulderDir||'')
+             +':'+(Math.round((o.sdx||0)*10000)/10000)
+             +':'+(Math.round((o.sdy||0)*10000)/10000)
+             +':'+(Math.round((o.shoulderLen||0)*100)/100);
     addAnnot({ Subtype:'PolyLine', Vertices:verts, LE:['None','OpenArrow'],
+               T:PDFLib.PDFString.of(_ldT),
                C:[Math.round(c[0]*1000)/1000, Math.round(c[1]*1000)/1000, Math.round(c[2]*1000)/1000],
                CA:op, BS:bsDict(Math.round(sw*100)/100,null) },
              ops, rect, op, null);
@@ -17869,6 +18202,14 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
   // ── Unrotated rects/ellipses → /Square //Circle ───────────────────────────
   try{ shapeObjs.forEach(function(s){
     if(!s || !s._acroFlag) return;
+    // Every shape leaving as a /Square //Circle, with enough provenance to say
+    // where it came from. Chasing two mystery white rectangles that appear one
+    // per text label and are NOT the callout border.
+    try{ dbg('export','SHAPE->annot '+s.type
+         +' colour='+s.color+' fill='+(!!s.fill)+'/'+(s.fillColor||'-')
+         +' at '+Math.round(s.cx)+','+Math.round(s.cy)+' '+Math.round(s.w)+'x'+Math.round(s.h)
+         +' fromExplode='+(!!s._fromExplode)+' fromAnnot='+(!!s._fromAnnot)
+         +' traced='+(!!s._fromTrace)+' bakedHl='+(!!s._bakedHl)); }catch(_sd){}
     var op=(s.opacity==null?1:s.opacity);
     var sw=Math.max(0.2,W(Math.max(1,s.strokeW||1)));
     var c=rgb01(s.color), dash=dashOf(s,sw);
@@ -17965,15 +18306,28 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     var bdCol=rgb01(c.borderColor||darkenHex(c.bgColor||'#FBBF24',0.35));
     var txCol=rgb01(c.textColor||'#1a1a2e');
     var bwPt=Math.max(0.4, W(Math.max(1,(c.borderStrokeW||2))));
-    // Box corners in page space (unrotated note).
-    var pTL=P(c.cx-c.w/2, c.cy-c.h/2), pBR=P(c.cx+c.w/2, c.cy+c.h/2);
-    var x0=Math.min(pTL.x,pBR.x), y0=Math.min(pTL.y,pBR.y);
-    var x1=Math.max(pTL.x,pBR.x), y1=Math.max(pTL.y,pBR.y);
+    // Box corners, ROTATED about the note's centre. An `re` rectangle is always
+    // axis-aligned, so a rotated note drew an upright box around rotated text --
+    // the border sitting 90 degrees off the words inside it. Emit the four corners
+    // as an explicit path instead, which can hold any angle.
+    var _nA=(c.angle||0), _nc=Math.cos(_nA), _ns=Math.sin(_nA);
+    var _cDegOut=((c.angle||0)*180/Math.PI);   // used for /Rotate below
+    var _NP=function(px,py){
+      var lx=px-c.cx, ly=py-c.cy;
+      return P(c.cx + lx*_nc - ly*_ns, c.cy + lx*_ns + ly*_nc);
+    };
+    var _hw=c.w/2, _hh=c.h/2;
+    var n0=_NP(c.cx-_hw, c.cy-_hh), n1=_NP(c.cx+_hw, c.cy-_hh),
+        n2=_NP(c.cx+_hw, c.cy+_hh), n3=_NP(c.cx-_hw, c.cy+_hh);
+    var _nxs=[n0.x,n1.x,n2.x,n3.x], _nys=[n0.y,n1.y,n2.y,n3.y];
+    var x0=Math.min.apply(null,_nxs), y0=Math.min.apply(null,_nys);
+    var x1=Math.max.apply(null,_nxs), y1=Math.max.apply(null,_nys);
     var rect=[x0-bwPt-1, y0-bwPt-1, x1+bwPt+1, y1+bwPt+1];
+    var _quad=f2(n0.x)+' '+f2(n0.y)+' m '+f2(n1.x)+' '+f2(n1.y)+' l '
+             +f2(n2.x)+' '+f2(n2.y)+' l '+f2(n3.x)+' '+f2(n3.y)+' l h ';
     // Fill + border.
-    var ops='q /GSF gs '+colStr(bgCol)+' rg '+f2(x0)+' '+f2(y0)+' '+f2(x1-x0)+' '+f2(y1-y0)+' re f Q ';
-    ops+='q /GS0 gs '+f2(bwPt)+' w '+colStr(bdCol)+' RG '
-        +f2(x0+bwPt/2)+' '+f2(y0+bwPt/2)+' '+f2((x1-x0)-bwPt)+' '+f2((y1-y0)-bwPt)+' re S Q ';
+    var ops='q /GSF gs '+colStr(bgCol)+' rg '+_quad+'f Q ';
+    ops+='q /GS0 gs '+f2(bwPt)+' w '+colStr(bdCol)+' RG '+_quad+'S Q ';
     // Text: wrap exactly like the on-screen/flattened renderer.
     var fontRef=null, fsize=W(12), daFs=12;
     if(fonts && fonts.regular && c.text && String(c.text).trim()){
@@ -18021,9 +18375,15 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
         if(!line) return;
         var ty=lyN+pad+halfLead+i*lineH;
         if(ty+fsPx > lyN+c.h-pad+halfLead+0.5) return;   // overflow clip, as on screen
-        var bx=lxN+pad, by=ty+fsPx*0.80;
-        var pp=P(bx,by);
-        ops+=tmRotAt(pp.x,pp.y,rotDeg)+_tjOf(line);
+        // Same as the text emitter: rotDeg carries only the page-level rotation
+        // (which reads 0 for a user canvas rotation), so the NOTE's own angle has
+        // to be applied here or its lines are written horizontally inside a box
+        // that has been rotated -- off by exactly 90.
+        var _cDegN=((c.angle||0)*180/Math.PI);
+        var _ccN=Math.cos(c.angle||0), _csN=Math.sin(c.angle||0);
+        var _bxL=(lxN+pad)-c.cx, _byL=(ty+fsPx*0.80)-c.cy;
+        var pp=P(c.cx + _bxL*_ccN - _byL*_csN, c.cy + _bxL*_csN + _byL*_ccN);
+        ops+=tmRotAt(pp.x,pp.y,rotDeg-_cDegN)+_tjOf(line);
         // underline / strike as thin rules
         if(c.underline||c.strike){
           var lwTxt=0; try{ lwTxt=f.widthOfTextAtSize(line,fsize); }catch(_w){ lwTxt=line.length*fsize*0.5; }
@@ -18046,14 +18406,19 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
             // pdf.js exposes as titleObj.str.
             T:PDFLib.PDFString.of('AOG-NOTE:'
                 +String(c.borderColor||darkenHex(c.bgColor||'#FBBF24',0.35)).replace('#','')
-                +':'+(Math.round(((c.bgOpacity!==undefined?c.bgOpacity:1))*1000)/1000)),
+                +':'+(Math.round(((c.bgOpacity!==undefined?c.bgOpacity:1))*1000)/1000)
+                +':'+(Math.round(((c.angle||0)*180/Math.PI)*100)/100)),
             BS:bsDict(Math.round(bwPt*100)/100,null) };
     // Annotation-level /DR as well, for viewers that resolve the /DA font from
     // the annotation rather than from the AcroForm.
     if(fontRef){ try{ var _frmN={}; _frmN[_daNm]=fontRef; d.DR=ctx.obj({ Font: ctx.obj(_frmN) }); }catch(_dn){} }
-    // Keep text upright when Acrobat regenerates the appearance on edit (rotated
-    // pages otherwise flip it sideways). Page rotations are always multiples of 90.
-    if(rotDeg) d.Rotate=rotDeg;
+    // Keep text upright when Acrobat regenerates the appearance on edit. /Rotate
+    // must match the rotation the appearance was actually DRAWN with -- rotDeg
+    // alone carries only the page-level rotation (0 for a user canvas rotation),
+    // so a rotated note came back sideways the moment it was clicked. Same
+    // expression as the text matrix above.
+    var _dRotN=Math.round((((rotDeg-_cDegOut)%360)+360)%360);
+    if(_dRotN) d.Rotate=_dRotN;
     addAnnot(d, ops, rect, noteA, fillA, fontRef);
   }); }catch(e){ console.warn('[AcroAnnot] notes',e); }
 
@@ -18128,7 +18493,13 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     function _wc(str){ try{ return f.widthOfTextAtSize(str,fsize)*sc; }catch(_){ return String(str).length*fsize*0.5*sc; } }
     var maxW=0; lines.forEach(function(l){ var wv=_wc(l); if(wv>maxW)maxW=wv; });
     var nLines=lines.length;
-    var coverBg=!!obj._fromExplode;   // edited page text must hide its baked original
+    // Cover the ORIGINAL words only when they are baked into the PAGE. Text that
+    // came back from one of our own FreeText annotations also carries
+    // _fromExplode, but its original is an annotation -- which the export strips
+    // and redraws -- so there is nothing underneath to hide. Covering it anyway
+    // painted a white block over real survey linework, left behind when the label
+    // was moved. Same _fromExplode && !_fromAnnot test skipImport already uses.
+    var coverBg=!!(obj._fromExplode && !obj._fromAnnot);
     if(coverBg && obj._oText!=null){
       var oLines=String(obj._oText).split('\n');
       oLines.forEach(function(l){ var wv=_wc(_winAnsiSafe(String(l))); if(wv>maxW)maxW=wv; });
@@ -18138,7 +18509,30 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     var asc=fsize*TXT_ASC_F, desc=fsize*TXT_DESC_F, padX=2/sc, padY=1.5/sc;
     var boxL=obj.x - padX*sc, boxTop=obj.y - asc*sc - padY*sc;
     var boxW=maxW + padX*2*sc, boxH=(nLines-1)*lineH + (asc+desc)*sc + padY*2*sc;
-    var q0=P(boxL,boxTop), q1=P(boxL+boxW,boxTop), q2=P(boxL+boxW,boxTop+boxH), q3=P(boxL,boxTop+boxH);
+    // LEADER CALLOUT: match the CANVAS box exactly. The block above uses fixed
+    // TXT_ASC_F/TXT_DESC_F proportions and 2 x 1.5 padding, while the canvas box
+    // is measured from real glyph ink with CALLOUT_PAD -- so the exported border
+    // sat slightly off the one on screen. Re-derive from the same source.
+    if(obj._leaderLabel && obj.calloutBox!==false && !obj.angle){
+      try{
+        var _cb2=_calloutBounds(obj), _cp2=CALLOUT_PAD;
+        boxL   = obj.x - _cp2;
+        boxTop = obj.y + _cb2.top - _cp2;
+        boxW   = _cb2.w + _cp2*2;
+        boxH   = _cb2.h + _cp2*2;
+      }catch(_cbx){}
+    }
+    // Rotate the box corners about the label's anchor before mapping, for the same
+    // reason the glyphs are rotated below: the object's angle is not in rotDeg, so
+    // corners mapped straight through P() gave an axis-aligned box around rotated
+    // text -- the border and highlight sat 90 degrees off the words they belong to.
+    var _bA=(obj.angle||0), _bc=Math.cos(_bA), _bs=Math.sin(_bA);
+    var _BP=function(px,py){
+      var lx=px-obj.x, ly=py-obj.y;
+      return P(obj.x + lx*_bc - ly*_bs, obj.y + lx*_bs + ly*_bc);
+    };
+    var q0=_BP(boxL,boxTop), q1=_BP(boxL+boxW,boxTop),
+        q2=_BP(boxL+boxW,boxTop+boxH), q3=_BP(boxL,boxTop+boxH);
     var xs=[q0.x,q1.x,q2.x,q3.x], ys=[q0.y,q1.y,q2.y,q3.y];
     var rect=[Math.min.apply(null,xs)-1, Math.min.apply(null,ys)-1, Math.max.apply(null,xs)+1, Math.max.apply(null,ys)+1];
     // Hide the ORIGINAL baked words with a white box painted ON THE PAGE — NOT in
@@ -18178,6 +18572,19 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
       ops+='q /GSF gs '+colStr(_bgc)+' rg '
           +f2(q0.x)+' '+f2(q0.y)+' m '+f2(q1.x)+' '+f2(q1.y)+' l '+f2(q2.x)+' '+f2(q2.y)+' l '+f2(q3.x)+' '+f2(q3.y)+' l h f Q ';
     }
+    // CALLOUT BORDER, baked into the appearance. /BS alone only tells Acrobat what
+    // width to use WHEN IT REGENERATES the appearance -- so the border was
+    // invisible until the annotation was clicked and dragged, which is what forces
+    // a regenerate. Stroking it here means it is there from the moment the file
+    // opens, in every viewer, and matches what the canvas draws. Same q0..q3 quad
+    // the highlight above uses, so fill and border stay aligned.
+    if(obj._leaderLabel && obj.calloutBox!==false){
+      dbg('export','  ^ callout border in ANNOTATION appearance (travels with the annot)');
+      var _cbw=Math.max(0.4, W(Math.max(1,(obj.borderStrokeW||1))));
+      ops+='q /GS0 gs '+f2(_cbw)+' w '+colStr(txCol)+' RG [] 0 d '
+          +f2(q0.x)+' '+f2(q0.y)+' m '+f2(q1.x)+' '+f2(q1.y)+' l '
+          +f2(q2.x)+' '+f2(q2.y)+' l '+f2(q3.x)+' '+f2(q3.y)+' l h S Q ';
+    }
     ops+='q /GS0 gs BT /F0 '+f2(fsize)+' Tf '+colStr(txCol)+' rg ';
     // Character offsets from the RAW lines: `lines` above has been through
     // _winAnsiSafe/_repairLigArtifacts, which can change length, so indexing runs
@@ -18188,7 +18595,22 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
       if(ln==='') return;
       var twc=_wc(ln);
       var _off=(align==='center'?(maxW-twc)/2:align==='right'?(maxW-twc):0);
-      var pp=P(obj.x+_off, obj.y+i*lineH);
+      // The object's OWN angle must be applied here. rotDeg carries only the
+      // page-level rotation, and the GEOM log shows it reads 0 even when the user
+      // has rotated the canvas -- the canvas rotation lives on each object's angle
+      // instead (rotateCanvas adds dRad to every one). Leaving it out wrote the
+      // glyphs horizontally inside a tall, narrow rect: off by exactly 90.
+      // Canvas angles are clockwise (y down) and PDF rotation is counter-clockwise,
+      // hence the subtraction.
+      var _objDeg=((obj.angle||0)*180/Math.PI);
+      var _oc=Math.cos(obj.angle||0), _os=Math.sin(obj.angle||0);
+      var _lox=_off, _loy=i*lineH;
+      var pp=P(obj.x + _lox*_oc - _loy*_os, obj.y + _lox*_os + _loy*_oc);
+      try{ if(i===0) dbg('export','  place "'+String(obj.text||'').slice(0,12)+'"'
+           +' canvas='+Math.round(obj.x)+','+Math.round(obj.y)
+           +' -> page='+Math.round(pp.x)+','+Math.round(pp.y)
+           +'  rotDeg='+rotDeg+' objAngle='+Math.round((obj.angle||0)*180/Math.PI)
+           +'  VW/VH='+Math.round(sz.width)+'x'+Math.round(sz.height)); }catch(_pl){}
       // PER-SELECTION COLOUR. With no runs this is one Tj at one colour, exactly
       // as before. With runs the line is emitted as consecutive Tj segments, each
       // preceded by its own `rg`, advancing x by the measured width of the text
@@ -18196,8 +18618,11 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
       // so a plain horizontal advance is correct here.
       var _segs=null;
       try{ _segs=_lineSegs(obj, ln, _offsE[i]); }catch(_se2){ _segs=null; }
-      try{ if(i===0) dbg('export','TEXT ANNOT line0',{hasRuns:!!obj.runs, nRuns:obj.runs?obj.runs.length:0, off:_offsE[i], segs:_segs?_segs.length:0, txt:String(ln).slice(0,24)}); }catch(_dg){}
-      if(!_segs){ ops+=tmRotAt(pp.x,pp.y,rotDeg)+_tjTxt(ln); return; }
+      try{ if(i===0) dbg('export','ROUTE=ANNOT (FreeText) "'+String(obj.text||'').slice(0,18)+'"'
+           +' leader='+(!!obj._leaderLabel)+' angle='+Math.round((obj.angle||0)*180/Math.PI)+'deg'
+           +' fromExplode='+(!!obj._fromExplode)+' fromAnnot='+(!!obj._fromAnnot)
+           +' bgOp='+(obj.bgOpacity||0)+' coverBg='+coverBg); }catch(_dg){}
+      if(!_segs){ ops+=tmRotAt(pp.x,pp.y,rotDeg-_objDeg)+_tjTxt(ln); return; }
       var _adv=0;
       _segs.forEach(function(sg){
         if(sg.s==='') return;
@@ -18207,9 +18632,10 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
         // Per-run point size, scaled off the block size the same way the canvas
         // renderer does, so a resized word exports at the size it shows at.
         var _sfs=fsize*((sg.fs||obj.fontSize||12)/(obj.fontSize||12));
-        var sp=P(obj.x+_off+_adv, obj.y+i*lineH);
+        var _sax=_off+_adv, _say=i*lineH;
+        var sp=P(obj.x + _sax*_oc - _say*_os, obj.y + _sax*_os + _say*_oc);
         ops+='/'+_fn+' '+f2(_sfs)+' Tf '+colStr(rgb01(sg.c))+' rg ';
-        ops+=tmRotAt(sp.x,sp.y,rotDeg)+_tjSeg(_sf,sg.s);
+        ops+=tmRotAt(sp.x,sp.y,rotDeg-_objDeg)+_tjSeg(_sf,sg.s);
         var _sw=0;
         try{ _sw=_sf.widthOfTextAtSize(sg.s,_sfs)*sc; }catch(_ws){ _sw=_wc(sg.s); }
         // Underline / strike as thin rules under just this segment. Emitted
@@ -18238,7 +18664,16 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
             DA:PDFLib.PDFString.of('/'+_daNmT+' '+f2(fsize)+' Tf '+colStr(txCol)+' rg'),
             Q:(align==='center'?1:align==='right'?2:0),
             CA:op,
-            BS:bsDict(0,null) };
+            // Leader labels get a real border so they read like Acrobat's Text
+            // Callout; every other text annotation stays borderless (width 0).
+            BS:bsDict((obj._leaderLabel && obj.calloutBox!==false)
+                        ? Math.max(0.4, W(Math.max(1,(obj.borderStrokeW||1))))
+                        : 0, null) };
+    // NB: do NOT set /C here for the callout border. On a FreeText, /C is the
+    // BACKGROUND colour, not the border -- setting it to the label colour gave
+    // the callout a solid fill and overrode whatever the TXT BG control had been
+    // set to. The border comes from /BS above; the background stays under the
+    // user's control via bgColor/bgOpacity, written by the highlight branch.
     // Annotation-level /DR too, mapping the same name → styled font, for viewers
     // that resolve the DA font from the annotation rather than the AcroForm.
     if(fontRef){ try{ var _frm={}; _frm[_daNmT]=fontRef; d.DR=ctx.obj({ Font: ctx.obj(_frm) }); }catch(_dr){} }
@@ -18258,16 +18693,49 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     // import's operator walk never looks). /C carries the highlight COLOUR, and
     // is written only when there actually is a highlight -- an un-highlighted
     // text annotation still has no background box.
-    d.T=PDFLib.PDFString.of('AOG-TEXT:'+(Math.round((_bgOp||0)*1000)/1000));
+    // Also record the TRUE text origin, so the import does not have to infer it
+    // from the rect. It used to assume the baseline sat 0.85em below the rect
+    // top -- but the rect now includes callout padding and the border stroke, so
+    // every round trip shifted the label by exactly that decoration. Stored as a
+    // FRACTION of the rect (0..1) to stay correct at any scale or DPI.
+    var _oxF=0, _oyF=0;
+    try{
+      var _rw=(rect[2]-rect[0]), _rh=(rect[3]-rect[1]);
+      var _op0=P(obj.x, obj.y);                       // the real baseline anchor
+      if(_rw>0) _oxF=(_op0.x-rect[0])/_rw;
+      if(_rh>0) _oyF=(rect[3]-_op0.y)/_rh;            // measured DOWN from the top
+      _oxF=Math.max(-1,Math.min(2,_oxF)); _oyF=Math.max(-1,Math.min(2,_oyF));
+    }catch(_ox){ _oxF=0; _oyF=0; }
+    // Fourth field flags a LEADER LABEL. Nothing in the annotation says a label
+    // belongs to a leader, so on re-import it came back as ordinary text: no
+    // callout border, and the background drawn as per-line highlighter bars
+    // (wider than the glyphs) instead of one box.
+    // Fifth field: the object's own rotation in degrees. Nothing else in the
+    // annotation records it -- /Rotate is a regeneration hint for Acrobat, not the
+    // object's state -- so on re-import every rotated label came back flat.
+    d.T=PDFLib.PDFString.of('AOG-TEXT:'+(Math.round((_bgOp||0)*1000)/1000)
+        +':'+(Math.round(_oxF*10000)/10000)+':'+(Math.round(_oyF*10000)/10000)
+        +':'+(obj._leaderLabel?'1':'0')
+        +':'+(Math.round(((obj.angle||0)*180/Math.PI)*100)/100));
     if(_hasHi){
       var _hc=rgb01(obj.bgColor||'#ffff00');
       d.C=[Math.round(_hc[0]*1000)/1000, Math.round(_hc[1]*1000)/1000, Math.round(_hc[2]*1000)/1000];
     }
-    if(rotDeg) d.Rotate=rotDeg;
+    // As above: match the rotation the appearance was drawn with, or Acrobat
+    // re-lays the text out flat when the label is clicked.
+    var _dRotT=Math.round((((rotDeg-((obj.angle||0)*180/Math.PI))%360)+360)%360);
+    if(_dRotT) d.Rotate=_dRotT;
     var _extraF={};
     try{ for(var _fk in _segFonts){ if(_fk!=='F0' && _segFonts[_fk] && _segFonts[_fk].ref) _extraF[_fk]=_segFonts[_fk].ref; } }catch(_ef){}
     addAnnot(d, ops, rect, op, _fillA, fontRef, _extraF);
-  }); }catch(e){ console.warn('[AcroAnnot] text',e); }
+  }); }catch(e){
+    // Loud on purpose. If this throws, NO label becomes a /FreeText: they are
+    // skipped by the painter too (visible() skips _acroFlag), so they survive
+    // only inside the backdrop raster -- uneditable in Acrobat and duplicated on
+    // re-import. Silently warning made that look like a stripping problem.
+    console.warn('[AcroAnnot] TEXT EMIT FAILED — labels will NOT become annotations:', e);
+    try{ dbg('export','!! TEXT EMIT THREW: '+(e && e.message ? e.message : e)); }catch(_te){}
+  }
 
   try{
     if(typeof textObjs!=='undefined'){
@@ -18803,6 +19271,99 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
     // the line down as consecutive segments, advancing along the text direction by
     // each segment's measured width. The advance is rotated by the same total
     // angle as the glyphs so rotated labels stay on their baseline.
+    // LEADER CALLOUT BOX on the FLATTENED path. With Acrobat-edit off the text is
+    // painted here instead of emitted as an annotation, and the border lives on
+    // the annotation -- so the box vanished from the export. Draw it from the same
+    // _calloutBounds / CALLOUT_PAD the canvas uses. Emitted as a 4-point path
+    // rather than drawRectangle so page rotation is carried by P() like everything
+    // else here.
+    // If an object reaches the painter while still carrying _acroFlag, it has
+    // ALREADY been emitted as an annotation -- drawing it here too is the third
+    // copy on a rotated sheet. visible() is supposed to skip these.
+    try{ if(obj._acroFlag) dbg('export','!! DOUBLE: painter drawing an object that is'
+         +' ALREADY an annotation: "'+String(obj.text||'').slice(0,18)+'"'); }catch(_dd){}
+    try{ dbg('export','ROUTE=PAINTER (page content) "'+String(obj.text||'').slice(0,18)+'"'
+         +' leader='+(!!obj._leaderLabel)+' angle='+Math.round((obj.angle||0)*180/Math.PI)+'deg'
+         +' acroFlag='+(!!obj._acroFlag)+' fromExplode='+(!!obj._fromExplode)
+         +' fromAnnot='+(!!obj._fromAnnot)+' bgOp='+(obj.bgOpacity||0)); }catch(_dbg1){}
+    // Rotated labels included. Canvas rotation DOES put an angle on text objects
+    // (it is why _textToAcro refuses them and they land in this painter at all),
+    // so skipping angled ones meant the box vanished from every rotated export.
+    // Corners are built in the label's local frame and rotated about its anchor
+    // before P() maps them, so the box turns with the glyphs.
+    if(obj._leaderLabel && obj.calloutBox!==false){
+      try{
+        var _vb=_calloutBounds(obj), _vp2=CALLOUT_PAD;
+        // WIDTH from the PAINTER's own font, not the browser's. _calloutBounds
+        // measures through a canvas context; the painter lays the glyphs out with
+        // the embedded PDF font, and on a rotated label the difference showed as
+        // text running out of the end of the box. Vertical extent still comes from
+        // _calloutBounds -- ascent/descent agree closely and it keeps the box the
+        // same height as the one on screen.
+        var _vw=0;
+        try{
+          for(var _wi=0;_wi<lines.length;_wi++){
+            var _lw2=f.widthOfTextAtSize(String(lines[_wi]||''), fsize)*sc;
+            if(_lw2>_vw) _vw=_lw2;
+          }
+        }catch(_mw){ _vw=0; }
+        if(!(_vw>0)) _vw=_vb.w;
+        // NB: logged BEFORE the corners exist -- referencing _c0 here threw and
+        // aborted the whole block, so no box was drawn at all. Corners are logged
+        // after they are computed, below.
+        dbg('export','  ^ CALLOUT BOX BAKED INTO PAGE CONTENT (border'
+            +((obj.bgOpacity>0)?' + fill':'')+') -- this is NOT an annotation, so a'
+            +' re-import cannot remove it: angle='+Math.round((obj.angle||0)*180/Math.PI)
+            +'deg w='+Math.round(_vw)+' h='+Math.round(_vb.h));
+        var _lx=-_vp2, _ty=_vb.top-_vp2;
+        var _rx=_lx+_vw+_vp2*2, _by=_ty+_vb.h+_vp2*2;
+        var _oa2=obj.angle||0, _ca2=Math.cos(_oa2), _sa2=Math.sin(_oa2);
+        var _RP=function(lx,ly){
+          return P(obj.x + lx*_ca2 - ly*_sa2, obj.y + lx*_sa2 + ly*_ca2);
+        };
+        var _c0=_RP(_lx,_ty), _c1=_RP(_rx,_ty), _c2=_RP(_rx,_by), _c3=_RP(_lx,_by);
+        dbg('export','  corners '+Math.round(_c0.x)+','+Math.round(_c0.y)
+            +' -> '+Math.round(_c1.x)+','+Math.round(_c1.y)
+            +' -> '+Math.round(_c2.x)+','+Math.round(_c2.y)
+            +' -> '+Math.round(_c3.x)+','+Math.round(_c3.y));
+        var _pts=[{x:_c0.x,y:_c0.y},{x:_c1.x,y:_c1.y},{x:_c2.x,y:_c2.y},{x:_c3.x,y:_c3.y}];
+        // NB: NOT drawSvgPath. It reads its path in SVG space -- Y increasing
+        // DOWNWARD, origin at the given x/y -- while P() returns PDF page
+        // coordinates with Y up. Feeding absolute page coords to it drew the box
+        // mirrored off the sheet, which is why nothing appeared even though this
+        // code ran. drawLine and drawRectangle take page coordinates directly.
+        var _bgO=(obj.bgOpacity==null?0:obj.bgOpacity);
+        var _xs=[_c0.x,_c1.x,_c2.x,_c3.x], _ys=[_c0.y,_c1.y,_c2.y,_c3.y];
+        var _minX=Math.min.apply(null,_xs), _maxX=Math.max.apply(null,_xs);
+        var _minY=Math.min.apply(null,_ys), _maxY=Math.max.apply(null,_ys);
+        if(_bgO>0){
+          if(!_oa2){
+            page.drawRectangle({ x:_minX, y:_minY, width:_maxX-_minX, height:_maxY-_minY,
+                                 color:col(obj.bgColor||'#ffff00'),
+                                 opacity:Math.max(0,Math.min(1,(obj.opacity==null?1:obj.opacity)*_bgO)),
+                                 borderWidth:0 });
+          } else {
+            // A rotated box is not axis-aligned, so its bounding rectangle would
+            // be visibly larger than the box. Fill the quad itself. drawSvgPath
+            // reads SVG space (Y down) while these are page coords, so the y
+            // values are mirrored about the page height to compensate.
+            var _ph=page.getSize().height;
+            page.drawSvgPath('M '+_c0.x+' '+(_ph-_c0.y)+' L '+_c1.x+' '+(_ph-_c1.y)
+                            +' L '+_c2.x+' '+(_ph-_c2.y)+' L '+_c3.x+' '+(_ph-_c3.y)+' Z',
+                            { x:0, y:_ph, color:col(obj.bgColor||'#ffff00'),
+                              opacity:Math.max(0,Math.min(1,(obj.opacity==null?1:obj.opacity)*_bgO)),
+                              borderWidth:0 });
+          }
+        }
+        var _bwv=Math.max(0.4, W(Math.max(1,(obj.borderStrokeW||1))));
+        var _bcol=col(obj.color||'#000000'), _bop=(obj.opacity==null?1:obj.opacity);
+        for(var _e=0;_e<4;_e++){
+          var _a=_pts[_e], _b2=_pts[(_e+1)%4];
+          page.drawLine({ start:{x:_a.x,y:_a.y}, end:{x:_b2.x,y:_b2.y},
+                          thickness:_bwv, color:_bcol, opacity:_bop });
+        }
+      }catch(_vcb){ console.warn('[VectorExport] callout box',_vcb); }
+    }
     var _offsV=[];
     try{ _offsV=_lineOffsets(obj, getTextLines(obj,efpx)); }catch(_ov){ _offsV=[]; }
     var _famKV=(typeof _customFamilyKey==='function')?_customFamilyKey(obj.fontFamily):null;
@@ -19130,7 +19691,15 @@ function _markAcroAnnotObjs(){
     // Notes → /FreeText annotations (background + border + editable text).
     // FreeText can't rotate cleanly, so a rotated note stays flattened by the
     // vector painter (rare — notes are placed axis-aligned).
-    if(Math.abs(c.angle||0)<0.001 && c.w>0 && c.h>0){ c._acroFlag=true; n++; }
+    // Right-angle rotations qualify, same as text. rotateCanvas adds dRad to every
+    // note's angle, so refusing ANY rotation meant a rotated sheet's notes were
+    // never emitted as /FreeText -- they ended up flattened into the backdrop and
+    // uneditable in Acrobat. Arbitrary angles still stay vector: Acrobat cannot
+    // regenerate those cleanly.
+    var _cDeg=Math.abs((((c.angle||0)*180/Math.PI)%360+360)%360);
+    var _cRight=(_cDeg<0.5)||(Math.abs(_cDeg-90)<0.5)||(Math.abs(_cDeg-180)<0.5)
+              ||(Math.abs(_cDeg-270)<0.5)||(Math.abs(_cDeg-360)<0.5);
+    if(_cRight && c.w>0 && c.h>0){ c._acroFlag=true; n++; }
   }); }catch(_e){}
   try{ polylineObjs.forEach(function(pl){
     if(!vis(pl) || skipImport(pl) || !pl.pts || pl.pts.length<2) return;
@@ -19768,6 +20337,27 @@ function _buildVectorPdf(attachJson, onReady){
              count:_culprits.length, culprits:_culprits.slice(0,25)});
         console.warn('[AOG:export] Vector path abandoned. Moved-object report:', _culprits);
       }catch(_e){ console.warn('[AOG:export] culprit scan failed:', _e); }
+      // NO SILENT RASTER FALLBACK. Flattening costs every annotation: labels stop
+      // being editable in Acrobat, notes come back as plain text, and the sheet
+      // duplicates on re-import. A silent downgrade that damages a permit packet
+      // is worse than a refusal, so abort and NAME the objects responsible --
+      // _culprits above lists them. Set false to restore the old behaviour.
+      var _AOG_NO_RASTER_FALLBACK = true;
+      if(_AOG_NO_RASTER_FALLBACK){
+        var _why='';
+        try{
+          _why=(_culprits&&_culprits.length)
+            ? (_culprits.length+' extracted object(s) report as moved/deleted — first: '
+               +JSON.stringify(_culprits[0]))
+            : 'extracted page content was moved or deleted';
+        }catch(_e){ _why='extracted page content was moved or deleted'; }
+        console.warn('[AOG:export] ABORTED — would have fallen back to RASTER. Reason: '+_why);
+        try{ dbg('export','ABORTED: raster fallback refused — '+_why); }catch(_d){}
+        try{ toast('Export stopped: this sheet would have been flattened to an image '
+                   +'(losing every editable annotation). Reason: '+_why, 'err', 9000); }catch(_t){}
+        try{ _xlap('EXIT: raster fallback REFUSED'); _xdump(); }catch(_x){}
+        throw new Error('AOG: raster fallback refused — '+_why);
+      }
       imglog('⚠ EXPORT path = RASTER (flattened). The whole sheet becomes ONE flat image, '
              +'so individual uploaded pictures are NOT preserved as separate images. '
              +'Trigger: you MOVED or DELETED something that was extracted from the original page. '
@@ -20449,6 +21039,18 @@ function _buildVectorPdf(attachJson, onReady){
               // map every visual coordinate through the page's rotation so the
               // original page content stays vector (no flatten) even on /Rotate 90.
               var mb=page.getSize();                              // UNROTATED media box
+              // Re-read the rotation from the PAGE rather than trusting the local
+              // variable. The fold above assigns `rot` and calls setRotation, but the
+              // geometry below was seeing rot=0 while the saved file came out with
+              // /Rotate 90 -- so VW/VH and v2p were built for an UNROTATED page while
+              // the page itself was rotated, and every annotation landed in the wrong
+              // place. Reading it back cannot drift from what the file actually says.
+              // NOTE: do NOT "correct" rot here. Forcing it to page-rotation plus
+              // user-rotation diverted the export onto a different page-build route
+              // entirely (A3 landscape, no /Rotate, no annotations at all), which is
+              // worse than the misplacement it was meant to fix. The rot mismatch
+              // seen in the GEOM log is real, but it has to be resolved where rot is
+              // first established, not patched at the point of use.
               var PW=mb.width, PH=mb.height;
               // Visual page size (what the canvas matches).
               var VW=(rot===90||rot===270)?PH:PW;
@@ -20472,6 +21074,12 @@ function _buildVectorPdf(attachJson, onReady){
                 return {x:vx, y:vy};
               }
               var sz={width:VW, height:VH, _rot:rot, _v2p:v2p, _PW:PW, _PH:PH};
+              try{ dbg('export','GEOM rot='+rot+' MediaBox='+Math.round(PW)+'x'+Math.round(PH)
+                   +' VW/VH='+Math.round(VW)+'x'+Math.round(VH)
+                   +' baseCv='+baseCv.width+'x'+baseCv.height
+                   +' sc='+(Math.round(sc*1000)/1000)
+                   +' userRot='+(typeof _userRotDeg!=='undefined'?_userRotDeg:'?')
+                   +' aspectOK='+(Math.abs((baseCv.width/baseCv.height)-(VW/VH))<=0.02)); }catch(_g){}
               // FULL-REDRAW: the original page content on these diagrams is stored
               // as PAGE ANNOTATIONS (lines/boxes/arrows layered on top of the page),
               // which always render above anything we draw — that's why covering or
@@ -20485,11 +21093,18 @@ function _buildVectorPdf(attachJson, onReady){
               // case we keep the original page intact and just stamp the overlay.
               if(_shouldWhiteCoverPage()){
                 try{
+                  // Deletes the ORIGINAL page's annotations. This runs BEFORE
+                  // _emitAcrobatAnnots (see the call site), so nothing of ours is
+                  // in /Annots yet and there is nothing to protect -- an earlier
+                  // "selective" version of this actually made things worse, since
+                  // the source file is itself a previous AOG export whose
+                  // annotations all carry AOG- names and were therefore kept.
                   var _annCount=0;
                   try{ var _a=page.node.Annots && page.node.Annots(); _annCount=(_a&&_a.size)?_a.size():0; }catch(e){}
                   page.node.delete(PDFLib.PDFName.of('Annots'));
                   _annotsStripped = true;
-                  dbg('export','full-redraw: removed '+_annCount+' page annotations (original content)');
+                  dbg('export','full-redraw: removed '+_annCount+' original page annotations '
+                      +'(ours are emitted after this point)');
                 }catch(e){ console.warn('[VectorExport] annot removal failed:',e); }
                 // ── REMOVE, DON'T JUST COVER ─────────────────────────────────
                 // Painting a white rectangle over the page left the ORIGINAL
@@ -20548,14 +21163,42 @@ function _buildVectorPdf(attachJson, onReady){
                       _dropSubs.push('Widget');
                     }
                     var _dropNames=_dropSubs.map(function(n){ return PDFLib.PDFName.of(n); });
+                    // PASS 1: decide which markup annotations go, remembering the
+                    // dicts so their popups can go with them.
+                    var _droppedDicts=[];
                     for(var _ai=0; _ai<_annsArr.size(); _ai++){
                       var _ref=_annsArr.get(_ai), _dict=null;
                       try{ _dict=pdf.context.lookup(_ref); }catch(e){ _dict=null; }
                       var _sub=null;
                       try{ _sub=_dict && _dict.get && _dict.get(PDFLib.PDFName.of('Subtype')); }catch(e){ _sub=null; }
-                      if(_sub && _dropNames.indexOf(_sub)!==-1){ _dropped++; continue; }
+                      if(_sub && _dropNames.indexOf(_sub)!==-1){ _dropped++; if(_dict) _droppedDicts.push(_dict); continue; }
                       _keep.push(_ref);
                     }
+                    // PASS 2: drop ORPHANED POPUPS. A markup annotation owns a /Popup
+                    // child; removing the parent and leaving the popup behind left one
+                    // dangling comment per original -- Acrobat lists every popup in the
+                    // Comments panel, still showing the ORIGINAL author, so a 30-markup
+                    // sheet read as 58 comments with the source author's name all
+                    // through it. The artwork was never doubled; the comment list was.
+                    try{
+                      var _keep2=[], _pop=0;
+                      for(var _ki=0; _ki<_keep.length; _ki++){
+                        var _kr=_keep[_ki], _kd=null;
+                        try{ _kd=pdf.context.lookup(_kr); }catch(e){ _kd=null; }
+                        var _ks=null;
+                        try{ _ks=_kd && _kd.get && _kd.get(PDFLib.PDFName.of('Subtype')); }catch(e){}
+                        if(_ks===PDFLib.PDFName.of('Popup')){
+                          var _par=null;
+                          try{ _par=_kd.get(PDFLib.PDFName.of('Parent')); }catch(e){}
+                          var _pd=null;
+                          try{ _pd=_par?pdf.context.lookup(_par):null; }catch(e){}
+                          var _isOrphan = !_pd || _droppedDicts.indexOf(_pd)!==-1;
+                          if(_isOrphan){ _pop++; _dropped++; continue; }
+                        }
+                        _keep2.push(_kr);
+                      }
+                      if(_pop){ _keep=_keep2; dbg('export','also removed '+_pop+' orphaned /Popup annotation(s)'); }
+                    }catch(_pe){ console.warn('[VectorExport] popup cleanup failed:',_pe); }
                     if(_dropped>0){
                       _annotsStripped = true;   // originals are gone → the painter MUST redraw them
                       var _newArr=pdf.context.obj(_keep);
@@ -21544,6 +22187,21 @@ function buildProjectRecord(quality, cb){
     pdfPageNum:     (typeof _vecPageNum!=='undefined' ? _vecPageNum : 1),
     pdfPageRot:     (typeof _pdfPageRot!=='undefined' ? _pdfPageRot : 0),
     userRotDeg:     (typeof _userRotDeg!=='undefined' ? _userRotDeg : 0),
+    // Deleted page images were NOT saved, so a restored session forgot them and
+    // every picture the user had removed came back on the next open (and on the
+    // next export, since the exporter reads this list to cover their footprint).
+    deletedPageImgs: (typeof _deletedPageImgs!=='undefined' && _deletedPageImgs)
+                     ? _deletedPageImgs.map(function(d){ return {_origCx:d._origCx,_origCy:d._origCy,
+                         _origW:d._origW,_origH:d._origH,layerIdx:d.layerIdx}; }) : [],
+    // The export works out which page images were DELETED by comparing the names
+    // recorded at IMPORT against the overlays still alive. A restore never runs
+    // the import, so that list came back empty, no deletion was detected, and the
+    // pristine page kept its pictures -- gone from the screen but back in the PDF.
+    pageImgNames:   (typeof _pageImgNamesAtImport!=='undefined' && _pageImgNamesAtImport)
+                    ? _pageImgNamesAtImport.slice() : [],
+    pageImgInfo:    (function(){ try{ return JSON.parse(JSON.stringify(
+                      (typeof _pageImgInfoAtImport!=='undefined' && _pageImgInfoAtImport) ? _pageImgInfoAtImport : {})); }
+                      catch(_e){ return {}; } })(),
     layers:         [],
     activeLayerIdx: activeLayerIdx,
     scaleSet:       scaleSet,
@@ -21603,6 +22261,12 @@ function buildProjectRecord(quality, cb){
               _fromPdfPage:!!ov._fromPdfPage,
               _origCx:ov._origCx, _origCy:ov._origCy, _origW:ov._origW, _origH:ov._origH,
               _origAngle:ov._origAngle, _srcW:ov._srcW, _srcH:ov._srcH,
+              // The image's SOURCE XOBJECT NAME. The export decides which page
+              // images were deleted by diffing the names recorded at import
+              // against the overlays still alive -- without this an overlay came
+              // back anonymous, matched nothing, and every page image looked
+              // deleted. It is the id that ties an overlay to its original.
+              _srcName:ov._srcName,
               // Persist the vector TRACE: reopened projects keep true-vector
               // pictures instead of gambling on a re-trace of a stored bitmap.
               trace:(ov._trace&&ov._trace.paths&&ov._trace.paths.length)?ov._trace:undefined};
@@ -21681,6 +22345,21 @@ function doSave(){
     pdfPageNum:     (typeof _vecPageNum!=='undefined' ? _vecPageNum : 1),
     pdfPageRot:     (typeof _pdfPageRot!=='undefined' ? _pdfPageRot : 0),
     userRotDeg:     (typeof _userRotDeg!=='undefined' ? _userRotDeg : 0),
+    // Deleted page images were NOT saved, so a restored session forgot them and
+    // every picture the user had removed came back on the next open (and on the
+    // next export, since the exporter reads this list to cover their footprint).
+    deletedPageImgs: (typeof _deletedPageImgs!=='undefined' && _deletedPageImgs)
+                     ? _deletedPageImgs.map(function(d){ return {_origCx:d._origCx,_origCy:d._origCy,
+                         _origW:d._origW,_origH:d._origH,layerIdx:d.layerIdx}; }) : [],
+    // The export works out which page images were DELETED by comparing the names
+    // recorded at IMPORT against the overlays still alive. A restore never runs
+    // the import, so that list came back empty, no deletion was detected, and the
+    // pristine page kept its pictures -- gone from the screen but back in the PDF.
+    pageImgNames:   (typeof _pageImgNamesAtImport!=='undefined' && _pageImgNamesAtImport)
+                    ? _pageImgNamesAtImport.slice() : [],
+    pageImgInfo:    (function(){ try{ return JSON.parse(JSON.stringify(
+                      (typeof _pageImgInfoAtImport!=='undefined' && _pageImgInfoAtImport) ? _pageImgInfoAtImport : {})); }
+                      catch(_e){ return {}; } })(),
     layers:         [],
     activeLayerIdx: activeLayerIdx,
     scaleSet:       scaleSet,
@@ -21737,6 +22416,12 @@ function doSave(){
               _fromPdfPage:!!ov._fromPdfPage,
               _origCx:ov._origCx, _origCy:ov._origCy, _origW:ov._origW, _origH:ov._origH,
               _origAngle:ov._origAngle, _srcW:ov._srcW, _srcH:ov._srcH,
+              // The image's SOURCE XOBJECT NAME. The export decides which page
+              // images were deleted by diffing the names recorded at import
+              // against the overlays still alive -- without this an overlay came
+              // back anonymous, matched nothing, and every page image looked
+              // deleted. It is the id that ties an overlay to its original.
+              _srcName:ov._srcName,
               // Persist the vector TRACE: reopened projects keep true-vector
               // pictures instead of gambling on a re-trace of a stored bitmap.
               trace:(ov._trace&&ov._trace.paths&&ov._trace.paths.length)?ov._trace:undefined};
@@ -22028,6 +22713,17 @@ function doRestore(rec){
       _vecPageNum = rec.pdfPageNum || 1;
       if(typeof _pdfPageRot!=='undefined') _pdfPageRot = rec.pdfPageRot || 0;
       if(typeof _userRotDeg!=='undefined') _userRotDeg = rec.userRotDeg || 0;
+      // Restore the deleted-image list too, or reopening a job resurrects every
+      // picture the user removed (and the exporter, which reads this list to
+      // cover their footprint, puts them back in the PDF as well).
+      try{ if(typeof _deletedPageImgs!=='undefined')
+        _deletedPageImgs = Array.isArray(rec.deletedPageImgs) ? rec.deletedPageImgs.slice() : []; }catch(_dp){}
+      try{
+        if(typeof _pageImgNamesAtImport!=='undefined')
+          _pageImgNamesAtImport = Array.isArray(rec.pageImgNames) ? rec.pageImgNames.slice() : [];
+        if(typeof _pageImgInfoAtImport!=='undefined')
+          _pageImgInfoAtImport = (rec.pageImgInfo && typeof rec.pageImgInfo==='object') ? rec.pageImgInfo : {};
+      }catch(_pi){}
       _vectorBackdropOK = true;
       _pdfSrcCached = false;   // came from the FILE, not the DB — cache it so a
       try{ _persistPdfSource(); }catch(e){}   // refresh/crash after this still works
@@ -22041,6 +22737,14 @@ function doRestore(rec){
       _loadPdfSource(function(ok){
         if(ok){
           if(typeof _userRotDeg!=='undefined') _userRotDeg = rec.userRotDeg || 0;
+          try{ if(typeof _deletedPageImgs!=='undefined')
+            _deletedPageImgs = Array.isArray(rec.deletedPageImgs) ? rec.deletedPageImgs.slice() : []; }catch(_dp2){}
+          try{
+            if(typeof _pageImgNamesAtImport!=='undefined')
+              _pageImgNamesAtImport = Array.isArray(rec.pageImgNames) ? rec.pageImgNames.slice() : [];
+            if(typeof _pageImgInfoAtImport!=='undefined')
+              _pageImgInfoAtImport = (rec.pageImgInfo && typeof rec.pageImgInfo==='object') ? rec.pageImgInfo : {};
+          }catch(_pi2){}
         } else {
           dbg('restore','no cached PDF source (older project or image import) → raster export');
           // Don't leave the user to discover a blurry export later: say it now,
@@ -22155,6 +22859,10 @@ function doRestore(rec){
                     _origCx:od._origCx, _origCy:od._origCy,
                     _origW:od._origW, _origH:od._origH,
                     _origAngle:od._origAngle, _srcW:od._srcW, _srcH:od._srcH,
+                    // Restores the tie between this overlay and its source image
+                    // (see the save side). Without it every page image looked
+                    // deleted to the exporter after a reopen.
+                    _srcName:od._srcName,
                     _trace:(od.trace&&od.trace.paths&&od.trace.paths.length)?od.trace:undefined});
                   if(typeof renderImgOverlays==='function') renderImgOverlays();
                   composite();
