@@ -895,6 +895,24 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   </div>
   <div style="flex:1"></div>
   <div id="aog-perf">
+    <span class="perf-chip" id="perf-edit" title="Objects that will survive as REAL, editable Acrobat annotations">
+      <span class="perf-k">EDITABLE</span><span class="perf-v" id="perf-edit-v">—</span>
+    </span>
+    <span class="perf-chip" id="perf-flat" title="Objects that will be baked into the page and cannot be edited in Acrobat">
+      <span class="perf-k">FLAT</span><span class="perf-v" id="perf-flat-v">—</span>
+    </span>
+    <span class="perf-chip" id="perf-img" title="Pictures on the sheet. Shows &quot;4 of 6&quot; when original page images have been deleted — those must be covered on export.">
+      <span class="perf-k">IMG</span><span class="perf-v" id="perf-img-v">0</span>
+    </span>
+    <span class="perf-chip" id="perf-scale" title="Drawing scale. Every dimension you place depends on this.">
+      <span class="perf-k">SCALE</span><span class="perf-v" id="perf-scale-v">—</span>
+    </span>
+    <span class="perf-chip" id="perf-rot" title="Canvas rotation applied to this sheet">
+      <span class="perf-k">ROT</span><span class="perf-v" id="perf-rot-v">0°</span>
+    </span>
+    <span class="perf-chip" id="perf-saved" title="Time since the work was last autosaved">
+      <span class="perf-k">SAVED</span><span class="perf-v" id="perf-saved-v">—</span>
+    </span>
     <span class="perf-chip" id="perf-exp" title="How the next PDF export will be built">
       <span class="perf-k">EXPORT</span><span class="perf-v" id="perf-exp-v">—</span>
     </span>
@@ -912,6 +930,65 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   </div>
 </div>
 
+<script>
+/* ---------- STATUS BAR: what the export will actually produce ----------------
+   Whether an object comes out as a REAL Acrobat annotation or is baked flat into
+   the page is invisible while you work -- you only find out by exporting and
+   opening the PDF. _markAcroAnnotObjs is the same function the exporter uses to
+   decide, so these counts match the export exactly. It walks every object, so it
+   runs on a debounce after edits rather than continuously. ------------------- */
+(function(){
+  var _t=null, _lastSave=0;
+  function el(id){ return document.getElementById(id); }
+  function set(chipId, valId, text, cls){
+    var c=el(chipId), v=el(valId);
+    if(v) v.textContent=text;
+    if(c){ c.classList.remove('warn','crit'); if(cls) c.classList.add(cls); }
+  }
+  function count(){
+    if(!window.AOG_statusSnapshot) return;   // app not ready yet
+    var snap=null;
+    try{ snap=window.AOG_statusSnapshot(); }catch(e){ return; }
+    if(!snap) return;
+    var editable=snap.editable||0, total=snap.total||0;
+    var flat=Math.max(0,total-editable);
+    set('perf-edit','perf-edit-v', String(editable));
+    set('perf-flat','perf-flat-v', String(flat), flat>0?'warn':null);
+    // SCALE -- red until calibrated: an uncalibrated sheet's dimensions are wrong.
+    set('perf-scale','perf-scale-v', snap.scale || 'NOT SET', snap.scale ? null : 'crit');
+    set('perf-rot','perf-rot-v', (snap.rot||0)+'\u00B0', snap.rot ? 'warn' : null);
+    // IMG — count on the sheet, plus any page images removed (shown as "-N"),
+    // since a deleted picture has to be actively covered on export.
+    // "4 of 6" once any original page image has been removed, so the number is
+    // meaningful without having to remember what it started at.
+    var _im=(snap.imgs||0), _pn=(snap.pageNow||0), _po=(snap.pageOrig||0);
+    var _txt=String(_im);
+    if(_po>_pn) _txt=_pn+' of '+_po;
+    set('perf-img','perf-img-v', _txt, (_po>_pn)?'warn':null);
+    // SAVED -- autosave is silent, so this says whether recent work is safe.
+    try{
+      var age=_lastSave?Math.round((Date.now()-_lastSave)/1000):null;
+      var txt = (age==null) ? '\u2014' : (age<60 ? age+'s ago' : Math.round(age/60)+'m ago');
+      set('perf-saved','perf-saved-v', txt, (age!=null&&age>180)?'warn':null);
+    }catch(e){}
+  }
+  window.AOG_statusDirty=function(){ clearTimeout(_t); _t=setTimeout(count, 700); };
+  // Typing a scale notation should update the badge straight away -- that field is
+  // how you make the badge match what is printed on the sheet.
+  window.addEventListener('load', function(){
+    var n=document.getElementById('dpi-notation');
+    if(n) n.addEventListener('input', function(){ window.AOG_statusDirty(); });
+  });
+  window.AOG_statusSaved=function(){ _lastSave=Date.now(); window.AOG_statusDirty(); };
+  setInterval(count, 15000);
+  // Early retries: a restore rebuilds the sheet asynchronously (images decode,
+  // the PDF re-renders), so a single check at 1.2s often ran before there was
+  // anything to count and the bar sat blank until the 15s tick.
+  window.addEventListener('load', function(){
+    [400, 1200, 2500, 4000, 6000].forEach(function(ms){ setTimeout(count, ms); });
+  });
+})();
+</script>
 <!-- CUSTOMER BAR -->
 <div id="customer-bar">
   <label for="cust-name">Customer</label>
@@ -1045,7 +1122,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
       <option value="Courier New">Courier</option>
       <option value="Georgia">Georgia</option>
       <option value="Verdana">Verdana</option>
-      <option value="Calibri">Calibri</option>
+      <option value="Calibri" selected>Calibri</option>
       <option value="Trebuchet MS">Trebuchet</option>
       <option value="Impact">Impact</option>
       <option value="Comic Sans MS">Comic Sans</option>
@@ -1155,7 +1232,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
         <option value="Courier New">Courier</option>
         <option value="Georgia">Georgia</option>
         <option value="Verdana">Verdana</option>
-        <option value="Calibri">Calibri</option>
+        <option value="Calibri" selected>Calibri</option>
         <option value="Trebuchet MS">Trebuchet</option>
         <option value="Impact">Impact</option>
         <option value="Comic Sans MS">Comic Sans</option>
@@ -1191,6 +1268,15 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   </div>
   <!-- LINE ENDINGS: a SIBLING of the stroke group. Nested inside it, the parent's
        flex-direction:column stacked these two under the colour swatch. -->
+  <!-- Leader callout border width. Same control the note tool has, so a callout
+       box and a note box can be given matching weight. -->
+  <div id="tb-cb-grp" style="display:none;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
+    <span style="font-size:8px;color:var(--txt2);letter-spacing:.5px">BOX</span>
+    <div class="sl-wrap" style="min-width:44px">
+      <input type="range" id="cb-w-sl" min="0" max="8" step="0.5" value="1">
+      <span id="cb-w-val" style="font-size:8px">1px</span>
+    </div>
+  </div>
   <div id="tb-le-grp" style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
     <span style="font-size:8px;color:var(--txt2);letter-spacing:.5px">ENDS</span>
     <div style="display:flex;align-items:center;gap:3px">
@@ -1275,6 +1361,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   <div class="sb-group">
     <button class="ic-btn" id="btn-presets" title="AOG Presets" style="width:auto;padding:0 8px;font-size:10px;font-weight:700;letter-spacing:.5px;white-space:nowrap;">⚡ Labels</button>
     <button class="ic-btn" id="btn-add-img" title="Add image overlay" style="width:auto;padding:0 8px;font-size:11px;font-weight:700">📷 Img</button>
+    <button class="ic-btn" id="btn-notelib" title="Standard notes — click one, then click the plan" style="width:auto;padding:0 8px;font-size:11px;font-weight:700">☰ Notes</button>
     <button class="ic-btn" id="btn-equip" title="Place equipment symbol" style="width:auto;padding:0 8px;font-size:11px;font-weight:700">⬡ Equip</button>
     <button class="ic-btn" id="btn-shortcuts" title="Keyboard shortcuts (?)">?</button>
   </div>
@@ -1534,6 +1621,22 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     <button class="dlg-btn sec" id="equip-cancel">Cancel</button>
   </div>
 </div>
+<!-- NOTE LIBRARY: the standard notes that go on nearly every permit sheet, saved
+     so they are one click instead of retyped each job. -->
+<div id="notelib-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99;display:none"></div>
+<div id="notelib-picker" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--surf);border:1px solid var(--b2);border-radius:12px;padding:16px;z-index:100;display:none;min-width:620px;max-width:94vw;max-height:none;display:none">
+  <h3 style="font-size:13px;color:var(--txt2);margin:0 0 4px;text-transform:uppercase;letter-spacing:.05em">Note Library</h3>
+  <div style="font-size:10px;color:var(--txt2);margin-bottom:10px">Click a note to place it \u2014 then click on the plan.</div>
+  <div id="notelib-list" style="max-height:none;display:flex;flex-direction:column;gap:5px"></div>
+  <div style="display:flex;gap:6px;margin-top:12px">
+    <input id="notelib-new" class="prop-input" type="text" placeholder="Add a note\u2026" style="flex:1">
+    <button class="dlg-btn" id="notelib-add">Add</button>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+    <button class="dlg-btn sec" id="notelib-reset" style="font-size:10px">Restore defaults</button>
+    <button class="dlg-btn sec" id="notelib-cancel">Close</button>
+  </div>
+</div>
 <div id="stamp-picker">
   <h3>Choose Stamp</h3>
   <div id="stamp-grid">
@@ -1759,7 +1862,8 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 
       <div class="sc-section-title">VIEW</div>
       <div class="sc-grid">
-        <div class="sc-row"><span class="sc-desc">Fit to screen</span><span class="sc-key" id="sc-fit">⌘0</span></div>
+        <div class="sc-row"><span class="sc-desc">Fit to screen</span><span class="sc-key" id="sc-fit">Home</span></div>
+         <div class="sc-row"><span class="sc-desc">Reset browser zoom</span><span class="sc-key">Ctrl 0</span></div>
         <div class="sc-row"><span class="sc-desc">Zoom in</span><span class="sc-key">= or ⌘=</span></div>
         <div class="sc-row"><span class="sc-desc">Zoom out</span><span class="sc-key">- or ⌘-</span></div>
         <div class="sc-row"><span class="sc-desc">Zoom (mouse)</span><span class="sc-key" id="sc-zin">Ctrl + Scroll</span></div>
@@ -1769,6 +1873,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
         <div class="sc-row"><span class="sc-desc">Pan (middle btn)</span><span class="sc-key">Middle click + drag</span></div>
         <div class="sc-row"><span class="sc-desc">Rotate canvas left</span><span class="sc-key">[</span></div>
         <div class="sc-row"><span class="sc-desc">Rotate canvas right</span><span class="sc-key">]</span></div>
+         <div class="sc-row"><span class="sc-desc">Rotating turns the sheet AND its markup; labels and notes stay editable in Acrobat</span><span class="sc-key">—</span></div>
         <div class="sc-row"><span class="sc-desc">Toggle grid</span><span class="sc-key">` (backtick)</span></div>
         <div class="sc-row"><span class="sc-desc">Toggle snap</span><span class="sc-key">\ (backslash)</span></div>
       </div>
@@ -1781,7 +1886,9 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
         <div class="sc-row"><span class="sc-desc">Close polygon / polyline</span><span class="sc-key">Esc or dbl-click</span></div>
         <div class="sc-row"><span class="sc-desc">New line in text</span><span class="sc-key">Enter</span></div>
         <div class="sc-row"><span class="sc-desc">Commit text</span><span class="sc-key">⇧ Enter</span></div>
-        <div class="sc-row"><span class="sc-desc">Delete selected leader / image</span><span class="sc-key">Delete or Backspace</span></div>
+        <div class="sc-row"><span class="sc-desc">Delete selected object (any type)</span><span class="sc-key">Delete or Backspace</span></div>
+         <div class="sc-row"><span class="sc-desc">Discard a shape you are still drawing</span><span class="sc-key">Delete</span></div>
+         <div class="sc-row"><span class="sc-desc">Finish a polyline / area</span><span class="sc-key">Esc or Enter</span></div>
         <div class="sc-row"><span class="sc-desc">Right-click object</span><span class="sc-key">Context menu → Delete</span></div>
       </div>
 
@@ -1849,6 +1956,30 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
       <div class="sc-row"><span class="sc-desc">Delete overlay</span><span class="sc-key">🗑 button in image bar</span></div>
       <div class="sc-row"><span class="sc-desc">Deselect / commit</span><span class="sc-key">✓ Done button, or tap / click outside</span></div>
       <div class="sc-row"><span class="sc-desc">Live W × H readout</span><span class="sc-key">Shown while dragging resize handles (scale-aware)</span></div>
+    </div>
+
+    <div class="sc-section-title">LEADERS &amp; CALLOUTS</div>
+    <div class="sc-grid">
+      <div class="sc-row"><span class="sc-desc">Draw a leader</span><span class="sc-key">Drag from the target toward the label side</span></div>
+      <div class="sc-row"><span class="sc-desc">Reposition before typing</span><span class="sc-key">Drag it — the text box reopens where it lands</span></div>
+      <div class="sc-row"><span class="sc-desc">Move a finished leader</span><span class="sc-key">Its label travels with the arrow</span></div>
+      <div class="sc-row"><span class="sc-desc">Callout box</span><span class="sc-key">Border in the label colour, hugging the text</span></div>
+      <div class="sc-row"><span class="sc-desc">Box background</span><span class="sc-key">TXT BG swatch · set opacity 0 to see the drawing through</span></div>
+    </div>
+
+    <div class="sc-section-title">LINE ENDINGS</div>
+    <div class="sc-grid">
+      <div class="sc-row"><span class="sc-desc">Where</span><span class="sc-key">ENDS dropdowns — Line, Arrow and Polyline only</span></div>
+      <div class="sc-row"><span class="sc-desc">Choices</span><span class="sc-key">Open · Closed · Reverse · Butt · Diamond · Round · Square · Slash</span></div>
+      <div class="sc-row"><span class="sc-desc">Set before drawing</span><span class="sc-key">New lines inherit the current pair</span></div>
+      <div class="sc-row"><span class="sc-desc">Change an existing line</span><span class="sc-key">Select it, then pick from the dropdowns</span></div>
+    </div>
+
+    <div class="sc-section-title">TEXT FORMATTING</div>
+    <div class="sc-grid">
+      <div class="sc-row"><span class="sc-desc">Style part of a label</span><span class="sc-key">Select the characters, then colour / B / I / U / S / size</span></div>
+      <div class="sc-row"><span class="sc-desc">Style the whole label</span><span class="sc-key">Change with nothing selected</span></div>
+      <div class="sc-row"><span class="sc-desc">Fonts in the PDF</span><span class="sc-key">Calibri, Times and Courier are embedded; Arial exports as Helvetica</span></div>
     </div>
 
     <div class="sc-section-title">SHAPES &amp; ANNOTATIONS</div>
@@ -2136,6 +2267,7 @@ function _scanImageDraws(cs, imageNames){
   return draws;
 }
 function _recordDeletedPageImg(ov){
+  try{ if(window.AOG_statusDirty) window.AOG_statusDirty(); }catch(_si){}
   try{
     if(ov && ov._fromPdfPage && ov._origCx!=null){
       _deletedPageImgs.push({_origCx:ov._origCx,_origCy:ov._origCy,_origW:ov._origW,_origH:ov._origH,layerIdx:ov.layerIdx});
@@ -2470,7 +2602,7 @@ var _cBorderColor   = '#4B5563';
 var _cBorderW       = 10;         // note border stroke width — notes start at 10pt
 var _cTxtColor      = '#1a1a2e';
 var _cFontSize      = 10;
-var _cFontFamily    = 'Arial';
+var _cFontFamily    = 'Calibri';   // note default (embeds as Carlito on export)
 var _cBold = false, _cItalic = false, _cUnderline = false, _cStrike = false;
 var _editingComment = null;       // comment whose text is being edited
 var CMT_PAD = 2; // canvas px interior padding between note border and text while editing/drawing
@@ -2836,7 +2968,7 @@ function _syncCommentPickers(c){
   el=document.getElementById('cmt-bd-w-sl');     if(el) el.value=_cBorderW;
   el=document.getElementById('cmt-bd-w-val');    if(el) el.textContent=_cBorderW+'px';
   el=document.getElementById('cmt-font-size-sel'); if(el) el.value=_cFontSize;
-  el=document.getElementById('cmt-font-family-sel'); if(el) el.value=c.fontFamily||'Arial';
+  el=document.getElementById('cmt-font-family-sel'); if(el) el.value=c.fontFamily||'Calibri';
   el=document.getElementById('cmt-fmt-bold');      if(el) el.classList.toggle('active', !!c.bold);
   el=document.getElementById('cmt-fmt-italic');    if(el) el.classList.toggle('active', !!c.italic);
   el=document.getElementById('cmt-fmt-underline'); if(el) el.classList.toggle('active', !!c.underline);
@@ -3441,6 +3573,25 @@ function syncPickersToSelected(){
   // Line endings follow the same rule as the other pickers: show whatever the
   // selected object actually has, so drawing an arrow reads "Open" at the End
   // instead of leaving the dropdowns on their stale defaults.
+  // Callout box weight follows the selected leader label -- reached either through
+  // a text selection or through the leader itself.
+  try{
+    var _lt=(selectedShape && selectedShape._textObj && selectedShape._textObj._leaderLabel)
+            ? selectedShape._textObj : null;
+    if(!_lt && typeof selectedLeader!=='undefined' && selectedLeader && typeof textObjs!=='undefined'){
+      for(var _li=0; _li<textObjs.length; _li++){
+        var _c2=textObjs[_li];
+        if(_c2 && _c2._leaderLabel && _c2._leaderId!=null && _c2._leaderId===selectedLeader.id){ _lt=_c2; break; }
+      }
+    }
+    if(_lt){
+      var _w=(_lt.calloutBox===false)?0:(_lt.borderStrokeW==null?1:_lt.borderStrokeW);
+      var _sl=document.getElementById('cb-w-sl'), _lb=document.getElementById('cb-w-val');
+      if(_sl){ _sl.value=_w; }
+      if(_lb){ _lb.textContent=(_w?_w+'px':'off'); }
+      if(typeof _calloutW!=='undefined') _calloutW=_w;
+    }
+  }catch(_cw){}
   try{
     if(window._syncLeSelects){
       var _leTgt = selectedMeasure ||
@@ -3605,7 +3756,7 @@ var leaderStep=0;
 var _leaderDragPlacing=false;   // hold-and-drag leader placement in progress
 var _suppressLeaderPlaceUntil=0; // ignore placement clicks right after a select/drag/deselect
 // ── TEXT FORMATTING STATE ──
-var textFontFamily = 'Arial';
+var textFontFamily = 'Calibri';    // text default (embeds as Carlito on export)
 var textBold       = false;
 var textItalic     = false;
 var textUnderline  = false;
@@ -3635,6 +3786,8 @@ var markupOpacity = 0.45;
 var measureObjs=[];
 var selectedMeasure=null; // currently selected measure object
 var selectedPolyline=null; // currently selected polyline object (for recolor/restyle)
+var selectedPen=null;      // currently selected pen stroke (recolor/opacity/width)
+var penDragStart=null;     // {x,y,pts:[...]} while a selected stroke is being moved
 var measureDragHandle=-1; // -1=none, 0=p1 endpoint, 1=p2 endpoint, -2=move whole line
 var measureDragStart=null; // {x,y,orig:{x1,y1,x2,y2}}
 // ── LEADER SELECTION ──
@@ -3877,7 +4030,94 @@ function captureState(includePixels){
   }catch(ex){ _preOp=null; }
 }
 
+// The whole app lives inside an IIFE, so textObjs / scaleSet / _userRotDeg and
+// _markAcroAnnotObjs are NOT globals -- the status bar script is a separate block
+// and could not see any of them (its counts stayed at zero and SCALE never left
+// NOT SET). Expose one read-only snapshot instead of leaking the internals.
+window.AOG_statusSnapshot=function(){
+  var editable=0, total=0;
+  try{ if(typeof _markAcroAnnotObjs==='function') editable=_markAcroAnnotObjs()||0; }catch(e){}
+  // Count only YOUR markup. Objects extracted from the page that you have not
+  // touched are deliberately left alone -- their originals stay on the sheet, so
+  // they are neither "editable" nor "flattened", and counting them made FLAT look
+  // alarming on a file where nothing was wrong.
+  try{
+    [ (typeof textObjs!=='undefined')?textObjs:[], (typeof shapeObjs!=='undefined')?shapeObjs:[],
+      (typeof measureObjs!=='undefined')?measureObjs:[], (typeof polylineObjs!=='undefined')?polylineObjs:[],
+      (typeof commentObjs!=='undefined')?commentObjs:[], (typeof leaderObjs!=='undefined')?leaderObjs:[]
+    ].forEach(function(a){
+      (a||[]).forEach(function(o){
+        if(!o) return;
+        var untouchedImport=false;
+        try{ untouchedImport = !!o._fromExplode && !_movedExplodeObj(o); }catch(e){}
+        if(!untouchedImport) total++;
+      });
+    });
+  }catch(e){}
+  // SCALE as a DRAWING scale (1" = 40'), not as the size of one canvas pixel.
+  // formatLength(ppu) answered "what does a single pixel measure" -- true, but
+  // 0.02ft tells nobody anything. One inch on the sheet is _lastLoadedDpi canvas
+  // pixels, so that many pixels x ppu is what an inch represents. Prefers the
+  // notation the user typed in Properties when there is one.
+  var scl=null;
+  try{
+    if(typeof scaleSet!=='undefined' && scaleSet){
+      // NEVER derive a "1 inch =" figure. That needs canvas-pixels-per-PHYSICAL-INCH,
+      // which assumes 72 PDF points is one inch of the real sheet -- true for a
+      // properly sized PDF, false for a scan dropped on a page whose dimensions do
+      // not match the drawing. On a 1"=30' survey it produced 39ft. Show the
+      // notation the user typed, or just say the scale is set. Better to say less
+      // than to state a scale that is wrong on a permit drawing.
+      var _nEl=document.getElementById('dpi-notation');
+      var _typed=_nEl && _nEl.value ? _nEl.value.trim() : '';
+      if(_typed){ scl=_typed; }
+      else{
+        // Canvas pixels per inch of THIS PDF page: an inch is 72 points, and
+        // _canvasPxPerPt is canvas pixels per point. Times ppu (units per canvas
+        // pixel) gives what one inch of the page represents.
+        var pxPerInch=0;
+        try{ if(typeof _canvasPxPerPt!=='undefined' && _canvasPxPerPt>0) pxPerInch=_canvasPxPerPt*72; }catch(e){}
+        if(!pxPerInch) pxPerInch=(typeof _lastLoadedDpi!=='undefined' && _lastLoadedDpi) ? _lastLoadedDpi : 96;
+        var perInch=pxPerInch*((typeof ppu!=='undefined')?(ppu||1):1);
+        var u=(typeof scaleUnit!=='undefined'?scaleUnit:'ft');
+        var r=(perInch>=100)?Math.round(perInch)
+             :(perInch>=10 ?Math.round(perInch*10)/10
+                           :Math.round(perInch*100)/100);
+        scl='1" = '+r+u;
+        // Log the INPUTS so a disagreement with the sheet's printed note can be
+        // traced to a number rather than guessed at.
+        try{ dbg('scale','chip inputs: canvasPxPerPt='+((typeof _canvasPxPerPt!=='undefined')?_canvasPxPerPt:'?')
+             +' pxPerInch='+Math.round(pxPerInch*100)/100
+             +' ppu='+((typeof ppu!=='undefined')?ppu:'?')+u+'/px'
+             +' refLinePixels='+((typeof refLinePixels!=='undefined')?refLinePixels:'?')
+             +' -> 1in = '+r+u); }catch(_sl){}
+      }
+    }
+  }catch(e){}
+  // Pictures are deliberately NOT part of editable/flat -- images are embedded
+  // page content, never annotations, so counting them would inflate FLAT on a
+  // healthy sheet. They get their own chip: how many are on the drawing, and how
+  // many page images have been deleted (those must be covered on export, which
+  // is the thing that quietly went wrong when a session was restored).
+  var imgs=0, delImgs=0, pageNow=0, pageOrig=0;
+  try{ imgs=(typeof imgOverlays!=='undefined' && imgOverlays) ? imgOverlays.length : 0; }catch(e){}
+  try{ delImgs=(typeof _deletedPageImgs!=='undefined' && _deletedPageImgs) ? _deletedPageImgs.length : 0; }catch(e){}
+  // How many of the ORIGINAL page images are still here. A bare count that just
+  // ticks down tells you nothing -- you cannot know 4 is wrong unless you
+  // remember it started at 6.
+  try{
+    (imgOverlays||[]).forEach(function(o){ if(o && o._fromPdfPage) pageNow++; });
+    pageOrig=(typeof _pageImgNamesAtImport!=='undefined' && _pageImgNamesAtImport)
+             ? _pageImgNamesAtImport.length : pageNow;
+  }catch(e){}
+  return { editable:editable, total:total, scale:scl, imgs:imgs, delImgs:delImgs,
+           pageNow:pageNow, pageOrig:pageOrig,
+           rot:(typeof _userRotDeg!=='undefined'?(_userRotDeg||0):0) };
+};
+
 function pushUndo(){
+  // Refresh the EDITABLE/FLAT counts after any committed change (debounced).
+  try{ if(window.AOG_statusDirty) window.AOG_statusDirty(); }catch(_su){}
   try{
     var snap=_preOp;
     _preOp=null;
@@ -6112,7 +6352,7 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
       var importBgC = importBd;
       var _ftTitle='', _mT=null, _mN=null, _hiOp=0, _bgOpIn=null;
       try{ _ftTitle=String((an.title!=null?an.title:(an.titleObj&&an.titleObj.str))||''); }catch(_tt){}
-      _mT=/^AOG-TEXT(?::(-?[0-9.]+))?(?::(-?[0-9.]+))?(?::(-?[0-9.]+))?(?::([01]))?(?::(-?[0-9.]+))?/.exec(_ftTitle);
+      _mT=/^AOG-TEXT(?::(-?[0-9.]+))?(?::(-?[0-9.]+))?(?::(-?[0-9.]+))?(?::([01]))?(?::(-?[0-9.]+))?(?::(-?[0-9.]+))?(?::([^:]*))?/.exec(_ftTitle);
       _mN=/^AOG-NOTE(?::([0-9a-fA-F]{6}))?(?::([0-9.]+))?(?::(-?[0-9.]+))?/.exec(_ftTitle);
       // Object rotation in degrees -> radians for the rebuilt object.
       var _angDeg=0;
@@ -6310,6 +6550,19 @@ function _explodeObjects(page, opList, tc, vp, sc, w, h, n, opListAnnot){
             // Restores the callout: border, and a background filling the box
             // rather than hugging each line.
             _leaderLabel:_wasLeader,
+            // Re-link to the leader rebuilt earlier in this import (the markup
+            // pass runs before the freetext pass), so the two move together again.
+            _leaderId:(function(){
+              try{
+                var tok=(_mT && _mT[7]) ? String(_mT[7]) : '';
+                if(tok && window._aogLeaderMap && window._aogLeaderMap[tok]!=null)
+                  return window._aogLeaderMap[tok];
+              }catch(e){}
+              return null;
+            })(),
+            // Callout box weight from the marker (field 6); 0 means no box.
+            borderStrokeW:(_mT && _mT[6]!=null) ? (parseFloat(_mT[6])||0) : 1,
+            calloutBox:(_mT && _mT[6]!=null) ? (parseFloat(_mT[6])>0) : true,
             _fromFreeText:true
           });
           dbg('freetext','FALLBACK to text',{text:txt.slice(0,30), x:Math.round(x0), y:Math.round(y0)});
@@ -6785,7 +7038,7 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
       var _ldTitle='';
       try{ _ldTitle=String((curAnn && (curAnn.title!=null?curAnn.title
                     :(curAnn.titleObj&&curAnn.titleObj.str)))||''); }catch(_lt){}
-      var _ldM=/^AOG-LEADER:([^:]*):(-?[0-9.]+):(-?[0-9.]+):(-?[0-9.]+)/.exec(_ldTitle);
+      var _ldM=/^AOG-LEADER:([^:]*):(-?[0-9.]+):(-?[0-9.]+):(-?[0-9.]+)(?::([^:]*))?/.exec(_ldTitle);
       if(_ldM && typeof leaderObjs!=='undefined'){
         var _lp=null;
         curSubs.forEach(function(sp){ if(!_lp && sp.pts && sp.pts.length>=2) _lp=sp; });
@@ -6810,6 +7063,14 @@ function _extractMarkups(page, opList, annots, vp, sc, w, h, pageOpCount){
             strokeW:Math.max(1.5,_lp.lw||2), opacity:1,
             layerIdx:activeLayerIdx, _fromExplode:true, _fromAnnot:true
           };
+          // Remember which ORIGINAL leader id this rebuilt leader came from, so a
+          // label carrying that id can be re-linked below.
+          try{
+            if(_ldM[5]){
+              if(typeof window._aogLeaderMap!=='object' || !window._aogLeaderMap) window._aogLeaderMap={};
+              window._aogLeaderMap[String(_ldM[5])]=_lo.id;
+            }
+          }catch(_lm2){}
           leaderObjs.push(_lo);
           dbg('import','LEADER rebuilt '+_ldTitle
               +' tip='+Math.round(_tip.x)+','+Math.round(_tip.y)
@@ -8078,6 +8339,20 @@ function afterLoad(){
   initLayers(baseCv.width,baseCv.height);
   undoStack=[]; redoStack=[]; textObjs=[]; editingObj=null; shapeObjs=[]; editShapeObj=null;
   try{ _userRotDeg=0; }catch(e){}   // fresh file → no accumulated screen rotation
+  // A new plan must NOT inherit the previous one's calibration. Nothing reset
+  // these, so the scale (and the status chip) carried over from the last file and
+  // every dimension on the new sheet was silently measured with the old ratio.
+  // Reuse resetScale() rather than clearing a few variables by hand: it also
+  // clears the "1 pixel =" inputs, hides the Recalibrate / Reset buttons and drops
+  // the reference line. Doing it piecemeal left the panel showing the PREVIOUS
+  // plan's calibration while the badge correctly said NOT SET -- one of them had
+  // to be lying. Suppress its toast; nothing was reset from the user's point of
+  // view, this is just a new file starting clean.
+  try{
+    if(typeof resetScale==='function') resetScale(true);   // true = no toast
+    var _nEl=document.getElementById('dpi-notation'); if(_nEl) _nEl.value='';
+    if(window.AOG_statusDirty) window.AOG_statusDirty();
+  }catch(e){}
   measureObjs=[]; selectedMeasure=null; measureDragHandle=-1; measureDragStart=null;
   pathMeasureObjs=[]; pmPoints=[]; pmActive=false;
   polylineObjs=[]; plPoints=[]; plActive=false; selectedPolyline=null;
@@ -8139,6 +8414,7 @@ btnRotR.addEventListener('click',function(){ rotateCanvas(90); });
 // annotations land off the linework).
 var _userRotDeg = 0;
 function rotateCanvas(deg){
+  try{ if(window.AOG_statusDirty) window.AOG_statusDirty(); }catch(_sr){}
   _userRotDeg = ((_userRotDeg + deg) % 360 + 360) % 360;
   // Commit any in-progress text (or note) edit FIRST. The editor is a DOM overlay
   // positioned in screen space; rotating with it still open left the textarea
@@ -8557,6 +8833,52 @@ function selectShapeDirect(hit){
 
 function onDown(e){
   if(!baseLoaded||pinching) return;
+  // NOTE LIBRARY: a note chosen from the library is placed by the next click.
+  // Handled before any tool logic so no draw handler can swallow it, and so it
+  // works whichever tool happens to be active.
+  if(typeof _noteLibArmed!=='undefined' && _noteLibArmed && e.button!==2){
+    try{
+      if(e.cancelable) e.preventDefault();
+      var _lp=snapPt(getPos(e).x, getPos(e).y);
+      var _txt=_noteLibArmed; _noteLibArmed=null;
+      // Colour comes from the library entry (generator red / tank blue), not from
+      // whatever the note tool happens to be set to.
+      var _ncol=(typeof _noteLibArmedColor!=='undefined' && _noteLibArmedColor) ? _noteLibArmedColor : null;
+      _noteLibArmedColor=null;
+      captureState(false);
+      // Width from the text length so a long clearance note does not land in a
+      // tiny box; fitCommentToText then tightens the height to the wrap.
+      var _nfpx=ptToCanvasPx(_cFontSize||10);
+      // Size from the LONGEST line. Using the whole character count made a
+      // multi-line block absurdly wide.
+      var _longest=0;
+      String(_txt).split('\n').forEach(function(l){ if(l.length>_longest) _longest=l.length; });
+      var _nw=Math.min(Math.max(220, _longest*_nfpx*0.34), 900);
+      var _nc2={
+        id:Date.now(),
+        cx:_lp.x+_nw/2, cy:_lp.y+60,
+        w:_nw, h:120,
+        text:_txt, textColor:(_ncol||_cTxtColor),
+        bgColor:_cBgColor, bgOpacity:_cBgOpacity,
+        borderColor:(_ncol||_cBorderColor), borderStrokeW:_cBorderW,
+        fontSize:_cFontSize,
+        fontFamily:_cFontFamily, bold:_cBold, italic:_cItalic,
+        underline:_cUnderline, strike:_cStrike,
+        opacity:opacity,
+        layerIdx:activeLayerIdx
+      };
+      commentObjs.push(_nc2);
+      try{ fitCommentToText(_nc2, _txt, false, 'snap'); }catch(_ft){}
+      renderShapeAndMeasure(); composite(); pushUndo();
+      toast('Note placed','ok',1500);
+    }catch(_nl){ console.warn('[NoteLib] place failed:',_nl); }
+    return;
+  }
+  // LEFT BUTTON ONLY. Nothing here checked which button was pressed, so a
+  // right-click started a stroke as well as opening the context menu -- every
+  // right-click on the canvas left a mark. Middle-click pan is handled
+  // separately on the viewport. Touch and pen events have button 0 or -1.
+  if(e.button!==undefined && e.button!==0 && e.button!==-1) return;
   // No tool selected (app loads in this neutral state): a press on the canvas
   // does nothing — no draw, no pan. The user must pick a tool first.
   if(tool==='none') return;
@@ -8992,6 +9314,10 @@ function onDown(e){
         e.preventDefault();
         _suppressLeaderPlaceUntil=Date.now()+700;
         selectedLeader=other; leaderDragHandle=-1; leaderDragStart=null;
+        // Clear the resting copy off shapes-cv NOW. The renderer skips the
+        // selected leader, but only on the NEXT full redraw -- until then the
+        // committed copy stays painted and ghosts as the drag starts.
+        renderShapeAndMeasure(); composite();
         color=other.color; clrSwatch.style.background=color; clrInput.value=color;
         opacity=other.opacity; opSl.value=Math.round(opacity*100); opVal.textContent=Math.round(opacity*100)+'%';
         if(other.strokeW){ strokeW=other.strokeW; _swSyncUI(); }
@@ -9009,6 +9335,7 @@ function onDown(e){
       e.preventDefault();
       _suppressLeaderPlaceUntil=Date.now()+700;
       selectedLeader=lSel; leaderDragHandle=-1; leaderDragStart=null;
+      renderShapeAndMeasure(); composite();   // clear the resting copy (see above)
       // Sync toolbar pickers to this leader so color/width edits apply to it.
       color=lSel.color; clrSwatch.style.background=color; clrInput.value=color;
       opacity=lSel.opacity; opSl.value=Math.round(opacity*100); opVal.textContent=Math.round(opacity*100)+'%';
@@ -9055,6 +9382,30 @@ function onDown(e){
   }
 
   // ── Polyline object: re-select for recolor/restyle ──
+  // PEN: a committed stroke can be re-selected to recolour / restyle it. Hit
+  // tested BEFORE polylines because a freehand stroke and a polyline can overlap
+  // and the pen tool should get its own strokes back.
+  if(tool==='pen'){
+    var penSel=findPenObjAt(sp.x,sp.y,_isTouchEvt);
+    if(penSel){
+      e.preventDefault();
+      selectedPen=penSel;
+      color=penSel.color; clrSwatch.style.background=color; clrInput.value=color;
+      opacity=(penSel.opacity==null?1:penSel.opacity);
+      opSl.value=Math.round(opacity*100); opVal.textContent=Math.round(opacity*100)+'%';
+      if(penSel.strokeW){ strokeW=penSel.strokeW; _swSyncUI(); }
+      drawing=false;
+      // Start moving straight away, so press-and-drag repositions the stroke in
+      // one gesture (same feel as polylines). The original points are snapshotted
+      // so every move frame offsets from the START, not cumulatively.
+      penDragStart={x:sp.x, y:sp.y,
+                    pts:penSel.pts.map(function(q){ return {x:q.x,y:q.y}; })};
+      renderShapeAndMeasure(); composite(); renderPenSelection();
+      return;
+    }
+    // Clicking empty canvas with the pen tool releases any selected stroke.
+    if(selectedPen){ selectedPen=null; penDragStart=null; _clearCv(selCtx,selCv); renderShapeAndMeasure(); composite(); }
+  }
   if(tool==='polyline' && !plActive){
     // If a polyline is already selected and we press on it (body or vertex),
     // start dragging it (move whole shape, or move a single vertex).
@@ -9377,6 +9728,18 @@ function onMove(e){
     renderLeaderSelection();
     return;
   }
+  // -- Pen stroke move --
+  if(selectedPen && penDragStart && !pinching){
+    if(e.cancelable) e.preventDefault();
+    var pp2=getPos(e);
+    var pdx=pp2.x-penDragStart.x, pdy=pp2.y-penDragStart.y;
+    for(var _pi2=0; _pi2<selectedPen.pts.length; _pi2++){
+      selectedPen.pts[_pi2].x=penDragStart.pts[_pi2].x+pdx;
+      selectedPen.pts[_pi2].y=penDragStart.pts[_pi2].y+pdy;
+    }
+    renderShapeAndMeasure(); composite(); renderPenSelection();
+    return;
+  }
   // ── Shape transform drag ──
   if(selHandle!==-1 && selDragStart && !pinching){
     if(e.cancelable) e.preventDefault();
@@ -9396,7 +9759,12 @@ function onMove(e){
       if(selectedShape.type==='comment'&&selectedShape._commentObj){
         selectedShape._commentObj.cx=selectedShape.cx;
         selectedShape._commentObj.cy=selectedShape.cy;
+        // FIRST frame of the drag: the committed copy is still painted on
+        // shapes-cv and the renderer only skips it from the NEXT full redraw,
+        // so it ghosted for the first moment of the move. One redraw here.
+        var _cFirst=!_dragComment;
         _dragComment=selectedShape._commentObj;   // draw live on selCv
+        if(_cFirst){ renderShapeAndMeasure(); composite(); }
         scheduleSelRender();                       // ≤1 redraw per painted frame
         repositionCommentEditor(selectedShape._commentObj);
       }
@@ -9506,7 +9874,9 @@ function onMove(e){
       // move their single axis. Height is auto-fitted to the text on RELEASE
       // (see onUp), not here — re-fitting per move made corners feel width-only.
       selectedShape.w=_cobj.w; selectedShape.h=_cobj.h; selectedShape.cx=_cobj.cx; selectedShape.cy=_cobj.cy;
+      var _cFirst2=!_dragComment;
       _dragComment=_cobj;          // draw live on the lightweight selCv
+      if(_cFirst2){ renderShapeAndMeasure(); composite(); }   // clear the resting copy
       scheduleSelRender();         // ≤1 redraw per painted frame
       repositionCommentEditor(_cobj);
       return; // skip the unconditional renderSelection() below
@@ -9815,6 +10185,14 @@ function onUp(e){
     // handled by selectedShape system now — just clear stale refs
     return;
   }
+  // End a pen-stroke move. The stroke stays SELECTED afterwards so colour /
+  // opacity / width can still be changed without re-clicking it.
+  if(selectedPen && penDragStart){
+    penDragStart=null;
+    renderShapeAndMeasure(); composite(); renderPenSelection();
+    pushUndo();
+    return;
+  }
   // End leader handle/move drag — but KEEP the leader selected so the user can
   // keep editing (change color/width, drag again) and moving the cursor away
   // does NOT deselect it. Deselection only happens on an explicit click-off.
@@ -9934,16 +10312,23 @@ function onUp(e){
   }
   var lc=lctx();
   if(tool==='pen'){
+    var _newPen=null;
     if(penPathPoints.length>=1){
-      penObjs.push({
+      _newPen={
         id:Date.now(), pts:penPathPoints.slice(),
         color:color, strokeW:strokeW, opacity:opacity, lineStyle:lineStyle,
         layerIdx:activeLayerIdx
-      });
+      };
+      penObjs.push(_newPen);
     }
     penPathPoints=[];
+    // Stay selected after drawing, like the other tools: the stroke you just made
+    // is the one you are most likely to want to recolour, restyle or nudge, and
+    // it saves hunting for a thin freehand line to click on.
+    if(_newPen){ selectedPen=_newPen; penDragStart=null; }
     renderShapeAndMeasure();
     composite();
+    if(_newPen) renderPenSelection();
   } else if(tool==='eraser'){ composite(); }
   else if(tool==='line'){
     // Line = committed vector line; no auto-enter-edit on mouseup.
@@ -10461,6 +10846,8 @@ function renderShapeAndMeasure(){
   });
   // Pen / Polygon / Leader / Stamp objects (live, never burned)
   penObjs.forEach(function(o){ var L=layers[o.layerIdx]; if(L&&!L.visible) return;
+    // Pen strokes always draw here, selected or not -- selection is indicated by
+    // the toolbar syncing to the stroke, not by any overlay.
     drawPenOnCtx(o.blend?hlCtx:shCtx,o,1); });
   polygonObjs.forEach(function(o){ var L=layers[o.layerIdx]; if(L&&!L.visible) return; drawPolygonOnCtx(shCtx,o,1); });
   leaderObjs.forEach(function(o){ var L=layers[o.layerIdx]; if(L&&!L.visible) return; if(o===selectedLeader) return; drawLeaderOnCtx(shCtx,o,1); });
@@ -11568,6 +11955,23 @@ var _lastTextSel=null;
         renderTextObjs();
       }
     }catch(_lv){}
+    // RIGHT-ANCHORED labels (left-hanging leader callouts) derive x from their
+    // RIGHT edge: x = _anchorX - width. That was only recomputed at commit, so
+    // while typing the box kept drawing from the old left edge and grew the wrong
+    // way as the text got longer. Same formula commit uses.
+    try{
+      if(editingObj && editingObj._anchorRight===true && editingObj._anchorX!=null){
+        var _lns=String(textOv.value!=null?textOv.value:(editingObj.text||'')).split('\n');
+        var _fpx=ptToCanvasPx(editingObj.fontSize);
+        var _mw=measureLinesWFull(_lns,_fpx,editingObj.fontFamily||'Arial',editingObj.bold,editingObj.italic);
+        var _ea=editingObj.angle||0;
+        var _ay=(editingObj._anchorY!=null?editingObj._anchorY:editingObj.y);
+        editingObj.x=editingObj._anchorX-_mw*Math.cos(_ea);
+        editingObj.y=_ay-_mw*Math.sin(_ea);
+        renderTextObjs();
+        if(typeof renderSelection==='function') renderSelection();
+      }
+    }catch(_ra){}
   });
   var _lastLen=null;
   textOv.addEventListener('input', function(){
@@ -12448,7 +12852,7 @@ function clearTextHover(){
   // Only collapse selCv if no shape/text/image/measure/polyline/leader selection
   // is showing. Collapsing it while a selection is active wipes the overlay —
   // this is what made a selected leader vanish as soon as the mouse moved.
-  if(!_txtCursorActive && !selectedShape && !selImg && !selectedMeasure && !selectedPolyline && !selectedLeader && selCv.width > 1){ selCv.width=1; selCv.height=1; }
+  if(!_txtCursorActive && !selectedShape && !selImg && !selectedMeasure && !selectedPolyline && !selectedLeader && !(typeof selectedPen!=='undefined' && selectedPen) && selCv.width > 1){ selCv.width=1; selCv.height=1; }
 }
 
 // ── END TEXT CURSOR INDICATOR ────────────────────────────────
@@ -12695,7 +13099,7 @@ function _drawTextChrome(o){
   // what you see while typing is what gets committed.
   if(o._leaderLabel && o.calloutBox!==false){
     try{
-      var _cpad=CALLOUT_PAD/zoom, _cb=_calloutBounds(o);
+      var _cpad=_calloutPad(o)/zoom, _cb=_calloutBounds(o);
       selCtx.save();
       selCtx.setLineDash([]);
       selCtx.strokeStyle=o.color||'#000000';
@@ -13793,7 +14197,14 @@ function commitText(){
              letterSpacing:textLetterSpacing||undefined,
              hScale:(textHScale&&textHScale!==100)?textHScale:undefined,
              _anchorRight:_textAnchorRight, _anchorX:textX, _anchorY:textY};
-    if(_textLeaderPending){ obj._leaderLabel=true; obj._leaderId=_textLeaderPendingId; }
+    if(_textLeaderPending){
+      obj._leaderLabel=true; obj._leaderId=_textLeaderPendingId;
+      // Inherit the current callout box weight, like every other tool default.
+      if(typeof _calloutW!=='undefined'){
+        obj.borderStrokeW=_calloutW;
+        obj.calloutBox=(_calloutW>0);
+      }
+    }
     textObjs.push(obj); renderTextObjs(); pushUndo(); _aogRestoreTextCol();
     // (No transform box — a freshly placed text just sits there. Re-click to edit.)
   }
@@ -13856,6 +14267,15 @@ var selDragStart  = null;
 // Small on purpose: the box should hug the text the way Acrobat's Text Callout
 // does. Raise for a roomier box.
 var CALLOUT_PAD   = 2.5;
+// Gap from the glyphs to the border, aware of how THICK that border is. A stroke
+// is centred on its path, so half of it lies inside the rectangle -- with a fixed
+// gap a heavy border grew inward and crowded (or touched) the text. Adding half
+// the width keeps the visible gap constant whatever the weight.
+function _calloutPad(o){
+  var bw=0;
+  try{ bw=(o && o.calloutBox!==false) ? (o.borderStrokeW==null?1:o.borderStrokeW) : 0; }catch(e){}
+  return CALLOUT_PAD + (bw>0 ? bw/2 : 0);
+}
 // Draw a leader label's callout box, rotation included. The rect is expressed in
 // the label's LOCAL frame (origin at its baseline anchor) and the context is
 // translated+rotated first -- the same approach _drawTextChrome uses -- so the
@@ -13869,7 +14289,25 @@ var CALLOUT_PAD   = 2.5;
 // the callout wants the glyphs.
 function _calloutBounds(o){
   var fpx=ptToCanvasPx(o.fontSize);
-  var lines=getTextLines(o,fpx);
+  // While a label is being edited its text lives in the TEXTAREA -- o.text still
+  // holds whatever it contained when the editor opened. Measuring that gave a box
+  // sized for the old contents, which is why it looked wrong until commit. Use the
+  // live value so the box tracks what is actually on screen.
+  var lines;
+  var _live=null;
+  try{
+    if(o && o._editing && typeof editingObj!=='undefined' && editingObj===o
+       && typeof textOv!=='undefined' && textOv && textOv.style.display!=='none'){
+      _live=String(textOv.value==null?'':textOv.value);
+    }
+  }catch(e){}
+  if(_live!==null){
+    var _save=o.text;
+    o.text=_live;
+    try{ lines=getTextLines(o,fpx); }finally{ o.text=_save; }
+  } else {
+    lines=getTextLines(o,fpx);
+  }
   var adv=_lineAdvOf(o,fpx);
   var asc=null, desc=null;
   // Measure the ACTUAL INK. The font's ascent includes internal leading -- space
@@ -13908,7 +14346,7 @@ function _calloutBounds(o){
 function _drawCalloutBox(ctx, o, mode){
   if(!o || !o._leaderLabel || o.calloutBox===false) return false;
   try{
-    var d=_calloutBounds(o), p=CALLOUT_PAD;
+    var d=_calloutBounds(o), p=_calloutPad(o);
     ctx.save();
     ctx.translate(o.x, o.y);
     if(o.angle) ctx.rotate(o.angle);
@@ -14107,6 +14545,9 @@ function scheduleSelRender(){
 }
 function renderSelection(){
   if(!selectedShape){
+    // A selected pen stroke's dashed box lives on this canvas too -- blanking it
+    // whenever no SHAPE is selected wiped the box as soon as the cursor moved.
+    if(typeof selectedPen!=='undefined' && selectedPen){ renderPenSelection(); return; }
     if(selCv.width>1){ selCv.width=1; selCv.height=1; } _selPrevDirty=null; return;
   }
   // Match the SAME plan-coordinate setup every other overlay uses (shCv via
@@ -15138,6 +15579,28 @@ function endPolylineDrag(){
   if(moved){ renderShapeAndMeasure(); composite(); pushUndo(); }
 }
 // Draw a selection highlight + vertex dots for the selected polyline.
+// Selected pen stroke: a dashed bounding box, matching the note / text chrome.
+// A freehand stroke has no natural rectangle, so this is the box AROUND whatever
+// was drawn -- it marks the selection without recolouring the stroke itself.
+function renderPenSelection(){
+  if(!selectedPen || !selectedPen.pts || !selectedPen.pts.length) return;
+  _sizeSelCvRaw();
+  _clearCv(selCtx,selCv);
+  var pn=selectedPen, x0=Infinity, y0=Infinity, x1=-Infinity, y1=-Infinity;
+  for(var i=0;i<pn.pts.length;i++){
+    var q=pn.pts[i];
+    if(q.x<x0)x0=q.x; if(q.x>x1)x1=q.x;
+    if(q.y<y0)y0=q.y; if(q.y>y1)y1=q.y;
+  }
+  var pad=(pn.strokeW||2)/2 + 6/zoom;
+  selCtx.save();
+  selCtx.strokeStyle='rgba(0,212,255,0.9)';
+  selCtx.lineWidth=1.5/zoom;
+  selCtx.setLineDash([5/zoom,3/zoom]);
+  selCtx.strokeRect(x0-pad, y0-pad, (x1-x0)+pad*2, (y1-y0)+pad*2);
+  selCtx.restore();
+}
+
 function renderPolylineSelection(){
   if(!selectedPolyline){ return; }
   _sizeSelCvRaw();
@@ -15448,6 +15911,7 @@ function updateToolbarForTool(t){
     cmtGrp      : document.getElementById('cmt-clr-grp'),
     imageGrp    : document.getElementById('tb-image-grp'),
     leGrp       : document.getElementById('tb-le-grp'),
+    cbGrp       : document.getElementById('tb-cb-grp'),
   };
 
   // Groups by what each tool needs
@@ -15507,6 +15971,8 @@ function updateToolbarForTool(t){
 
   // line endings (line / arrow / polyline only)
   shFlex(ids.leGrp, ENDS.indexOf(t) > -1);
+  // Callout box weight: leader tool only (it is the only thing that draws one).
+  shFlex(ids.cbGrp, t === 'leader');
 
   // Re-sync the stroke slider on EVERY tool change. Its point-mode range
   // (0.25-12 pt) is applied only inside _swSyncUI, behind a `max!=='12'` guard,
@@ -16457,7 +16923,24 @@ function applyStrokeColor(v){
   var sPoly=selectedPolyline||(snap&&snap.polyline);
   if(sPoly){ sPoly.color=color; renderShapeAndMeasure(); renderPolylineSelection(); }
   var sLeader=selectedLeader||(snap&&snap.leader);
-  if(sLeader){ sLeader.color=color; renderShapeAndMeasure(); renderLeaderSelection(); }
+  if(sLeader){
+    sLeader.color=color;
+    // Recolour its LABEL too. A leader is an arrow plus a text object, and only
+    // the arrow was changing -- so recolouring left the wording (and its callout
+    // border, which is drawn in the label's colour) on the old colour.
+    try{
+      if(typeof textObjs!=='undefined'){
+        textObjs.forEach(function(t){
+          if(t && t._leaderLabel && t._leaderId!=null && t._leaderId===sLeader.id){
+            t.color=color;
+            if(t.runs && t.runs.length){ delete t.runs; }   // whole-label recolour
+          }
+        });
+      }
+    }catch(_lc){}
+    renderShapeAndMeasure(); renderTextObjs(); renderLeaderSelection();
+  }
+  if(selectedPen){ selectedPen.color=color; renderShapeAndMeasure(); composite(); }
 }
 [clrInput,clrSwatch].forEach(function(el){
   if(!el) return;
@@ -16515,6 +16998,7 @@ function applyStrokeW(v){
   if(selectedShape){ selectedShape.strokeW=strokeW; renderSelection(); }
   if(selectedMeasure){ selectedMeasure.strokeW=strokeW; renderMeasureSelection(); renderShapeAndMeasure(); }
   if(selectedPolyline){ selectedPolyline.strokeW=strokeW; renderShapeAndMeasure(); renderPolylineSelection(); }
+  if(selectedPen){ selectedPen.strokeW=strokeW; renderShapeAndMeasure(); composite(); }
   if(selectedLeader){ selectedLeader.strokeW=strokeW; renderShapeAndMeasure(); renderLeaderSelection(); }
 }
 function applyOpacityAll(v){
@@ -16527,9 +17011,354 @@ function applyOpacityAll(v){
   if(selectedMeasure){ selectedMeasure.opacity=opacity; renderMeasureSelection(); renderShapeAndMeasure(); }
   if(selectedPolyline){ selectedPolyline.opacity=opacity; renderShapeAndMeasure(); renderPolylineSelection(); }
   if(selectedLeader){ selectedLeader.opacity=opacity; renderShapeAndMeasure(); renderLeaderSelection(); }
+  if(selectedPen){ selectedPen.opacity=opacity; renderShapeAndMeasure(); composite(); }
 }
 swSl.addEventListener('input',function(e){ applyStrokeW(parseFloat(e.target.value)); });
 opSl.addEventListener('input',function(e){ applyOpacityAll(parseInt(e.target.value)); });
+
+/* ---------- NOTE LIBRARY ---------------------------------------------------
+   The same clearance and code notes go on nearly every generator permit, and
+   they were being retyped each job. Stored in localStorage so they persist, and
+   editable -- the defaults below are a starting point, not a fixed list.
+   Choosing one arms placement: the next click on the plan drops a note there,
+   using the note tool's current colours and size. ------------------------- */
+var AOG_NOTE_LIB_KEY='aog.noteLibrary.v1';
+// Each note carries its own colour: generator notes red, tank notes blue, so a
+// reviewer can tell the two sets apart at a glance without reading them.
+var AOG_NOTE_GEN='#EB1F2F', AOG_NOTE_TANK='#0010FF';
+var AOG_NOTE_DEFAULTS=[
+  // The tank block goes on as ONE note, each requirement on its own row. Edit the
+  // gallon size after placing -- it changes per job.
+  {t:'Proposed location of 250-gallon LPG tank\n'
+    +'-Tank will be buried\n'
+    +'-Tank will be AG/UG style\n'
+    +'-Tank will be strapped to tie down augers with nylon coated \u00BC\u201d steel cabling\n'
+    +'-Tank will have a magnesium anti-corrosion anode\n'
+    +'-Tank will be 10\u2019 from a building or buildable line (6.4.2.3)\n'
+    +'-Tank will be 10\u2019 from any source of ignition (6.4.4.4)\n'
+    +'-Tank will be 10\u2019 from driveway or VBP will be provided (6.8.6.1(B)', c:AOG_NOTE_TANK},
+  // 500-gallon: same block, heavier 5/16" cabling.
+  {t:'Proposed location of 500-gallon LPG tank\n'
+    +'-Tank will be buried\n'
+    +'-Tank will be AG/UG style\n'
+    +'-Tank will be strapped to tie down augers with nylon coated 5/16\u201d steel cabling\n'
+    +'-Tank will have a magnesium anti-corrosion anode\n'
+    +'-Tank will be 10\u2019 from a building or buildable line (6.4.2.3)\n'
+    +'-Tank will be 10\u2019 from any source of ignition (6.4.4.4)\n'
+    +'-Tank will be 10\u2019 from driveway or VBP will be provided (6.8.6.1(B)', c:AOG_NOTE_TANK},
+  {t:'Proposed location of 1000-gallon LPG tank\n'
+    +'-Tank will be buried\n'
+    +'-Tank will be AG/UG style\n'
+    +'-Tank will be strapped to tie down augers with nylon coated 5/16\u201d steel cabling\n'
+    +'-Tank will have a magnesium anti-corrosion anode\n'
+    +'-Tank will be 10\u2019 from a building or buildable line (6.4.2.3)\n'
+    +'-Tank will be 10\u2019 from any source of ignition (6.4.4.4)\n'
+    +'-Tank will be 10\u2019 from driveway or VBP will be provided (6.8.6.1(B)', c:AOG_NOTE_TANK},
+  // 120-gallon above-ground pair: a different set of requirements from the buried
+  // tanks -- fill-valve clearance rather than tank clearance, and pavers.
+  {t:'-Proposed location of 120-gallon AG tank X 2\n'
+    +'-Tank will be 5\u2019 from fill valve to any opening window, door, or vent\n'
+    +'-Tank will be 10\u2019 from source of ignition (6.4.4.4)\n'
+    +'-Tank will be strapped down with \u00BC\u201d nylon coated steel cabling (see engineer drawing)\n'
+    +'-Tank will be placed on top of brick pavers', c:AOG_NOTE_TANK},
+  // GENERATOR. "Air cooled" is a list label only -- it is not part of the note.
+  // The *** in the lot-line row is a placeholder to fill in per job.
+  {n:'Air cooled',
+   t:'Proposed location of generator\n'
+    +'-Generator will be installed in accordance to manufacturer\u2019s instructions\n'
+    +'-Generator will be 48\u201d x 26\u201d\n'
+    +'-Generator will be +18\u201d from the house (SWRI)\n'
+    +'-Generator will be 5\u2019 from any opening window or door (4.1.4 NFPA 37)\n'
+    +'-CO detectors are existing (M1905.2.5)\n'
+    +'-Generator will be *** from the lot line\n'
+    +'-Generator will be placed Above BFE+1\u2019\n'
+    +'-Generator will be placed onto an engineered pre-cast pad', c:AOG_NOTE_GEN},
+  // Liquid cooled XD: bigger footprint, and no CO-detector row.
+  {n:'Liquid cooled: 32-40-48kw XD',
+   t:'Proposed location of generator\n'
+    +'-Generator will be installed in accordance to manufacturer\u2019s instructions\n'
+    +'-Generator will be 83.4\u201d x 33.6\u201d\n'
+    +'-Generator will be +18\u201d from the house (SWRI)\n'
+    +'-Generator will be 5\u2019 from any opening window or door (4.1.4 NFPA 37)\n'
+    +'-Generator will be *** from the lot line\n'
+    +'-Generator will be placed Above BFE+1\u2019\n'
+    +'-Generator will be placed onto an engineered pre-cast pad', c:AOG_NOTE_GEN},
+  {n:'Liquid cooled: 22-27kw',
+   t:'Proposed location of generator\n'
+    +'-Generator will be installed in accordance to manufacturer\u2019s instructions\n'
+    +'-Generator will be 62\u201d x 30\u201d\n'
+    +'-Generator will be +18\u201d from the house (SWRI)\n'
+    +'-Generator will be 5\u2019 from any opening window or door (4.1.4 NFPA 37)\n'
+    +'-Generator will be *** from the lot line\n'
+    +'-Generator will be placed Above BFE+1\u2019\n'
+    +'-Generator will be placed onto an engineered pre-cast pad', c:AOG_NOTE_GEN},
+  {n:'Liquid cooled: 48kw',
+   t:'Proposed location of generator\n'
+    +'-Generator will be installed in accordance to manufacturer\u2019s instructions\n'
+    +'-Generator will be 83.4\u201d x 33.6\u201d\n'
+    +'-Generator will be +18\u201d from the house (SWRI)\n'
+    +'-Generator will be 5\u2019 from any opening window or door (4.1.4 NFPA 37)\n'
+    +'-Generator will be *** from the lot line\n'
+    +'-Generator will be placed Above BFE+1\u2019\n'
+    +'-Generator will be placed onto an engineered pre-cast pad', c:AOG_NOTE_GEN},
+  {n:'Liquid cooled: 60-80kw XD',
+   t:'Proposed location of generator\n'
+    +'-Generator will be installed in accordance to manufacturer\u2019s instructions\n'
+    +'-Generator will be 104.8\u201d x 33.6\u201d\n'
+    +'-Generator will be +18\u201d from the house (SWRI)\n'
+    +'-Generator will be 5\u2019 from any opening window or door (4.1.4 NFPA 37)\n'
+    +'-Generator will be *** from the lot line\n'
+    +'-Generator will be placed Above BFE+1\u2019\n'
+    +'-Generator will be placed onto an engineered pre-cast pad', c:AOG_NOTE_GEN}
+];
+// Older saved libraries hold plain strings; normalise so both shapes work.
+// n = the label shown in the LIST only (e.g. "Air cooled"); it is never placed.
+// t = the note text that goes on the plan.
+function _noteEntry(n){
+  if(n && typeof n==='object') return {t:String(n.t||''), c:n.c||null, n:(n.n?String(n.n):null)};
+  var s2=String(n||'');
+  return {t:s2, n:null, c:(/tank/i.test(s2) ? AOG_NOTE_TANK : (/^(generator|co detectors|ats|proposed location of generator)/i.test(s2) ? AOG_NOTE_GEN : null))};
+}
+var _noteLibArmed=null;        // text waiting to be placed on the next canvas click
+var _noteLibArmedColor=null;   // its colour (generator red / tank blue)
+function _noteLibLoad(){
+  try{
+    var raw=localStorage.getItem(AOG_NOTE_LIB_KEY);
+    if(raw){ var a=JSON.parse(raw); if(Array.isArray(a)) return a; }
+  }catch(e){}
+  return AOG_NOTE_DEFAULTS.slice();
+}
+function _noteLibSave(a){
+  try{ localStorage.setItem(AOG_NOTE_LIB_KEY, JSON.stringify(a)); }catch(e){}
+}
+function _noteLibRender(){
+  var list=document.getElementById('notelib-list'); if(!list) return;
+  var items=_noteLibLoad();
+  list.innerHTML='';
+  if(!items.length){
+    list.innerHTML='<div style="font-size:11px;color:var(--txt2);padding:8px">No notes saved.</div>';
+    return;
+  }
+  items.forEach(function(raw, idx){
+    var it=_noteEntry(raw), txt=it.t;
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:6px';
+    var b=document.createElement('button');
+    b.className='dlg-btn sec';
+    b.style.cssText='flex:1;text-align:left;font-size:11px;font-weight:500;padding:7px 9px;white-space:normal;line-height:1.35';
+    if(it.c){ b.style.borderLeft='4px solid '+it.c; b.style.color=it.c; }
+    // Multi-line blocks are summarised so the list stays readable.
+    var _ln=txt.split('\n');
+    var _head=it.n || _ln[0];
+    b.textContent=(_ln.length>1) ? (_head+'   (+'+(_ln.length-(it.n?0:1))+' lines)') : _head;
+    b.title=txt;
+    b.addEventListener('click', function(){
+      _noteLibArmedColor=it.c||null;
+      _noteLibArmed=txt;
+      // Adopt the note's colour as the CURRENT drawing colour, so the leader,
+      // arrow or dimension you draw next to it matches without setting it by hand.
+      // Set until you change it with the colour picker -- picking another note in
+      // the other group switches it again.
+      if(it.c){
+        try{
+          color=it.c;
+          if(typeof clrSwatch!=='undefined' && clrSwatch) clrSwatch.style.background=it.c;
+          if(typeof clrInput!=='undefined' && clrInput) clrInput.value=it.c;
+          // Note tool defaults too, so a note typed by hand matches the block.
+          if(typeof _cTxtColor!=='undefined') _cTxtColor=it.c;
+          if(typeof _cBorderColor!=='undefined') _cBorderColor=it.c;
+          var _bs=document.getElementById('cmt-bd-swatch');
+          if(_bs) _bs.style.background=it.c;
+          var _bi=document.getElementById('cmt-bd-input');
+          if(_bi) _bi.value=it.c;
+          var _ts=document.getElementById('cmt-txt-swatch');
+          if(_ts) _ts.style.background=it.c;
+          var _ti=document.getElementById('cmt-txt-input');
+          if(_ti) _ti.value=it.c;
+        }catch(_cc){}
+      }
+      _noteLibClose();
+      // Switch to the Note tool by CLICKING its button, so all of the tool's own
+      // setup runs (toolbar row, cursor, releasing the previous selection).
+      // setTool() does not exist -- that call was silently failing into its catch.
+      try{
+        var _nb=document.querySelector('.tb-btn[data-tool="comment"]');
+        if(_nb && tool!=='comment') _nb.click();
+      }catch(_st){}
+      toast('Click on the plan to place this note','',2600);
+    });
+    // EDIT: rename the list label and change the colour, without retyping the note.
+    var ed=document.createElement('button');
+    ed.className='dlg-btn sec';
+    ed.style.cssText='font-size:11px;padding:7px 9px';
+    ed.textContent='\u270E';
+    ed.title='Rename / recolour';
+    ed.addEventListener('click', function(){ _noteLibEdit(idx); });
+
+    var del=document.createElement('button');
+    del.className='dlg-btn sec';
+    del.style.cssText='font-size:11px;padding:7px 9px;color:#f87171';
+    del.textContent='\u2715';
+    del.title='Remove from library';
+    del.addEventListener('click', function(){
+      var a=_noteLibLoad(); a.splice(idx,1); _noteLibSave(a); _noteLibRender();
+    });
+    row.appendChild(b); row.appendChild(ed); row.appendChild(del); list.appendChild(row);
+  });
+}
+// Inline editor for one entry: its list LABEL (not placed) and its colour, plus
+// the note text itself. Shown in place of the list so the dialog stays one panel.
+function _noteLibEdit(idx){
+  var items=_noteLibLoad(), it=_noteEntry(items[idx]);
+  var list=document.getElementById('notelib-list'); if(!list) return;
+  list.innerHTML='';
+  var wrap=document.createElement('div');
+  wrap.style.cssText='display:flex;flex-direction:column;gap:8px';
+  wrap.innerHTML=
+    '<div style="font-size:10px;color:var(--txt2)">LIST LABEL (shown here only \u2014 not placed on the plan)</div>'+
+    '<input id="nl-ed-name" class="prop-input" type="text" placeholder="e.g. Air cooled">'+
+    '<div style="font-size:10px;color:var(--txt2)">COLOUR</div>'+
+    '<div id="nl-ed-cols" style="display:flex;gap:6px;align-items:center"></div>'+
+    '<div style="font-size:10px;color:var(--txt2)">NOTE TEXT (one line per row)</div>'+
+    // Wide and tall enough to see a whole clearance line without wrapping -- these
+    // blocks run to ~90 characters and were being read through a narrow slot.
+    '<textarea id="nl-ed-text" class="prop-input" style="width:100%;box-sizing:border-box;'+
+      'font-size:12px;line-height:1.5;resize:vertical;white-space:pre;'+
+      'overflow-x:auto;font-family:ui-monospace,Menlo,Consolas,monospace"></textarea>'+
+    '<div style="display:flex;gap:6px;justify-content:flex-end">'+
+      '<button class="dlg-btn sec" id="nl-ed-cancel">Cancel</button>'+
+      '<button class="dlg-btn" id="nl-ed-save">Save</button>'+
+    '</div>';
+  list.appendChild(wrap);
+  document.getElementById('nl-ed-name').value = it.n || '';
+  var _ta=document.getElementById('nl-ed-text');
+  _ta.value = it.t || '';
+  // Height from the CONTENT: a fixed box left a lot of blank space under a short
+  // note. Two spare rows to type into, clamped so it stays usable either way.
+  (function(){
+    var rows=String(it.t||'').split('\n').length + 2;
+    _ta.rows=Math.max(6, Math.min(24, rows));
+  })();
+  var chosen = it.c || null;
+  var cols=document.getElementById('nl-ed-cols');
+  function _markChosen(){
+    Array.prototype.forEach.call(cols.children, function(c){ c.style.outline=''; });
+    Array.prototype.forEach.call(cols.children, function(c){
+      if(c.dataset && c.dataset.col===String(chosen||'')) c.style.outline='2px solid var(--acc2)';
+    });
+    if(_cust){
+      _cust.style.background = chosen || 'transparent';
+      if(_custIn) _custIn.value = chosen || '#000000';
+    }
+  }
+  [['Generator', AOG_NOTE_GEN], ['Tank', AOG_NOTE_TANK], ['None', null]].forEach(function(pair){
+    var sw=document.createElement('button');
+    sw.className='dlg-btn sec';
+    sw.dataset.col=String(pair[1]||'');
+    sw.style.cssText='font-size:10px;padding:6px 9px;'
+      +(pair[1] ? ('border-left:10px solid '+pair[1]+';color:'+pair[1]) : '');
+    sw.textContent=pair[0];
+    sw.addEventListener('click', function(){ chosen=pair[1]; _markChosen(); });
+    cols.appendChild(sw);
+  });
+  // ANY colour, using the app's own picker: a swatch over a data-color input,
+  // which is what the picker binds to. Generator/Tank stay as one-click presets.
+  var _cust=document.createElement('div');
+  _cust.style.cssText='position:relative;width:30px;height:30px;border-radius:50%;'
+    +'border:2.5px solid var(--b2);cursor:pointer;margin-left:4px;flex-shrink:0';
+  _cust.title='Any colour\u2026';
+  var _custIn=document.createElement('input');
+  _custIn.type='text'; _custIn.readOnly=true; _custIn.tabIndex=0;
+  _custIn.setAttribute('data-color','');
+  _custIn.setAttribute('inputmode','none');
+  _custIn.value=chosen||'#000000';
+  _custIn.style.cssText='position:absolute;inset:0;opacity:0.01;width:100%;height:100%;'
+    +'border:none;padding:0;margin:0;cursor:pointer;-webkit-appearance:none;border-radius:50%';
+  _custIn.addEventListener('input', function(){ chosen=_custIn.value; _markChosen(); });
+  _custIn.addEventListener('change', function(){ chosen=_custIn.value; _markChosen(); });
+  _cust.appendChild(_custIn);
+  cols.appendChild(_cust);
+  _markChosen();
+  document.getElementById('nl-ed-cancel').addEventListener('click', _noteLibRender);
+  document.getElementById('nl-ed-save').addEventListener('click', function(){
+    var a=_noteLibLoad();
+    var nm=document.getElementById('nl-ed-name').value.trim();
+    a[idx]={ t: document.getElementById('nl-ed-text').value,
+             n: nm || null,
+             c: chosen || null };
+    _noteLibSave(a); _noteLibRender();
+  });
+}
+
+function _noteLibOpen(){
+  _noteLibRender();
+  var ov=document.getElementById('notelib-overlay'), pk=document.getElementById('notelib-picker');
+  if(ov) ov.style.display='block';
+  if(pk) pk.style.display='block';
+}
+function _noteLibClose(){
+  var ov=document.getElementById('notelib-overlay'), pk=document.getElementById('notelib-picker');
+  if(ov) ov.style.display='none';
+  if(pk) pk.style.display='none';
+}
+(function(){
+  var btn=document.getElementById('btn-notelib');
+  if(btn) btn.addEventListener('click', _noteLibOpen);
+  var cancel=document.getElementById('notelib-cancel');
+  if(cancel) cancel.addEventListener('click', _noteLibClose);
+  var ov=document.getElementById('notelib-overlay');
+  if(ov) ov.addEventListener('click', _noteLibClose);
+  var add=document.getElementById('notelib-add'), inp=document.getElementById('notelib-new');
+  function addNote(){
+    if(!inp) return;
+    var v=inp.value.trim(); if(!v) return;
+    var a=_noteLibLoad(); a.push(_noteEntry(v)); _noteLibSave(a); inp.value=''; _noteLibRender();
+  }
+  if(add) add.addEventListener('click', addNote);
+  if(inp) inp.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); addNote(); } });
+  var rst=document.getElementById('notelib-reset');
+  if(rst) rst.addEventListener('click', function(){
+    _noteLibSave(AOG_NOTE_DEFAULTS.slice()); _noteLibRender();
+  });
+})();
+
+// CALLOUT BOX WIDTH (leader labels). 0 hides the box entirely, which is the
+// escape hatch for a callout that reads better as bare text.
+var _calloutW = 1;
+(function(){
+  var sl=document.getElementById('cb-w-sl'), lb=document.getElementById('cb-w-val');
+  if(!sl) return;
+  function apply(v){
+    _calloutW=parseFloat(v)||0;
+    if(lb) lb.textContent=(_calloutW?_calloutW+'px':'off');
+    // Live-apply to whatever leader label is selected or being edited.
+    // Find the label to act on. Selecting a leader with the LEADER tool sets
+    // selectedLeader -- the arrow -- not the text object, so looking only at
+    // editingObj / selectedShape found nothing and the slider did nothing.
+    // Resolve the label from the leader's id as well.
+    var targets=[];
+    try{
+      if(typeof editingObj!=='undefined' && editingObj && editingObj._leaderLabel) targets.push(editingObj);
+      if(typeof selectedShape!=='undefined' && selectedShape && selectedShape._textObj
+         && selectedShape._textObj._leaderLabel) targets.push(selectedShape._textObj);
+      if(typeof selectedLeader!=='undefined' && selectedLeader && typeof textObjs!=='undefined'){
+        textObjs.forEach(function(t2){
+          if(t2 && t2._leaderLabel && t2._leaderId!=null && t2._leaderId===selectedLeader.id) targets.push(t2);
+        });
+      }
+    }catch(e){}
+    if(targets.length){
+      targets.forEach(function(t){
+        t.borderStrokeW=_calloutW;
+        t.calloutBox=(_calloutW>0);
+      });
+      try{ renderTextObjs(); }catch(e){}
+      try{ renderSelection(); }catch(e){}
+      try{ if(typeof renderLeaderSelection==='function' && selectedLeader) renderLeaderSelection(); }catch(e){}
+    }
+  }
+  sl.addEventListener('input', function(e){ apply(e.target.value); });
+})();
 
 // Fill color + opacity pickers
 function applyFillColor(v){
@@ -16652,7 +17481,7 @@ function showScaleDlg(){
 }
 
 // ── Shared scale reset — called from both the dialog and the properties panel ──
-function resetScale(){
+function resetScale(silent){
   ppu=1; scaleUnit='ft'; scaleSet=false;
   ppuIn.value='1'; unitIn.value='ft';
   scaleStatus.textContent='Scale not set';
@@ -16673,7 +17502,9 @@ function resetScale(){
   document.getElementById('btn-reset-scale').style.display='none';
   document.getElementById('scale-dlg').style.display='none';
   document.getElementById('scale-ov').style.display='none';
-  toast('Scale reset to default','ok',2000);
+  // silent: called when a NEW plan loads, where nothing was "reset" from the
+  // user's point of view -- the file is simply starting clean.
+  if(!silent) toast('Scale reset to default','ok',2000);
 }
 
 document.getElementById('scale-reset').addEventListener('click', resetScale);
@@ -16718,6 +17549,23 @@ document.getElementById('scale-ok').addEventListener('click',function(){
   }
   if(!len||len<=0||!refLinePixels){ toast('Draw a reference line first, then enter its real length.','warn'); return; }
   ppu=len/refLinePixels; scaleUnit=unit; scaleSet=true;
+  // Prefill the Scale notation with the scale of THIS PDF page, so the badge has
+  // something real to show immediately. It is the scale of the page as it exists
+  // -- which can differ from the note printed on the drawing when the sheet has
+  // been reduced (an 18x11 plot fitted onto a 14x8.5 page reads 1"=38.6' even
+  // though the sheet says 1"=30'). The field is editable on purpose: type what the
+  // sheet says and the badge matches it, so anyone can verify badge against sheet.
+  try{
+    var _nf=document.getElementById('dpi-notation');
+    if(_nf && !_nf.value.trim() && typeof _canvasPxPerPt!=='undefined' && _canvasPxPerPt>0){
+      var _pi=_canvasPxPerPt*72*ppu;
+      var _rr=(_pi>=100)?Math.round(_pi):(_pi>=10?Math.round(_pi*10)/10:Math.round(_pi*100)/100);
+      _nf.value='1"='+_rr+unit;
+      _nf.title='Scale of this PDF page. If the drawing was reduced to fit, edit this '
+               +'to match the scale PRINTED on the sheet.';
+    }
+  }catch(_nfp){}
+  try{ if(window.AOG_statusDirty) window.AOG_statusDirty(); }catch(_sd){}
   ppuIn.value=(1/ppu).toFixed(4); unitIn.value=unit;
   scaleStatus.textContent='1 px = '+(1/ppu).toFixed(4)+' '+unit;
   // Show the Recalibrate button now that scale is set
@@ -16736,6 +17584,7 @@ ppuIn.addEventListener('change',function(){
   var v=parseFloat(ppuIn.value);
   if(v>0){
     ppu=1/v; scaleUnit=unitIn.value.trim()||'ft'; scaleSet=true;
+  try{ if(window.AOG_statusDirty) window.AOG_statusDirty(); }catch(_sd){}
     scaleStatus.textContent='1 px = '+v+' '+scaleUnit;
     document.getElementById('btn-recalibrate').style.display='';
     document.getElementById('btn-reset-scale').style.display='';
@@ -16845,6 +17694,7 @@ function applyDpiScale(parsed, dpi){
   ppu=parsed.value/dpi;
   scaleUnit=parsed.unit;
   scaleSet=true;
+  try{ if(window.AOG_statusDirty) window.AOG_statusDirty(); }catch(_sd){}
   ppuIn.value=(1/ppu).toFixed(4);
   unitIn.value=scaleUnit;
   scaleStatus.textContent='1 px = '+(1/ppu).toFixed(4)+' '+scaleUnit;
@@ -17405,7 +18255,9 @@ function exportToBlob(maxPx, mimeType, quality, cb){
       ['sc-redo',  'Ctrl+Y'],
       ['sc-redo2', 'Ctrl+⇧Z'],
       ['sc-save',  'Ctrl+S'],
-      ['sc-fit',   'Ctrl+0'],
+      // Fit is on HOME, not Ctrl+0 -- Ctrl+0 was handed back to the browser so a
+      // drifted page zoom can still be reset. Same on Mac and Windows, so it is
+      // left out of this Cmd->Ctrl swap entirely.
       ['sc-print', 'Ctrl+P'],
       ['sc-zin',   'Ctrl + Scroll wheel'],
     ];
@@ -18242,10 +19094,14 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     // label as loose TEXT, selectable and deletable independently. /T carries the
     // shape the app needs to rebuild it: shoulder direction, unit vector and
     // length. The label's own /T already ends in :1 to mark it as a leader label.
+    // Fifth field: the leader's id, matched by the label's marker so the two are
+    // reunited on import. Without it a re-imported leader and its wording were
+    // unrelated objects again -- moving one left the other behind.
     var _ldT='AOG-LEADER:'+String(o.shoulderDir||'')
              +':'+(Math.round((o.sdx||0)*10000)/10000)
              +':'+(Math.round((o.sdy||0)*10000)/10000)
-             +':'+(Math.round((o.shoulderLen||0)*100)/100);
+             +':'+(Math.round((o.shoulderLen||0)*100)/100)
+             +':'+String(o.id||'');
     addAnnot({ Subtype:'PolyLine', Vertices:verts, LE:['None','OpenArrow'],
                T:PDFLib.PDFString.of(_ldT),
                C:[Math.round(c[0]*1000)/1000, Math.round(c[1]*1000)/1000, Math.round(c[2]*1000)/1000],
@@ -18567,9 +19423,13 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     // TXT_ASC_F/TXT_DESC_F proportions and 2 x 1.5 padding, while the canvas box
     // is measured from real glyph ink with CALLOUT_PAD -- so the exported border
     // sat slightly off the one on screen. Re-derive from the same source.
-    if(obj._leaderLabel && obj.calloutBox!==false && !obj.angle){
+    // Rotated labels included: the corners are turned by _BP() further down, so
+    // this only needs to size the box in the label's own frame. Excluding them
+    // sent rotated callouts back to the fixed 2 x 1.5 padding above, which takes
+    // no account of border WEIGHT -- a heavy box then touched the text.
+    if(obj._leaderLabel && obj.calloutBox!==false){
       try{
-        var _cb2=_calloutBounds(obj), _cp2=CALLOUT_PAD;
+        var _cb2=_calloutBounds(obj), _cp2=_calloutPad(obj);
         boxL   = obj.x - _cp2;
         boxTop = obj.y + _cb2.top - _cp2;
         boxW   = _cb2.w + _cp2*2;
@@ -18770,7 +19630,15 @@ function _emitAcrobatAnnots(pdf, page, sz, sc, fonts){
     d.T=PDFLib.PDFString.of('AOG-TEXT:'+(Math.round((_bgOp||0)*1000)/1000)
         +':'+(Math.round(_oxF*10000)/10000)+':'+(Math.round(_oyF*10000)/10000)
         +':'+(obj._leaderLabel?'1':'0')
-        +':'+(Math.round(((obj.angle||0)*180/Math.PI)*100)/100));
+        +':'+(Math.round(((obj.angle||0)*180/Math.PI)*100)/100)
+        // Sixth field: callout box weight (0 = no box), so the label comes back
+        // with the same border on re-import.
+        +':'+(obj._leaderLabel
+                ? (obj.calloutBox===false ? 0 : (obj.borderStrokeW==null?1:obj.borderStrokeW))
+                : 0)
+        // Seventh field: the id of the leader this label belongs to (see the
+        // leader emitter), so the pair can be reunited on import.
+        +':'+(obj._leaderLabel && obj._leaderId!=null ? String(obj._leaderId) : ''));
     if(_hasHi){
       var _hc=rgb01(obj.bgColor||'#ffff00');
       d.C=[Math.round(_hc[0]*1000)/1000, Math.round(_hc[1]*1000)/1000, Math.round(_hc[2]*1000)/1000];
@@ -19347,7 +20215,7 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
     // before P() maps them, so the box turns with the glyphs.
     if(obj._leaderLabel && obj.calloutBox!==false){
       try{
-        var _vb=_calloutBounds(obj), _vp2=CALLOUT_PAD;
+        var _vb=_calloutBounds(obj), _vp2=_calloutPad(obj);
         // WIDTH from the PAINTER's own font, not the browser's. _calloutBounds
         // measures through a canvas context; the painter lays the glyphs out with
         // the embedded PDF font, and on a rotated label the difference showed as
@@ -19411,10 +20279,24 @@ function _paintVectorAnnotations(page, sz, sc, fonts){
         }
         var _bwv=Math.max(0.4, W(Math.max(1,(obj.borderStrokeW||1))));
         var _bcol=col(obj.color||'#000000'), _bop=(obj.opacity==null?1:obj.opacity);
-        for(var _e=0;_e<4;_e++){
-          var _a=_pts[_e], _b2=_pts[(_e+1)%4];
-          page.drawLine({ start:{x:_a.x,y:_a.y}, end:{x:_b2.x,y:_b2.y},
-                          thickness:_bwv, color:_bcol, opacity:_bop });
+        if(!_oa2){
+          // Axis-aligned: ONE rectangle, so the corners mitre properly. Four
+          // separate drawLine calls do not join -- each end has a flat cap, which
+          // left a notch at every corner, worsening as the border got thicker.
+          page.drawRectangle({ x:_minX, y:_minY, width:_maxX-_minX, height:_maxY-_minY,
+                               borderWidth:_bwv, borderColor:_bcol, borderOpacity:_bop });
+        } else {
+          // Rotated: a rectangle cannot be turned, so still four lines -- but with
+          // ROUND caps, so the ends overlap and fill each corner.
+          var _cap=null;
+          try{ _cap=PDFLib.LineCapStyle && PDFLib.LineCapStyle.Round; }catch(_lc2){}
+          for(var _e=0;_e<4;_e++){
+            var _a=_pts[_e], _b2=_pts[(_e+1)%4];
+            var _ln={ start:{x:_a.x,y:_a.y}, end:{x:_b2.x,y:_b2.y},
+                      thickness:_bwv, color:_bcol, opacity:_bop };
+            if(_cap!=null) _ln.lineCap=_cap;
+            page.drawLine(_ln);
+          }
         }
       }catch(_vcb){ console.warn('[VectorExport] callout box',_vcb); }
     }
@@ -22352,6 +23234,7 @@ function buildProjectRecord(quality, cb){
 }
 
 function doSave(){
+  try{ if(window.AOG_statusSaved) window.AOG_statusSaved(); }catch(_ss){}
   if(!baseLoaded||!_saveDb) return;
   // Don't save while user is actively drawing or pinching (memory already high)
   // Don't serialize the whole document to IndexedDB while the user is actively
@@ -22936,6 +23819,10 @@ function doRestore(rec){
                     _trace:(od.trace&&od.trace.paths&&od.trace.paths.length)?od.trace:undefined});
                   if(typeof renderImgOverlays==='function') renderImgOverlays();
                   composite();
+                  // Restored overlays load asynchronously, so the counts settle
+                  // well after page load -- without this the bar only caught up
+                  // on its 15s interval.
+                  try{ if(window.AOG_statusDirty) window.AOG_statusDirty(); }catch(_sq){}
                 };
                 oi.src=od.src;
               });
@@ -24476,6 +25363,9 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){
     if(selImg){ commitImgSelection(); return; }
     stopTextCursor(); clearTextHover();
+    // Escape also cancels a note armed from the library.
+    if(typeof _noteLibArmed!=='undefined' && _noteLibArmed){ _noteLibArmed=null; toast('Cancelled','',1200); return; }
+    if(selectedPen){ selectedPen=null; penDragStart=null; _clearCv(selCtx,selCv); renderShapeAndMeasure(); composite(); return; }
     if(selectedLeader){ commitLeaderSelection(); return; }
     if(selectedMeasure){ commitMeasureSelection(); return; }
     if(selectedPolyline){ cancelPolylineSelection(); return; }
@@ -24575,6 +25465,11 @@ document.addEventListener('keydown',function(e){
       }
       _delClear=function(){ selectedShape=null; selHandle=-1; selDragStart=null;
                             if(typeof editShapeObj!=='undefined') editShapeObj=null; };
+    }
+    // A selected pen stroke: its own array, and the selection is released after.
+    if(!_delList && typeof selectedPen!=='undefined' && selectedPen && typeof penObjs!=='undefined'){
+      _delList=penObjs; _delObj=selectedPen;
+      _delClear=function(){ selectedPen=null; penDragStart=null; };
     }
     if(_delList && _delObj){
       var _di=_delList.indexOf(_delObj);
@@ -24950,6 +25845,7 @@ function hideHint(){ panHint.classList.remove('show'); }
     ppu = 1 / ncDpi;       // pixels per inch
     scaleUnit = 'in';
     scaleSet = true;
+  try{ if(window.AOG_statusDirty) window.AOG_statusDirty(); }catch(_sd){}
     ppuIn.value = ncDpi;   // 1 inch = ncDpi px
     unitIn.value = 'in';
     scaleStatus.textContent = '1 px = ' + (1/ncDpi).toFixed(4) + ' in · ' + ncDpi + ' dpi';
