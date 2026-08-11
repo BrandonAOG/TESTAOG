@@ -154,6 +154,8 @@ body.light-mode .theme-icon.theme-icon-moon { opacity: 1; transform: rotate(0deg
 .panel::before { content: ''; position: absolute; top: 0; left: 12%; right: 12%; height: 1px; background: linear-gradient(90deg, transparent, rgba(251,191,36,0.6), rgba(249,115,22,0.4), transparent); }
 .panel-accent { position: absolute; left: 0; top: 14%; bottom: 14%; width: 3px; border-radius: 0 2px 2px 0; background: linear-gradient(180deg, var(--yellow-bright), var(--orange)); opacity: 0.55; }
 .panel-label { font-family: var(--font-mono); font-size: 0.58rem; letter-spacing: 4px; color: var(--yellow-bright); text-transform: uppercase; opacity: 0.6; margin-bottom: 20px; }
+.sub-label { font-family: var(--font-display); font-size: 0.62rem; font-weight: 700; letter-spacing: 2px; color: var(--blue-electric); text-transform: uppercase; margin: 6px 0 14px; opacity: 0.85; }
+.sub-label + #fields-column, .sub-label + #fields-rect { margin-top: 0; }
 
 /* INPUTS */
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
@@ -165,6 +167,8 @@ body.light-mode .theme-icon.theme-icon-moon { opacity: 1; transform: rotate(0deg
 .input-wrap input { width: 100%; padding: 13px 15px; background: rgba(6,9,19,0.55); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: var(--text); font-family: var(--font-mono); font-size: 0.95rem; letter-spacing: 0.5px; transition: all 0.2s; -webkit-appearance: none; }
 .input-wrap input::placeholder { color: rgba(122,139,168,0.4); }
 .input-wrap input:focus { outline: none; border-color: rgba(251,191,36,0.5); background: rgba(6,9,19,0.75); box-shadow: 0 0 0 1px rgba(251,191,36,0.15), 0 0 18px rgba(251,191,36,0.12); }
+.input-wrap input.locked { color: var(--yellow-bright); opacity: 0.9; cursor: default; }
+body.light-mode .input-wrap input.locked { color: var(--orange-bright); }
 .input-wrap input::-webkit-outer-spin-button, .input-wrap input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .input-wrap input[type=number] { -moz-appearance: textfield; }
 .input-suffix { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-dim); pointer-events: none; letter-spacing: 1px; }
@@ -278,10 +282,13 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
       <svg viewBox="0 0 24 24"><path d="M2 8l10-5 10 5-10 5z"/><path d="M2 8v6l10 5 10-5V8"/></svg>Slab
     </button>
     <button class="shape-tab" data-shape="column">
-      <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="6" ry="2.5"/><path d="M6 5v14a6 2.5 0 0 0 12 0V5"/></svg>Column
+      <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="6" ry="2.5"/><path d="M6 5v14a6 2.5 0 0 0 12 0V5"/><ellipse cx="12" cy="19" rx="6" ry="2.5"/></svg>Sonotube
     </button>
     <button class="shape-tab" data-shape="footing">
       <svg viewBox="0 0 24 24"><path d="M4 14h16v5H4z"/><path d="M9 4h6v10H9z"/></svg>Footing
+    </button>
+    <button class="shape-tab" data-shape="slabtubes">
+      <svg viewBox="0 0 24 24"><path d="M2 7l10-4 10 4-10 4z"/><path d="M2 7v3l10 4 10-4V7"/><path d="M7 14v6M17 14v6"/></svg>Slab + Tubes
     </button>
   </div>
 
@@ -289,16 +296,17 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
     <div class="panel-accent"></div>
     <div class="panel-label" id="panel-label">Slab Dimensions</div>
 
+    <div class="sub-label" id="sub-slab" style="display:none;">◤ Slab</div>
     <!-- SLAB / FOOTING (rectangular) -->
     <div id="fields-rect">
       <div class="field-row">
         <div class="field">
           <label>Length</label>
-          <div class="input-wrap has-unit"><input type="number" id="r-length" placeholder="0" step="any" min="0"><select class="unit-select" id="u-r-length" data-def-imp="ft" data-def-met="m"></select></div>
+          <div class="input-wrap has-unit"><input type="number" id="r-length" placeholder="0" step="any" min="0"><select class="unit-select" id="u-r-length" data-def-imp="in" data-def-met="cm"></select></div>
         </div>
         <div class="field">
           <label>Width</label>
-          <div class="input-wrap has-unit"><input type="number" id="r-width" placeholder="0" step="any" min="0"><select class="unit-select" id="u-r-width" data-def-imp="ft" data-def-met="m"></select></div>
+          <div class="input-wrap has-unit"><input type="number" id="r-width" placeholder="0" step="any" min="0"><select class="unit-select" id="u-r-width" data-def-imp="in" data-def-met="cm"></select></div>
         </div>
       </div>
       <div class="field-row single">
@@ -309,21 +317,47 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
       </div>
     </div>
 
-    <!-- COLUMN (cylindrical) -->
+    <div class="sub-label" id="sub-tubes" style="display:none;">◤ Sonotubes</div>
+    <!-- SONOTUBE (cylindrical) -->
     <div id="fields-column" style="display:none;">
+      <div class="field-row single">
+        <div class="field">
+          <label>Standard Tube Size</label>
+          <div class="select-wrap">
+            <select id="tube-size">
+              <option value="6">6&quot; Sonotube</option>
+              <option value="8" selected>8&quot; Sonotube</option>
+              <option value="10">10&quot; Sonotube</option>
+              <option value="12">12&quot; Sonotube</option>
+              <option value="14">14&quot; Sonotube</option>
+              <option value="16">16&quot; Sonotube</option>
+              <option value="18">18&quot; Sonotube</option>
+              <option value="20">20&quot; Sonotube</option>
+              <option value="24">24&quot; Sonotube</option>
+              <option value="custom">Custom diameter…</option>
+            </select>
+          </div>
+        </div>
+      </div>
       <div class="field-row">
         <div class="field">
           <label>Diameter</label>
           <div class="input-wrap has-unit"><input type="number" id="c-diameter" placeholder="0" step="any" min="0"><select class="unit-select" id="u-c-diameter" data-def-imp="in" data-def-met="cm"></select></div>
         </div>
         <div class="field">
-          <label>Height</label>
-          <div class="input-wrap has-unit"><input type="number" id="c-height" placeholder="0" step="any" min="0"><select class="unit-select" id="u-c-height" data-def-imp="ft" data-def-met="m"></select></div>
+          <label>Depth / Height</label>
+          <div class="input-wrap has-unit"><input type="number" id="c-height" placeholder="0" step="any" min="0"><select class="unit-select" id="u-c-height" data-def-imp="in" data-def-met="cm"></select></div>
+        </div>
+      </div>
+      <div class="field-row single" id="tube-count-row" style="display:none;">
+        <div class="field">
+          <label>Number of Tubes <span class="unit-hint">(piers on this slab)</span></label>
+          <div class="input-wrap"><input type="number" id="tube-count" placeholder="1" step="1" min="1" value="1"></div>
         </div>
       </div>
     </div>
 
-    <div class="field-row single quantity-field">
+    <div class="field-row single quantity-field" id="quantity-row">
       <div class="field">
         <label>Quantity <span class="unit-hint">(# of identical pours)</span></label>
         <div class="input-wrap"><input type="number" id="quantity" placeholder="1" step="1" min="1" value="1"></div>
@@ -411,6 +445,12 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
     rThick: document.getElementById('r-thick'),
     cDiameter: document.getElementById('c-diameter'),
     cHeight: document.getElementById('c-height'),
+    tubeSize: document.getElementById('tube-size'),
+    tubeCount: document.getElementById('tube-count'),
+    tubeCountRow: document.getElementById('tube-count-row'),
+    subSlab: document.getElementById('sub-slab'),
+    subTubes: document.getElementById('sub-tubes'),
+    quantityRow: document.getElementById('quantity-row'),
     quantity: document.getElementById('quantity'),
     waste: document.getElementById('waste'),
     bagsize: document.getElementById('bagsize'),
@@ -494,12 +534,22 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
     els.unitToggle.querySelectorAll('.unit-btn').forEach(function(b){ b.classList.remove('active'); });
     btn.classList.add('active');
     rebuildUnitDropdowns();
+    if((state.shape === 'column' || state.shape === 'slabtubes') && els.tubeSize.value !== 'custom') applyTubeSize();
     els.results.classList.remove('visible');
   });
 
   // recalc-invalidate when any per-field unit changes
   els.unitSelects.forEach(function(sel){
-    sel.addEventListener('change', function(){ els.results.classList.remove('visible'); });
+    sel.addEventListener('change', function(){
+      // if the user manually changes the diameter's unit while a standard tube
+      // is locked, drop to custom so the value/unit don't desync
+      if(sel.id === 'u-c-diameter' && els.tubeSize.value !== 'custom'){
+        els.tubeSize.value = 'custom';
+        els.cDiameter.readOnly = false;
+        els.cDiameter.classList.remove('locked');
+      }
+      els.results.classList.remove('visible');
+    });
   });
 
   els.shapeTabs.addEventListener('click', function(e){
@@ -507,18 +557,60 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
     state.shape = tab.getAttribute('data-shape');
     els.shapeTabs.querySelectorAll('.shape-tab').forEach(function(t){ t.classList.remove('active'); });
     tab.classList.add('active');
-    if(state.shape === 'column'){
-      els.fieldsRect.style.display = 'none';
-      els.fieldsColumn.style.display = 'block';
-      els.panelLabel.textContent = 'Column Dimensions';
-    } else {
-      els.fieldsRect.style.display = 'block';
-      els.fieldsColumn.style.display = 'none';
-      els.panelLabel.textContent = state.shape === 'slab' ? 'Slab Dimensions' : 'Footing Dimensions';
-    }
+    applyShapeLayout();
     els.results.classList.remove('visible');
   });
 
+  function applyShapeLayout(){
+    var combined = state.shape === 'slabtubes';
+    var tubesOnly = state.shape === 'column';
+    var rectShown = state.shape === 'slab' || state.shape === 'footing' || combined;
+    var tubesShown = tubesOnly || combined;
+
+    els.fieldsRect.style.display = rectShown ? 'block' : 'none';
+    els.fieldsColumn.style.display = tubesShown ? 'block' : 'none';
+
+    // sub-labels only in combined mode
+    els.subSlab.style.display = combined ? 'block' : 'none';
+    els.subTubes.style.display = combined ? 'block' : 'none';
+
+    // per-tube count row only in combined mode; shared quantity hidden there
+    els.tubeCountRow.style.display = combined ? 'block' : 'none';
+    els.quantityRow.style.display = combined ? 'none' : 'block';
+
+    if(combined) els.panelLabel.textContent = 'Slab + Sonotubes';
+    else if(tubesOnly) els.panelLabel.textContent = 'Sonotube Dimensions';
+    else els.panelLabel.textContent = state.shape === 'slab' ? 'Slab Dimensions' : 'Footing Dimensions';
+
+    if(tubesShown && els.tubeSize.value !== 'custom') applyTubeSize();
+  }
+
+  // ---- Sonotube standard-size dropdown ----
+  // Picking a standard size fills the diameter (in inches) and locks the field;
+  // "Custom" unlocks it for a hand-entered diameter.
+  function applyTubeSize(){
+    var v = els.tubeSize.value;
+    if(v === 'custom'){
+      els.cDiameter.readOnly = false;
+      els.cDiameter.classList.remove('locked');
+      els.cDiameter.focus();
+    } else {
+      // standard sizes are always in inches
+      var diaSel = unitEls['c-diameter'];
+      if(state.unit === 'imperial'){ diaSel.value = 'in'; }
+      else { diaSel.value = 'cm'; }
+      // value is nominal inches; convert to cm if metric is active
+      els.cDiameter.value = state.unit === 'imperial'
+        ? v
+        : (parseFloat(v) * 2.54).toFixed(1);
+      els.cDiameter.readOnly = true;
+      els.cDiameter.classList.add('locked');
+    }
+    els.results.classList.remove('visible');
+  }
+  els.tubeSize.addEventListener('change', applyTubeSize);
+
+  // parse an input's value as a non-negative number (0 if blank/invalid)
   function num(el){ var v = parseFloat(el.value); return isNaN(v) || v < 0 ? 0 : v; }
 
   // convert a field's raw value to feet using its own per-field unit dropdown
@@ -526,25 +618,43 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
     return num(inputEl) * (TO_FT[unitEls[unitId].value] || 1);
   }
 
-  // ---- Core calc: returns volume in cubic feet ----
-  function volumeCuFt(){
-    var qty = Math.max(1, Math.floor(num(els.quantity)) || 1);
-    var cuft = 0;
+  // ---- Volume helpers (return cubic feet, or null if incomplete) ----
+  function slabCuFt(){
+    var lenFt = ft(els.rLength, 'r-length');
+    var widFt = ft(els.rWidth, 'r-width');
+    var thkFt = ft(els.rThick, 'r-thick');
+    if(lenFt <= 0 || widFt <= 0 || thkFt <= 0) return null;
+    return lenFt * widFt * thkFt;
+  }
+  function oneTubeCuFt(){
+    var diaFt = ft(els.cDiameter, 'c-diameter');
+    var heightFt = ft(els.cHeight, 'c-height');
+    if(diaFt <= 0 || heightFt <= 0) return null;
+    var radiusFt = diaFt / 2;
+    return Math.PI * radiusFt * radiusFt * heightFt;
+  }
 
-    if(state.shape === 'column'){
-      var diaFt = ft(els.cDiameter, 'c-diameter');
-      var heightFt = ft(els.cHeight, 'c-height');
-      if(diaFt <= 0 || heightFt <= 0) return null;
-      var radiusFt = diaFt / 2;
-      cuft = Math.PI * radiusFt * radiusFt * heightFt;
-    } else {
-      var lenFt = ft(els.rLength, 'r-length');
-      var widFt = ft(els.rWidth, 'r-width');
-      var thkFt = ft(els.rThick, 'r-thick');
-      if(lenFt <= 0 || widFt <= 0 || thkFt <= 0) return null;
-      cuft = lenFt * widFt * thkFt;
+  // ---- Core calc: returns { total, slab, tubes } in cubic feet, or null ----
+  function volumeCuFt(){
+    if(state.shape === 'slabtubes'){
+      var slab = slabCuFt();
+      var one = oneTubeCuFt();
+      if(slab === null || one === null) return null;
+      var nTubes = Math.max(1, Math.floor(num(els.tubeCount)) || 1);
+      var tubes = one * nTubes;
+      return { total: slab + tubes, slab: slab, tubes: tubes, nTubes: nTubes };
     }
-    return cuft * qty;
+
+    var qty = Math.max(1, Math.floor(num(els.quantity)) || 1);
+    if(state.shape === 'column'){
+      var one2 = oneTubeCuFt();
+      if(one2 === null) return null;
+      return { total: one2 * qty };
+    } else {
+      var slab2 = slabCuFt();
+      if(slab2 === null) return null;
+      return { total: slab2 * qty };
+    }
   }
 
   function fmt(n, d){
@@ -552,13 +662,14 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
   }
 
   function calculate(){
-    var rawCuft = volumeCuFt();
-    if(rawCuft === null || rawCuft <= 0){
+    var vol = volumeCuFt();
+    if(vol === null || vol.total <= 0){
       els.errorMsg.classList.add('visible');
       els.results.classList.remove('visible');
       return;
     }
     els.errorMsg.classList.remove('visible');
+    var rawCuft = vol.total;
 
     var wastePct = parseFloat(els.waste.value) || 0;
     var totalCuft = rawCuft * (1 + wastePct/100);
@@ -599,10 +710,22 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
     els.cellBagsLabel.textContent = BAG_LABEL[bagKey];
 
     // Note
+    var breakdown = '';
+    if(state.shape === 'slabtubes' && vol.slab != null){
+      var slabYd = vol.slab / 27, tubesYd = vol.tubes / 27;
+      var slabCuM = vol.slab * 0.0283168, tubesCuM = vol.tubes * 0.0283168;
+      if(state.unit === 'imperial'){
+        breakdown = 'Breakdown (before waste): slab <strong>' + fmt(slabYd, 2) + ' yd³</strong> + ' +
+          vol.nTubes + ' tube' + (vol.nTubes > 1 ? 's' : '') + ' <strong>' + fmt(tubesYd, 2) + ' yd³</strong>. ';
+      } else {
+        breakdown = 'Breakdown (before waste): slab <strong>' + fmt(slabCuM, 3) + ' m³</strong> + ' +
+          vol.nTubes + ' tube' + (vol.nTubes > 1 ? 's' : '') + ' <strong>' + fmt(tubesCuM, 3) + ' m³</strong>. ';
+      }
+    }
     var readyMixNote = totalYd >= 1
       ? '<strong>' + fmt(totalYd, 2) + ' yd³</strong> — consider ready-mix delivery for this volume.'
       : 'Small pour — bags are usually more economical than ready-mix delivery.';
-    els.resultsNote.innerHTML =
+    els.resultsNote.innerHTML = breakdown +
       'Bag count rounds up and assumes ~' + BAG_YIELD_CUFT[bagKey] + ' ft³ yield per bag. ' +
       readyMixNote + ' Always verify against supplier specs.';
 
@@ -615,7 +738,12 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
   els.resetBtn.addEventListener('click', function(){
     ['rLength','rWidth','rThick','cDiameter','cHeight'].forEach(function(k){ els[k].value=''; });
     els.quantity.value = '1';
+    els.tubeCount.value = '1';
     els.waste.value = '5';
+    els.tubeSize.value = '8';
+    els.cDiameter.readOnly = false;
+    els.cDiameter.classList.remove('locked');
+    if(state.shape === 'column' || state.shape === 'slabtubes') applyTubeSize();
     els.errorMsg.classList.remove('visible');
     els.results.classList.remove('visible');
   });
@@ -626,6 +754,7 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
   });
 
   rebuildUnitDropdowns();
+  applyShapeLayout();
 
   // ---- Particle background (matches AOG theme) ----
   var canvas = document.getElementById('bg-canvas');
