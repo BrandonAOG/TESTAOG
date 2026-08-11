@@ -80,13 +80,8 @@ body.dark-mode {
   --icon-color-primary: #00FFC8;
   --icon-color-section: #00FFC8;
   --icon-color-gps: #10B981;
-  /* Safe-area insets as variables. html2canvas 1.4.1 crashes on a literal
-     env() in a parsed value ("unexpected EOF"), but tolerates var()/px. We
-     default these and let @supports raise them on devices that have insets,
-     so the live layout is unchanged while the capture engine is safe. */
-  --sai-top: 0px;
-  --sai-bottom: 24px;
 }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { width: 100%; height: 100%; overflow-x: clip; }
 
@@ -98,7 +93,7 @@ body {
   max-width: 1050px;
   margin: 0 auto;
   padding: 0;
-  padding-bottom: var(--sai-bottom);
+  padding-bottom: env(safe-area-inset-bottom, 24px);
   -webkit-text-size-adjust: 100%;
   overflow-x: clip;
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -121,7 +116,7 @@ body.dark-mode {
   z-index: 99999;
   width: 100%;
   background: var(--panel); padding: 4px 8px;
-  padding-top: calc(4px + var(--sai-top));
+  padding-top: calc(4px + env(safe-area-inset-top, 0px));
   display: flex; justify-content: flex-start; gap: 4px; flex-wrap: nowrap; align-items: center;
   overflow-x: auto;
   overflow-y: hidden;
@@ -156,13 +151,13 @@ body.dark-mode {
 
 /* Keep buttons readable on phones — they scroll instead of shrinking */
 @media (max-width: 480px) {
-  .action-bar { padding: 4px 4px; padding-top: calc(4px + var(--sai-top)); gap: 3px; }
+  .action-bar { padding: 4px 4px; padding-top: calc(4px + env(safe-area-inset-top, 0px)); gap: 3px; }
 }
 
 @media (max-width: 360px) {
 }
 
-@media (max-width: 768px) { .action-bar { padding: 4px 8px; padding-top: calc(4px + var(--sai-top)); gap: 4px; } }
+@media (max-width: 768px) { .action-bar { padding: 4px 8px; padding-top: calc(4px + env(safe-area-inset-top, 0px)); gap: 4px; } }
 
 /* Under 480px: put "Team Member" + input on one line, and "Double Checked By" + input on the next line */
 @media screen and (max-width: 480px) {
@@ -226,7 +221,7 @@ body.dark-mode .action-bar {
   border: 1px solid rgba(211,94,19,0.4); background: rgba(211,94,19,0.05);
   border-radius: 0; cursor: pointer; transition: all 0.15s ease;
   font-family: Arial, sans-serif; color: var(--cyan); text-transform: uppercase;
-  clip-path: polygon(6px 0%, 100% 0%, 94% 100%, 0% 100%);
+  clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
   white-space: nowrap; flex-shrink: 0;
 }
@@ -1971,27 +1966,6 @@ body.dark-mode .ft-label { color: #7DD3FC; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 
 <script>
-// ===== SAFE-AREA INSETS (set via JS, NOT via CSS env()) =====
-// html2canvas 1.4.1 crashes ("unexpected EOF") if it ever parses a literal
-// env() in a stylesheet. So no stylesheet contains env(): instead we read the
-// inset from a temporary probe element (inline env() on the element only, never
-// in a parsed sheet), then write plain px values to --sai-top/--sai-bottom.
-(function initSafeAreaInsets() {
-  try {
-    var probe = document.createElement('div');
-    probe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,24px);';
-    document.documentElement.appendChild(probe);
-    var cs = getComputedStyle(probe);
-    var top = cs.paddingTop || '0px';
-    var bottom = cs.paddingBottom || '24px';
-    document.documentElement.style.setProperty('--sai-top', top);
-    document.documentElement.style.setProperty('--sai-bottom', bottom);
-    probe.parentNode.removeChild(probe);
-  } catch (e) {
-    document.documentElement.style.setProperty('--sai-top', '0px');
-    document.documentElement.style.setProperty('--sai-bottom', '24px');
-  }
-})();
 // ===== FORCE ACTION BAR TO SCROLL WITH PAGE =====
 
 // ===== THEME =====
@@ -2865,7 +2839,7 @@ function captureAndShare() {
         var fname = buildFilename('jpg', idx + 1, pages.length);
         var restoreFill = fitPageToSheet(page);
         var capH = measureFullHeight(page);
-        return _withTimeout(html2canvas(page, { scale: captureScale, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, ignoreElements: function(el){ return !!(el.classList && el.classList.contains("tbl-clear-btn")); } }), 45000, 'Page ' + (idx + 1) + ' render')
+        return _withTimeout(html2canvas(page, { scale: captureScale, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, onclone: _sanitizeCloneForCapture, ignoreElements: function(el){ return !!(el.classList && el.classList.contains("tbl-clear-btn")); } }), 45000, 'Page ' + (idx + 1) + ' render')
           .then(function (canvas) {
             restoreFill();
             _updateRenderOverlay('Page ' + (idx + 1) + ' of ' + pages.length + ' rendered…');
@@ -3022,7 +2996,7 @@ function saveForAndroid() {
       seq = seq.then(function () {
         const restoreFill = fitPageToSheet(page);
         const capH = measureFullHeight(page);
-        return _withTimeout(html2canvas(page, { scale: captureScale, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, ignoreElements: function(el){ return !!(el.classList && el.classList.contains("tbl-clear-btn")); } }), 45000, 'Page ' + (idx + 1) + ' render')
+        return _withTimeout(html2canvas(page, { scale: captureScale, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, windowHeight: capH, scrollX: 0, scrollY: 0, onclone: _sanitizeCloneForCapture, ignoreElements: function(el){ return !!(el.classList && el.classList.contains("tbl-clear-btn")); } }), 45000, 'Page ' + (idx + 1) + ' render')
           .then(function (canvas) {
             restoreFill();
             _updateRenderOverlay('Page ' + (idx + 1) + ' of ' + pages.length + ' rendered…');
@@ -3273,58 +3247,90 @@ function _editPdfFilename() {
 // unbalanced parens. This never touches the live page — only the throwaway clone.
 function _sanitizeCloneForCapture(clonedDoc) {
   try {
-    // ROOT CAUSE (confirmed from an on-device error report): html2canvas 1.4.1's
-    // CSS parser throws "unexpected EOF" when it meets env()/calc()/min()/max()
-    // and some clip-path values. These only resolve to a triggering form on
-    // phones with a safe-area inset (notch / gesture bar), which is why it failed
-    // on one phone and not on desktop. None of these affect the flat captured
-    // page, so we neutralize them ON THE CLONE ONLY — the live page is untouched.
-    var KILL_RE = /(env|clip-path|conic-gradient)\s*\(/i;
-
-    // 1) Remove the safe-area <style> element outright — it's the only place a
-    //    literal env() lives, and env() is the confirmed crash trigger. Removing
-    //    the whole element avoids fragile regex-editing of nested @supports.
-    var sai = clonedDoc.getElementById('sai-supports');
-    if (sai && sai.parentNode) sai.parentNode.removeChild(sai);
-
-    // 2) Scrub any remaining <style> blocks that still contain a killer function
-    //    or an @import (defensive — normally none do after step 1).
+    // 1) Remove external font <link>s and any <style>/@import that pulls fonts.
+    var links = clonedDoc.querySelectorAll('link[rel="stylesheet"], link[rel="preload"][as="font"], link[href*="fonts.googleapis"], link[href*="fonts.gstatic"]');
+    Array.prototype.forEach.call(links, function (l) {
+      var href = l.getAttribute('href') || '';
+      if (/fonts\.(googleapis|gstatic)\.com/i.test(href)) { l.parentNode && l.parentNode.removeChild(l); }
+    });
+    // 2) Drop @font-face / @import rules from clone stylesheets that html2canvas would re-parse.
     Array.prototype.forEach.call(clonedDoc.querySelectorAll('style'), function (styleEl) {
       var txt = styleEl.textContent || '';
-      if (!txt || (!KILL_RE.test(txt) && txt.indexOf('@import') === -1)) return;
-      txt = txt.replace(/@import[^;]*;/gi, '');
-      txt = txt.replace(/\{([^{}]*)\}/g, function (m, body) {
-        var kept = body.split(';').filter(function (decl) {
-          return decl.trim() && !KILL_RE.test(decl);
-        });
-        return '{' + kept.join(';') + (kept.length ? ';' : '') + '}';
-      });
-      styleEl.textContent = txt;
+      if (/@font-face|@import|fonts\.(googleapis|gstatic)/i.test(txt)) {
+        styleEl.textContent = txt
+          .replace(/@font-face\s*\{[^}]*\}/gi, '')
+          .replace(/@import[^;]*;/gi, '');
+      }
     });
-
-    // 3) Scrub inline styles that use the offending functions or are unbalanced.
+    // 3) Clear any inline style value with unbalanced parens (the actual EOF trigger).
     var balanced = function (v) { var d = 0; for (var i = 0; i < v.length; i++) { var c = v[i]; if (c === '(') d++; else if (c === ')') { d--; if (d < 0) return false; } } return d === 0; };
-    Array.prototype.forEach.call(clonedDoc.querySelectorAll('[style]'), function (el) {
+    var all = clonedDoc.querySelectorAll('[style]');
+    Array.prototype.forEach.call(all, function (el) {
       var s = el.getAttribute('style') || '';
-      if (!s) return;
-      if (KILL_RE.test(s) || (s.indexOf('(') !== -1 && !balanced(s))) {
+      if (s.indexOf('(') !== -1 && !balanced(s)) {
+        // Rebuild the style string, dropping only the malformed declarations.
         var kept = s.split(';').filter(function (decl) {
           if (!decl.trim()) return false;
-          if (KILL_RE.test(decl)) return false;
           return balanced(decl);
         });
         el.setAttribute('style', kept.join(';'));
       }
     });
-
-    // 3) Belt-and-suspenders: also clear these props via the CSSOM on every
-    //    cloned element, in case they came from a matched stylesheet rule.
-    Array.prototype.forEach.call(clonedDoc.querySelectorAll('*'), function (el) {
-      if (!el.style) return;
-      ['clip-path', '-webkit-clip-path'].forEach(function (p) {
-        try { el.style.removeProperty(p); } catch (e) {}
-      });
-    });
+    // 4) GUARD COMPUTED STYLES. The "unexpected EOF" crash on some Android
+    // WebViews happens while html2canvas parses values returned by
+    // getComputedStyle() on the CLONE (its stack goes element-walker ->
+    // CSSParsedDeclaration -> parseComponentValue). Steps 1-3 can't reach
+    // those. So we wrap the clone window's getComputedStyle in a Proxy that
+    // replaces any empty / unbalanced value with a safe default before
+    // html2canvas ever sees it. Only affects the throwaway clone.
+    var view = clonedDoc.defaultView;
+    if (view && !view.__aogCsGuard) {
+      view.__aogCsGuard = true;
+      var _isBalanced = function (v) {
+        var d = 0, q = null;
+        for (var i = 0; i < v.length; i++) {
+          var c = v[i];
+          if (q) { if (c === '\\') { i++; } else if (c === q) { q = null; } continue; }
+          if (c === '"' || c === "'") { q = c; }
+          else if (c === '(') { d++; }
+          else if (c === ')') { d--; if (d < 0) return false; }
+        }
+        return d === 0 && q === null;
+      };
+      var _safeCssValue = function (prop, v) {
+        if (typeof v !== 'string') return v;
+        var p = String(prop);
+        var s = v.trim();
+        var bad = (s === '' || s === ',' || /,\s*$/.test(s) || !_isBalanced(s));
+        if (!bad) return v;
+        var pl = p.toLowerCase();
+        if (pl.indexOf('font-family') !== -1 || pl === 'fontfamily') return 'Arial';
+        if (pl.indexOf('color') !== -1) return 'rgb(0, 0, 0)';
+        if (pl === 'content') return 'normal';
+        if (pl.indexOf('font') !== -1 && pl.indexOf('size') !== -1) return '16px';
+        return 'none';
+      };
+      var _origGCS = view.getComputedStyle.bind(view);
+      view.getComputedStyle = function (el, pseudo) {
+        var cs = _origGCS(el, pseudo);
+        try {
+          return new Proxy(cs, {
+            get: function (target, prop) {
+              var val;
+              if (prop === 'getPropertyValue') {
+                return function (name) { return _safeCssValue(name, target.getPropertyValue(name)); };
+              }
+              val = target[prop];
+              if (typeof val === 'function') return val.bind(target);
+              if (typeof val === 'string' && typeof prop === 'string' && !/^\d+$/.test(prop) && prop !== 'cssText') {
+                return _safeCssValue(prop, val);
+              }
+              return val;
+            }
+          });
+        } catch (e2) { return cs; }
+      };
+    }
   } catch (e) { /* never let sanitation abort the capture */ }
 }
 
@@ -3461,62 +3467,7 @@ async function saveFillablePdf() {
     cleanup();
     setStatus('Could not build PDF: ' + (err && err.message ? err.message : err));
     setTimeout(function(){ setStatus(''); }, 6000);
-    try { _showPdfDebugPanel(err); } catch (e) {}
   }
-}
-
-// TEMPORARY on-screen debug panel — shows the real error from THIS device so it
-// can be screenshotted. Remove once the PDF issue is resolved.
-function _showPdfDebugPanel(err) {
-  var sheets = [];
-  try {
-    for (var i = 0; i < document.styleSheets.length; i++) {
-      var s = document.styleSheets[i];
-      var readable = true;
-      try { void s.cssRules; } catch (e) { readable = false; }
-      sheets.push((s.href || '(inline)') + (readable ? '' : ' [CORS-BLOCKED]'));
-    }
-  } catch (e) { sheets.push('sheet-scan failed: ' + e); }
-  var info = [
-    'PDF ERROR (screenshot this & send it):',
-    '',
-    'message: ' + (err && err.message ? err.message : String(err)),
-    'name: ' + (err && err.name ? err.name : '(none)'),
-    'html2canvas: ' + (window.html2canvas && window.html2canvas.version ? window.html2canvas.version : 'unknown'),
-    'UA: ' + navigator.userAgent,
-    '',
-    'stylesheets (' + sheets.length + '):',
-    sheets.join('\n'),
-    '',
-    'stack:',
-    (err && err.stack ? String(err.stack).slice(0, 800) : '(no stack)')
-  ].join('\n');
-
-  var old = document.getElementById('pdf-debug-panel');
-  if (old) old.parentNode.removeChild(old);
-  var box = document.createElement('div');
-  box.id = 'pdf-debug-panel';
-  box.setAttribute('style', 'position:fixed;left:8px;right:8px;top:8px;z-index:2147483647;background:#111;color:#0f0;font:12px/1.4 monospace;padding:12px;border:2px solid #0f0;border-radius:8px;max-height:80vh;overflow:auto;white-space:pre-wrap;word-break:break-word;box-shadow:0 4px 20px rgba(0,0,0,.6)');
-  var pre = document.createElement('div');
-  pre.textContent = info;
-  var row = document.createElement('div');
-  row.setAttribute('style', 'display:flex;gap:8px;margin-top:10px');
-  var copyBtn = document.createElement('button');
-  copyBtn.textContent = 'COPY';
-  copyBtn.setAttribute('style', 'flex:1;padding:10px;background:#0f0;color:#000;border:0;border-radius:6px;font-weight:bold');
-  copyBtn.onclick = function () {
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(info); copyBtn.textContent = 'COPIED'; }
-      else { var t = document.createElement('textarea'); t.value = info; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); copyBtn.textContent = 'COPIED'; }
-    } catch (e) { copyBtn.textContent = 'COPY FAILED'; }
-  };
-  var closeBtn = document.createElement('button');
-  closeBtn.textContent = 'CLOSE';
-  closeBtn.setAttribute('style', 'flex:1;padding:10px;background:#333;color:#fff;border:0;border-radius:6px;font-weight:bold');
-  closeBtn.onclick = function () { box.parentNode && box.parentNode.removeChild(box); };
-  row.appendChild(copyBtn); row.appendChild(closeBtn);
-  box.appendChild(pre); box.appendChild(row);
-  document.body.appendChild(box);
 }
 
 /* ── LOAD: accepts a .json draft OR a resumable .pdf and refills the form ── */
