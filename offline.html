@@ -267,6 +267,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     <a href="./spec-viewer/"><span class="link-icon">📖</span>Spec Viewer</a>
     <a href="./service-work/"><span class="link-icon">🔧</span>Service Work</a>
     <a href="./site-annotator/"><span class="link-icon">📐</span>Site Plan / Annotator</a>
+    <a href="./concrete-calc/"><span class="link-icon">🧱</span>Concrete Calculator</a>
   </div>
 
   <button class="btn" onclick="location.reload()">
@@ -3321,7 +3322,8 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
       // folder (and anything after it) from the current path.
       var tools = ['pre-checklist','estimate','maintenance','site-visit','elect-install',
                    'gas-install','qc-checklist','gas-calc','load-calcs','breaker-conductor',
-                   'conduit-fill','property-lookup','spec-viewer','service-work','site-annotator'];
+                   'conduit-fill','property-lookup','spec-viewer','service-work','site-annotator',
+                   'concrete-calc'];
       var parts = location.pathname.split('/');
       for (var i = 0; i < parts.length; i++){
         if (tools.indexOf(parts[i]) !== -1){
