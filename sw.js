@@ -23,7 +23,9 @@ var cacheProgress = { percent: 0, label: '', done: false }; // ← SET TRUE duri
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-'📍 Address search IN PROPERTY LOOKUP now snaps to the correct parcel statewide — picks the exact lot from the county/state parcel records instead of dropping the pin on a neighboring house',
+'🧱 NEW: CONCRETE CALCULATOR — slab, column & footing volume, bags & yardage',
+'🗺️ SITE PLAN ANNOTATOR — complete refresh, now with Adobe Acrobat support',
+'📝 ELECTRICAL INSTALL FORM footer bumped to V1.1 — check whether anyone is still on a stale copy',
 ];
 // 
 // ============================================================
@@ -53,7 +55,8 @@ var PRECACHE_URLS = [
   './property-lookup/fl_gas_territories.geojson',
   './property-lookup/fl_electric_territories.geojson',
   './gas-calc/',
-  './spec-viewer/'
+  './spec-viewer/',
+  './concrete-calc/'
 ];
 
 // CDN assets that must be cached on install for 100% offline support
