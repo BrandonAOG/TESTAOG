@@ -11649,7 +11649,6 @@ function drawParcel(g, info){
       // normal home lot. Inside an oversized shared tract (condo/mobile park) the gap-fill is exactly
       // how the individual unit numbers get drawn, so we must NOT suppress points there.
       setSubjectRings(oversized ? null : g);
-      setSubjectTract(oversized ? g : null);   // oversized = the dashed tract we want fully labeled
       const latlngs=g.rings.map(r=>r.map(p=>[p[1],p[0]]));
       // Shared tract → dashed orange outline (context). Normal home lot → solid brand orange.
       const col = oversized ? '#ff8c1a' : '#ff8a3c';
@@ -11863,17 +11862,6 @@ let nbrNumOn = true;   // labels follow the parcel view by default; tied to the 
 // 3605 Idlewild St), and without this the gap-fill would draw that second address as if it were a
 // separate home. Cleared on each new draw so a stale polygon never suppresses real neighbours.
 let _subjRings = null;
-/* Rings of the highlighted TRACT (the dashed orange outline drawn for an oversized shared parcel —
-   a condo association, mobile-home park, co-op). Unlike _subjRings this is set precisely WHEN the
-   parcel is oversized, because that's the case where we want to label everything inside it rather
-   than suppress. Used by the tract-fill pass in showNeighborNumbers(). */
-let _subjTractRings = null;
-function setSubjectTract(geometry){
-  try{
-    const rings = geometry && geometry.rings;
-    _subjTractRings = (rings && rings.length) ? rings : null;
-  }catch(e){ _subjTractRings = null; }
-}
 function setSubjectRings(geometry){
   try{
     const rings = geometry && geometry.rings;
@@ -12165,42 +12153,6 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
     const labels=[];   // {hn, lat, lng, feat, txt}
     let seen=new Set();
     let usedFile=false;
-    // SAME-LOT SUPPRESSION GUARD.
-    // The suppression below exists for ONE case: a through-lot / corner lot carrying a second street
-    // address, where drawing both would look like two houses on one lot. It assumes the subject
-    // polygon is a single home. When the highlighted polygon is actually a shared tract (condo
-    // association, mobile-home park), the same rule silently deletes EVERY neighbour inside it —
-    // which is why the labels vanished the moment the tract was the highlighted parcel and came back
-    // when a single unit was. drawParcel() already tries to catch this by acres, but that misses when
-    // the acreage math can't read an odd multi-ring polygon. So decide from the data instead: if more
-    // than a couple of differently-numbered addresses sit inside the subject polygon, it is not a
-    // home lot, and nothing gets suppressed.
-    let _suppressSameLot = !!_subjRings;
-    if(_subjRings){
-      try{
-        const _probe = await queryHostedFile(
-          ((window.__lastCounty && ADDRPOINT_FILES[norm(window.__lastCounty)] &&
-            ADDRPOINT_FILES[norm(window.__lastCounty)].indexOf('REPLACE-ME')<0)
-              ? ADDRPOINT_FILES[norm(window.__lastCounty)] : null), b).catch(()=>null);
-        if(Array.isArray(_probe)){
-          const _nums=new Set();
-          for(const f of _probe){
-            const g=f.geometry; const x=g?(g.x!=null?g.x:g.X):null, y=g?(g.y!=null?g.y:g.Y):null;
-            if(x==null||y==null) continue;
-            if(!pointInPolygon(x, y, _subjRings)) continue;
-            const h=houseNum(formatAddrPoint(f.attributes||{}));
-            if(h && (want==null || h!==String(want).trim())) _nums.add(h);
-            if(_nums.size>2) break;
-          }
-          if(_nums.size>2){
-            _suppressSameLot=false;
-            // It's a tract — hand it to the tract-fill pass so the inside gets labeled, not hidden.
-            if(!_subjTractRings) _subjTractRings=_subjRings;
-          }
-        }
-      }catch(e){ /* probe is best-effort; leave suppression as-is */ }
-    }
-
     // ================= FILE-FIRST =================
     // If this county ships a local data file (e.g. Collier's compact .gz with owner/sqft/units),
     // build the neighbour labels FROM THAT FILE — no county-server call. This makes the tool run
@@ -12226,7 +12178,7 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
             // file lists both, so without this we'd draw two addresses on one house. Drop any point
             // that falls INSIDE the subject parcel whose house number ISN'T the subject's — the
             // subject's own point (same hn) is always kept so its label never disappears.
-            if(_suppressSameLot && (want==null || hn!==String(want).trim()) && pointInPolygon(cx, cy, _subjRings)) continue;
+            if(_subjRings && (want==null || hn!==String(want).trim()) && pointInPolygon(cx, cy, _subjRings)) continue;
             // dedup on full address + exact coord so stacked condo units collapse only if identical
             const key=txt+'@'+cx.toFixed(6)+','+cy.toFixed(6);
             if(seen.has(key)) continue; seen.add(key);
@@ -12411,7 +12363,7 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
             // subject label, so drawing this too would look like two addresses on one house. Skip it.
             // (Only set for normal home lots, never for oversized shared tracts, so unit gap-fill
             // inside a condo/mobile park is unaffected.)
-            if(_suppressSameLot && pointInPolygon(gx, gy, _subjRings)) continue;
+            if(_subjRings && pointInPolygon(gx, gy, _subjRings)) continue;
             // already have a parcel label for this spot? skip (avoids duplicating outside numbers).
             let dup=false;
             for(const L0 of labels){ const ddx=L0.lng-gx, ddy=L0.lat-gy; if(ddx*ddx+ddy*ddy < NEAR2){ dup=true; break; } }
@@ -12441,106 +12393,7 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
       }
     }catch(e){ /* gap-fill is best-effort; never block the result */ }
 
-    // ============ TRACT FILL ============
-    // When the highlighted parcel is an oversized shared tract (the dashed orange outline — condo
-    // association, mobile-home park, co-op), every home inside it should carry its own label. The
-    // passes above are viewport- and source-driven and can come up short inside a tract: the file
-    // path skips gap-fill entirely, and record caps bite on a big community. This pass asks the
-    // address-point source directly for the TRACT's own extent and labels anything inside the rings
-    // that isn't already labeled. Best-effort and additive — it never removes an existing label.
-    try{
-      if(_subjTractRings){
-        const tb=_ringsBounds(_subjTractRings);
-        if(tb){
-          const _cty2=(window.__lastCounty||'').toString();
-          const fUrl=_cty2 ? ADDRPOINT_FILES[norm(_cty2)] : null;
-          const fCfg=(fUrl && fUrl.indexOf('REPLACE-ME')<0) ? fUrl : null;
-          const aUrl=_cty2 ? ADDRPOINT_FEEDS[norm(_cty2)] : null;
-          let feats=null;
-          if(fCfg){
-            const inT=await queryHostedFile(fCfg, tb);
-            if(Array.isArray(inT)) feats=inT;
-          }
-          if(!feats && aUrl){
-            const env=`${tb.getWest()},${tb.getSouth()},${tb.getEast()},${tb.getNorth()}`;
-            const FLDS=['ADDRNUM','ADD_NUMBER','HOUSE_NUM','STNUM','STREET_NUM',
-                        'UNITID','UNIT','UNIT_NO','UNITTYPE','UNIT_TYPE','STATUS',
-                        'FULLADDR','FULL_ADDR','STUBADDRESS','SITEADDRESS','SITE_ADDR','FULLADDRESS','ADDRESS',
-                        'PREDIR','PRE_DIR','ST_PREDIR','ST_NAME','STREETNAME','STNAME','FULLNAME','STREET',
-                        'ST_TYPE','STREETTYPE','STTYPE','SUFFIX','POSTDIR','POST_DIR','ST_POSDIR'].join(',');
-            const u=aUrl+`?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
-              `&spatialRel=esriSpatialRelIntersects&outFields=${encodeURIComponent(FLDS)}`+
-              `&returnGeometry=true&outSR=4326&resultRecordCount=1200&f=json`;
-            const c2=new AbortController(); const t2=setTimeout(()=>c2.abort(),12000);
-            try{ const r2=await fetch(u,{signal:c2.signal}); clearTimeout(t2);
-              if(r2.ok){ const j2=await r2.json(); if(!j2.error && j2.features) feats=j2.features; } }
-            catch(e){ clearTimeout(t2); }
-          }
-          if(feats && feats.length){
-            const NEAR_T=0.00008, NEAR_T2=NEAR_T*NEAR_T;
-            const have=(_nbrCache.ptLabels||[]).slice();
-            const extra=[];
-            const loose=[];   // inside the tract's bounding box but not its rings — safety net
-            const seenT=new Set();
-            for(const f of feats){
-              if(extra.length>=600) break;
-              const a=f.attributes||{};
-              const st=(a.STATUS||a.Status||'').toString().toUpperCase();
-              if(st && /(RETIRE|INACTIVE|INVALID|DELETE)/.test(st)) continue;
-              const g=f.geometry; const gx=g?(g.x!=null?g.x:g.X):null, gy=g?(g.y!=null?g.y:g.Y):null;
-              if(gx==null||gy==null) continue;
-              const _inside=_inTractRings(gx, gy, _subjTractRings);
-              const txt=formatAddrPoint(a);
-              const hn=houseNum(txt); if(!hn) continue;
-              const key=txt+'@'+gx.toFixed(6)+','+gy.toFixed(6);
-              if(seenT.has(key)) continue; seenT.add(key);
-              // Already drawn as a parcel label or a gap-fill point at this spot & address? skip.
-              let dup=false;
-              for(const L0 of labels){ const dx=L0.lng-gx, dy=L0.lat-gy;
-                if(dx*dx+dy*dy<NEAR_T2 && String(L0.txt||'')===txt){ dup=true; break; } }
-              if(!dup) for(const P of have){ const dx=P.lng-gx, dy=P.lat-gy;
-                if(dx*dx+dy*dy<NEAR_T2 && formatAddrPoint(P.a)===txt){ dup=true; break; } }
-              if(dup) continue;
-              (_inside ? extra : loose).push({ hn, lat:gy, lng:gx, a });
-            }
-            // Prefer the strict inside-the-outline set. If the ring test excluded everything (odd
-            // geometry, or the buildings sit just outside a tract that only covers the common area),
-            // fall back to the unlabeled points in the tract's extent — the goal is that no home in
-            // view is left without a card, not that the outline is policed exactly.
-            const add = extra.length ? extra : loose.slice(0,600);
-            if(add.length){
-              const merged=have.concat(add);
-              _nbrRenderPoints(add, -1);            // additive draw; subject highlight already placed
-              _nbrCache.ptLabels=merged;            // cache the full set so a repaint keeps them
-            }
-          }
-        }
-      }
-    }catch(e){ /* tract fill is best-effort; never block the result */ }
   }catch(e){ /* best-effort; never block the result */ }
-}
-/* Containment test for a TRACT outline, which is routinely multi-ring: this community's outline is
-   a horseshoe with a separate inner polygon, and pointInPolygon() treats ring[0] as the only outer
-   boundary and every later ring as a HOLE. That's right for a donut lot, wrong here — it threw away
-   every address point sitting in the second outer ring, which is why whole buildings inside the
-   orange still had no label. Even-odd rule instead: inside an odd number of rings = inside. */
-function _inTractRings(lng, lat, rings){
-  if(!rings || !rings.length) return false;
-  let n=0;
-  for(const r of rings){ if(pointInRing(lng, lat, r)) n++; }
-  return (n % 2) === 1;
-}
-/* Lat/lng bounds of an Esri ring set, as a Leaflet LatLngBounds (or null). */
-function _ringsBounds(rings){
-  try{
-    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-    for(const r of rings) for(const p of r){
-      if(p[0]<minX)minX=p[0]; if(p[0]>maxX)maxX=p[0];
-      if(p[1]<minY)minY=p[1]; if(p[1]>maxY)maxY=p[1];
-    }
-    if(!isFinite(minX)||!isFinite(minY)) return null;
-    return L.latLngBounds([minY,minX],[maxY,maxX]);
-  }catch(e){ return null; }
 }
 // Keep the labels in sync as the user pans/zooms after a search (debounced, same as parcel lines).
 let _nbrTimer=null, _nbrCtx=null;
@@ -12827,7 +12680,6 @@ async function runLookup(lat,lng,searchCtx){
   clearNeighborNumbers(); _nbrCtx=null;
   clearEcNote();   // remove any 📝 EC note from a previous property
   _subjRings=null;   // reset per lookup; drawParcel re-sets it only for a normal home lot
-  _subjTractRings=null;   // ditto: re-set only when an oversized shared tract is drawn
   saveLoc(lat,lng);
   document.getElementById('coordReadout').textContent=`lat ${lat.toFixed(5)}   lng ${lng.toFixed(5)}`;
 
