@@ -11649,6 +11649,7 @@ function drawParcel(g, info){
       // normal home lot. Inside an oversized shared tract (condo/mobile park) the gap-fill is exactly
       // how the individual unit numbers get drawn, so we must NOT suppress points there.
       setSubjectRings(oversized ? null : g);
+      setSubjectTract(oversized ? g : null);   // oversized = the dashed tract we want fully labeled
       const latlngs=g.rings.map(r=>r.map(p=>[p[1],p[0]]));
       // Shared tract → dashed orange outline (context). Normal home lot → solid brand orange.
       const col = oversized ? '#ff8c1a' : '#ff8a3c';
@@ -11862,6 +11863,17 @@ let nbrNumOn = true;   // labels follow the parcel view by default; tied to the 
 // 3605 Idlewild St), and without this the gap-fill would draw that second address as if it were a
 // separate home. Cleared on each new draw so a stale polygon never suppresses real neighbours.
 let _subjRings = null;
+/* Rings of the highlighted TRACT (the dashed orange outline drawn for an oversized shared parcel —
+   a condo association, mobile-home park, co-op). Unlike _subjRings this is set precisely WHEN the
+   parcel is oversized, because that's the case where we want to label everything inside it rather
+   than suppress. Used by the tract-fill pass in showNeighborNumbers(). */
+let _subjTractRings = null;
+function setSubjectTract(geometry){
+  try{
+    const rings = geometry && geometry.rings;
+    _subjTractRings = (rings && rings.length) ? rings : null;
+  }catch(e){ _subjTractRings = null; }
+}
 function setSubjectRings(geometry){
   try{
     const rings = geometry && geometry.rings;
@@ -12393,7 +12405,90 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
         }
       }
     }catch(e){ /* gap-fill is best-effort; never block the result */ }
+
+    // ============ TRACT FILL ============
+    // When the highlighted parcel is an oversized shared tract (the dashed orange outline — condo
+    // association, mobile-home park, co-op), every home inside it should carry its own label. The
+    // passes above are viewport- and source-driven and can come up short inside a tract: the file
+    // path skips gap-fill entirely, and record caps bite on a big community. This pass asks the
+    // address-point source directly for the TRACT's own extent and labels anything inside the rings
+    // that isn't already labeled. Best-effort and additive — it never removes an existing label.
+    try{
+      if(_subjTractRings){
+        const tb=_ringsBounds(_subjTractRings);
+        if(tb){
+          const _cty2=(window.__lastCounty||'').toString();
+          const fUrl=_cty2 ? ADDRPOINT_FILES[norm(_cty2)] : null;
+          const fCfg=(fUrl && fUrl.indexOf('REPLACE-ME')<0) ? fUrl : null;
+          const aUrl=_cty2 ? ADDRPOINT_FEEDS[norm(_cty2)] : null;
+          let feats=null;
+          if(fCfg){
+            const inT=await queryHostedFile(fCfg, tb);
+            if(Array.isArray(inT)) feats=inT;
+          }
+          if(!feats && aUrl){
+            const env=`${tb.getWest()},${tb.getSouth()},${tb.getEast()},${tb.getNorth()}`;
+            const FLDS=['ADDRNUM','ADD_NUMBER','HOUSE_NUM','STNUM','STREET_NUM',
+                        'UNITID','UNIT','UNIT_NO','UNITTYPE','UNIT_TYPE','STATUS',
+                        'FULLADDR','FULL_ADDR','STUBADDRESS','SITEADDRESS','SITE_ADDR','FULLADDRESS','ADDRESS',
+                        'PREDIR','PRE_DIR','ST_PREDIR','ST_NAME','STREETNAME','STNAME','FULLNAME','STREET',
+                        'ST_TYPE','STREETTYPE','STTYPE','SUFFIX','POSTDIR','POST_DIR','ST_POSDIR'].join(',');
+            const u=aUrl+`?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
+              `&spatialRel=esriSpatialRelIntersects&outFields=${encodeURIComponent(FLDS)}`+
+              `&returnGeometry=true&outSR=4326&resultRecordCount=1200&f=json`;
+            const c2=new AbortController(); const t2=setTimeout(()=>c2.abort(),12000);
+            try{ const r2=await fetch(u,{signal:c2.signal}); clearTimeout(t2);
+              if(r2.ok){ const j2=await r2.json(); if(!j2.error && j2.features) feats=j2.features; } }
+            catch(e){ clearTimeout(t2); }
+          }
+          if(feats && feats.length){
+            const NEAR_T=0.00008, NEAR_T2=NEAR_T*NEAR_T;
+            const have=(_nbrCache.ptLabels||[]).slice();
+            const extra=[];
+            const seenT=new Set();
+            for(const f of feats){
+              if(extra.length>=600) break;
+              const a=f.attributes||{};
+              const st=(a.STATUS||a.Status||'').toString().toUpperCase();
+              if(st && /(RETIRE|INACTIVE|INVALID|DELETE)/.test(st)) continue;
+              const g=f.geometry; const gx=g?(g.x!=null?g.x:g.X):null, gy=g?(g.y!=null?g.y:g.Y):null;
+              if(gx==null||gy==null) continue;
+              if(!pointInPolygon(gx, gy, _subjTractRings)) continue;   // inside the orange only
+              const txt=formatAddrPoint(a);
+              const hn=houseNum(txt); if(!hn) continue;
+              const key=txt+'@'+gx.toFixed(6)+','+gy.toFixed(6);
+              if(seenT.has(key)) continue; seenT.add(key);
+              // Already drawn as a parcel label or a gap-fill point at this spot & address? skip.
+              let dup=false;
+              for(const L0 of labels){ const dx=L0.lng-gx, dy=L0.lat-gy;
+                if(dx*dx+dy*dy<NEAR_T2 && String(L0.txt||'')===txt){ dup=true; break; } }
+              if(!dup) for(const P of have){ const dx=P.lng-gx, dy=P.lat-gy;
+                if(dx*dx+dy*dy<NEAR_T2 && formatAddrPoint(P.a)===txt){ dup=true; break; } }
+              if(dup) continue;
+              extra.push({ hn, lat:gy, lng:gx, a });
+            }
+            if(extra.length){
+              const merged=have.concat(extra);
+              _nbrRenderPoints(extra, -1);          // additive draw; subject highlight already placed
+              _nbrCache.ptLabels=merged;            // cache the full set so a repaint keeps them
+            }
+          }
+        }
+      }
+    }catch(e){ /* tract fill is best-effort; never block the result */ }
   }catch(e){ /* best-effort; never block the result */ }
+}
+/* Lat/lng bounds of an Esri ring set, as a Leaflet LatLngBounds (or null). */
+function _ringsBounds(rings){
+  try{
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    for(const r of rings) for(const p of r){
+      if(p[0]<minX)minX=p[0]; if(p[0]>maxX)maxX=p[0];
+      if(p[1]<minY)minY=p[1]; if(p[1]>maxY)maxY=p[1];
+    }
+    if(!isFinite(minX)||!isFinite(minY)) return null;
+    return L.latLngBounds([minY,minX],[maxY,maxX]);
+  }catch(e){ return null; }
 }
 // Keep the labels in sync as the user pans/zooms after a search (debounced, same as parcel lines).
 let _nbrTimer=null, _nbrCtx=null;
@@ -12680,6 +12775,7 @@ async function runLookup(lat,lng,searchCtx){
   clearNeighborNumbers(); _nbrCtx=null;
   clearEcNote();   // remove any 📝 EC note from a previous property
   _subjRings=null;   // reset per lookup; drawParcel re-sets it only for a normal home lot
+  _subjTractRings=null;   // ditto: re-set only when an oversized shared tract is drawn
   saveLoc(lat,lng);
   document.getElementById('coordReadout').textContent=`lat ${lat.toFixed(5)}   lng ${lng.toFixed(5)}`;
 
