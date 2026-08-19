@@ -11888,6 +11888,18 @@ function searchForAddress(addrStr){
    point. On a condo stack every unit shares ONE coordinate, so that resolves to the master/common-
    element parcel and reports the association as owner — exactly the wrong answer for the unit you
    clicked. Passing the label's own address (and folio, when the attributes carry one) pins it. */
+/* Put the label you actually clicked into the search box, so the box, the map pin and the results
+   card all agree. Without this a map-label click left the previous search text sitting there while
+   the panel showed a different parcel — the confusing part. Keeps the unit suffix intact. */
+function _nbrSetAddrBox(txt){
+  const v=String(txt||'').replace(/\s+/g,' ').trim();
+  if(!v) return;
+  try{
+    addrEl.value=v; STORE.set('fl_addr',v); addToHistory(v);
+    if(typeof updateClearBtn==='function') updateClearBtn();
+  }catch(e){}
+}
+
 function _nbrClickCtx(txt, attrs){
   const raw=String(txt||'').trim();
   const ctx={ raw, hn:houseNum(raw), toks:new Set(streetTokens(raw)), unit:searchUnit(raw) };
@@ -11927,6 +11939,7 @@ function _nbrRenderParcelLabels(labels, subjIdx){
         suppressUiClick(900);   // block the replayed tap landing on the map underneath
         // Use the parcel's REAL coordinates (exact) rather than re-geocoding the bare street, which
         // can resolve "123 Main St" to the wrong town. Fall back to address only if coords missing.
+        _nbrSetAddrBox(L0.txt);
         if(isFinite(L0.lat) && isFinite(L0.lng)) runLookup(L0.lat, L0.lng, _nbrClickCtx(L0.txt, L0.feat&&L0.feat.attributes));
         else searchForAddress(L0.txt);
       });
@@ -12011,6 +12024,7 @@ function _nbrRenderPoints(ptLabels, ptSubjIdx){
             const mk=L.marker([P.lat,P.lng],{icon, interactive:true, keyboard:false, zIndexOffset:isSubj?1000:0}).addTo(nbrNumLayer);
             mk.on('click', (ev)=>{ try{ L.DomEvent.stop(ev); }catch(e){}
               suppressUiClick(900);
+              _nbrSetAddrBox(_addr);
               if(isFinite(P.lat) && isFinite(P.lng)) runLookup(P.lat, P.lng, _nbrClickCtx(_addr, P.a));
               else searchForAddress(_addr);
             });
@@ -12727,6 +12741,9 @@ async function runLookup(lat,lng,searchCtx){
                 al.__authByFolio=true; al.__byFolioPin=true;
                 matchedAddr = rc.label || searchCtx.raw || null; multi=1;
                 if(isFinite(rc.lat) && isFinite(rc.lng)){ al.__ngLat=rc.lat; al.__ngLng=rc.lng; }
+                // The resolver came back with the authoritative unit address — upgrade the search
+                // box to it so the box, the pin and the card all read the same thing.
+                if(rc.label) _nbrSetAddrBox(rc.label);
               }
             }
           }
