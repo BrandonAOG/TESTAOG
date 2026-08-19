@@ -11917,8 +11917,39 @@ function _nbrClickCtx(txt, attrs){
 let _nbrCache = { b:null, labels:null, subjIdx:-1, ptLabels:null, ptSubjIdx:-1 };
 function _nbrClearCache(){ _nbrCache={ b:null, labels:null, subjIdx:-1, ptLabels:null, ptSubjIdx:-1 }; }
 
+/* Some roll/address-point records carry only a fragment — a bare unit number, or a house number with
+   no street text — which rendered on the map as a naked "3" / "0" / "1" with nothing under it. Those
+   labels are useless to read AND useless to click, because the click context is built from the same
+   text. Repair pass: work out the dominant street in the current view (the one most labels agree on)
+   and lend it to any label missing one. Purely cosmetic-plus-context; never overwrites a real street.
+   Returns the same array, mutated in place. */
+function _nbrFillMissingStreets(labels){
+  if(!labels || !labels.length) return labels;
+  const tally=new Map();
+  for(const L of labels){
+    const st=(numStreetParts(L.txt, L.hn).street||'').trim();
+    if(!st) continue;
+    tally.set(st, (tally.get(st)||0)+1);
+  }
+  if(!tally.size) return labels;
+  let dominant='', best=-1;
+  tally.forEach((n,st)=>{ if(n>best){ best=n; dominant=st; } });
+  if(!dominant) return labels;
+  for(const L of labels){
+    const parts=numStreetParts(L.txt, L.hn);
+    if(parts.street && parts.street.trim()) continue;      // already fine
+    const num=(parts.num||L.hn||'').toString().trim();
+    if(!num) continue;
+    // Mark it as the fragment it is: a bare number inside a building is a unit, not a house number.
+    L.txt = `${num} ${dominant}`;
+    L.__inferredStreet = true;
+  }
+  return labels;
+}
+
 function _nbrRenderParcelLabels(labels, subjIdx){
   if(!labels || !labels.length) return;
+    _nbrFillMissingStreets(labels);   // repair bare "3"/"0"/"1" fragments before drawing
     // GROUP labels by coordinate. Condo/tower units all share ONE coordinate, so a group with
     // 2+ members is a stack. Singletons render as normal labels. Stacks render as a single
     // collapsed badge ("⊞ N units") that FANS OUT its individual unit labels on hover and
@@ -11971,11 +12002,25 @@ function _nbrRenderParcelLabels(labels, subjIdx){
       const baseLat=labels[idxs[0]].lat, baseLng=labels[idxs[0]].lng;
       const subjInStack = idxs.indexOf(subjIdx)>=0;
 
-      const badgeHTML=`<div class="nbr-num stack"><span class="nbr-hn">⊞ ${idxs.length}</span><span class="nbr-st">units</span></div>`;
+      // Show WHICH units are in the stack, not just how many. The numbers are the useful part when
+      // you're scanning a building for a specific unit — "⊞ 4 units" told you nothing.
+      const _stackNums = idxs.map(i=>{
+        const L0=labels[i];
+        const u = searchUnit(L0.txt) || numStreetParts(L0.txt, L0.hn).num || '';
+        return String(u).trim();
+      }).filter(Boolean);
+      const _uniqNums=[...new Set(_stackNums)];
+      const _numsLine = _uniqNums.length
+        ? (_uniqNums.length<=4 ? _uniqNums.join(' · ')
+                               : _uniqNums.slice(0,3).join(' · ')+' +'+(_uniqNums.length-3))
+        : 'units';
+      const badgeHTML=`<div class="nbr-num stack"><span class="nbr-hn">⊞ ${idxs.length}</span><span class="nbr-st">${esc(_numsLine)}</span></div>`;
       const badgeIcon=L.divIcon({ className:'nbr-hit', html:badgeHTML, iconSize:null });
       const badge=L.marker([baseLat,baseLng],{icon:badgeIcon, interactive:true, keyboard:false,
         zIndexOffset:subjInStack?1000:10}).addTo(nbrNumLayer);
-      badge.bindTooltip(`${idxs.length} units here — hover to expand, click one to look it up`,
+      badge.bindTooltip(
+        (_uniqNums.length?`Units ${esc(_uniqNums.join(', '))} — `:`${idxs.length} units here — `)+
+        `hover to expand, click one to look it up`,
         {direction:'top',className:'parcel-tip',opacity:1});
 
       let fanned=[];                                  // markers currently spread out
@@ -12014,11 +12059,20 @@ function _nbrRenderParcelLabels(labels, subjIdx){
 
 function _nbrRenderPoints(ptLabels, ptSubjIdx){
   if(!ptLabels || !ptLabels.length) return 0;
+  // Same repair pass as the parcel labels: the gap-fill points come from the same sources and carry
+  // the same fragment problem. _nbrFillMissingStreets reads .txt/.hn, so normalize onto that shape.
+  try{
+    const shim=ptLabels.map(P=>({ txt:formatAddrPoint(P.a), hn:P.hn }));
+    _nbrFillMissingStreets(shim);
+    for(let i=0;i<ptLabels.length;i++){
+      if(shim[i].__inferredStreet) ptLabels[i].__fixedAddr=shim[i].txt;
+    }
+  }catch(e){}
           // PASS B: render the gap-fill points; only ptSubjIdx (if any) gets the subject highlight.
           let added=0;
           for(let i=0;i<ptLabels.length;i++){
             const P=ptLabels[i]; const isSubj=(i===ptSubjIdx);
-            const _addr=formatAddrPoint(P.a);
+            const _addr=P.__fixedAddr || formatAddrPoint(P.a);
             const labelHTML = numStreetLabelHTML(_addr, P.hn);
             const icon=L.divIcon({ className:'nbr-hit', html:`<div class="nbr-num${isSubj?' subject':''}">${labelHTML}</div>`, iconSize:null });
             const mk=L.marker([P.lat,P.lng],{icon, interactive:true, keyboard:false, zIndexOffset:isSubj?1000:0}).addTo(nbrNumLayer);
