@@ -11883,6 +11883,21 @@ function searchForAddress(addrStr){
   }catch(e){}
 }
 
+/* Build a searchCtx for a click on a map label. Without one, runLookup() takes the MAP-CLICK branch:
+   it resolves purely by coordinate and rewrites the search box from whatever parcel sits under the
+   point. On a condo stack every unit shares ONE coordinate, so that resolves to the master/common-
+   element parcel and reports the association as owner — exactly the wrong answer for the unit you
+   clicked. Passing the label's own address (and folio, when the attributes carry one) pins it. */
+function _nbrClickCtx(txt, attrs){
+  const raw=String(txt||'').trim();
+  const ctx={ raw, hn:houseNum(raw), toks:new Set(streetTokens(raw)), unit:searchUnit(raw) };
+  try{
+    const folio = attrs ? pick(attrs,'FOLIO','Folio','folio','PARCEL_ID','PARCELID','STRAP','PARCELNO') : null;
+    if(folio) ctx.folio=folio;
+  }catch(e){}
+  return ctx;
+}
+
 /* ---------- Label rendering, split out so it can be REPLAYED from cache ----------
    Drawing the badges is cheap (a few hundred divIcons); FETCHING them is what took ~1s per pan.
    By keeping the last result set in _nbrCache we can repaint instantly on zoom/pan and only hit
@@ -11909,9 +11924,10 @@ function _nbrRenderParcelLabels(labels, subjIdx){
       const icon=L.divIcon({ className:'nbr-hit', html:`<div class="nbr-num${isSubj?' subject':''}">${labelHTML}</div>`, iconSize:null });
       const mk=L.marker([dlat,dlng],{icon, interactive:true, keyboard:false, zIndexOffset:isSubj?1000:5}).addTo(nbrNumLayer);
       mk.on('click', (ev)=>{ try{ L.DomEvent.stop(ev); }catch(e){}
+        suppressUiClick(900);   // block the replayed tap landing on the map underneath
         // Use the parcel's REAL coordinates (exact) rather than re-geocoding the bare street, which
         // can resolve "123 Main St" to the wrong town. Fall back to address only if coords missing.
-        if(isFinite(L0.lat) && isFinite(L0.lng)) runLookup(L0.lat, L0.lng);
+        if(isFinite(L0.lat) && isFinite(L0.lng)) runLookup(L0.lat, L0.lng, _nbrClickCtx(L0.txt, L0.feat&&L0.feat.attributes));
         else searchForAddress(L0.txt);
       });
       try{ const _a=L0.feat.attributes||{};
@@ -11994,7 +12010,8 @@ function _nbrRenderPoints(ptLabels, ptSubjIdx){
             const icon=L.divIcon({ className:'nbr-hit', html:`<div class="nbr-num${isSubj?' subject':''}">${labelHTML}</div>`, iconSize:null });
             const mk=L.marker([P.lat,P.lng],{icon, interactive:true, keyboard:false, zIndexOffset:isSubj?1000:0}).addTo(nbrNumLayer);
             mk.on('click', (ev)=>{ try{ L.DomEvent.stop(ev); }catch(e){}
-              if(isFinite(P.lat) && isFinite(P.lng)) runLookup(P.lat, P.lng);
+              suppressUiClick(900);
+              if(isFinite(P.lat) && isFinite(P.lng)) runLookup(P.lat, P.lng, _nbrClickCtx(_addr, P.a));
               else searchForAddress(_addr);
             });
             try{
