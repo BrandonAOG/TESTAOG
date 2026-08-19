@@ -12445,6 +12445,7 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
             const NEAR_T=0.00008, NEAR_T2=NEAR_T*NEAR_T;
             const have=(_nbrCache.ptLabels||[]).slice();
             const extra=[];
+            const loose=[];   // inside the tract's bounding box but not its rings — safety net
             const seenT=new Set();
             for(const f of feats){
               if(extra.length>=600) break;
@@ -12453,7 +12454,7 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
               if(st && /(RETIRE|INACTIVE|INVALID|DELETE)/.test(st)) continue;
               const g=f.geometry; const gx=g?(g.x!=null?g.x:g.X):null, gy=g?(g.y!=null?g.y:g.Y):null;
               if(gx==null||gy==null) continue;
-              if(!pointInPolygon(gx, gy, _subjTractRings)) continue;   // inside the orange only
+              const _inside=_inTractRings(gx, gy, _subjTractRings);
               const txt=formatAddrPoint(a);
               const hn=houseNum(txt); if(!hn) continue;
               const key=txt+'@'+gx.toFixed(6)+','+gy.toFixed(6);
@@ -12465,11 +12466,16 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
               if(!dup) for(const P of have){ const dx=P.lng-gx, dy=P.lat-gy;
                 if(dx*dx+dy*dy<NEAR_T2 && formatAddrPoint(P.a)===txt){ dup=true; break; } }
               if(dup) continue;
-              extra.push({ hn, lat:gy, lng:gx, a });
+              (_inside ? extra : loose).push({ hn, lat:gy, lng:gx, a });
             }
-            if(extra.length){
-              const merged=have.concat(extra);
-              _nbrRenderPoints(extra, -1);          // additive draw; subject highlight already placed
+            // Prefer the strict inside-the-outline set. If the ring test excluded everything (odd
+            // geometry, or the buildings sit just outside a tract that only covers the common area),
+            // fall back to the unlabeled points in the tract's extent — the goal is that no home in
+            // view is left without a card, not that the outline is policed exactly.
+            const add = extra.length ? extra : loose.slice(0,600);
+            if(add.length){
+              const merged=have.concat(add);
+              _nbrRenderPoints(add, -1);            // additive draw; subject highlight already placed
               _nbrCache.ptLabels=merged;            // cache the full set so a repaint keeps them
             }
           }
@@ -12477,6 +12483,17 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
       }
     }catch(e){ /* tract fill is best-effort; never block the result */ }
   }catch(e){ /* best-effort; never block the result */ }
+}
+/* Containment test for a TRACT outline, which is routinely multi-ring: this community's outline is
+   a horseshoe with a separate inner polygon, and pointInPolygon() treats ring[0] as the only outer
+   boundary and every later ring as a HOLE. That's right for a donut lot, wrong here — it threw away
+   every address point sitting in the second outer ring, which is why whole buildings inside the
+   orange still had no label. Even-odd rule instead: inside an odd number of rings = inside. */
+function _inTractRings(lng, lat, rings){
+  if(!rings || !rings.length) return false;
+  let n=0;
+  for(const r of rings){ if(pointInRing(lng, lat, r)) n++; }
+  return (n % 2) === 1;
 }
 /* Lat/lng bounds of an Esri ring set, as a Leaflet LatLngBounds (or null). */
 function _ringsBounds(rings){
