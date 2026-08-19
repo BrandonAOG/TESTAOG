@@ -4051,7 +4051,23 @@ document.addEventListener('click', closeBasemapMenu);
 map.on('moveend', ()=>{ if(_curBasemap==='sarco') updateLocalAerial(false); });
 
 let marker=null, parcelLayer=null, homeParcelLayer=null;
-map.on('click', e => { newSearch(); runLookup(e.latlng.lat, e.latlng.lng); });
+/* GHOST-CLICK GUARD. The unit picker / candidate rows are overlays sitting ON TOP of the map. On
+   touch devices the tap that dismisses an overlay is replayed ~300ms later as a synthetic mouse
+   click at the same screen point — which by then lands on the map underneath. Leaflet fires
+   map 'click', runLookup() runs with NO searchCtx, and the map-click branch rewrites the search box
+   with whatever parcel happened to be under your finger — silently throwing away the unit you just
+   picked. Any UI pick stamps suppressUiClick(); map clicks inside that window are ignored.
+   Note the guard must also cover programmatic setView: recentering can land the cursor over a
+   different parcel before the ghost fires. */
+let _uiClickUntil=0;
+function suppressUiClick(ms){ _uiClickUntil = Date.now() + (ms||900); }
+function uiClickSuppressed(){ return Date.now() < _uiClickUntil; }
+map.on('click', e => {
+  if(uiClickSuppressed()) return;          // replayed tap from an overlay pick — not a real map click
+  const um=document.getElementById('unitModal');
+  if(um && um.classList.contains('show')) return;   // modal is open; the map is not the target
+  newSearch(); runLookup(e.latlng.lat, e.latlng.lng);
+});
 
 /* ---------- City/county separation: color-coded INCORPORATED city outlines ----------
    The FDOT "Florida Cities Bndy" layer is built from US Census place data, which mixes
@@ -15039,6 +15055,9 @@ function openUnitPicker(basisText){
       `</div>`+
     `</div>`;
   el.classList.add('show');
+  // Belt-and-braces alongside the ghost-click guard: tell Leaflet outright to ignore pointer events
+  // over this overlay, so a drag started on the modal can't pan the map either.
+  try{ L.DomEvent.disableClickPropagation(el); L.DomEvent.disableScrollPropagation(el); }catch(_){}
   try{ _umPrevFocus=document.activeElement; }catch(e){ _umPrevFocus=null; }
   const filt=document.getElementById('unitFilter');
   if(filt){
@@ -15066,15 +15085,17 @@ function closeUnitPicker(){
   try{ if(_umPrevFocus && _umPrevFocus.focus) _umPrevFocus.focus(); }catch(e){}
   _umPrevFocus=null;
 }
-function _umPick(i){ closeUnitPicker(); _pcPick(i); }
+function _umPick(i){ suppressUiClick(1200); closeUnitPicker(); _pcPick(i); }
 document.addEventListener('click', e=>{
   const el=document.getElementById('unitModal');
   if(!el || !el.classList.contains('show')) return;
-  if(e.target && e.target.id==='unitCancel'){ closeUnitPicker(); return; }
-  if(e.target===el){ closeUnitPicker(); return; }          // backdrop click
+  // Everything inside the modal is ours: swallow it so nothing reaches the map underneath.
+  try{ e.stopPropagation(); }catch(_){}
+  if(e.target && e.target.id==='unitCancel'){ suppressUiClick(700); closeUnitPicker(); return; }
+  if(e.target===el){ suppressUiClick(700); closeUnitPicker(); return; }   // backdrop click
   const cell = e.target.closest && e.target.closest('.ucell');
   if(cell && cell.dataset.um!=null){ _umPick(+cell.dataset.um); }
-});
+}, true);
 document.addEventListener('keydown', e=>{
   const el=document.getElementById('unitModal');
   if(!el || !el.classList.contains('show')) return;
@@ -15087,6 +15108,7 @@ function _pcPick(i){
   if(!c || !isFinite(c.lat) || !isFinite(c.lng)) return;
   if(Date.now()-(window.__pcPickedAt||0) < 700) return;   // ignore a double-fired tap
   window.__pcPickedAt=Date.now();
+  suppressUiClick(1200);   // this row sits over the map — block the replayed tap (see map 'click')
   // Fold the unit back into the label so the search box, history and the lookup context all carry
   // it — otherwise picking "Unit 102" searched the bare condo address and re-hit the same ambiguity.
   let lbl = c.label || '';
