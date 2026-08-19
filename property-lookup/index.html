@@ -12714,6 +12714,22 @@ async function runLookup(lat,lng,searchCtx){
               try{ const _c=featCentroid(pin.features[0]); if(_c){ al.__ngLat=_c[1]; al.__ngLng=_c[0]; } }catch(e){}
             }
           }
+          // 0b) UNIT FALLBACK: no usable folio (or the pin missed), but the clicked/typed address
+          //     carries a unit. Route through the SAME address-point resolver that a typed unit
+          //     search uses — it maps address+unit to the unit's own folio. Without this, a condo
+          //     unit falls through to point-in-polygon and reports the association as owner.
+          if(!al && searchCtx && searchCtx.unit && searchCtx.hn && COUNTY_PARCEL_RESOLVERS[norm(countyName)]){
+            const rc = await resolveCountyParcel(countyName, searchCtx).catch(()=>null);
+            if(rc && !rc.multi && rc.folio){
+              const pin2 = await fetchCountyParcelFeatureByFolio(countyName, rc.folio).catch(()=>null);
+              if(pin2 && pin2.features && pin2.features[0]){
+                al={features:[pin2.features[0]]};
+                al.__authByFolio=true; al.__byFolioPin=true;
+                matchedAddr = rc.label || searchCtx.raw || null; multi=1;
+                if(isFinite(rc.lat) && isFinite(rc.lng)){ al.__ngLat=rc.lat; al.__ngLng=rc.lng; }
+              }
+            }
+          }
           // 0) AUTHORITATIVE (STRAP path): NG911 maps the address to a parcel STRAP; fetch by STRAP.
           //    Deterministic — this is what LeePA's own search does. (Counties whose NG911 layer
           //    carries a STRAP field, e.g. Lee.)
@@ -15040,16 +15056,39 @@ async function attachUnitsToCandidates(cfg, searchCtx, matches){
 async function fetchCountyParcelFeatureByFolio(countyName, folio){
   const cfg = countyName ? COUNTY_PARCEL_RESOLVERS[norm(countyName)] : null;
   if(!cfg || !folio) return null;
-  const fol=String(folio).replace(/'/g,"''");
-  const where = `${cfg.folioField}='${fol}'`;
-  const params = `where=${encodeURIComponent(where)}&outFields=*&returnGeometry=true&outSR=4326&f=json`;
-  try{
-    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),10000);
-    const r=await fetch(cfg.url+'?'+params,{signal:ctrl.signal}); clearTimeout(t);
-    if(!r.ok) return null; const j=await r.json(); if(j.error) return null;
-    const f=(j.features||[])[0]; if(!f) return null;
-    return { features:[f], __authByFolio:true, __byFolioPin:true };
-  }catch(e){ return null; }
+  // FORMAT TOLERANCE. The folio can arrive from several sources that punctuate it differently: the
+  // address point's FLN, the statewide roll's PARCEL_ID (often dashed/spaced), or a map label's
+  // attributes. An exact string match silently returns nothing when the punctuation differs, and the
+  // caller then falls back to a coordinate lookup — which on a condo lands on the master parcel and
+  // reports the ASSOCIATION as owner. So: try exact, then digits-only, then a digits LIKE, and
+  // verify the returned parcel's own folio digits match what we asked for.
+  const want=String(folio).trim();
+  const digits=want.replace(/\D/g,'');
+  const tries=[];
+  const q=v=>String(v).replace(/'/g,"''");
+  tries.push(`${cfg.folioField}='${q(want)}'`);
+  if(digits && digits!==want) tries.push(`${cfg.folioField}='${q(digits)}'`);
+  if(digits) tries.push(`${cfg.folioField} LIKE '%${q(digits)}%'`);
+  for(const where of tries){
+    const params = `where=${encodeURIComponent(where)}&outFields=*&returnGeometry=true&outSR=4326&resultRecordCount=10&f=json`;
+    try{
+      const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),10000);
+      const r=await fetch(cfg.url+'?'+params,{signal:ctrl.signal}); clearTimeout(t);
+      if(!r.ok) continue; const j=await r.json(); if(j.error) continue;
+      const feats=j.features||[]; if(!feats.length) continue;
+      // Prefer the feature whose folio digits match exactly; never accept a loose LIKE hit that
+      // resolved to a different parcel.
+      let f=null;
+      for(const cand of feats){
+        const a=cand.attributes||{};
+        if(String(a[cfg.folioField]||'').replace(/\D/g,'')===digits){ f=cand; break; }
+      }
+      if(!f && feats.length===1 && where.indexOf('LIKE')<0) f=feats[0];
+      if(!f) continue;
+      return { features:[f], __authByFolio:true, __byFolioPin:true };
+    }catch(e){ /* try the next form */ }
+  }
+  return null;
 }
 async function lookupCountyParcelByFolio(countyName, folio){
   const cfg = countyName ? COUNTY_PARCEL_RESOLVERS[norm(countyName)] : null;
