@@ -517,6 +517,34 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .pcand:hover,.pcand:focus{background:var(--search-bg);border-color:var(--signal);color:var(--signal);outline:none}
   .pcand .pcarrow{color:var(--signal);flex:none;font-size:13px}
   .pcand .pcfolio{color:var(--faint);font-size:11px;flex:none}
+  /* ---- Unit picker modal: shown when one address resolves to several condo/suite units ---- */
+  .umodal{position:fixed;inset:0;z-index:4000;display:none;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.55);backdrop-filter:blur(2px);padding:18px}
+  .umodal.show{display:flex}
+  .ubox{width:min(520px,96vw);max-height:min(78vh,720px);display:flex;flex-direction:column;
+    background:var(--card,#12161c);border:1px solid var(--signal);border-radius:12px;
+    box-shadow:0 18px 50px rgba(0,0,0,.55);overflow:hidden}
+  .uhead{padding:14px 16px 10px;border-bottom:1px solid var(--drop-line)}
+  .uttl{font-family:var(--mono);font-size:13px;font-weight:800;color:var(--signal);letter-spacing:.03em}
+  .usub{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:4px;line-height:1.45}
+  .ufilter{margin:10px 16px 0;padding:9px 11px;font-family:var(--mono);font-size:13px;
+    background:var(--search-bg);color:var(--ink);border:1px solid var(--drop-line);border-radius:8px;width:calc(100% - 32px)}
+  .ufilter:focus{outline:none;border-color:var(--signal)}
+  .ugrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;
+    padding:12px 16px;overflow:auto}
+  .ucell{padding:12px 6px;font-family:var(--mono);font-size:14px;font-weight:700;color:var(--ink);
+    background:var(--search-bg);border:1px solid var(--drop-line);border-radius:8px;cursor:pointer;
+    text-align:center;transition:background .12s,border-color .12s,color .12s}
+  .ucell:hover,.ucell:focus{border-color:var(--signal);color:var(--signal);outline:none}
+  .ucell .ucown{display:block;font-size:9.5px;font-weight:400;color:var(--faint);margin-top:3px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ufoot{padding:10px 16px 14px;border-top:1px solid var(--drop-line);display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .ubtn{padding:8px 14px;font-family:var(--mono);font-size:12px;color:var(--faint);cursor:pointer;
+    background:transparent;border:1px solid var(--drop-line);border-radius:8px}
+  .ubtn:hover{color:var(--ink);border-color:var(--ink)}
+  .unone{font-family:var(--mono);font-size:12px;color:var(--faint);padding:14px 16px}
+  @media (max-width:520px){ .ugrid{grid-template-columns:repeat(auto-fill,minmax(72px,1fr))} }
+  @media print{ .umodal{display:none!important} }
   .suggest .sg .sgsrc{margin-left:auto;color:var(--faint);font-size:9.5px;flex:none;padding-top:1px}
   /* Interpolated (guessed) geocode: warn loudly so it's obvious before a click. */
   .suggest .sg .sgsrc.approx{color:var(--warn);font-size:12px;font-weight:800;letter-spacing:.04em;padding-top:0}
@@ -1086,6 +1114,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
         <button id="go">Find</button>
       </div>
       <div class="suggest" id="suggest"></div>
+      <div class="umodal" id="unitModal" role="dialog" aria-modal="true" aria-labelledby="unitModalTtl"></div>
       <div class="history" id="historyDrop"></div>
     </div>
     <div class="hint"><b>OR</b> tap anywhere on the map to query that exact point — most reliable for getting the right parcel.</div>
@@ -14969,9 +14998,90 @@ function renderParcelCandidates(cands, basisText){
     : `Found ${cands.length} lots matching “${esc(basisText)}”${more}. Click the right one below, or add a unit / more detail.`;
   results.innerHTML = setStatus('err',head)
     + `<div style="margin-top:6px">${list}</div>`;
+  // When the match is a genuine multi-unit stack, put the choice front and centre in a modal rather
+  // than leaving it buried in the results panel. The inline rows above stay as the fallback: closing
+  // the modal returns you to them, and they still work if the modal never opens.
+  if(anyUnits && window.__pcCands.filter(c=>c.unit).length>1) openUnitPicker(basisText);
   // Center on the first candidate so the area is visible while choosing.
   if(isFinite(cands[0].lat) && isFinite(cands[0].lng)) map.setView([cands[0].lat,cands[0].lng],18);
 }
+/* ---------- Unit picker modal ----------
+   One address, many units (condo/tower/suite building). Rather than making the user hunt down a list
+   of near-identical rows, ask outright: a grid of unit numbers, click one, run the lookup on that
+   exact folio. Indices are positions in window.__pcCands, so picking routes through _pcPick() and
+   inherits everything it already does (search box, history, searchCtx, map view). */
+let _umPrevFocus=null;
+function openUnitPicker(basisText){
+  const el=document.getElementById('unitModal');
+  const cands=window.__pcCands||[];
+  if(!el || !cands.length) return;
+  const addrLine = (cands[0].label||basisText||'').split(',')[0].trim();
+  const cells = cands.map((c,i)=> c.unit ? {i, c} : null).filter(Boolean);
+  if(cells.length<2) return;
+  el.innerHTML =
+    `<div class="ubox">`+
+      `<div class="uhead">`+
+        `<div class="uttl" id="unitModalTtl">WHICH UNIT?</div>`+
+        `<div class="usub">${esc(addrLine)} has ${cells.length} units on the county roll. Pick one to pull its parcel, owner and zoning.</div>`+
+      `</div>`+
+      `<input class="ufilter" id="unitFilter" type="text" inputmode="text" autocomplete="off" placeholder="Type a unit number to filter…">`+
+      `<div class="ugrid" id="unitGrid">`+
+        cells.map(({i,c})=>
+          `<div class="ucell" role="button" tabindex="0" data-um="${i}" data-u="${esc(String(c.unit).toUpperCase())}">`+
+            `${esc(c.unit)}`+
+            (c.owner?`<span class="ucown">${esc(c.owner)}</span>`:'')+
+          `</div>`).join('')+
+      `</div>`+
+      `<div class="unone" id="unitNone" style="display:none">No unit matches that.</div>`+
+      `<div class="ufoot">`+
+        `<span class="usub" style="margin:0">Not listed? Close and pick from the rows behind.</span>`+
+        `<button class="ubtn" id="unitCancel" type="button">CLOSE</button>`+
+      `</div>`+
+    `</div>`;
+  el.classList.add('show');
+  try{ _umPrevFocus=document.activeElement; }catch(e){ _umPrevFocus=null; }
+  const filt=document.getElementById('unitFilter');
+  if(filt){
+    setTimeout(()=>{ try{ filt.focus(); }catch(e){} },30);
+    filt.addEventListener('input',()=>{
+      const q=filt.value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+      let shown=0;
+      el.querySelectorAll('.ucell').forEach(d=>{
+        const hit = !q || (d.dataset.u||'').replace(/[^A-Z0-9]/g,'').indexOf(q)===0;
+        d.style.display = hit?'':'none'; if(hit) shown++;
+      });
+      const none=document.getElementById('unitNone'); if(none) none.style.display = shown?'none':'';
+    });
+    // Enter picks the only remaining unit — fastest path when you know the number.
+    filt.addEventListener('keydown',e=>{
+      if(e.key!=='Enter') return;
+      const vis=[...el.querySelectorAll('.ucell')].filter(d=>d.style.display!=='none');
+      if(vis.length===1){ e.preventDefault(); _umPick(+vis[0].dataset.um); }
+    });
+  }
+}
+function closeUnitPicker(){
+  const el=document.getElementById('unitModal'); if(!el) return;
+  el.classList.remove('show'); el.innerHTML='';
+  try{ if(_umPrevFocus && _umPrevFocus.focus) _umPrevFocus.focus(); }catch(e){}
+  _umPrevFocus=null;
+}
+function _umPick(i){ closeUnitPicker(); _pcPick(i); }
+document.addEventListener('click', e=>{
+  const el=document.getElementById('unitModal');
+  if(!el || !el.classList.contains('show')) return;
+  if(e.target && e.target.id==='unitCancel'){ closeUnitPicker(); return; }
+  if(e.target===el){ closeUnitPicker(); return; }          // backdrop click
+  const cell = e.target.closest && e.target.closest('.ucell');
+  if(cell && cell.dataset.um!=null){ _umPick(+cell.dataset.um); }
+});
+document.addEventListener('keydown', e=>{
+  const el=document.getElementById('unitModal');
+  if(!el || !el.classList.contains('show')) return;
+  if(e.key==='Escape'){ e.preventDefault(); closeUnitPicker(); return; }
+  const cell = document.activeElement && document.activeElement.closest && document.activeElement.closest('.ucell');
+  if(cell && (e.key==='Enter'||e.key===' ')){ e.preventDefault(); _umPick(+cell.dataset.um); }
+});
 function _pcPick(i){
   const c = window.__pcCands && window.__pcCands[i];
   if(!c || !isFinite(c.lat) || !isFinite(c.lng)) return;
