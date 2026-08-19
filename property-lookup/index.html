@@ -12683,10 +12683,24 @@ async function runLookup(lat,lng,searchCtx){
                    : (ngHit && ngHit.pointOnly && isFinite(ngHit.lng)) ? ngHit.lng : lng;
         for(const cu of cands){
           let al=null, matchedAddr=null, exactUnit=true, multi=0;
+          // 0a) FOLIO PIN (highest authority): the user picked an exact unit from the unit picker, so
+          //     we already hold its folio. Fetch that parcel straight from the county's correct parcel
+          //     layer — no point-in-polygon, no address guessing. Without this, a condo unit resolves
+          //     by coordinate onto the master/common-element polygon and shows the association as the
+          //     owner. Same deterministic path a unit-typed search already takes.
+          if(searchCtx && searchCtx.folio && COUNTY_PARCEL_RESOLVERS[norm(countyName)]){
+            const pin = await fetchCountyParcelFeatureByFolio(countyName, searchCtx.folio).catch(()=>null);
+            if(pin && pin.features && pin.features[0]){
+              al={features:[pin.features[0]]};
+              al.__authByFolio=true; al.__byFolioPin=true;
+              matchedAddr = searchCtx.raw || null; multi=1;
+              try{ const _c=featCentroid(pin.features[0]); if(_c){ al.__ngLat=_c[1]; al.__ngLng=_c[0]; } }catch(e){}
+            }
+          }
           // 0) AUTHORITATIVE (STRAP path): NG911 maps the address to a parcel STRAP; fetch by STRAP.
           //    Deterministic — this is what LeePA's own search does. (Counties whose NG911 layer
           //    carries a STRAP field, e.g. Lee.)
-          if(ngHit && ngHit.strap){
+          if(!al && ngHit && ngHit.strap){
             const pf = await queryFeedByStrap(cu, ngHit.strap).catch(()=>null);
             if(pf){
               al={features:[pf]}; matchedAddr=ngHit.addr||null; multi=1;
@@ -15172,6 +15186,11 @@ function _pcPick(i){
   }
   try{ if(lbl){ addrEl.value=lbl; STORE.set('fl_addr',lbl); addToHistory(lbl); } }catch(e){}
   const ctx = { raw:lbl, hn:houseNum(lbl), toks:new Set(streetTokens(lbl)), unit:searchUnit(lbl) };
+  // PIN BY FOLIO. Condo units all sit inside (or share) one polygon, so a coordinate lookup on the
+  // picked unit lands point-in-polygon on the master/common-element parcel and reports the
+  // ASSOCIATION as owner instead of the unit owner. We already know the exact folio from the picker
+  // — hand it to runLookup so it fetches that unit's parcel directly instead of guessing from a point.
+  if(c.folio) ctx.folio = c.folio;
   newSearch();   // cancel any address search still loading — this pick wins
   results.innerHTML = setStatus('busy','Pinpointing the parcel…');
   map.setView([c.lat,c.lng],18);
