@@ -14778,7 +14778,7 @@ async function resolveCountyParcel(countyName, searchCtx){
                      'STATUS','POINTTYPE'].filter(Boolean);
       const apParams = `where=${encodeURIComponent(apWhere)}`+
         `&outFields=${encodeURIComponent(apOut.join(','))}`+
-        `&returnGeometry=false&resultRecordCount=50&f=json`;
+        `&returnGeometry=false&resultRecordCount=400&f=json`;
       const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),9000);
       const r=await fetch(cfg.addrPointUrl+'?'+apParams,{signal:ctrl.signal}); clearTimeout(t);
       if(r.ok){
@@ -14817,6 +14817,19 @@ async function resolveCountyParcel(countyName, searchCtx){
           }
           // Only act when the address points agree on a SINGLE folio — otherwise it's ambiguous
           // (multi-unit / mis-file) and we defer to the parcel-layer logic below.
+          if(folioHits.size>1 && !wantUnitAP){
+            // BARE-ADDRESS UNIT STACK: the typed address resolved to several folios that differ only
+            // by unit — i.e. a condo/tower. Previously this fell through to the parcel layer, where a
+            // building address like "2040" often doesn't exist as a parcel at all (Collier files every
+            // unit under the association's master address), so the search died and drifted to the
+            // geocoder with no picker. Build the candidate list from the POINTS instead, so searching
+            // the plain street address offers the same unit picker as searching a unit does.
+            const stack = await candidatesFromFolios(cfg, countyName, folioHits, folioMeta).catch(()=>null);
+            if(stack && stack.length>1){
+              return { multi:true, candidates:stack, src:titleCase(countyName)+' County parcel' };
+            }
+            // couldn't resolve geometry for them — fall through to the parcel-layer logic below.
+          }
           if(folioHits.size===1){
             const folio=[...folioHits.values()][0];
             const _meta=[...folioMeta.values()][0]||null;
@@ -14907,6 +14920,46 @@ async function resolveCountyParcel(countyName, searchCtx){
 }
 /* Look up the unit number for each candidate folio in the county's address-point layer and fold it
    into the candidate's label. Best-effort: any failure returns the candidates untouched. */
+/* Pull the real parcels for a set of folios in ONE query and return them as picker candidates,
+   each carrying its unit number from the address point. Used when a bare street address resolves to
+   a whole condo/tower stack. Returns [] on any failure so callers can fall through. */
+async function candidatesFromFolios(cfg, countyName, folioHits, folioMeta){
+  if(!cfg || !cfg.folioField || !folioHits || !folioHits.size) return [];
+  const folios=[...folioHits.values()].slice(0,200);
+  const inList=folios.map(f=>`'${String(f).replace(/'/g,"''")}'`).join(',');
+  const where=`${cfg.folioField} IN (${inList})`;
+  const params=`where=${encodeURIComponent(where)}`+
+    `&outFields=${encodeURIComponent([cfg.addrField,cfg.cityField,cfg.zipField,cfg.folioField,cfg.ownerField].filter(Boolean).join(','))}`+
+    `&returnGeometry=true&outSR=4326&resultRecordCount=250&f=json`;
+  let feats=[];
+  try{
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),12000);
+    const r=await fetch(cfg.url+'?'+params,{signal:ctrl.signal}); clearTimeout(t);
+    if(!r.ok) return []; const j=await r.json(); if(j.error) return [];
+    feats=j.features||[];
+  }catch(e){ return []; }
+  const out=[];
+  for(const f of feats){
+    const a=f.attributes||{}; const c=featCentroid(f); if(!c) continue;
+    const folio=a[cfg.folioField]; const digits=String(folio||'').replace(/\D/g,'');
+    const meta=folioMeta ? folioMeta.get(digits) : null;
+    // Prefer the address POINT's own street text — the parcel's address field is the master condo
+    // address and would render every row identically.
+    const street=(meta&&meta.ptAddr) ? meta.ptAddr : a[cfg.addrField];
+    out.push({
+      lat:c[1], lng:c[0],
+      label:[street, (meta&&meta.city)||a[cfg.cityField], a[cfg.zipField]].filter(Boolean).join(', '),
+      folio:folio||null, owner:a[cfg.ownerField]||null,
+      unit:(meta&&meta.unit)||'', unitType:(meta&&meta.unitType)||'Unit'
+    });
+  }
+  out.sort((a,b)=>{
+    const na=parseInt(String(a.unit).replace(/\D/g,''),10), nb=parseInt(String(b.unit).replace(/\D/g,''),10);
+    if(isFinite(na)&&isFinite(nb)&&na!==nb) return na-nb;
+    return String(a.unit).localeCompare(String(b.unit));
+  });
+  return out;
+}
 async function attachUnitsToCandidates(cfg, searchCtx, matches){
   if(!cfg || !cfg.addrPointUrl || !cfg.apFolioField || !cfg.apUnitField) return matches;
   const hn = String(searchCtx.hn).replace(/'/g,"''");
