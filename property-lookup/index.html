@@ -584,8 +584,30 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .history .hi:last-child{border-bottom:none}
   .history .hi:hover,.history .hi.active{background:var(--search-bg);color:var(--ink)}
   .history .hi .hpin{color:var(--faint);font-size:10px;flex:none}
-  .history .hi .hdel{margin-left:auto;flex:none;color:var(--faint);font-size:11px;padding:2px 4px}
-  .history .hi .hdel:hover{color:var(--warn)}
+  /* The address span MUST be able to shrink. Without flex:1+min-width:0 it collapses to its
+     narrowest word and the address wraps one word per line — which is what it was doing on a
+     phone. Ellipsis instead: a recent address only needs to be recognisable, not complete. */
+  .history .hi .htext{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* appearance:none is load-bearing — iOS otherwise draws its own pill-shaped control here, which
+     rendered as a giant rounded bar swallowing the row. */
+  .history .hi .hdel{-webkit-appearance:none;appearance:none;background:none;border:none;
+    flex:none;width:26px;height:26px;line-height:1;display:flex;align-items:center;
+    justify-content:center;border-radius:6px;color:var(--faint);font-size:15px;padding:0;cursor:pointer}
+  .history .hi .hdel:hover{color:var(--warn);background:var(--drop-line)}
+  .history .hi .hdel:active{background:var(--drop-line)}
+
+  /* ---- phone sizing: the dropdown was unusable at 380px ---- */
+  @media (max-width:520px){
+    /* Cap the list so it can't run off the screen behind the keyboard, and let it scroll. */
+    .history{max-height:46vh;overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:10px}
+    .history-header{position:sticky;top:0;z-index:1;background:var(--input-bg);
+      padding:9px 13px 8px}
+    .history-header span,.history-header button{font-size:10.5px}
+    .history-header button{padding:4px 6px;margin:-4px -6px}   /* bigger tap target, same look */
+    /* 44px min row height = Apple's minimum touch target. Was ~31px. */
+    .history .hi{padding:0 13px;min-height:44px;font-size:12.5px;gap:10px}
+    .history .hi .hdel{width:34px;height:34px;font-size:17px;margin-right:-6px}
+  }
 
   @media (max-width:520px){ header h1{font-size:19px} #panel{top:8px;left:8px} }
 
@@ -692,11 +714,18 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     #panel.dragging{transition:none}          /* follow the finger 1:1 while dragging */
     /* fully hidden: slide the whole sheet off the bottom so the map is unobstructed */
     #panel.hidden{transform:translateY(105%)}
-    /* grab handle (tap target + drag origin) — clearly a slide bar */
-    .sheet-grip{display:block;position:relative;height:34px;flex:none;cursor:grab;touch-action:none}
-    .sheet-grip::before{content:"";position:absolute;top:13px;left:50%;transform:translateX(-50%);
-      width:56px;height:6px;border-radius:4px;background:var(--grip);transition:background .15s,width .15s}
-    .sheet-grip:active::before{background:var(--signal);width:66px}
+    /* grab handle (tap target + drag origin) — clearly a slide bar.
+       The bar used to be var(--grip) (#4a5868 in dark), which is only a shade off the panel
+       background and effectively invisible — people couldn't find the thing they were meant to
+       drag. Now near-white at 55% so it reads instantly against either theme, and the zone is
+       44px (Apple's minimum touch target) rather than 34. */
+    .sheet-grip{display:block;position:relative;height:44px;flex:none;cursor:grab;touch-action:none}
+    .sheet-grip::before{content:"";position:absolute;top:16px;left:50%;transform:translateX(-50%);
+      width:52px;height:5px;border-radius:3px;background:rgba(255,255,255,.55);
+      transition:background .15s,width .15s,height .15s}
+    .sheet-grip:active::before{background:var(--signal);width:64px;height:6px}
+    /* light theme: a white bar would vanish, so go dark instead */
+    html[data-theme="light"] .sheet-grip::before{background:rgba(20,26,34,.42)}
 
     /* floating pull-up tab — only visible when the sheet is hidden */
     .sheet-tab{display:none;position:absolute;z-index:1100;bottom:14px;left:50%;transform:translateX(-50%);
@@ -1072,7 +1101,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
       <button data-bm="topo" title="USGS topographic / terrain basemap — elevation &amp; contour context for low-ground / pad siting">⛰ Topo</button>
     </div>
   </div>
-  <button id="btnFlood" title="Shade FEMA flood-hazard zones (AE / VE / X) across the view — live NFHL. Zoom in to see it.">≋ Flood</button>
+  <button id="btnFlood" title="Shade FEMA flood-hazard zones (AE / AH / VE / X) plus BFE elevation contour lines — live NFHL. Zoom in to see it.">≋ Flood</button>
   <div class="layers-pick">
     <button id="btnLayers" title="Property boundary overlays (city limits, parcels, zoning)">▦ Layers <span class="bm-caret">▾</span></button>
     <div id="layersMenu" class="basemap-menu" hidden>
@@ -1994,6 +2023,14 @@ const FORERUNNER = {
   NAPLES:    { url:"https://naplesfl.withforerunner.com/explore", label:"City of Naples flood portal (Forerunner)" },
   CAPECORAL: { url:"https://capecoralfl.withforerunner.com/",     label:"City of Cape Coral flood portal (Forerunner)" }
 };
+/* Lee County (the COUNTY, not a city) also runs Forerunner — confirmed Aug 2026 from Lee GIS's own
+   AGOL item "Forerunner Floodplain Information". This matters because Lee publishes NO elevation-
+   certificate GIS layer at all: their "Find My Elevation" app is a LiDAR/DEM viewer (ground
+   elevation), not certificates. Forerunner is where Lee's ECs actually live, searchable by address.
+   Keyed separately from FORERUNNER (which is city-keyed) so the county lookup can find it. */
+const FORERUNNER_COUNTY = {
+  LEE: { url:"https://leecountyfl.withforerunner.com/", label:"Lee County flood portal (Forerunner)" }
+};
 
 /* ---------- LIVE county flood cross-check (vs the effective FEMA NFHL) ----------
    Some counties host their own adopted DFIRM as a queryable polygon layer. We point-query
@@ -2007,9 +2044,46 @@ const COUNTY_FLOOD_LIVE = {
   COLLIER: { label:"Collier County 2024 DFIRM",
     viewer:"https://experience.arcgis.com/experience/70ae02cb985c4d288556ba5d00629fc7",
     urls:[
-      "https://ags.colliergov.net/arcgis/rest/services/Operational/FemaFloodZones/MapServer/2/query" // Flood Zones — verify query/CORS
+      /* Collier's own AGOL-hosted DFIRM polygons — 57,385 features carrying FLD_ZONE /
+         ZONE_SUBTY / STATIC_BFE, the same field names FEMA uses, so detectFloodZoneField()
+         handles it unchanged. Preferred over the ags.colliergov.net MapServer below, which is a
+         CACHED map service and less reliable to query. Verified Aug 2026. */
+      "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/FEMA24_FloodZones/FeatureServer/0/query",
+      "https://ags.colliergov.net/arcgis/rest/services/Operational/FemaFloodZones/MapServer/2/query" // legacy fallback — cached service
+    ]},
+  /* Lee County GIS "Open Data Flood Hazard" — the county's own adopted FIRM polygons (layer 0),
+     alongside FIRM Panels (1), Floodway (2) and Undeveloped Coastal Barrier (3). ✅ CORS-open
+     (live-tested Aug 2026 from the browser). Service SR is 2237 (State Plane FL West, feet), but
+     the server reprojects from the inSR=4326 point we send, so no client-side projection needed.
+     Field auto-detection handles FLD_ZONE/ZONE_SUBTY as usual. */
+  LEE: { label:"Lee County FIRM (county GIS)",
+    viewer:"https://gisexplorer.leegov.com/",
+    urls:[
+      "https://gismapserver.leegov.com/gisserver910/rest/services/OpenData/OpenData_FloodHazard/MapServer/0/query"
     ]}
 };
+/* ---------- Lee County FIRM PANELS (same service, layer 1) ----------
+   Carries FIRM_PAN / PANEL_TYP / EFF_DATE like FEMA's layer 3, PLUS a coded CITY field
+   ("Unincorporated Lee County", "City of Bonita Springs", "City of Cape Coral", ...). That CITY
+   value is the permitting jurisdiction — the thing that decides WHO reviews the job, which the
+   FEMA panel number alone never tells you. Lee only. */
+const LEE_FIRM_PANEL_QUERY =
+  "https://gismapserver.leegov.com/gisserver910/rest/services/OpenData/OpenData_FloodHazard/MapServer/1/query";
+async function queryLeePanelJurisdiction(parcelFeature){
+  const rows = await _nfhlParcelQuery(LEE_FIRM_PANEL_QUERY, parcelFeature,
+    'FIRM_PAN,PANEL_TYP,EFF_DATE,CITY,COMMUNITY,SUFFIX');
+  if(!rows || !rows.length){ window.__leePanelDebug={count:0}; return null; }
+  const seen=new Set(), out=[];
+  for(const a of rows){
+    const key=(a.FIRM_PAN||'')+'|'+(a.CITY||'');
+    if(seen.has(key)) continue; seen.add(key);
+    out.push({ panel:a.FIRM_PAN||null, city:a.CITY||null, community:a.COMMUNITY||null,
+      type:a.PANEL_TYP||null,
+      eff:(a.EFF_DATE!=null && Number(a.EFF_DATE)>0)?new Date(Number(a.EFF_DATE)):null });
+  }
+  window.__leePanelDebug={count:out.length, rows:out};
+  return out.length ? out : null;
+}
 function detectFloodZoneField(fields){
   const up=fields.map(f=>({raw:f,u:String(f).toUpperCase()}));
   const find=pats=>{ for(const p of pats){ const h=up.find(f=>p.test(f.u)); if(h) return h.raw; } return null; };
@@ -2131,7 +2205,7 @@ const DOCS_COUNTY = {
     // Lee's EC search is by permit record # (RES/COM/MRV), not address — so no point layer; link out.
     ecLayer: null,
     ecMap:   "https://www.leegov.com/dcd/BldPermitServ/elevcertsearch",
-    ecNote:  "Lee searches ECs by permit record # (RES/COM/MRV). Find the permit # for an address/STRAP in eConnect first. Email FIRMinfo@leegov.com if not found.",
+    ecNote:  "Lee County's Elevation Certificates are in its Forerunner resident portal (linked above) — search by address; that's the fastest route. Lee publishes no public EC map layer. If it isn't there, Lee can search by permit record # (RES/COM/MRV) — find the # for the address/STRAP in eConnect first, or email FIRMinfo@leegov.com.",
     permit:  "https://accelaaca.leegov.com/aca/",   // eConnect / ACA portal
     permitBy:"address"
   }
@@ -4062,8 +4136,68 @@ let marker=null, parcelLayer=null, homeParcelLayer=null;
 let _uiClickUntil=0;
 function suppressUiClick(ms){ _uiClickUntil = Date.now() + (ms||900); }
 function uiClickSuppressed(){ return Date.now() < _uiClickUntil; }
+
+/* ---------- TOUCH-QUALITY GATE (mobile) ----------
+   On a phone, a "click" on the map is fired for far more than a deliberate tap: a finger resting
+   mid-pan, a thumb brushing the bezel while holding the device, the last frame of a pinch. Each
+   one used to kick off a full lookup — a chain of network calls that also blows away the card the
+   user was reading.
+   So we watch the raw touch and only let a click through when it looks INTENTIONAL:
+     • moved less than ~10px between touchstart and touchend (a pan/brush always drifts more)
+     • lasted under ~300ms (a resting finger lasts much longer)
+     • was a single finger (a pinch has 2+)
+     • wasn't within 24px of the left/right edge — that's palm & grip territory one-handed
+   Desktop is untouched: a mouse click there is always deliberate, and no touch events fire, so
+   _touchOk stays true and the gate is a no-op. */
+const TAP_MAX_MOVE = 10;     // px of drift allowed
+const TAP_MAX_MS   = 300;    // ms the finger may stay down
+const EDGE_GUARD   = 24;     // px along each vertical edge that never counts as a tap
+/* _hasTouch stays false until a real touchstart is seen. The gate below is skipped entirely while
+   it's false, so a mouse-driven browser is never affected.
+   ⚠️ This flag is load-bearing: an earlier version consumed _touchOk after every accepted click
+   ("one lookup per touch"), which on desktop meant the FIRST click worked and every click after
+   was silently dead — nothing ever set it back to true, because no touch events fire there. */
+let _hasTouch = false, _touchOk = false, _tStart = null, _tMulti = false;
+(function installTapGate(){
+  const el = map.getContainer();
+  el.addEventListener('touchstart', ev => {
+    _hasTouch = true;
+    if(ev.touches.length > 1){ _tMulti = true; _touchOk = false; return; }
+    _tMulti = false;
+    const t = ev.touches[0];
+    _tStart = { x:t.clientX, y:t.clientY, t:Date.now() };
+    _touchOk = false;                       // assume no until touchend proves otherwise
+  }, { passive:true });
+  el.addEventListener('touchend', ev => {
+    if(_tMulti || !_tStart){ _touchOk = false; _tStart = null; return; }
+    const t = ev.changedTouches[0];
+    const dx = t.clientX - _tStart.x, dy = t.clientY - _tStart.y;
+    const moved = Math.sqrt(dx*dx + dy*dy);
+    const held  = Date.now() - _tStart.t;
+    const nearEdge = t.clientX < EDGE_GUARD || t.clientX > (window.innerWidth - EDGE_GUARD);
+    _touchOk = (moved <= TAP_MAX_MOVE) && (held <= TAP_MAX_MS) && !nearEdge;
+    window.__lastTap = { moved:Math.round(moved), held, nearEdge, accepted:_touchOk };
+    _tStart = null;
+  }, { passive:true });
+  // A cancelled touch (system gesture, notification) is never a tap.
+  el.addEventListener('touchcancel', () => { _touchOk = false; _tStart = null; }, { passive:true });
+})();
+/* Any pan/zoom that actually moved the map also poisons the next ~350ms: the gesture's final
+   frame frequently arrives as a click.
+   The start value is deliberately a SHORT ceiling (4s) rather than an open-ended lock — if a
+   movestart ever fired without a matching moveend, an open-ended value would silently kill map
+   clicks until reload. 4s is longer than any real pan and self-heals if an event is dropped. */
+let _gestureUntil = 0;
+map.on('movestart zoomstart', () => { _gestureUntil = Date.now() + 4000; });
+map.on('moveend zoomend',     () => { _gestureUntil = Date.now() + 350;  });
+
 map.on('click', e => {
   if(uiClickSuppressed()) return;          // replayed tap from an overlay pick — not a real map click
+  if(Date.now() < _gestureUntil) return;   // tail end of a pan/pinch, not a tap
+  if(_hasTouch){                           // touch device: the tap must have looked deliberate
+    if(!_touchOk) return;
+    _touchOk = false;                      // one lookup per touch; don't let a replay through
+  }
   const um=document.getElementById('unitModal');
   if(um && um.classList.contains('show')) return;   // modal is open; the map is not the target
   newSearch(); runLookup(e.latlng.lat, e.latlng.lng);
@@ -4183,7 +4317,7 @@ const ArcGISExportTiles = L.TileLayer.extend({
 });
 const floodLayer = new ArcGISExportTiles(
   FEMA_NFHL_MS + "/export?dpi=96&transparent=true&format=png32&bboxSR=3857&imageSR=3857"
-              + "&size=512,512&layers=show:28&f=image&bbox={bbox}",
+              + "&size=512,512&layers=show:16,28&f=image&bbox={bbox}",
   // maxZoom must match the map's (23) or Leaflet drops the layer entirely above 19; maxNativeZoom
   // caps the actual export requests at 19 and upscales beyond. The fill is flat colour so the
   // stretch is invisible, and floodEdgeLayer draws crisp vector zone outlines over it from z13.
@@ -4205,7 +4339,16 @@ let ownFloodLabels=false;
 (async function blueFloodLabels(){
   const dbg = window.__floodLabelDebug = { stage:'start', mode:'suppress+own' };
   try{
-    const dyn=[{ id:28, source:{ type:'mapLayer', mapLayerId:28 }, drawingInfo:{ showLabels:false } }];
+    // Layer 16 = Base Flood Elevations (BFE contour lines, labelled with the ELEV field — the
+    // black "13 / 13.5 / 14" lines you see on a county DFIRM). Keep FEMA's own labels on these:
+    // in AH/AE areas the polygon's STATIC_BFE is often empty because the elevation VARIES across
+    // the zone, and these contours are the only place that number exists. No drawingInfo = FEMA's
+    // default symbol + labels. First array element draws on TOP, so 16 sits above the 28 fill.
+    // Layer 16 has minScale 50000, so FEMA only renders it zoomed in (~z13+) — matches our edge gate.
+    const dyn=[
+      { id:16, source:{ type:'mapLayer', mapLayerId:16 } },
+      { id:28, source:{ type:'mapLayer', mapLayerId:28 }, drawingInfo:{ showLabels:false, transparency:55 } }
+    ];
     const url = FEMA_NFHL_MS + "/export?dpi=96&transparent=true&format=png32&bboxSR=3857&imageSR=3857"
               + "&size=512,512&f=image&dynamicLayers=" + encodeURIComponent(JSON.stringify(dyn))
               + "&bbox={bbox}";
@@ -4220,6 +4363,11 @@ let ownFloodLabels=false;
     dbg.probe = okImg ? 'image loaded ok' : 'image failed to load';
     if(!okImg){ dbg.stage='abort: label-suppression tile failed — FEMA labels kept'; return; }
     floodLayer.setUrl(url);
+    // The zone fill is now softened SERVER-side (transparency:55 on layer 28), so we no longer
+    // need the blanket 0.45 tile opacity — which was also fading the BFE lines and their labels
+    // to unreadable gray over aerial. Full opacity = crisp black contours, still-translucent fill.
+    // Only do this on the dynamicLayers path; the plain fallback URL still needs the 0.45.
+    floodLayer.setOpacity(1);
     ownFloodLabels=true;                       // refreshFloodEdges now draws the blue labels
     dbg.stage='ACTIVE — FEMA labels off, blue labels on';
     try{ drawFloodLabels(); refreshFloodEdges(); }catch(e){}
@@ -4253,12 +4401,47 @@ const FEMA_NFHL_QUERY = FEMA_NFHL_MS + "/28/query";
    POLYGON geometry (the statewide-roll / live-feed parcel rings we already fetched, WGS84) and
    returns every distinct zone touching the lot. POST, because parcel rings can exceed URL limits.
    Fails soft: any error/timeout → null → the card simply omits the extra row. */
-async function queryFloodZonesOnParcel(parcelFeature){
+/* County-hosted flood-zone polygon layers carrying FEMA's own field names. Hitting these instead
+   of hazards.fema.gov is the single biggest speed win on the flood card: FEMA's NFHL host is slow
+   and strict (the app's own comments call it the slowest handshake here), while these are AGOL-
+   hosted and typically answer in a few hundred ms. Same data, county-adopted. */
+const COUNTY_ZONE_LAYERS = {
+  COLLIER: { url:"https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/FEMA24_FloodZones/FeatureServer/0/query",
+             label:"Collier County 2024 DFIRM" }
+};
+async function queryFloodZonesOnParcel(parcelFeature, countyName){
+  // --- fast path: the county's own layer, when we have one ---
+  const reg = countyName ? COUNTY_ZONE_LAYERS[norm(countyName)] : null;
+  if(reg){
+    const rows = await _nfhlParcelQuery(reg.url, parcelFeature, 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE');
+    if(rows && rows.length){
+      const seen=new Set(), out=[];
+      for(const a of rows){
+        const zone=(a.FLD_ZONE||'').trim(); if(!zone) continue;
+        const bfe=(a.STATIC_BFE!=null && Number(a.STATIC_BFE)>-9999)?Number(a.STATIC_BFE):null;
+        const key=zone+'|'+(bfe==null?'':bfe);
+        if(seen.has(key)) continue; seen.add(key);
+        out.push({ zone, bfe,
+          sfha:/^(A|V)/i.test(zone) && !/^AREA/i.test(zone),   // county layer has no SFHA_TF
+          sub:(a.ZONE_SUBTY&&a.ZONE_SUBTY.trim())?a.ZONE_SUBTY.trim():null });
+      }
+      out.sort((x,y)=>(y.sfha-x.sfha)||((y.bfe||0)-(x.bfe||0))||x.zone.localeCompare(y.zone));
+      if(out.length){
+        window.__floodParcelDebug={ src:reg.label, rawHits:rows.length, distinct:out.length };
+        return out;
+      }
+    }
+    // county layer empty or failed → fall through to FEMA below
+  }
+  return _queryFemaFloodZonesOnParcel(parcelFeature);
+}
+async function _queryFemaFloodZonesOnParcel(parcelFeature){
   const rings0 = parcelFeature && parcelFeature.geometry && parcelFeature.geometry.rings;
   if(!rings0 || !rings0.length){ window.__floodParcelDebug={fail:'no parcel rings'}; return null; }
-  // Round to 6 decimals (~10 cm): shrinks the payload a lot, and FEMA's strict server is happier
-  // with sane coordinates than with 15-decimal doubles.
-  const rings = rings0.map(r=>r.map(p=>[+p[0].toFixed(6), +p[1].toFixed(6)]));
+  /* Outer ring only, thinned to 60 vertices, 5-decimal precision. The full multi-ring geometry at
+     15 decimals made for a large POST body and slow server-side work against FEMA's host; flood
+     polygons are far coarser than a lot line, so the intersect result is unchanged. */
+  const rings = [ _thinRing(rings0[0], 60).map(p=>[+p[0].toFixed(5), +p[1].toFixed(5)]) ];
   const geomStr = JSON.stringify({ rings, spatialReference:{ wkid:4326 } });
   const common = { geometryType:'esriGeometryPolygon', inSR:'4326',
     spatialRel:'esriSpatialRelIntersects',
@@ -4280,7 +4463,8 @@ async function queryFloodZonesOnParcel(parcelFeature){
     return out;
   };
   const attempt = async (opts) => {
-    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(), FLOOD_TIMEOUT);
+    const ctrl=new AbortController();
+    const t=setTimeout(()=>ctrl.abort(), opts.timeout||PARCEL_EXTRA_TIMEOUT);
     try{
       const r=await fetch(opts.url, { method:opts.method, body:opts.body, signal:ctrl.signal });
       clearTimeout(t);
@@ -4290,22 +4474,389 @@ async function queryFloodZonesOnParcel(parcelFeature){
       return { ok:parse(j), raw:(j.features||[]).length };
     }catch(e){ clearTimeout(t); return { fail:String(e&&e.message||e) }; }
   };
+  /* Evenly thin a ring down to at most `max` vertices, ALWAYS keeping the first and last point so
+     the ring still closes. Flood zones are far coarser than a parcel boundary, so dropping
+     intermediate vertices doesn't change which zones the lot intersects — but it does bring a
+     detailed ring back under the URL length limit for the GET fallback. */
+  const decimate = (ring, max) => {
+    if(ring.length<=max) return ring;
+    const step=(ring.length-1)/(max-1), out=[];
+    for(let i=0;i<max-1;i++) out.push(ring[Math.round(i*step)]);
+    out.push(ring[ring.length-1]);                       // keep the closing vertex
+    return out;
+  };
+  const trail=[];                                        // every attempt's outcome, for debugging
+  const run = async (label, opts) => {
+    const r = await attempt(opts);
+    trail.push(label+': '+(r.ok ? 'ok ('+(r.ok.length)+' distinct)' : (r.fail||'no features')));
+    return r;
+  };
   // Attempt 1: POST (handles any parcel size).
   const body=new URLSearchParams(Object.assign({ geometry:geomStr }, common));
-  let res = await attempt({ url:FEMA_NFHL_QUERY, method:'POST', body });
-  // Attempt 2: GET with the OUTER ring only (some strict proxies mishandle POST). Skip if URL too long.
+  let res = await run('post', { url:FEMA_NFHL_QUERY, method:'POST', body });
+  /* Attempt 2: POST again after a short pause. FEMA's NFHL host is slow and frequently just
+     times out under FLOOD_TIMEOUT — the main flood lookup wraps arcQueryRetry() for exactly this
+     reason, but this query never had a retry, so a single slow response made the whole
+     "Zones on this parcel" row silently disappear. One cheap retry fixes the common case. */
   if(!res.ok){
-    const post_fail = res.fail;
+    const body2=new URLSearchParams(Object.assign({ geometry:geomStr }, common));
+    res = await run('post-retry', { url:FEMA_NFHL_QUERY, method:'POST', body:body2 });
+  }
+  // Attempt 3: GET with the OUTER ring only (some strict proxies mishandle POST).
+  if(!res.ok){
     const outer = JSON.stringify({ rings:[rings[0]], spatialReference:{ wkid:4326 } });
     const qs = new URLSearchParams(Object.assign({ geometry:outer }, common)).toString();
     if((FEMA_NFHL_QUERY+'?'+qs).length < 7500){
-      res = await attempt({ url:FEMA_NFHL_QUERY+'?'+qs, method:'GET' });
-    }
-    res.post_fail = post_fail;
+      res = await run('get-outer', { url:FEMA_NFHL_QUERY+'?'+qs, method:'GET' });
+    } else trail.push('get-outer: skipped (url too long)');
+  }
+  /* Attempt 4: GET with a DECIMATED outer ring. Previously, a parcel whose ring blew past the
+     7500-char URL cap simply got no fallback at all — POST failed, the GET was skipped, and the
+     row vanished with no explanation. Thinning to 60 vertices keeps the lot's shape well enough
+     to pick up every flood zone it touches while fitting comfortably in a URL. */
+  if(!res.ok){
+    const thin = JSON.stringify({ rings:[decimate(rings[0],60)], spatialReference:{ wkid:4326 } });
+    const qs2 = new URLSearchParams(Object.assign({ geometry:thin }, common)).toString();
+    if((FEMA_NFHL_QUERY+'?'+qs2).length < 7500){
+      res = await run('get-thin', { url:FEMA_NFHL_QUERY+'?'+qs2, method:'GET' });
+    } else trail.push('get-thin: skipped (url still too long)');
   }
   window.__floodParcelDebug = { rings:rings.length, verts:rings[0].length,
-    rawHits:res.raw, distinct:(res.ok?res.ok.length:null), fail:res.fail||null, post_fail:res.post_fail||null };
+    rawHits:res.raw, distinct:(res.ok?res.ok.length:null), fail:res.fail||null, attempts:trail };
   return res.ok || null;
+}
+const FEMA_BFE_QUERY = FEMA_NFHL_MS + "/16/query";
+
+/* ---------- BFE LINES crossing the parcel (NFHL layer 16) ----------
+   Layer 28's STATIC_BFE is a single number stamped on the whole zone polygon. Across a broad flat
+   AH area (Golden Gate Estates is the classic case) the elevation VARIES, so FEMA leaves
+   STATIC_BFE empty and publishes the elevations as labelled contour LINES instead — the black
+   "8 / 9 / 13.5" lines on a county DFIRM. Layer 16 is that line layer; its ELEV field is the
+   number. Without this, a lot that's entirely AH shows one bare "AH" row with no elevation at all,
+   even though two different BFEs cross it.
+   Returns a sorted list of distinct elevations, or null. Fails soft — the card omits the row. */
+const FEMA_LOMA_QUERY  = FEMA_NFHL_MS + "/34/query";
+const FEMA_PANEL_QUERY = FEMA_NFHL_MS + "/3/query";
+
+/* Shared helper for the parcel-polygon NFHL queries below (LOMAs, FIRM panels). Same POST shape
+   the zone/BFE queries use: parcel rings in WGS84, intersects, fail-soft to null. */
+/* Secondary whole-parcel lookups get a MUCH shorter leash than the main flood point query.
+   They run in a Promise.all, so the slowest one sets the card's render time — a single 9 s
+   straggler against hazards.fema.gov used to hold the entire flood card hostage. These are all
+   fail-soft extras: better to drop one row than to make the user wait. */
+const PARCEL_EXTRA_TIMEOUT = (typeof L!=='undefined' && L.Browser && L.Browser.mobile) ? 5000 : 3000;
+
+/* Evenly thin a ring to at most `max` vertices, keeping first+last so it still closes. Flood
+   layers are far coarser than a parcel boundary, so this doesn't change which features intersect
+   — but a 400-vertex Estates ring is a big POST body AND expensive server-side geometry work.
+   Cuts both. */
+function _thinRing(ring, max){
+  if(!ring || ring.length<=max) return ring;
+  const step=(ring.length-1)/(max-1), out=[];
+  for(let i=0;i<max-1;i++) out.push(ring[Math.round(i*step)]);
+  out.push(ring[ring.length-1]);
+  return out;
+}
+/* Cache keyed by url+geometry+fields, cleared on each new lookup. Several of these layers get hit
+   more than once per parcel (e.g. a county BFE layer that also backstops FEMA's). */
+let _nfhlCache = Object.create(null);
+function clearNfhlCache(){ _nfhlCache = Object.create(null); }
+
+async function _nfhlParcelQuery(url, parcelFeature, outFields, timeoutMs){
+  const rings0 = parcelFeature && parcelFeature.geometry && parcelFeature.geometry.rings;
+  if(!rings0 || !rings0.length) return null;
+  // Outer ring only, thinned to 40 points, 5-decimal (~1 m) precision. Holes don't matter for an
+  // intersects test against flood geometry, and dropping them shrinks the payload further.
+  const rings = [ _thinRing(rings0[0], 40).map(p=>[+p[0].toFixed(5), +p[1].toFixed(5)]) ];
+  const geom = JSON.stringify({ rings, spatialReference:{ wkid:4326 } });
+  const key = url+'|'+outFields+'|'+geom;
+  if(key in _nfhlCache) return _nfhlCache[key];
+  const params = { geometry:geom,
+    geometryType:'esriGeometryPolygon', inSR:'4326', spatialRel:'esriSpatialRelIntersects',
+    outFields, returnGeometry:'false', f:'json' };
+  const ctrl=new AbortController();
+  const t=setTimeout(()=>ctrl.abort(), timeoutMs||PARCEL_EXTRA_TIMEOUT);
+  try{
+    const r=await fetch(url,{ method:'POST', body:new URLSearchParams(params), signal:ctrl.signal });
+    clearTimeout(t);
+    if(!r.ok) return null;
+    const j=await r.json();
+    if(j.error || !j.features) return null;
+    const rows = j.features.map(f=>f.attributes||{});
+    _nfhlCache[key]=rows;
+    return rows;
+  }catch(e){ clearTimeout(t); return null; }
+}
+
+/* ---------- LOMAs / LOMCs touching the parcel (NFHL layer 34) ----------
+   A Letter of Map Amendment removes a specific lot (or structure) from the SFHA — the FIRM still
+   SHOWS the zone, but the determination no longer applies to that property. That's the difference
+   between "flood requirements apply" and "they don't," so it's worth surfacing even though it's
+   comparatively rare. Fails soft. */
+async function queryLomasOnParcel(parcelFeature){
+  const rows = await _nfhlParcelQuery(FEMA_LOMA_QUERY, parcelFeature,
+    'CASE_NO,STATUS,DETERMINATION_DATE,LOMC_TYPE,PROJECT_NAME,OUTCOME,SUBDIVISION,LOT');
+  if(!rows || !rows.length){ window.__lomaDebug={count:0}; return null; }
+  const out = rows.map(a=>({
+    caseNo: a.CASE_NO || null,
+    type:   a.LOMC_TYPE || null,
+    status: a.STATUS || null,
+    outcome:a.OUTCOME || null,
+    lot:    a.LOT || null,
+    subdiv: a.SUBDIVISION || null,
+    date:   (a.DETERMINATION_DATE!=null && Number(a.DETERMINATION_DATE)>0)
+              ? new Date(Number(a.DETERMINATION_DATE)) : null
+  }));
+  out.sort((x,y)=>(y.date?y.date.getTime():0)-(x.date?x.date.getTime():0));   // newest first
+  window.__lomaDebug={count:out.length, rows:out};
+  return out;
+}
+
+/* Florida county FIPS (the 3 digits after the "12" state code in a FIRM panel number, e.g.
+   12071C0651G -> 071 -> Lee). Used to drop panels belonging to a NEIGHBOURING county: near a
+   county line the parcel ring — or the counties' separately-produced DFIRM panel polygons, which
+   can overlap slightly at the boundary — will pull in a panel from the wrong side. */
+const FL_COUNTY_FIPS = {
+  ALACHUA:'001', BAKER:'003', BAY:'005', BRADFORD:'007', BREVARD:'009', BROWARD:'011',
+  CALHOUN:'013', CHARLOTTE:'015', CITRUS:'017', CLAY:'019', COLLIER:'021', COLUMBIA:'023',
+  DESOTO:'027', DIXIE:'029', DUVAL:'031', ESCAMBIA:'033', FLAGLER:'035', FRANKLIN:'037',
+  GADSDEN:'039', GILCHRIST:'041', GLADES:'043', GULF:'045', HAMILTON:'047', HARDEE:'049',
+  HENDRY:'051', HERNANDO:'053', HIGHLANDS:'055', HILLSBOROUGH:'057', HOLMES:'059',
+  INDIANRIVER:'061', JACKSON:'063', JEFFERSON:'065', LAFAYETTE:'067', LAKE:'069', LEE:'071',
+  LEON:'073', LEVY:'075', LIBERTY:'077', MADISON:'079', MANATEE:'081', MARION:'083',
+  MARTIN:'085', MIAMIDADE:'086', MONROE:'087', NASSAU:'089', OKALOOSA:'091', OKEECHOBEE:'093',
+  ORANGE:'095', OSCEOLA:'097', PALMBEACH:'099', PASCO:'101', PINELLAS:'103', POLK:'105',
+  PUTNAM:'107', STJOHNS:'109', STLUCIE:'111', SANTAROSA:'113', SARASOTA:'115', SEMINOLE:'117',
+  SUMTER:'119', SUWANNEE:'121', TAYLOR:'123', UNION:'125', VOLUSIA:'127', WAKULLA:'129',
+  WALTON:'131', WASHINGTON:'133'
+};
+/* ---------- FIRM panel covering the parcel (NFHL layer 3) ----------
+   The panel number + effective date is the citation a plans reviewer expects alongside a zone
+   determination ("Zone AH per FIRM panel 12021C0195H, eff. 5/16/2012"). Fails soft.
+   countyName (optional) filters out cross-county spillover — see FL_COUNTY_FIPS above. */
+async function queryFirmPanelOnParcel(parcelFeature, countyName){
+  const rows = await _nfhlParcelQuery(FEMA_PANEL_QUERY, parcelFeature,
+    'FIRM_PAN,PANEL,EFF_DATE,PRE_DATE,SUFFIX,PANEL_TYP,DFIRM_ID');
+  if(!rows || !rows.length){ window.__panelDebug={count:0}; return null; }
+  const seen=new Set(), all=[];
+  for(const a of rows){
+    const id = a.FIRM_PAN || a.PANEL || null;
+    if(!id || seen.has(id)) continue; seen.add(id);
+    const s=String(id).trim();
+    all.push({ panel:s,
+      fips: /^12(\d{3})/.test(s) ? s.slice(2,5) : null,     // "12071C0651G" -> "071"
+      eff: (a.EFF_DATE!=null && Number(a.EFF_DATE)>0) ? new Date(Number(a.EFF_DATE)) : null,
+      type: a.PANEL_TYP || null });
+  }
+  // Keep only panels belonging to the parcel's own county, when we know it and at least one matches.
+  const want = countyName ? FL_COUNTY_FIPS[norm(countyName)] : null;
+  let out = all, dropped = [];
+  if(want && all.some(p=>p.fips===want)){
+    out     = all.filter(p=>p.fips===want);
+    dropped = all.filter(p=>p.fips!==want).map(p=>p.panel);
+  }
+  window.__panelDebug={count:out.length, rows:out, dropped, wantFips:want, allRaw:all.map(p=>p.panel)};
+  return out.length ? out : null;
+}
+
+/* ---------- Lee County SPOT ELEVATIONS (2018 LiDAR, 50-ft grid) ----------
+   12.3M points countywide, field Z_feet = ground elevation (NAVD88). This is the GROUND, not a
+   flood elevation — but for siting a generator pad it's the number you actually stand on: compare
+   existing grade against the BFE to see how much fill or how tall a stand you need. Lee only.
+   Returns min/median/max across the parcel, since a lot is rarely flat. */
+const LEE_SPOT_ELEV_QUERY =
+  "https://services2.arcgis.com/LvWGAAhHwbCJ2GMP/arcgis/rest/services/Spot_Elevations_2018/FeatureServer/0/query";
+async function queryLeeGroundElevation(parcelFeature){
+  const rows = await _nfhlParcelQuery(LEE_SPOT_ELEV_QUERY, parcelFeature, 'Z_feet');
+  if(!rows || !rows.length){ window.__leeElevDebug={count:0}; return null; }
+  const z = rows.map(a=>Number(a.Z_feet)).filter(v=>isFinite(v) && v>-100 && v<200).sort((a,b)=>a-b);
+  if(!z.length){ window.__leeElevDebug={count:0}; return null; }
+  const r1 = v => Math.round(v*10)/10;
+  const res = { n:z.length, min:r1(z[0]), max:r1(z[z.length-1]),
+                med:r1(z[Math.floor(z.length/2)]), src:'Lee County 2018 LiDAR' };
+  window.__leeElevDebug=res;
+  return res;
+}
+
+/* ---------- Lee County LiMWA (Limit of Moderate Wave Action) ----------
+   Inside the LiMWA, coastal AE behaves much more like VE: 1.5-ft+ breaking waves, and Lee applies
+   stricter construction standards. Purely a yes/no for whether the parcel is inside it. */
+const LEE_LIMWA_QUERY =
+  "https://services2.arcgis.com/LvWGAAhHwbCJ2GMP/arcgis/rest/services/FIRM_LiMWA/FeatureServer/0/query";
+/* ---------- Lee County ESTIMATED Zone A BFE ----------
+   Zone A is FEMA's "approximate" designation: studied enough to be called a flood hazard area, but
+   no detailed hydraulics were run, so NO base flood elevation is published. That's a dead end for
+   permitting — you can't build to an elevation that doesn't exist — and it's why the card
+   otherwise says "none published for this zone" and stops.
+   Lee estimated them anyway: 121 curated polygons on their Accela/Forerunner service. The number
+   is embedded in the FLOODZONE string rather than a numeric field ("A-EL23 est" = Zone A,
+   estimated EL 23). PBSJComment records HOW each one was derived ("BFE from contours; spill-over
+   N/A because not ponding area"), which is exactly what a plans reviewer will ask about — so we
+   surface it rather than presenting a bare number.
+   ⚠️ This is a COUNTY ESTIMATE, not an adopted FEMA BFE. Labelled as such everywhere it appears. */
+const LEE_ZONEA_BFE_QUERY =
+  "https://gismapserver.leegov.com/gisserver910/rest/services/AccelaGIS/Forerunner_Parcels/MapServer/3/query";
+async function queryLeeEstZoneABfe(parcelFeature){
+  const rows = await _nfhlParcelQuery(LEE_ZONEA_BFE_QUERY, parcelFeature, 'FLOODZONE,PBSJComment');
+  if(!rows || !rows.length){ window.__leeZoneADebug={count:0}; return null; }
+  const seen=new Set(), out=[];
+  for(const a of rows){
+    const raw=(a.FLOODZONE||'').trim();
+    if(!raw) continue;
+    // "A-EL23 est" / "A-EL 8.5 est" → 23 / 8.5. No match = a polygon with no usable estimate.
+    const m=/EL\s*([\d]+(?:\.[\d]+)?)/i.exec(raw);
+    const el = m ? Number(m[1]) : null;
+    const key = raw;
+    if(seen.has(key)) continue; seen.add(key);
+    out.push({ el, raw, note:(a.PBSJComment||'').trim()||null });
+  }
+  const withEl = out.filter(o=>o.el!=null);
+  window.__leeZoneADebug={ raw:rows.length, parsed:out.length, withEl:withEl.length, rows:out };
+  return withEl.length ? withEl.sort((x,y)=>x.el-y.el) : null;
+}
+
+async function queryLeeLimwa(parcelFeature){
+  const rows = await _nfhlParcelQuery(LEE_LIMWA_QUERY, parcelFeature, 'OBJECTID');
+  return (rows && rows.length) ? true : false;
+}
+
+/* ---------- GROUND ELEVATION, nationwide (USGS 3DEP bare-earth DEM) ----------
+   Works in every county, unlike the per-county LiDAR layers (Lee publishes points; Collier's is
+   TilesOnly and can't be queried at all). ~1/3 arc-second (~10 m) bare-earth.
+
+   ⚠️ UNITS: 3DEP returns METERS. Verified empirically Aug 2026, not assumed — a 3DEP reading was
+   compared against Lee County's Spot_Elevations_2018 Z_feet at the SAME coordinate in Cape Coral:
+   Lee 3.63 ft vs 3DEP 1.11512 → ratio 0.307, i.e. the metre-to-foot factor. Getting this backwards
+   would overstate grade by 3.3x and produce a badly wrong pad height, so don't "simplify" it away.
+
+   computeStatisticsHistograms accepts the parcel POLYGON, so one call returns min/max/mean across
+   the actual lot rather than a bounding box. Falls back to a centroid identify if stats fail. */
+const DEP3_BASE = "https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer";
+const M_TO_FT = 3.28084;
+async function queryGroundElevation(parcelFeature){
+  const rings0 = parcelFeature && parcelFeature.geometry && parcelFeature.geometry.rings;
+  if(!rings0 || !rings0.length) return null;
+  const rings = rings0.map(r=>r.map(p=>[+p[0].toFixed(6), +p[1].toFixed(6)]));
+  const poly = JSON.stringify({ rings, spatialReference:{ wkid:4326 } });
+  const r1 = v => Math.round(v*10)/10;
+  const grab = async (url, ms=FLOOD_TIMEOUT) => {
+    const c=new AbortController(); const t=setTimeout(()=>c.abort(), ms);
+    try{ const r=await fetch(url,{signal:c.signal}); clearTimeout(t);
+         const j=await r.json(); return j.error?null:j; }
+    catch(e){ clearTimeout(t); return null; }
+  };
+  // --- preferred: statistics over the whole parcel polygon ---
+  const sUrl = `${DEP3_BASE}/computeStatisticsHistograms?geometry=${encodeURIComponent(poly)}`
+             + `&geometryType=esriGeometryPolygon&f=json`;
+  const st = await grab(sUrl);
+  const s = st && st.statistics && st.statistics[0];
+  if(s && isFinite(s.min) && isFinite(s.max)){
+    const res = { min:r1(s.min*M_TO_FT), max:r1(s.max*M_TO_FT), med:r1(s.mean*M_TO_FT),
+                  src:'USGS 3DEP', method:'parcel statistics' };
+    window.__groundElevDebug={ ...res, rawMeters:{min:s.min,max:s.max,mean:s.mean} };
+    return res;
+  }
+  // --- fallback: single identify at the parcel centroid ---
+  let cx=0, cy=0, n=0;
+  for(const p of rings[0]){ cx+=p[0]; cy+=p[1]; n++; }
+  if(!n) return null;
+  const pt = JSON.stringify({ x:cx/n, y:cy/n, spatialReference:{ wkid:4326 } });
+  const id = await grab(`${DEP3_BASE}/identify?geometry=${encodeURIComponent(pt)}`
+                      + `&geometryType=esriGeometryPoint&returnGeometry=false&f=json`);
+  const v = id && Number(id.value);
+  if(!isFinite(v)) { window.__groundElevDebug={fail:'both stats and identify failed'}; return null; }
+  const ft = r1(v*M_TO_FT);
+  const res = { min:ft, max:ft, med:ft, src:'USGS 3DEP', method:'centroid point only' };
+  window.__groundElevDebug={ ...res, rawMeters:v };
+  return res;
+}
+
+/* ---------- Collier County LiMWA + FIRM panels (county-hosted 2024 DFIRM) ----------
+   LiMWA: 56 polylines, no attributes — presence alone is the answer (is the lot inside it).
+   Panels: 156 polygons with FIRM_PAN / PANEL_TYP / EFF_DATE. Unlike Lee's, there's no CITY field,
+   so this gives the panel citation but NOT the permitting jurisdiction. */
+const COLLIER_LIMWA_QUERY =
+  "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/FEMA24_LiMWA/FeatureServer/0/query";
+const COLLIER_PANEL_QUERY =
+  "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/FEMA24_Panels/FeatureServer/0/query";
+async function queryCollierLimwa(parcelFeature){
+  /* A LiMWA line rarely crosses a lot exactly — it's a boundary, so "inside the LiMWA" usually
+     means the line passes NEAR the parcel rather than through it. Buffer the test by intersecting
+     against the parcel itself first; if that misses, this simply reports false, which is the
+     conservative reading (we don't claim LiMWA status we can't demonstrate). */
+  const rows = await _nfhlParcelQuery(COLLIER_LIMWA_QUERY, parcelFeature, 'OBJECTID');
+  return (rows && rows.length) ? true : false;
+}
+async function queryCollierPanels(parcelFeature){
+  const rows = await _nfhlParcelQuery(COLLIER_PANEL_QUERY, parcelFeature,
+    'FIRM_PAN,PANEL_TYP,EFF_DATE');
+  if(!rows || !rows.length) return null;
+  const seen=new Set(), out=[];
+  for(const a of rows){
+    const id=a.FIRM_PAN; if(!id || seen.has(id)) continue; seen.add(id);
+    out.push({ panel:String(id).trim(), type:a.PANEL_TYP||null,
+      eff:(a.EFF_DATE!=null && Number(a.EFF_DATE)>0)?new Date(Number(a.EFF_DATE)):null });
+  }
+  window.__collierPanelDebug={count:out.length, rows:out};
+  return out.length ? out : null;
+}
+
+/* County-hosted BFE line layers. When a county publishes its own adopted DFIRM contours, prefer
+   them over FEMA's national layer 16: they're the map the local floodplain office actually
+   administers, and they're usually faster and more current than the NFHL rollup.
+   Collier: FEMA24_BFE, 6,775 polylines, field ELEV. Verified Aug 2026. */
+const COUNTY_BFE_LINES = {
+  COLLIER: { url:"https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/FEMA24_BFE/FeatureServer/0/query",
+             field:"ELEV", label:"Collier County 2024 DFIRM" }
+};
+async function queryBfeLinesOnParcel(parcelFeature, countyName){
+  const reg = countyName ? COUNTY_BFE_LINES[norm(countyName)] : null;
+  if(reg){
+    const rows = await _nfhlParcelQuery(reg.url, parcelFeature, reg.field);
+    if(rows && rows.length){
+      const seen=new Set();
+      for(const a of rows){
+        const e=Number(a[reg.field]);
+        if(isFinite(e) && e>-9999) seen.add(e);
+      }
+      const elevs=[...seen].sort((a,b)=>a-b);
+      if(elevs.length){
+        window.__bfeLineDebug={ src:reg.label, raw:rows.length, distinct:elevs.length, elevs };
+        return { elevs, datum:null, src:reg.label };
+      }
+    }
+    // county layer empty/failed → fall through to FEMA's national layer 16 below
+  }
+  return _queryFemaBfeLines(parcelFeature);
+}
+async function _queryFemaBfeLines(parcelFeature){
+  const rings0 = parcelFeature && parcelFeature.geometry && parcelFeature.geometry.rings;
+  if(!rings0 || !rings0.length) return null;
+  const rings = rings0.map(r=>r.map(p=>[+p[0].toFixed(6), +p[1].toFixed(6)]));
+  const geomStr = JSON.stringify({ rings, spatialReference:{ wkid:4326 } });
+  const params = { geometry:geomStr, geometryType:'esriGeometryPolygon', inSR:'4326',
+    spatialRel:'esriSpatialRelIntersects', outFields:'ELEV,LEN_UNIT,V_DATUM',
+    returnGeometry:'false', f:'json' };
+  const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(), FLOOD_TIMEOUT);
+  try{
+    const r=await fetch(FEMA_BFE_QUERY, { method:'POST',
+      body:new URLSearchParams(params), signal:ctrl.signal });
+    clearTimeout(t);
+    if(!r.ok){ window.__bfeLineDebug={fail:'HTTP '+r.status}; return null; }
+    const j=await r.json();
+    if(j.error || !j.features){ window.__bfeLineDebug={fail:'service error'}; return null; }
+    const seen=new Set(); let datum=null;
+    for(const f of j.features){
+      const a=f.attributes||{};
+      const e=Number(a.ELEV);
+      if(!isFinite(e) || e<=-9999) continue;            // -9999 is FEMA's "no value" sentinel
+      if(a.V_DATUM && !datum) datum=String(a.V_DATUM).trim();
+      seen.add(e);
+    }
+    const elevs=[...seen].sort((a,b)=>a-b);
+    window.__bfeLineDebug={ raw:j.features.length, distinct:elevs.length, elevs, datum };
+    return elevs.length ? { elevs, datum } : null;
+  }catch(e){ clearTimeout(t); window.__bfeLineDebug={fail:String(e&&e.message||e)}; return null; }
 }
 const floodEdgeLayer = L.geoJSON(null, {
   style:{ color:'#39d3ff', weight:2, opacity:.95, dashArray:'6,5',
@@ -11649,6 +12200,7 @@ function drawParcel(g, info){
       // normal home lot. Inside an oversized shared tract (condo/mobile park) the gap-fill is exactly
       // how the individual unit numbers get drawn, so we must NOT suppress points there.
       setSubjectRings(oversized ? null : g);
+      setSubjectTract(oversized ? g : null);   // oversized = the dashed tract we want fully labeled
       const latlngs=g.rings.map(r=>r.map(p=>[p[1],p[0]]));
       // Shared tract → dashed orange outline (context). Normal home lot → solid brand orange.
       const col = oversized ? '#ff8c1a' : '#ff8a3c';
@@ -11854,7 +12406,39 @@ async function refreshEcAreaNotes(){
   }catch(e){/* best-effort; try again on next move */}
   finally{ _ecAreaBusy=false; }
 }
-map.on('moveend zoomend', ()=>{ clearTimeout(_ecAreaTimer); _ecAreaTimer=setTimeout(refreshEcAreaNotes, 800); });
+/* ---------- Auto-arm the EC sweep from the COUNTY CURRENTLY IN VIEW ----------
+   The sweep used to require a completed address lookup to set window.__ecAreaUrl. That meant you
+   could be staring at a street full of certificated houses and see nothing until you searched one.
+   This resolves whichever county/counties the viewport touches and wires the first one that has an
+   ecLayer, so 📝 notes simply appear as you scan the map. A real lookup still overrides this (it
+   sets __ecAreaUrl directly, and pins it so this can't stomp on the searched county).
+   Cheap: jurisdictionsInView() is itself cached ~30s per rounded viewport. */
+let _ecAutoBusy=false;
+async function autoArmEcLayer(){
+  if(window.__ecAreaPinned) return;              // an explicit lookup owns the layer; don't override
+  if(map.getZoom() < EC_AREA_MINZOOM) return;    // same gate as the sweep itself — no wasted calls
+  if(_ecAutoBusy) return;
+  _ecAutoBusy=true;
+  try{
+    const { counties } = await jurisdictionsInView();
+    let url=null;
+    for(const c of (counties||[])){
+      const cfg = DOCS_COUNTY[norm(c)];
+      if(cfg && cfg.ecLayer){ url=cfg.ecLayer; break; }
+    }
+    if(url && url!==window.__ecAreaUrl){
+      window.__ecAreaUrl=url; _ecAreaKey='';      // new layer → force the next sweep to actually run
+      refreshEcAreaNotes();
+    } else if(!url && window.__ecAreaUrl && !window.__ecAreaPinned){
+      // Panned into a county with no wired EC layer — drop the stale notes rather than leaving
+      // another county's certificates floating over unrelated ground.
+      window.__ecAreaUrl=null; _ecAreaKey='';
+      try{ ecNoteLayer.clearLayers(); }catch(e){}
+    }
+  }catch(e){/* best-effort */}
+  finally{ _ecAutoBusy=false; }
+}
+map.on('moveend zoomend', ()=>{ clearTimeout(_ecAreaTimer); _ecAreaTimer=setTimeout(()=>{ autoArmEcLayer(); refreshEcAreaNotes(); }, 800); });
 let nbrNumOn = true;   // labels follow the parcel view by default; tied to the parcel result
 // Rings ([[ [lng,lat], ... ]]) of the SUBJECT parcel currently highlighted, in WGS84. Set when a
 // parcel is drawn and used to suppress gap-fill address points that fall on the SAME lot — a deep
@@ -11862,6 +12446,17 @@ let nbrNumOn = true;   // labels follow the parcel view by default; tied to the 
 // 3605 Idlewild St), and without this the gap-fill would draw that second address as if it were a
 // separate home. Cleared on each new draw so a stale polygon never suppresses real neighbours.
 let _subjRings = null;
+/* Rings of the highlighted TRACT (the dashed orange outline drawn for an oversized shared parcel —
+   a condo association, mobile-home park, co-op). Unlike _subjRings this is set precisely WHEN the
+   parcel is oversized, because that's the case where we want to label everything inside it rather
+   than suppress. Used by the tract-fill pass in showNeighborNumbers(). */
+let _subjTractRings = null;
+function setSubjectTract(geometry){
+  try{
+    const rings = geometry && geometry.rings;
+    _subjTractRings = (rings && rings.length) ? rings : null;
+  }catch(e){ _subjTractRings = null; }
+}
 function setSubjectRings(geometry){
   try{
     const rings = geometry && geometry.rings;
@@ -12153,6 +12748,42 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
     const labels=[];   // {hn, lat, lng, feat, txt}
     let seen=new Set();
     let usedFile=false;
+    // SAME-LOT SUPPRESSION GUARD.
+    // The suppression below exists for ONE case: a through-lot / corner lot carrying a second street
+    // address, where drawing both would look like two houses on one lot. It assumes the subject
+    // polygon is a single home. When the highlighted polygon is actually a shared tract (condo
+    // association, mobile-home park), the same rule silently deletes EVERY neighbour inside it —
+    // which is why the labels vanished the moment the tract was the highlighted parcel and came back
+    // when a single unit was. drawParcel() already tries to catch this by acres, but that misses when
+    // the acreage math can't read an odd multi-ring polygon. So decide from the data instead: if more
+    // than a couple of differently-numbered addresses sit inside the subject polygon, it is not a
+    // home lot, and nothing gets suppressed.
+    let _suppressSameLot = !!_subjRings;
+    if(_subjRings){
+      try{
+        const _probe = await queryHostedFile(
+          ((window.__lastCounty && ADDRPOINT_FILES[norm(window.__lastCounty)] &&
+            ADDRPOINT_FILES[norm(window.__lastCounty)].indexOf('REPLACE-ME')<0)
+              ? ADDRPOINT_FILES[norm(window.__lastCounty)] : null), b).catch(()=>null);
+        if(Array.isArray(_probe)){
+          const _nums=new Set();
+          for(const f of _probe){
+            const g=f.geometry; const x=g?(g.x!=null?g.x:g.X):null, y=g?(g.y!=null?g.y:g.Y):null;
+            if(x==null||y==null) continue;
+            if(!pointInPolygon(x, y, _subjRings)) continue;
+            const h=houseNum(formatAddrPoint(f.attributes||{}));
+            if(h && (want==null || h!==String(want).trim())) _nums.add(h);
+            if(_nums.size>2) break;
+          }
+          if(_nums.size>2){
+            _suppressSameLot=false;
+            // It's a tract — hand it to the tract-fill pass so the inside gets labeled, not hidden.
+            if(!_subjTractRings) _subjTractRings=_subjRings;
+          }
+        }
+      }catch(e){ /* probe is best-effort; leave suppression as-is */ }
+    }
+
     // ================= FILE-FIRST =================
     // If this county ships a local data file (e.g. Collier's compact .gz with owner/sqft/units),
     // build the neighbour labels FROM THAT FILE — no county-server call. This makes the tool run
@@ -12178,7 +12809,7 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
             // file lists both, so without this we'd draw two addresses on one house. Drop any point
             // that falls INSIDE the subject parcel whose house number ISN'T the subject's — the
             // subject's own point (same hn) is always kept so its label never disappears.
-            if(_subjRings && (want==null || hn!==String(want).trim()) && pointInPolygon(cx, cy, _subjRings)) continue;
+            if(_suppressSameLot && (want==null || hn!==String(want).trim()) && pointInPolygon(cx, cy, _subjRings)) continue;
             // dedup on full address + exact coord so stacked condo units collapse only if identical
             const key=txt+'@'+cx.toFixed(6)+','+cy.toFixed(6);
             if(seen.has(key)) continue; seen.add(key);
@@ -12363,7 +12994,7 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
             // subject label, so drawing this too would look like two addresses on one house. Skip it.
             // (Only set for normal home lots, never for oversized shared tracts, so unit gap-fill
             // inside a condo/mobile park is unaffected.)
-            if(_subjRings && pointInPolygon(gx, gy, _subjRings)) continue;
+            if(_suppressSameLot && pointInPolygon(gx, gy, _subjRings)) continue;
             // already have a parcel label for this spot? skip (avoids duplicating outside numbers).
             let dup=false;
             for(const L0 of labels){ const ddx=L0.lng-gx, ddy=L0.lat-gy; if(ddx*ddx+ddy*ddy < NEAR2){ dup=true; break; } }
@@ -12393,7 +13024,106 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
       }
     }catch(e){ /* gap-fill is best-effort; never block the result */ }
 
+    // ============ TRACT FILL ============
+    // When the highlighted parcel is an oversized shared tract (the dashed orange outline — condo
+    // association, mobile-home park, co-op), every home inside it should carry its own label. The
+    // passes above are viewport- and source-driven and can come up short inside a tract: the file
+    // path skips gap-fill entirely, and record caps bite on a big community. This pass asks the
+    // address-point source directly for the TRACT's own extent and labels anything inside the rings
+    // that isn't already labeled. Best-effort and additive — it never removes an existing label.
+    try{
+      if(_subjTractRings){
+        const tb=_ringsBounds(_subjTractRings);
+        if(tb){
+          const _cty2=(window.__lastCounty||'').toString();
+          const fUrl=_cty2 ? ADDRPOINT_FILES[norm(_cty2)] : null;
+          const fCfg=(fUrl && fUrl.indexOf('REPLACE-ME')<0) ? fUrl : null;
+          const aUrl=_cty2 ? ADDRPOINT_FEEDS[norm(_cty2)] : null;
+          let feats=null;
+          if(fCfg){
+            const inT=await queryHostedFile(fCfg, tb);
+            if(Array.isArray(inT)) feats=inT;
+          }
+          if(!feats && aUrl){
+            const env=`${tb.getWest()},${tb.getSouth()},${tb.getEast()},${tb.getNorth()}`;
+            const FLDS=['ADDRNUM','ADD_NUMBER','HOUSE_NUM','STNUM','STREET_NUM',
+                        'UNITID','UNIT','UNIT_NO','UNITTYPE','UNIT_TYPE','STATUS',
+                        'FULLADDR','FULL_ADDR','STUBADDRESS','SITEADDRESS','SITE_ADDR','FULLADDRESS','ADDRESS',
+                        'PREDIR','PRE_DIR','ST_PREDIR','ST_NAME','STREETNAME','STNAME','FULLNAME','STREET',
+                        'ST_TYPE','STREETTYPE','STTYPE','SUFFIX','POSTDIR','POST_DIR','ST_POSDIR'].join(',');
+            const u=aUrl+`?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
+              `&spatialRel=esriSpatialRelIntersects&outFields=${encodeURIComponent(FLDS)}`+
+              `&returnGeometry=true&outSR=4326&resultRecordCount=1200&f=json`;
+            const c2=new AbortController(); const t2=setTimeout(()=>c2.abort(),12000);
+            try{ const r2=await fetch(u,{signal:c2.signal}); clearTimeout(t2);
+              if(r2.ok){ const j2=await r2.json(); if(!j2.error && j2.features) feats=j2.features; } }
+            catch(e){ clearTimeout(t2); }
+          }
+          if(feats && feats.length){
+            const NEAR_T=0.00008, NEAR_T2=NEAR_T*NEAR_T;
+            const have=(_nbrCache.ptLabels||[]).slice();
+            const extra=[];
+            const loose=[];   // inside the tract's bounding box but not its rings — safety net
+            const seenT=new Set();
+            for(const f of feats){
+              if(extra.length>=600) break;
+              const a=f.attributes||{};
+              const st=(a.STATUS||a.Status||'').toString().toUpperCase();
+              if(st && /(RETIRE|INACTIVE|INVALID|DELETE)/.test(st)) continue;
+              const g=f.geometry; const gx=g?(g.x!=null?g.x:g.X):null, gy=g?(g.y!=null?g.y:g.Y):null;
+              if(gx==null||gy==null) continue;
+              const _inside=_inTractRings(gx, gy, _subjTractRings);
+              const txt=formatAddrPoint(a);
+              const hn=houseNum(txt); if(!hn) continue;
+              const key=txt+'@'+gx.toFixed(6)+','+gy.toFixed(6);
+              if(seenT.has(key)) continue; seenT.add(key);
+              // Already drawn as a parcel label or a gap-fill point at this spot & address? skip.
+              let dup=false;
+              for(const L0 of labels){ const dx=L0.lng-gx, dy=L0.lat-gy;
+                if(dx*dx+dy*dy<NEAR_T2 && String(L0.txt||'')===txt){ dup=true; break; } }
+              if(!dup) for(const P of have){ const dx=P.lng-gx, dy=P.lat-gy;
+                if(dx*dx+dy*dy<NEAR_T2 && formatAddrPoint(P.a)===txt){ dup=true; break; } }
+              if(dup) continue;
+              (_inside ? extra : loose).push({ hn, lat:gy, lng:gx, a });
+            }
+            // Prefer the strict inside-the-outline set. If the ring test excluded everything (odd
+            // geometry, or the buildings sit just outside a tract that only covers the common area),
+            // fall back to the unlabeled points in the tract's extent — the goal is that no home in
+            // view is left without a card, not that the outline is policed exactly.
+            const add = extra.length ? extra : loose.slice(0,600);
+            if(add.length){
+              const merged=have.concat(add);
+              _nbrRenderPoints(add, -1);            // additive draw; subject highlight already placed
+              _nbrCache.ptLabels=merged;            // cache the full set so a repaint keeps them
+            }
+          }
+        }
+      }
+    }catch(e){ /* tract fill is best-effort; never block the result */ }
   }catch(e){ /* best-effort; never block the result */ }
+}
+/* Containment test for a TRACT outline, which is routinely multi-ring: this community's outline is
+   a horseshoe with a separate inner polygon, and pointInPolygon() treats ring[0] as the only outer
+   boundary and every later ring as a HOLE. That's right for a donut lot, wrong here — it threw away
+   every address point sitting in the second outer ring, which is why whole buildings inside the
+   orange still had no label. Even-odd rule instead: inside an odd number of rings = inside. */
+function _inTractRings(lng, lat, rings){
+  if(!rings || !rings.length) return false;
+  let n=0;
+  for(const r of rings){ if(pointInRing(lng, lat, r)) n++; }
+  return (n % 2) === 1;
+}
+/* Lat/lng bounds of an Esri ring set, as a Leaflet LatLngBounds (or null). */
+function _ringsBounds(rings){
+  try{
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    for(const r of rings) for(const p of r){
+      if(p[0]<minX)minX=p[0]; if(p[0]>maxX)maxX=p[0];
+      if(p[1]<minY)minY=p[1]; if(p[1]>maxY)maxY=p[1];
+    }
+    if(!isFinite(minX)||!isFinite(minY)) return null;
+    return L.latLngBounds([minY,minX],[maxY,maxX]);
+  }catch(e){ return null; }
 }
 // Keep the labels in sync as the user pans/zooms after a search (debounced, same as parcel lines).
 let _nbrTimer=null, _nbrCtx=null;
@@ -12411,7 +13141,14 @@ map.on('moveend zoomend', ()=>{
   if(!nbrNumOn || !_nbrCtx) return;
   clearTimeout(_nbrTimer);
   if(_nbrRepaintFromCache()) return;          // covered by what we already have — done, no network
-  _nbrTimer=setTimeout(()=>{ showNeighborNumbers(_nbrCtx.hn, _nbrCtx.lat, _nbrCtx.lng, _nbrCtx.pid); }, NBR_DEBOUNCE);
+  _nbrTimer=setTimeout(()=>{
+    /* Re-check INSIDE the timer. The guard above ran when the gesture ended, but a new lookup can
+       clear _nbrCtx during the 120–260 ms debounce — and then this fired against null and threw
+       "Cannot read properties of null (reading 'hn')". Re-reading it here is the whole fix. */
+    const c = _nbrCtx;
+    if(!nbrNumOn || !c) return;
+    showNeighborNumbers(c.hn, c.lat, c.lng, c.pid);
+  }, NBR_DEBOUNCE);
 });
 
 /* Build the hover-tooltip markup for a parcel from {site, pid, owner} (any may be missing). */
@@ -12668,6 +13405,32 @@ async function runLookup(lat,lng,searchCtx){
   const _timed = (label,p)=>{ const t0=performance.now();
     return p.then(v=>{ _timings.push({label, ms:Math.round(performance.now()-t0), err:!!(v&&v.__err)}); return v; },
                   e=>{ _timings.push({label, ms:Math.round(performance.now()-t0), err:true}); throw e; }); };
+
+  /* ── TEMPORARY PHASE DEBUG ──────────────────────────────────────────────────────────────────
+     The per-source panel only times the 8 named feeds, so when `total` is far larger than the
+     slowest of them (18.6s total vs a 6.0s worst source) the missing time is in UNINSTRUMENTED
+     code — awaits inside card renderers, the whole-parcel flood block, the EC sweep, etc.
+     mark() drops a timestamp anywhere; phase() wraps a promise. Everything lands in
+     window.__phases and prints as a console table at the end of the lookup.
+     Toggle off with:  window.__DBG = false   (or delete this block once the cause is found). */
+  if(window.__DBG===undefined) window.__DBG = true;
+  const _phases = []; window.__phases = _phases;
+  const mark = (label) => { if(window.__DBG) _phases.push({ label, at:Math.round(performance.now()-_T0), ms:null }); };
+  const phase = async (label, p) => {
+    if(!window.__DBG) return p;
+    const t0=performance.now();
+    try{ const v = await p; _phases.push({label, at:Math.round(t0-_T0), ms:Math.round(performance.now()-t0)}); return v; }
+    catch(e){ _phases.push({label:label+' ✗', at:Math.round(t0-_T0), ms:Math.round(performance.now()-t0)}); throw e; }
+  };
+  window.__dumpPhases = () => {
+    if(!_phases.length){ console.log('no phases recorded — window.__DBG may be false'); return; }
+    console.log('%c── LOOKUP PHASES ──','color:#39d3ff;font-weight:bold;font-size:14px');
+    console.table(_phases.map(p=>({ phase:p.label, 'start (ms)':p.at, 'took (ms)':p.ms==null?'—':p.ms })));
+    const slow = _phases.filter(p=>p.ms!=null).sort((a,b)=>b.ms-a.ms).slice(0,5);
+    console.log('%cslowest phases:','color:#FFD166;font-weight:bold');
+    slow.forEach(p=>console.log('   '+p.ms+' ms  '+p.label));
+  };
+  mark('lookup start');
   window.__parcelMeta=null;   // cleared each lookup; set when a parcel renders
   window.__addrPtMeta=null;   // cleared each lookup; set by the Collier address-point resolver
   // Collected for the "Export to Excel" feature (imports into the Estimate sheet).
@@ -12680,6 +13443,7 @@ async function runLookup(lat,lng,searchCtx){
   clearNeighborNumbers(); _nbrCtx=null;
   clearEcNote();   // remove any 📝 EC note from a previous property
   _subjRings=null;   // reset per lookup; drawParcel re-sets it only for a normal home lot
+  _subjTractRings=null;   // ditto: re-set only when an oversized shared tract is drawn
   saveLoc(lat,lng);
   document.getElementById('coordReadout').textContent=`lat ${lat.toFixed(5)}   lng ${lng.toFixed(5)}`;
 
@@ -12687,7 +13451,22 @@ async function runLookup(lat,lng,searchCtx){
   if(window.Sheet) Sheet.setState('full');   // bring results into view on mobile
 
   // Fire all queries in parallel; each degrades independently.
-  const pParcel  = _timed('parcel (state roll)', arcQueryRetry(EP.parcel, lat, lng, '*', true, PARCEL_TIMEOUT, 3, true)).catch(e=>({__err:e.message}));
+  /* The statewide FDOR roll is deliberately patient — 3 passes with a growing window — because in
+     an UNWIRED county it's the only parcel source and a cold point-in-polygon against 9M parcels
+     is legitimately slow. But in a WIRED county (Lee, Collier, …) it contributes nothing but a
+     minor "roll lists owner as X" footnote, and burning 30s of retries on a source nobody is
+     waiting for is pure waste — it loads the host, it muddies the timing panel, and on a phone it
+     holds a connection open for half a minute.
+     So it now starts AFTER the county is known (pCounty is ~0.4s) and sizes its own budget:
+     patient when it matters, one short attempt when it doesn't. */
+  const startParcelRoll = (wired) => _timed(
+    wired ? 'parcel (state roll · footnote)' : 'parcel (state roll)',
+    arcQueryRetry(EP.parcel, lat, lng, '*', true,
+      wired ? 4000 : PARCEL_TIMEOUT,     // shorter window when it's only a footnote
+      wired ? 1    : 3,                  // …and a single pass, not three
+      !wired)                            // abort-retry only matters for the patient path
+  ).catch(e=>({__err:e.message}));
+  mark('flood card start');
   const pFlood   = _timed('flood (FEMA)', arcQueryRetry(EP.flood, lat, lng, 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF', false, FLOOD_TIMEOUT)).catch(e=>({__err:e.message}));
   const pCity    = _timed('city boundary', arcQuery(EP.city,    lat, lng, 'NAME', false)).catch(e=>({__err:e.message}));
   const pCounty  = _timed('county boundary', arcQuery(EP.county,  lat, lng, 'NAME', false)).catch(e=>({__err:e.message}));
@@ -12701,25 +13480,28 @@ async function runLookup(lat,lng,searchCtx){
   // are the slow ones (flood has a 9-14s timeout) and their cards appear lower in the panel — so we
   // await them individually right where they're consumed instead of holding the whole panel behind
   // them. This lets parcel/owner/jurisdiction paint as soon as they're ready.
-  // On a map CLICK the county isn't known when the state roll (pParcel) fires, so in a live-feed county
-  // (Lee, Collier, …) a state-roll HANG would gate first paint even though the fast county feed is about
-  // to supply the authoritative parcel — and the render below already prefers the live feed over the roll
-  // (the roll only contributes a minor "roll lists owner as X" footnote). So: resolve city+county first
-  // (fast ~0.4s), and once we know it's a wired county, give the state roll only a short grace to fill the
-  // `parcel` slot, then proceed — pCountyLive renders the card regardless. Normal roll responses (<1s) are
-  // unaffected (they win the race instantly); only a genuine hang trips the grace. Unwired counties (no
-  // live feed) still wait on the state roll as before, since it's their only parcel source.
-  let parcel, city, county, live;
-  { const _r = await Promise.all([pCity, pCounty, pLive]);
+  // On a map CLICK the county isn't known up front, so the state roll can't size itself until
+  // pCity/pCounty resolve (~0.4s). In a live-feed county (Lee, Collier, …) a roll HANG would gate
+  // first paint even though the fast county feed is about to supply the authoritative parcel — and
+  // the render below already prefers the live feed over the roll (the roll only contributes a minor
+  // "roll lists owner as X" footnote). So: resolve city+county first, start the roll with a budget
+  // matched to how much we actually need it, and give it only a short grace to fill the `parcel`
+  // slot before proceeding — pCountyLive renders the card regardless. Normal roll responses (<1s)
+  // are unaffected (they win the race instantly); only a genuine hang trips the grace. Unwired
+  // counties still wait on the roll as before, since it's their only parcel source.
+  let parcel, city, county, live, pParcel;
+  { const _r = await phase('city+county+live', Promise.all([pCity, pCounty, pLive]));
     city=_r[0]; county=_r[1]; live=_r[2];
     if(myId!==runId) return;
     const _cn0 = (!county.__err && county.features && county.features[0]) ? county.features[0].attributes.NAME : null;
     const _wiredClick = !liveSource.url && _cn0 && !!COUNTY_LIVE[norm(_cn0)];
-    parcel = _wiredClick
-      ? await Promise.race([ pParcel, new Promise(res=>setTimeout(()=>res({features:[],__graced:true}), 1200)) ])
-      : await pParcel;
+    pParcel = startParcelRoll(_wiredClick);        // budget chosen now that the county is known
+    parcel = await phase('parcel roll (or grace)', _wiredClick
+      ? Promise.race([ pParcel, new Promise(res=>setTimeout(()=>res({features:[],__graced:true}), 1200)) ])
+      : pParcel);
   }
   if(myId!==runId) return; // a newer query superseded this one
+  mark('▸ first paint (core ready)');
   _timings.push({label:'▸ first paint (core ready)', ms:Math.round(performance.now()-_T0), milestone:true});
   let flood, util;   // resolved later, at their card
 
@@ -12930,7 +13712,8 @@ async function runLookup(lat,lng,searchCtx){
     : Promise.resolve(null);
   // Neighborhood 📝 notes are wired AFTER the main cards render (see the EC card below) so their
   // extra query never competes with the search's own requests to the same GIS host.
-  window.__ecAreaUrl = null; _ecAreaKey=''; clearTimeout(_ecAreaTimer);
+  window.__ecAreaUrl = null; window.__ecAreaPinned=false; _ecAreaKey=''; clearTimeout(_ecAreaTimer);
+  try{ clearNfhlCache(); }catch(e){}   // per-parcel flood query cache — must not survive a new lookup
 
   /* ---- Aerial & Street View: scout the property first (keyless deep-links + Esri aerial) ---- */
   html += renderAerialScout(lat, lng);
@@ -12968,7 +13751,7 @@ async function runLookup(lat,lng,searchCtx){
       liveRes=live; liveMeta=liveSource.info||{};
     }
   } else {                                              // auto pre-wired county feed (pre-fired in parallel)
-    const cl = await pCountyLive;
+    const cl = await phase('county live feed', pCountyLive);
     if(myId!==runId) return;
     if(cl){ liveRes=cl.res; liveMeta=cl.meta; liveErr=cl.err; }
   }
@@ -14115,10 +14898,47 @@ async function runLookup(lat,lng,searchCtx){
     if(depth!=null) html += fieldRow('Base flood depth', esc(depth)+' ft');
     if(zones.length>1) html += fieldRow('Note','Point sits on a zone boundary — '+zones.length+' zones overlap here.');
     // --- Whole-parcel check: does the LOT cross flood-zone lines? (pin query above is point-only) ---
-    { const pFeat = (parcel && !parcel.__err && parcel.features && parcel.features[0] && parcel.features[0].geometry && parcel.features[0].geometry.rings) ? parcel.features[0]
-                  : (live && !live.__err && live.features && live.features[0] && live.features[0].geometry && live.features[0].geometry.rings) ? live.features[0] : null;
+    /* Parcel polygon for the whole-lot flood queries below. Order: statewide roll → pre-wired
+       county live feed (liveRes) → manually pasted feed (live).
+       ⚠️ liveRes was MISSING here. `live` is only ever populated when the user pastes a feed URL
+       (liveSource.url); for a pre-wired county like Collier the parcel arrives via pCountyLive and
+       is stored in liveRes. So on those counties the chain was effectively "state roll or nothing"
+       — and whenever the roll timed out or had no polygon, pFeat came back null and BOTH the
+       "Zones on this parcel" and "BFE lines" rows silently vanished. Same address, next reload,
+       roll responds, rows reappear: exactly the intermittent behaviour. */
+    const _ringed = f => f && f.geometry && f.geometry.rings && f.geometry.rings.length ? f : null;
+    { const pFeat = (parcel && !parcel.__err && parcel.features && _ringed(parcel.features[0])) ? parcel.features[0]
+                  : (typeof liveRes!=='undefined' && liveRes && liveRes.features && _ringed(liveRes.features[0])) ? liveRes.features[0]
+                  : (live && !live.__err && live.features && _ringed(live.features[0])) ? live.features[0] : null;
+      window.__floodParcelSrc = pFeat
+        ? ((parcel && parcel.features && _ringed(parcel.features[0])) ? 'state roll'
+           : (typeof liveRes!=='undefined' && liveRes && liveRes.features && _ringed(liveRes.features[0])) ? 'county live feed' : 'pasted feed')
+        : 'NONE — no parcel polygon available';
       if(pFeat){
-        const pz = await queryFloodZonesOnParcel(pFeat);
+        /* All four whole-parcel NFHL queries fire TOGETHER. They were previously awaited one after
+           another, so the block cost the SUM of the round-trips against FEMA's slow host; in
+           parallel it costs the slowest single one, and adding LOMAs + FIRM panels is close to free. */
+        const isLee = norm(countyName)==='LEE';
+        const isCollier = norm(countyName)==='COLLIER';
+        /* Skip FEMA's national panel layer where the county publishes its own — one fewer call to
+           the slow hazards.fema.gov host, and the county's adopted panel is the better citation
+           anyway. Same reasoning drives the county-first routing inside the zone and BFE queries. */
+        const skipFemaPanels = isLee || isCollier;
+        const [pz, bl, lomas, panels, leePanels, gElev, leeLimwa, leeZoneA, colLimwa, colPanels] = await phase('FLOOD: parcel query batch', Promise.all([
+          phase('  · zones on parcel',      queryFloodZonesOnParcel(pFeat, countyName)),
+          phase('  · BFE lines',            queryBfeLinesOnParcel(pFeat, countyName)),
+          phase('  · LOMA (FEMA layer 34)', queryLomasOnParcel(pFeat)),
+          phase('  · FIRM panel (FEMA 3)',  skipFemaPanels ? Promise.resolve(null) : queryFirmPanelOnParcel(pFeat, countyName)),
+          phase('  · Lee jurisdiction',     isLee ? queryLeePanelJurisdiction(pFeat) : Promise.resolve(null)),
+          /* Ground elevation: Lee's own 2018 LiDAR is a 50-ft point grid — finer than 3DEP's ~10 m
+             raster — so prefer it there and fall back to 3DEP everywhere else. */
+          phase('  · ground elevation',     isLee ? queryLeeGroundElevation(pFeat).then(r => r || queryGroundElevation(pFeat))
+                                                  : queryGroundElevation(pFeat)),
+          phase('  · Lee LiMWA',            isLee ? queryLeeLimwa(pFeat) : Promise.resolve(false)),
+          phase('  · Lee est. Zone A BFE',  isLee ? queryLeeEstZoneABfe(pFeat) : Promise.resolve(null)),
+          phase('  · Collier LiMWA',        isCollier ? queryCollierLimwa(pFeat) : Promise.resolve(false)),
+          phase('  · Collier panels',       isCollier ? queryCollierPanels(pFeat) : Promise.resolve(null))
+        ]));
         if(myId!==runId) return;
         if(pz && pz.length>1){
           const lbls = pz.map(m=>{
@@ -14129,6 +14949,128 @@ async function runLookup(lat,lng,searchCtx){
           html += `<div class="note">This lot crosses a flood-zone boundary — the zone above is only where the pin sits. Insurance rating uses the <b>building's</b> zone (typically the highest-risk zone the structure touches); equipment placed elsewhere on the lot (generator pad, pool equipment) may fall in a different zone with a different required elevation. Confirm the zone line on the FIRM panel.</div>`;
           if(window.__exportData) window.__exportData.floodZonesParcel = pz.map(m=>m.zone+(m.bfe!=null?' '+m.bfe:'')).join(', ');
         }
+        /* --- BFE contour lines crossing the lot (layer 16) ---
+           Runs regardless of how many ZONES the parcel touches: a lot can sit entirely inside one
+           AH polygon and still have two different BFE lines (e.g. 8 and 9) crossing it, because
+           the zone polygon carries no STATIC_BFE at all in that case. This is often the ONLY place
+           the usable elevation appears, so it must not be gated behind pz.length>1. */
+        if(bl && bl.elevs.length){
+          const dat = bl.datum ? ' ('+esc(bl.datum)+')' : ' (NAVD88)';
+          const src = bl.src ? ' <span class="muted" style="font-size:11px">· '+esc(bl.src)+'</span>' : '';
+          html += `<div class="field"><div class="k">BFE lines on parcel</div><div class="v">${bl.elevs.map(e=>'<b>'+esc(e)+' ft</b>').join(' &nbsp;·&nbsp; ')}${dat}${src}</div></div>`;
+          if(bl.elevs.length>1){
+            html += `<div class="note">Two or more base-flood elevations cross this lot, so there is no single BFE for the parcel — the required elevation depends on <b>where</b> on the lot you build. Between contours the value interpolates; a surveyor or the floodplain administrator sets the number that goes on the permit. For siting, the conservative choice is the <b>higher</b> line (${esc(bl.elevs[bl.elevs.length-1])} ft) plus any local freeboard.</div>`;
+          } else {
+            html += `<div class="note">One base-flood elevation line crosses this lot. The zone polygon carries no static BFE, so this contour is the mapped elevation — confirm against the FIRM panel before relying on it.</div>`;
+          }
+          if(window.__exportData){
+            window.__exportData.bfeLines = bl.elevs.join(', ');
+            if(window.__exportData.bfe==null) window.__exportData.bfe = bl.elevs[bl.elevs.length-1];
+          }
+        }
+        /* --- FIRM panel (layer 3): the citation a reviewer wants next to the zone --- */
+        if(panels && panels.length){
+          const fmt = p => esc(p.panel) + (p.eff ? ' · eff. '+esc(p.eff.toLocaleDateString()) : '');
+          html += `<div class="field"><div class="k">FIRM panel</div><div class="v">${panels.map(fmt).join('<br>')}</div></div>`;
+          if(panels.length>1) html += `<div class="note">This lot touches more than one FIRM panel. Cite the panel covering the <b>structure</b> (or the equipment location, if that's what's being permitted) — these are separate map tiles, not competing revisions, so the newer date does not override the other.</div>`;
+          if(window.__exportData){
+            window.__exportData.firmPanel = panels[0].panel;
+            if(panels[0].eff) window.__exportData.firmPanelEff = panels[0].eff.toLocaleDateString();
+          }
+        }
+        /* --- Lee County: permitting jurisdiction from the county's own FIRM panel layer ---
+           The CITY field is a coded value naming the jurisdiction that administers the floodplain
+           and issues the permit. In Lee that's frequently a city (Bonita Springs, Cape Coral,
+           Sanibel, Fort Myers Beach...) rather than the county, and getting it wrong means filing
+           with the wrong building department. */
+        if(leePanels && leePanels.length){
+          const cities=[...new Set(leePanels.map(p=>p.city).filter(Boolean))];
+          if(cities.length){
+            html += `<div class="field"><div class="k">Floodplain jurisdiction</div><div class="v">${cities.map(c=>'<b>'+esc(c)+'</b>').join(' &nbsp;·&nbsp; ')}</div></div>`;
+            if(cities.length>1){
+              html += `<div class="note">This parcel touches panels attributed to more than one jurisdiction — confirm which building department covers the structure before filing.</div>`;
+            } else if(!/Unincorporated/i.test(cities[0])){
+              html += `<div class="note">Per Lee County GIS, this address is inside <b>${esc(cities[0])}</b>, not unincorporated Lee — that city administers its own floodplain ordinance, issues the permit, and holds its own Elevation Certificate records. Lee County's flood office is not the reviewing authority here.</div>`;
+            }
+            if(window.__exportData) window.__exportData.floodJurisdiction = cities.join(', ');
+          }
+        }
+        /* --- Lee: ESTIMATED Zone A BFE. Only meaningful where FEMA published nothing, which is
+               the whole point of Zone A — so this is the row that turns a dead end into a number. */
+        if(leeZoneA && leeZoneA.length){
+          const vals = leeZoneA.map(z=>'<b>'+esc(z.el)+' ft</b>').join(' &nbsp;·&nbsp; ');
+          html += `<div class="field"><div class="k">Est. BFE (Zone A)</div><div class="v">${vals} <span class="muted" style="font-size:11px">county estimate</span></div></div>`;
+          const notes = [...new Set(leeZoneA.map(z=>z.note).filter(Boolean))];
+          html += `<div class="note">Zone A carries <b>no FEMA-published base flood elevation</b> — it's an approximate-study area, so the effective FIRM gives no number to build to. Lee County has estimated one${leeZoneA.length>1?' for each of the areas touching this lot':''}. Treat it as the county's working figure, <b>not</b> an adopted BFE: the floodplain administrator decides what governs, and a site-specific engineering determination may be required for permitting.${notes.length?' <span class="muted">Method: '+esc(notes.join(' · '))+'</span>':''}</div>`;
+          if(window.__exportData) window.__exportData.estZoneABfe = leeZoneA.map(z=>z.el).join(', ');
+        }
+        /* --- Existing ground elevation, and how far it sits below the BFE --- */
+        if(gElev){
+          const spread = (gElev.max - gElev.min).toFixed(1);
+          const flat = gElev.max === gElev.min;
+          const shown = flat ? `${esc(gElev.med)} ft`
+                             : `${esc(gElev.min)}–${esc(gElev.max)} ft <span class="muted">(avg ${esc(gElev.med)})</span>`;
+          html += `<div class="field"><div class="k">Ground elev.</div><div class="v">${shown} <span class="muted" style="font-size:11px">NAVD88 · ${esc(gElev.src||'LiDAR')}</span></div></div>`;
+          /* Reference BFE for the comparison below, best source first: a mapped BFE line, then a
+             polygon's static BFE, then Lee's Zone A ESTIMATE. The estimate is last on purpose —
+             it's the county's working figure, not an adopted number — but in Zone A it's the only
+             thing there is, and "4 ft below grade" is more use than a blank row. */
+          let refBfe = (bl && bl.elevs.length) ? bl.elevs[bl.elevs.length-1]
+                     : (pz && pz.length && pz[0].bfe!=null) ? pz[0].bfe : null;
+          let refEst = false;
+          if(refBfe==null && leeZoneA && leeZoneA.length){
+            refBfe = leeZoneA[leeZoneA.length-1].el;   // highest estimate = conservative
+            refEst = true;
+          }
+          if(refBfe!=null){
+            const gap = Math.round((refBfe - gElev.med)*10)/10;
+            const tag = refEst ? ' <span class="muted">(est.)</span>' : '';
+            html += fieldRow(refEst ? 'Avg grade vs est. BFE' : 'Avg grade vs BFE', gap>0
+              ? `<b>${esc(gap)} ft below</b> the ${esc(refBfe)} ft BFE${tag}`
+              : `${esc(Math.abs(gap))} ft above the ${esc(refBfe)} ft BFE${tag}`);
+          }
+          const detail = gElev.n ? `${esc(gElev.n)} LiDAR points on this lot`
+                       : (gElev.method==='centroid point only'
+                            ? 'single reading at the parcel centre — the rest of the lot was not sampled'
+                            : 'sampled across the parcel');
+          html += `<div class="note">Bare-earth ground surface (${detail}) — this is <b>existing grade</b>, not a flood elevation, and not a survey.${flat?'':` Grade varies ${esc(spread)} ft across the parcel, so any specific pad location may differ from the average.`} A surveyed elevation is what the permit will require, and an Elevation Certificate is what the floodplain office will accept.</div>`;
+          if(window.__exportData){
+            window.__exportData.groundElevMin = gElev.min;
+            window.__exportData.groundElevMed = gElev.med;
+            window.__exportData.groundElevMax = gElev.max;
+            window.__exportData.groundElevSrc = gElev.src||'';
+          }
+        }
+        if(leeLimwa || colLimwa){
+          html += `<div class="field"><div class="k">LiMWA</div><div class="v"><span class="badge sfha">Inside Limit of Moderate Wave Action</span></div></div>`;
+          html += `<div class="note">This parcel is landward of the V zone but inside the LiMWA — the area where breaking waves can still reach 1.5 ft. Coastal A zones inside the LiMWA carry construction standards closer to VE than to ordinary AE. Confirm requirements with the floodplain administrator before setting equipment.</div>`;
+          if(window.__exportData) window.__exportData.limwa = 'Yes';
+        }
+        /* --- Collier's own adopted 2024 DFIRM panel (separate from the FEMA NFHL panel above) --- */
+        if(colPanels && colPanels.length){
+          const fmt = p => esc(p.panel) + (p.eff ? ' · eff. '+esc(p.eff.toLocaleDateString()) : '');
+          html += `<div class="field"><div class="k">Collier 2024 DFIRM panel</div><div class="v">${colPanels.map(fmt).join('<br>')}</div></div>`;
+          html += `<div class="note">From Collier County's adopted 2024 DFIRM. If this differs from the FEMA panel above, the county's adopted map is what the local floodplain office adminsters — verify with them before citing either on a permit.</div>`;
+          if(window.__exportData) window.__exportData.countyPanel = colPanels[0].panel;
+        }
+        /* --- LOMA / LOMC (layer 34): may remove this lot from the SFHA entirely --- */
+        if(lomas && lomas.length){
+          const rows = lomas.map(m=>{
+            let s='<b>'+esc(m.caseNo||'(no case #)')+'</b>';
+            if(m.type)    s+=' · '+esc(m.type);
+            if(m.outcome) s+=' · '+esc(m.outcome);
+            if(m.date)    s+=' · '+esc(m.date.toLocaleDateString());
+            if(m.lot)     s+=' <span class="muted">(lot '+esc(m.lot)+')</span>';
+            return s; });
+          html += `<div class="field"><div class="k">Map changes (LOMA/LOMC)</div><div class="v">${rows.join('<br>')}</div></div>`;
+          html += `<div class="note">FEMA has issued a Letter of Map Amendment/Change touching this parcel. A LOMA can remove a specific <b>lot or structure</b> from the Special Flood Hazard Area even though the FIRM still shades it — but it applies only to the land or building described in the letter, which may not be the part of the lot you're working on. Pull the actual letter from FEMA's Map Service Center and confirm what it covers before assuming flood requirements don't apply.</div>`;
+          if(window.__exportData) window.__exportData.lomc = lomas.map(m=>m.caseNo).filter(Boolean).join(', ');
+        }
+      }
+      else {
+        // No parcel polygon from ANY source — say so rather than silently omitting the rows,
+        // which previously looked identical to "this lot has only one zone / no BFE lines".
+        html += `<div class="note">Whole-parcel flood check unavailable — no parcel boundary came back for this lookup, so only the point under the pin was tested. Re-run the search, or confirm on the county viewer.</div>`;
       }
     }
     html += `<div class="note" style="padding-top:9px">Static BFE comes straight from the effective FIRM. Many zones (e.g. AE on a wide floodplain, AO, or Zone X) carry no single static BFE — confirm the precise elevation on the FIRM panel / FEMA Map Service Center.</div>`;
@@ -14139,7 +15081,7 @@ async function runLookup(lat,lng,searchCtx){
   // --- LIVE county DFIRM cross-check (e.g. Collier's adopted 2024 map) vs the effective NFHL above ---
   const cfReg = countyName ? COUNTY_FLOOD_LIVE[norm(countyName)] : null;
   if(cfReg){
-    const cf = await pCountyFlood;
+    const cf = await phase('county flood cross-check', pCountyFlood);
     if(myId!==runId) return;
     if(cf && cf.zone!=null && String(cf.zone).trim()!==''){
       const cz=String(cf.zone).trim();
@@ -14194,7 +15136,8 @@ async function runLookup(lat,lng,searchCtx){
 
 
   // --- LIVE zoning-district detection (point-in-polygon against a county/city zoning layer) ---
-  const zhit = await pZoning;
+  mark('zoning card start');
+  const zhit = await phase('zoning', pZoning);
   if(myId!==runId) return;
   // Polk County's countywide Future Land Use layer (used as the zoning-equivalent — see POLK notes)
   // codes land INSIDE incorporated cities (Lakeland, Winter Haven, Bartow, Mulberry, Auburndale, etc.)
@@ -14376,18 +15319,32 @@ async function runLookup(lat,lng,searchCtx){
     html += `<a class="palink" href="${esc(frDoc.url)}" target="_blank" rel="noopener">↗ ${esc(frDoc.label)} — search this address for its Elevation Certificate</a>`;
     html += `<div class="note">${esc(titleCase(cityName))}'s resident portal lets you search an address and view the Elevation Certificate on file (plus local flood info). This is usually the quickest EC lookup for in-city properties.</div>`;
   }
+  /* --- County-level Forerunner portal (e.g. Lee) ---
+     Lee County publishes NO elevation-certificate GIS layer — their "Find My Elevation" app is a
+     LiDAR/DEM viewer, not certificates. Lee's ECs live in Forerunner, searchable by address. Shown
+     whenever no city portal already covered this address. */
+  const frCounty = countyName ? FORERUNNER_COUNTY[norm(countyName)] : null;
+  if(frCounty && !frDoc && !sameUrl(frCounty.url, floodPortalUrl)){
+    html += `<a class="palink" href="${esc(frCounty.url)}" target="_blank" rel="noopener">↗ ${esc(frCounty.label)} — search this address for its Elevation Certificate</a>`;
+    html += `<div class="note">${esc(titleCase(countyName))} County keeps its Elevation Certificates in this resident portal rather than in a public GIS layer — search the address there to view the EC on file. If the address is inside an incorporated city, that city may hold its own separate records.</div>`;
+  }
 
   // --- Elevation Certificate (live attempt where a layer is wired) ---
   let ecRendered=false;
   if(_ecLayerUrl){
-    const ec = await pEC;
+    const ec = await phase('elevation certificate', pEC);
     if(myId!==runId) return;
+    /* Arm the neighbourhood EC sweep for ANY lookup on a county with a wired EC layer — not only
+       when the SUBJECT parcel has a certificate. Previously this lived inside the "subject has an
+       EC" branch, so searching a house with no EC on file (very common — nothing pre-1979, and
+       plenty of newer builds) meant window.__ecAreaUrl was never set and refreshEcAreaNotes()
+       returned immediately. Result: neighbours WITH certificates on file never got their 📝 note,
+       even though the layer had them. That's exactly backwards — the neighbour sweep matters MOST
+       when the subject has none, since a nearby EC is the best available read on grade in the block. */
+    window.__ecAreaUrl=_ecLayerUrl; window.__ecAreaPinned=true; _ecAreaKey='';
+    clearTimeout(_ecAreaTimer); _ecAreaTimer=setTimeout(refreshEcAreaNotes, 2500);
     if(ec && !ec.err && ec.features && ec.features.length){
       addEcNoteMarker(ec);   // 📝 note on the map at the EC point — click opens the PDF
-      // Only now (main data already resolved) arm the neighborhood sweep, and let it idle a moment
-      // so the remaining enrichment calls finish first.
-      window.__ecAreaUrl=_ecLayerUrl; _ecAreaKey='';
-      clearTimeout(_ecAreaTimer); _ecAreaTimer=setTimeout(refreshEcAreaNotes, 2500);
       html += `<div class="freshline"><span class="badge live">● LIVE</span> elevation certificate on file at this point <span class="muted" style="font-size:11px">(📝 marked on the map — click it to open the PDF)</span></div>`;
       if(ec.ecDistM!=null && ec.ecDistM>25){
         html += `<div class="note">⚠ Nearest certificate is ~${ec.ecDistM} m away — it may belong to an adjacent property. Check the certificate address below before relying on it.</div>`;
@@ -14406,7 +15363,7 @@ async function runLookup(lat,lng,searchCtx){
     } else if(ec && ec.err){
       html += `<div class="note">Elevation-certificate layer didn't respond (${esc(ec.err)}). It may block cross-origin (CORS) requests, or the URL needs updating. Use the county EC map below.</div>`;
     } else {
-      html += `<div class="note">No elevation certificate found on file at this exact point. Newer or pre-1979 structures often have none — confirm on the county EC map below.</div>`;
+      html += `<div class="note">No elevation certificate found on file at this exact point. Newer or pre-1979 structures often have none — but any <b>neighbouring</b> properties with certificates are marked 📝 on the map (zoom to street level to see them); a nearby EC is often the best available read on grade for the block. Confirm on the county EC map below.</div>`;
     }
   }
 
@@ -14461,7 +15418,8 @@ async function runLookup(lat,lng,searchCtx){
      Source order: (1) local territory GeoJSON via in-browser point-in-polygon, (2) a live REST
      /query override the user supplies. Real provider, or an honest "no data" + a loader. */
   const localProps = findUtilityAt(lat,lng);                       // local data first (offline, reliable)
-  util = await pUtil; if(myId!==runId) return;                     // deferred: awaited here, not in the fast-core batch
+  mark('utilities card start');
+  util = await phase('utility territory', pUtil); if(myId!==runId) return;                     // deferred: awaited here, not in the fast-core batch
   // ── Electric provider resolution, in PRIORITY order ───────────────────────────────────────────────
   // (1) local territory file  (2) authoritative LCEC polygon (SW FL)  (3) HIFLD statewide (approximate)
   // (4) county hint. LCEC is checked BEFORE HIFLD on purpose: HIFLD's coarse investor-owned polygons
@@ -14672,6 +15630,8 @@ async function runLookup(lat,lng,searchCtx){
     + _bc + _sum + '<div class="cardflow">' + html + '</div>';
   tabifyResults(results);
   _timings.push({label:'▸ total (to full render)', ms:Math.round(performance.now()-_T0), milestone:true});
+  mark('▸ total (to full render)');
+  if(window.__DBG) try{ window.__dumpPhases(); }catch(e){}
   renderLookupTiming(_timings);
   document.body.classList.add('has-results');   // hides the intro disclaimer now that the breadcrumb/summary carry context
 
@@ -15803,6 +16763,26 @@ function addToHistory(label){
   saveHistory(h);
 }
 
+/* Geocoder results come back verbose — "201, Southwest 32nd Terrace, Cape Coral, Lee County,
+   Florida, 33914, United States". In a narrow recents list that's all noise: drop the country,
+   the state, the "X County" part and the ZIP, and abbreviate the directionals, so what's left is
+   the part that identifies the property. Full string stays in the title attribute. */
+function shortAddr(s){
+  let a = String(s||'').trim();
+  a = a.replace(/,\s*United States\s*$/i,'')
+       .replace(/,\s*\d{5}(-\d{4})?\s*$/,'')
+       .replace(/,\s*Florida\s*$/i,'')
+       .replace(/,\s*[A-Za-z .'-]+\s+County\b/i,'');
+  // "201, Southwest 32nd Terrace" -> "201 Southwest 32nd Terrace" (geocoders comma off the number)
+  a = a.replace(/^(\d+[A-Za-z]?),\s+/,'$1 ');
+  const abbr = { Southwest:'SW', Southeast:'SE', Northwest:'NW', Northeast:'NE',
+    South:'S', North:'N', East:'E', West:'W', Terrace:'Ter', Avenue:'Ave', Street:'St',
+    Boulevard:'Blvd', Drive:'Dr', Court:'Ct', Lane:'Ln', Circle:'Cir', Parkway:'Pkwy',
+    Place:'Pl', Road:'Rd', Highway:'Hwy' };
+  a = a.replace(/\b([A-Z][a-z]+)\b/g, (m,w) => abbr[w] || m);
+  return a.replace(/\s{2,}/g,' ').trim();
+}
+
 function hideHistory(){ histEl.classList.remove('show'); histEl.innerHTML=''; }
 
 function showHistory(){
@@ -15811,18 +16791,32 @@ function showHistory(){
   histEl.innerHTML =
     `<div class="history-header"><span>↺ Recent</span><button id="clearHist">Clear all</button></div>` +
     h.map((addr, i) =>
-      `<div class="hi" data-i="${i}"><span class="hpin">▸</span><span>${esc(addr)}</span><button class="hdel" data-i="${i}" title="Remove">×</button></div>`
+      `<div class="hi" data-i="${i}"><span class="hpin">▸</span><span class="htext" title="${esc(addr)}">${esc(shortAddr(addr))}</span><button class="hdel" data-i="${i}" title="Remove" aria-label="Remove">×</button></div>`
     ).join('');
   histEl.classList.add('show');
 
-  document.getElementById('clearHist').addEventListener('mousedown', e => {
-    e.preventDefault(); saveHistory([]); hideHistory();
-  });
-  histEl.querySelectorAll('.hdel').forEach(btn => {
-    btn.addEventListener('mousedown', e => {
+  /* mousedown alone is unreliable on touch: iOS synthesises it late (after blur has already
+     closed the dropdown), so a tap on × frequently did nothing or selected the row instead.
+     Bind touchstart as well and mark the event handled so the later synthetic mousedown is a
+     no-op rather than a second, duplicate delete. */
+  const bindPress = (el, fn) => {
+    let done = false;
+    const run = e => {
+      if(done) return; done = true;
+      setTimeout(()=>{ done = false; }, 500);   // window covering the synthetic mouse replay
       e.preventDefault(); e.stopPropagation();
+      fn(e);
+    };
+    el.addEventListener('touchstart', run, { passive:false });
+    el.addEventListener('mousedown',  run);
+  };
+
+  bindPress(document.getElementById('clearHist'), () => { saveHistory([]); hideHistory(); });
+  histEl.querySelectorAll('.hdel').forEach(btn => {
+    bindPress(btn, () => {
       let h2 = getHistory(); h2.splice(+btn.dataset.i, 1); saveHistory(h2);
-      showHistory(); addrEl.focus();
+      if(h2.length) showHistory(); else hideHistory();
+      addrEl.focus();
     });
   });
 }
@@ -15984,17 +16978,62 @@ const Sheet=(function(){
     searchEl.addEventListener('touchend',()=>{ pending=false; },{passive:true});
     searchEl.addEventListener('touchcancel',()=>{ pending=false; },{passive:true});
   }
+  /* ---- Drag-down from the RESULTS area when it's already scrolled to the top ----
+     This is the behaviour every native bottom sheet has and the one this was missing. After a
+     search the results fill the sheet, so the obvious thing to grab is the content — but that
+     just scrolled the list, and the only way to shrink the sheet was to hit the thin grip at the
+     very top. Now: if the results are at scrollTop 0 and the finger moves DOWN, the sheet takes
+     over the gesture. Scrolled even one pixel down, or moving up, and it stays a normal scroll —
+     so reading a long card is unaffected. */
+  const bodyEl=document.getElementById('results');
+  if(bodyEl){
+    let bStartY=0, bPending=false;
+    bodyEl.addEventListener('touchstart',e=>{
+      if(!isMobile() || dragging) return;
+      if(e.touches.length>1) { bPending=false; return; }
+      bPending = (bodyEl.scrollTop <= 0);     // only arm when already at the top
+      bStartY = e.touches[0].clientY;
+    },{passive:true});
+    bodyEl.addEventListener('touchmove',e=>{
+      if(!bPending || dragging) return;
+      const dy = e.touches[0].clientY - bStartY;
+      if(dy > 12 && bodyEl.scrollTop <= 0){   // deliberate pull down, still pinned at the top
+        bPending=false;
+        down(e);                              // hand off to the real sheet drag
+      } else if(dy < -6){
+        bPending=false;                       // scrolling up into the content — leave it alone
+      }
+    },{passive:false});
+    bodyEl.addEventListener('touchend',()=>{ bPending=false; },{passive:true});
+    bodyEl.addEventListener('touchcancel',()=>{ bPending=false; },{passive:true});
+  }
+
+  /* Let the HEADER act as a drag surface too — the title block is a big, obvious grab area, and
+     on a phone it sits right under the grip. Taps on links/buttons still pass through. */
+  const headEl=panel.querySelector('header');
+  if(headEl){
+    const headDown=e=>{
+      if(!isMobile()) return;
+      if(e.target.closest('a,button,input,select,textarea,.suggest,.history,.search')) return;
+      down(e);
+    };
+    headEl.addEventListener('touchstart',headDown,{passive:false});
+    headEl.addEventListener('mousedown',headDown);
+  }
+
   // move listeners are bound in down() and removed in up() — see bindDragMove() above.
   window.addEventListener('touchend',up);
   window.addEventListener('mouseup',up);
   // pull-up tab brings the sheet all the way back to FULL height (top of the screen),
   // so one tap restores the panel to its largest size; the grip can then drag it down.
   tab.addEventListener('click',()=>{ snapTo(2); });
-  // tapping the grip (no drag) cycles peek -> half -> full -> peek...
+  /* Tapping the grip TOGGLES between half and full. It used to cycle peek→half→full→peek, which
+     meant a tap at full height collapsed the sheet to a 16% sliver — jarring, and easy to trigger
+     by accident when aiming for the panel. Dragging is still the way to reach peek or dismiss. */
   let tapStartY=0,moved=false;
   grip.addEventListener('touchstart',e=>{tapStartY=e.touches[0].clientY;moved=false;},{passive:true});
   grip.addEventListener('touchmove',e=>{ if(Math.abs(e.touches[0].clientY-tapStartY)>6) moved=true; },{passive:true});
-  grip.addEventListener('click',()=>{ if(moved) return; snapTo(idx>=2?0:idx+1); });
+  grip.addEventListener('click',()=>{ if(moved) return; snapTo(idx>=2 ? 1 : 2); });
   // re-apply on resize/orientation change
   window.addEventListener('resize',()=>{ if(isMobile()){ if(!hidden) snapTo(idx); } else { panel.style.removeProperty('--sheet-h'); panel.classList.remove('hidden'); tab.classList.remove('show'); } });
   // init
