@@ -23,7 +23,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   (function(){
     var shown = 0;
     function banner(kind, msg, where){
-      if(shown > 4) return;                       // don't bury the app under repeats
+      if(shown > 2) return;                       // don't bury the app under repeats
       shown++;
       try{
         var d = document.createElement('div');
@@ -40,9 +40,11 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     }
     window.addEventListener('error', function(e){
       if(e && e.target && e.target !== window && e.target.tagName){
-        // A failed <img>/<script>/<link>, not a code error. Worth knowing but far less serious.
-        banner('RESOURCE FAILED', String(e.target.tagName).toLowerCase(),
-               String(e.target.src || e.target.href || '').slice(0, 160));
+        /* ⚠️ DO NOT BANNER THESE. A failed <img>/<script>/<link> is not a code error, and Leaflet
+           requests out-of-range map tiles as a matter of course — every one of those 404s fired a
+           full-width red bar over the UI for something completely harmless. Console only. */
+        try{ console.warn('resource failed:', e.target.tagName,
+             String(e.target.src || e.target.href || '').slice(0,160)); }catch(_){}
         return;
       }
       banner('JS ERROR', (e && e.message) || 'unknown',
