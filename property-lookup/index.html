@@ -21596,11 +21596,18 @@ function tabifyResults(root, opts){
   const isFinal = !!(opts && opts.final);
   const bar=document.createElement('div'); bar.className='tabbar'; bar.setAttribute('role','tablist');
   const panels=document.createElement('div'); panels.className='tabpanels';
+  /* ⚠️ REGRESSION FIXED. This used to read `if(!first) first=key;` inside the loop, which was
+     correct only while the loop SKIPPED tabs with no cards — `first` then landed on the first tab
+     that actually had content. Now that every roster tab is always built, that line made `first`
+     unconditionally 'aerial', the first entry in TABS. So a lookup opened on the Aerial tab, which
+     on an early paint is nothing but a "FETCHING" stub, while the Jurisdiction card sat in the
+     hidden Site panel. On desktop every card arrives fast enough that Aerial has real content and
+     it looks fine; on a slow device you're parked on an empty tab watching nothing happen.
+     `first` must mean "first tab with REAL content" again. */
   let first=null;
   TABS.forEach(([key,label])=>{
     const items=bucket[key]||[];
-    // Every roster tab is built, whether or not its card has arrived — see TAB_STUBS.
-    if(!first) first=key;
+    if(!first && items.length) first=key;
     const btn=document.createElement('button'); btn.className='tab'; btn.dataset.tab=key; btn.type='button';
     btn.innerHTML=label+(items.length>1?'<span class="tcount">'+items.length+'</span>':'')
       + (items.length?'':'<span class="tcount tpend">·</span>');   // faint dot = still waiting
@@ -21630,7 +21637,10 @@ function tabifyResults(root, opts){
   /* Keep the tab you were on. If that tab hasn't been built yet on this paint (its card is still
      loading) fall back to the first available one rather than showing an empty panel. */
   const have=[...bar.querySelectorAll('.tab')].map(t=>t.dataset.tab);
-  const want=(_activeTab && have.includes(_activeTab)) ? _activeTab : first;
+  // Prefer the tab you were on; else the first tab holding a real card; else Site, which is where
+  // Jurisdiction and Parcel & Owner live and therefore the only sensible landing tab.
+  const want=(_activeTab && have.includes(_activeTab)) ? _activeTab
+           : (first || (have.includes('site') ? 'site' : have[0]));
   if(want) activate(want);
 }
 
