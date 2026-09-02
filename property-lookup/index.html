@@ -90,6 +90,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <link rel="preconnect" href="https://hazards.fema.gov" crossorigin>          <!-- NFHL export: slowest handshake in the app (strict TLS 1.2) — pre-open it -->
 <link rel="preconnect" href="https://basemap.nationalmap.gov" crossorigin>   <!-- USGS Topo basemap tiles -->
 <link rel="preconnect" href="https://elevation.nationalmap.gov" crossorigin> <!-- USGS 3DEP ground elevation: stalls on a cold/dead socket, so hold one open -->
+<link rel="preconnect" href="https://gis.fdot.gov" crossorigin>              <!-- FDOT city/county boundaries: only 2 calls but they gate zoning + the appraiser link -->
 <link rel="preconnect" href="https://mapservices.weather.noaa.gov" crossorigin> <!-- NWS warnings / NOAA overlays -->
 <link rel="preconnect" href="https://tiledimageservices2.arcgis.com" crossorigin> <!-- Collier 2026 LERC tiles -->
 
@@ -18640,6 +18641,50 @@ async function _runLookupInner(lat,lng,searchCtx){
   /* ---- Location / jurisdiction ---- */
   let countyName = (!county.__err && county.features && county.features[0]) ? county.features[0].attributes.NAME : null;
   let cityName   = (!city.__err   && city.features   && city.features[0])   ? city.features[0].attributes.NAME   : null;
+  /* ── FDOT BOUNDARY FALLBACK ─────────────────────────────────────────────────────────────────
+     Both of the above come from gis.fdot.gov — the only two calls in this file that touch that
+     host, and the only one with no preconnect. Observed on an older iPhone: the parcel feed
+     answered fine and returned SCHAFFT EDWARD T at 201 SW 32nd Ter, while these two failed, so the
+     card read "COUNTY — see appraiser link —" and "MUNICIPALITY Unincorporated (no city)" for a
+     house that is plainly in Cape Coral. Almost certainly a TLS/certificate-chain difference: newer
+     iOS trusts a root that older iOS doesn't.
+     The knock-on was worse than the wrong label. queryZoning() is passed cityName, so with it empty
+     there was no Cape Coral jurisdiction to look up and the Zoning card fell through to its generic
+     "no live zoning layer wired" note. One failed host, three wrong cards — and nothing in the UI
+     said the boundary lookup was the cause.
+     Neither value actually needs FDOT:
+       · COUNTY was already established by the parcel resolver, which matched this folio in Lee
+         County's own records before this line ran.
+       · MUNICIPALITY is in the address the user typed, and in the parcel record's own city field.
+     So fall back to those, and mark the card as derived rather than claiming a live boundary hit. */
+  let _jurDerived = null;
+  if(!countyName){
+    /* countyHint is set on every resolved search (see doSearch: extra.countyHint=county), so this
+       is the county the resolver actually matched the folio in — not a guess. */
+    const _rc = (searchCtx && searchCtx.countyHint) ? searchCtx.countyHint : null;
+    if(_rc){ countyName = _rc; _jurDerived = 'county from the matched parcel record'; }
+  }
+  if(!cityName){
+    // The parcel feed's own city field first — it's the authoritative record for this lot.
+    let _pc = null;
+    try{
+      const _a = (liveRes && liveRes.features && liveRes.features[0] && liveRes.features[0].attributes) || null;
+      if(_a) _pc = nhcPick(_a, ['SiteCity','SITECITY','PHYCITY','PHY_CITY','CITY','city','MUNICIPALITY','municipality']);
+    }catch(e){}
+    // Else the city the user actually typed, e.g. "201 SW 32ND TER, CAPE CORAL, 33914".
+    if(!_pc && searchCtx && searchCtx.raw){
+      const _m = String(searchCtx.raw).split(',');
+      if(_m.length >= 2){
+        const _cand = _m[1].replace(/\b(fl|florida)\b/ig,'').replace(/\d{5}(-\d{4})?/g,'').trim();
+        if(_cand && _cand.length > 2) _pc = _cand;
+      }
+    }
+    if(_pc){
+      cityName = String(_pc).trim();
+      _jurDerived = _jurDerived ? (_jurDerived + '; municipality from the address') : 'municipality from the address';
+    }
+  }
+  window.__jurDerived = _jurDerived;   // the Jurisdiction card says so when this is set
   window.__lastCounty = countyName || '';   // for the live-feed diagnostic
   window.__lastCity   = cityName || '';      // so the zoning overlay can prefer the city's own layer
   prefetchCountyFile(countyName);            // SPEED: start downloading+indexing address points now,
@@ -18909,10 +18954,17 @@ async function _runLookupInner(lat,lng,searchCtx){
   html += renderAerialScout(lat, lng);
 
   html += `<div class="card"><div class="ch"><span class="icn">[ JUR ]</span><h2>Jurisdiction</h2>
-    <div class="src">FDOT Admin<br>Boundaries</div></div><div class="cb">`;
-  html += `<div class="freshline"><span class="badge live">● LIVE</span> queried in real time</div>`;
+    <div class="src">${window.__jurDerived ? 'derived —<br>FDOT unavailable' : 'FDOT Admin<br>Boundaries'}</div></div><div class="cb">`;
+  /* Don't claim "● LIVE queried in real time" when the boundary host failed and these values came
+     from the parcel record and the typed address instead. Same information, different provenance —
+     and "Unincorporated" on a house in Cape Coral is exactly the kind of wrong answer that needs to
+     announce itself rather than look authoritative. */
+  html += window.__jurDerived
+    ? `<div class="freshline"><span class="badge unk">▣ DERIVED</span> FDOT boundary service didn’t respond — ${esc(window.__jurDerived)}</div>`
+    : `<div class="freshline"><span class="badge live">● LIVE</span> queried in real time</div>`;
   html += fieldRow('County', countyName?esc(titleCase(countyName))+' County':'<span class="muted">— see appraiser link —</span>','big');
-  html += fieldRow('Municipality', cityName?esc(titleCase(cityName)):'<span class="muted">Unincorporated (no city)</span>');
+  html += fieldRow('Municipality', cityName?esc(titleCase(cityName))
+                    :'<span class="muted">Unincorporated (no city)</span>');
   html += fieldRow('Coordinates', `${lat.toFixed(6)}, ${lng.toFixed(6)}`);
   if(paUrl) html += `<a class="palink" href="${paUrl}" target="_blank" rel="noopener">↗ Open ${esc(titleCase(countyName))} County Property Appraiser</a>`;
   html += `</div></div>`;
