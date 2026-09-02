@@ -950,7 +950,15 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
        this container's overflow — an absolutely-positioned dropdown would have been clipped. */
     .layerswitch{bottom:auto;top:calc(var(--abh,48px) + 8px);left:12px;right:12px;margin-inline:0;
       width:auto;overflow-x:auto;overflow-y:hidden;justify-content:flex-start;
-      -webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scrollbar-width:none}
+      /* ⚠️ NO -webkit-overflow-scrolling:touch HERE. On iOS that promotes the scroller to its own
+         hardware-composited layer, and a composited scroller acts as the CONTAINING BLOCK for
+         position:fixed descendants — the same trap as mask-image and transform. The six dropdowns
+         then anchored to this element instead of the viewport, landed inside its box, and were
+         clipped by its own overflow: on iOS the menus simply never appeared, while desktop (which
+         never applies this property) worked fine.
+         Momentum scrolling is the default on iOS 13+ anyway, so this bought nothing and cost every
+         menu on the platform the toolbar is designed for. */
+      overscroll-behavior-x:contain;scrollbar-width:none}
     .layerswitch::-webkit-scrollbar{display:none}
     .layerswitch > *{flex:0 0 auto}          /* never let flex squash the labels */
     /* ⚠️ NO mask-image / transform / filter ON THIS ELEMENT, EVER.
