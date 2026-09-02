@@ -4393,6 +4393,26 @@ basemapMenu.querySelectorAll('button[data-bm]').forEach(b=>{
 // click anywhere else closes the menu
 document.addEventListener('click', closeBasemapMenu);
 
+/* ── MOVE THE TOOLBAR DROPDOWNS OUT OF THE TOOLBAR ─────────────────────────────────────────────
+   These five menus are authored inside .layerswitch, next to the buttons that own them. That was
+   fine while the toolbar was a plain flex row. It stopped being fine when the mobile layout gave
+   the toolbar `overflow-x:auto` so it could scroll: iOS Safari CLIPS position:fixed descendants of
+   a scrollable overflow container. Not a spec behaviour and not something CSS on the toolbar can
+   undo — I removed -webkit-overflow-scrolling and the mask gradient and it still clipped.
+   The tell was that landscape worked: at >680px the mobile block doesn't apply, the toolbar has no
+   overflow, and the menus appeared. Portrait, with the scroller active, they never did.
+   So they stop being descendants. Reparented to <body> once at startup, which is exactly where
+   _elevMenuEl (built in JS) has always lived — and that sixth menu was the only one working on iOS.
+   Safe to move: nothing about opening or closing them depends on DOM ancestry. They're
+   position:fixed and placed from their button's rect by positionToolbarMenu(), and they close via a
+   document-level click listener with stopPropagation() on their own buttons. */
+(function reparentToolbarMenus(){
+  ['basemapMenu','hazardsMenu','layersMenu','weatherMenu','stormPickMenu'].forEach(function(id){
+    var m=document.getElementById(id);
+    if(m && m.parentNode !== document.body) document.body.appendChild(m);
+  });
+})();
+
 /* ================= FLORIDA COUNTY NAME LABELS (always on, all basemaps) ==========================
    Draws each FL county's name at its centroid — pulled once from the FDOT county boundary layer (the
    same source used for county detection). Shown across regional/city zooms and hidden at state-wide
