@@ -3123,7 +3123,7 @@ function _lcGroup(grp, d, base, zone, openFirst, empty, autoOpen){
     const tid='cft_'+Math.random().toString(36).slice(2,8);
     const t = x.title.replace(/^\s*(Sec(tion)?s?\.?|§)\s*/i,'');
     return `<div class="lc-hit${dim?' dim':''}"><div class="lc-hit-t"><b>${esc(t)}</b><span class="lc-meta"> · ${esc(x.productName)}${x.breadcrumb.length?' › '+esc(x.breadcrumb[x.breadcrumb.length-1]):''}</span></div>
-      <button class="lc-read" id="${tid}_btn" onclick="codeFinderRead(this,'${esc(base)}','${esc(x.productId)}','${esc(x.nodeId)}','${tid}','${esc(d.client.id)}','${esc(zone||'')}')">Read</button></div><div id="${tid}" class="lc-body"></div>`;
+      <button type="button" class="lc-read" id="${tid}_btn" onclick="codeFinderRead(this,'${esc(base)}','${esc(x.productId)}','${esc(x.nodeId)}','${tid}','${esc(d.client.id)}','${esc(zone||'')}')">Read</button></div><div id="${tid}" class="lc-body"></div>`;
   };
   grp.hits.forEach((x,i)=>{ const html=row(x,false); g+=html; if(openFirst && i===0 && autoOpen){ const m=html.match(/id="(cft_\w+)_btn"/); if(m) autoOpen.push({tid:m[1], productId:x.productId, nodeId:x.nodeId}); } });
   if(grp.more && grp.more.length){
@@ -3333,7 +3333,7 @@ function _livePanelHtml(d, base){
   for(const [sec,v] of rows){
     const rid='lcr_'+Math.random().toString(36).slice(2,8);
     h+=`<div class="lc-row">${_liveStatusDot(v.status)}<div class="lc-title"><b>§ ${esc(sec)}</b> <span>${esc((v.title||'').replace(/^Sec\.\s*[\d.\-]+\.?\s*-\s*/,''))}</span>${v.verified?`<span class="lc-meta"> · verified ${esc(v.verified)}</span>`:''}${v.status==='changed'?'<span class="lc-flag">re-read this section</span>':''}</div>`;
-    if(v.nodeId) h+=`<button class="lc-read" id="${rid}_btn" onclick="codeFinderRead(this,'${esc(base)}','${esc(v.productId)}','${esc(v.nodeId)}','${rid}','${esc(d.clientId||'')}','')">Read</button>`;
+    if(v.nodeId) h+=`<button type="button" class="lc-read" id="${rid}_btn" onclick="codeFinderRead(this,'${esc(base)}','${esc(v.productId)}','${esc(v.nodeId)}','${rid}','${esc(d.clientId||'')}','')">Read</button>`;
     h+=`</div><div id="${rid}" class="lc-body"></div>`;
   }
   h+=`<a class="palink" href="${esc(d.libraryUrl||'https://library.municode.com/fl')}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(d.label)} on Municode</a>`;
@@ -18918,7 +18918,7 @@ function renderNaplesSetbacks(districtCode, yearBuilt){
   const e=naplesSetbacks(districtCode); if(!e) return '';
   const secUrl = e.section ? municodeSection(e.section) : null;
   let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">≈ QUICK REF</span> Naples setbacks${e.label?' · '+esc(e.label):''}${e.section?' · § '+esc(e.section):''}${e.section?codeVerifyBadge('naples', e.section):''}</div>`;
-  if(e.section && CODE_PROXY_URL){ const rid='lcq_'+Math.random().toString(36).slice(2,8); h+=`<div style="margin:6px 0 2px 0"><button class="lc-read" id="${rid}_btn" onclick="codeSectionRead(this,'naples','${esc(e.section)}','${rid}')">▸ Read § ${esc(e.section)} live — the paragraph these numbers come from</button><div id="${rid}" class="lc-body"></div></div>`; }
+  if(e.section && CODE_PROXY_URL){ const rid='lcq_'+Math.random().toString(36).slice(2,8); h+=`<div style="margin:6px 0 2px 0"><button type="button" class="lc-read" id="${rid}_btn" onclick="codeSectionRead(this,'naples','${esc(e.section)}','${rid}')">▸ Read § ${esc(e.section)} live — the paragraph these numbers come from</button><div id="${rid}" class="lc-body"></div></div>`; }
   function block(o, heading){
     let b='';
     if(heading) b+=`<div class="field"><div class="k" style="opacity:.7">${esc(heading)}</div><div class="v"></div></div>`;
