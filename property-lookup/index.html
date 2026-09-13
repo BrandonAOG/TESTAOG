@@ -3168,17 +3168,22 @@ function _adoptSummary(t, jurName, top, st){
   // rule document when it can be read; pending rulemaking when one is published. All live, nothing assumed.
   let stateLine;
   if(st){
-    const eds = st.edition ? chip('Florida Fire Prevention Code, '+st.edition) : '';
-    const nf  = (st.nfpa||[]).map(n=>chip('NFPA '+n.std+' ('+n.edition+')')).join(' ');
+    const eds = st.edition ? chip('Florida Fire Prevention Code — '+st.edition) : '';
+    // Generator-relevant standards first; the full referenced list (100+) behind a count.
+    const REL = ['1','101','37','54','58','70','30','211'];
+    const all = st.nfpa||[]; const rel = REL.map(k=>all.find(n=>n.std===k)).filter(Boolean); const rest = all.filter(n=>!REL.includes(n.std));
+    const rid='nfr_'+Math.random().toString(36).slice(2,6);
+    const nf  = rel.map(n=>chip('NFPA '+n.std+' ('+n.edition+')')).join(' ') + (rest.length?` <a href="#" class="lc-more" onclick="var b=document.getElementById('${rid}');b.style.display=b.style.display==='none'?'':'none';return false">+ ${rest.length} more referenced standards</a><div id="${rid}" style="display:none;margin-top:4px">${rest.map(n=>chip('NFPA '+n.std+' ('+n.edition+')')).join(' ')}</div>`:'');
     let pend = '';
     if(st.pending){
       const P = st.pending;
-      pend = `<div class="lc-pending"><div><b>⏳ In the works — ${esc(P.edition)}</b> <span class="lc-meta">· ${esc(P.status)} ${esc(P.published)}${P.noticeUrl?` · <a href="${esc(P.noticeUrl)}" target="_blank" rel="noopener">notice</a>`:''}</span></div>`
-           + (P.effective ? `<div>Anticipated effective: <b>${esc(P.effective)}</b></div>` : `<div class="lc-meta">Effective date not stated in the notice yet (FFPC editions have historically taken effect Dec 31 of the adoption year).</div>`)
-           + ((P.nfpa&&P.nfpa.length) ? `<div style="margin-top:3px">${P.nfpa.map(n=>chip('NFPA '+n.std+' ('+n.edition+')')).join(' ')}</div>` : '')
-           + (P.hearing ? `<div class="lc-meta">Hearing: ${esc(P.hearing)}</div>` : '')
-           + (P.summary ? `<div class="lc-meta" style="margin-top:3px">${esc(P.summary)}</div>` : '')
-           + `<div class="lc-meta" style="margin-top:3px">Not in force until the rule is final. On jobs near the changeover, confirm which edition the fire marshal will apply at inspection.</div></div>`;
+      const REL2 = ['1','101','37','54','58','70','30','211'];
+      const pall = P.nfpa||[]; const prel = REL2.map(k=>pall.find(n=>n.std===k)).filter(Boolean); const prest = pall.filter(n=>!REL2.includes(n.std));
+      const prid='nfp_'+Math.random().toString(36).slice(2,6);
+      const pchips = (P.edition?chip('Florida Fire Prevention Code — '+P.edition):'') + ' ' + prel.map(n=>chip('NFPA '+n.std+' ('+n.edition+')')).join(' ')
+        + (prest.length?` <a href="#" class="lc-more" onclick="var b=document.getElementById('${prid}');b.style.display=b.style.display==='none'?'':'none';return false">+ ${prest.length} more referenced standards</a><div id="${prid}" style="display:none;margin-top:4px">${prest.map(n=>chip('NFPA '+n.std+' ('+n.edition+')')).join(' ')}</div>`:'');
+      pend = `<div style="margin-top:8px"><b>State rule anticipated</b> <span class="lc-meta">· ${esc(st.rule)} · ${P.effective?'effective '+esc(P.effective):'effective date not yet stated'} · ${esc(P.status)} ${esc(P.published)}${P.noticeUrl?` · <a href="${esc(P.noticeUrl)}" target="_blank" rel="noopener">notice</a>`:''}</span><br>${pchips}</div>`
+           + `<div class="lc-meta" style="margin-top:3px">Not in force until the rule is final. On jobs near the changeover, confirm which edition the fire marshal will apply at inspection.</div>`;
     }
     const doc = st.ruleDoc ? ` · <a href="${esc(st.ruleDoc)}" target="_blank" rel="noopener">rule document</a>` : '';
     const body = (eds||nf) ? `${eds} ${nf}` : `<span class="lc-meta">Edition and NFPA years are in the rule document, not on the page${st.notes&&st.notes.length?' — '+esc(st.notes[0]):''}. Rule last amended ${esc(st.amendments&&st.amendments.length?st.amendments[st.amendments.length-1]:st.effective||'—')}.</span>`;
@@ -3354,7 +3359,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-13k";
+const CODE_API_VERSION = "2026-09-13m";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
