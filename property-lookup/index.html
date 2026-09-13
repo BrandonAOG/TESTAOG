@@ -3139,10 +3139,8 @@ function fillFloodLiveCode(){
   if(!el || !d || !d.ok) return;
   const base = CODE_PROXY_URL.replace(/code-section$/,'');
   const zoneLbl = window.__parcelFloodZone ? ' · zone '+esc(window.__parcelFloodZone) : '';
-  const g = _lcGroup(d.flood, d, base, d.zone||'', true, 'No local flood-ordinance section found on Municode; FBC / ASCE 24 elevation rules still apply.', null);
+  const g = _lcGroup(d.flood, d, base, d.zone||'', false, 'No local flood-ordinance section found on Municode; FBC / ASCE 24 elevation rules still apply.', null);
   el.outerHTML = g.replace('<div class="lc-topic-h">', `<div class="lc-topic-h">Flood — local ordinance, live${zoneLbl} · `).replace('<div class="lc-topic">','<div class="lc-topic" id="floodLiveCode">');
-  // open the best hit
-  const first=document.querySelector('#floodLiveCode .lc-read'); if(first && d.flood && d.flood.hits[0]) codeFinderRead(first, base, d.flood.hits[0].productId, d.flood.hits[0].nodeId, first.id.replace(/_btn$/,''), d.client.id, d.zone||'');
 }
 function _finderHtml(d, it, base){
   if(!d || !d.ok){
@@ -3156,8 +3154,8 @@ function _finderHtml(d, it, base){
   let h = `<div class="freshline snap"><span class="badge live">● LIVE CODE</span> ${esc(d.client.name)}${zone?` · <b>${esc(zone)}</b>`:''}${d.fellBack?' <span class="badge unk" style="margin-left:6px" title="The city is not on Municode, or has no code of its own; showing the county&#39;s code.">county code</span>':''}</div>`;
   const autoOpen = [];
   const group = (grp, openFirst, empty) => _lcGroup(grp, d, base, zone, openFirst, empty, autoOpen);
-  h += group(d.mechanical, true, 'No mechanical-equipment or generator section in this code. The county fire marshal and NFPA 37 govern placement.');
-  h += group(d.setbacks, true, zone?`No section title names "${zone}" or "setbacks". Open the code from the link below and search its table of contents.`:'No setback section found.');
+  h += group(d.mechanical, false, 'No mechanical-equipment or generator section in this code. The county fire marshal and NFPA 37 govern placement.');
+  h += group(d.setbacks, false, zone?`No section title names "${zone}" or "setbacks". Open the code from the link below and search its table of contents.`:'No setback section found.');
   h += group(d.gas, false, 'No LP / fuel section in this code — NFPA 58 (LP) and NFPA 54 (gas piping) apply via the Florida Fire Prevention Code.');
   if(autoOpen.length) setTimeout(()=>{ for(const a of autoOpen){ const b=document.getElementById(a.tid+'_btn'); if(b) codeFinderRead(b, base, a.productId, a.nodeId, a.tid, d.client.id, zone); } }, 50);
   h += `<a class="palink" href="${esc(d.client.libraryUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(d.client.name)} on Municode</a>`;
@@ -3286,8 +3284,13 @@ const CODE_API_HOSTS = [
 const _sameOrigin = /vercel\.app$|workers\.dev$|^localhost$|^127\.0\.0\.1$/.test(location.hostname);
 const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-section" : "";   // non-empty = live features on
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
+// Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
+// miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
+const CODE_API_VERSION = "2026-09-13c";
+const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
+  pathAndQuery += (pathAndQuery.includes('?')?'&':'?') + 'v=' + encodeURIComponent(CODE_API_VERSION) + (CODE_NOCACHE?'&nocache=1':'');
   const hosts = _sameOrigin ? [""] : [_codeApiHost, ...CODE_API_HOSTS.filter(h=>h!==_codeApiHost)];
   let lastErr = null;
   for(const host of hosts){
