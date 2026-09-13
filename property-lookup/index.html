@@ -280,6 +280,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .lc-topic{margin-top:10px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08)} .lc-topic-h{font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;opacity:.8;margin-bottom:4px}
   .lc-hit{display:flex;align-items:center;gap:8px;padding:4px 0} .lc-hit.dim{opacity:.7} .lc-hit-t{flex:1;min-width:0;font-size:12px}
   .lc-also{display:block;text-decoration:none;color:inherit;cursor:pointer;opacity:.8} .lc-also:hover{opacity:1}
+  .lc-adopt{font-size:12px;margin:6px 0 4px 0;padding:8px;border-radius:6px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)} .lc-chip{display:inline-block;font-family:var(--mono);font-size:11px;padding:1px 7px;border-radius:4px;border:1px solid rgba(244,104,0,.45);background:rgba(244,104,0,.1);margin:1px 2px}
   .lc-more{font-size:11px;opacity:.75;display:inline-block;margin:2px 0 4px 0}
   .lc-zonebar{font-size:11px;margin:2px 0 6px 0;padding:3px 8px;border-radius:4px;background:rgba(244,104,0,.12);border:1px solid rgba(244,104,0,.35)} .lc-zonebar a{color:var(--signal)}
   .live-code table[data-trimmed] td:first-child,.live-code table[data-trimmed] th:first-child{opacity:.85}
@@ -3139,7 +3140,29 @@ function fillPermitLiveCode(){
   if(!el || !d || !d.ok || !d.also || !d.also.fire) return;
   const base = CODE_PROXY_URL.replace(/code-section$/,'');
   const g = _lcGroup(d.also.fire, d, base, d.zone||'', false, 'No fire-code adoption section found on Municode — the Florida Fire Prevention Code (state-adopted NFPA 1 & 101, with NFPA 37/54/58 by reference) applies.', null);
-  el.outerHTML = g.replace('<div class="lc-topic-h">', '<div class="lc-topic-h">Fire prevention code (NFPA adoption) — live · ').replace('<div class="lc-topic">','<div class="lc-topic" id="permitLiveCode">');
+  const sid='pfs_'+Math.random().toString(36).slice(2,6);
+  el.outerHTML = g.replace('<div class="lc-topic-h">', '<div class="lc-topic-h">Fire prevention code (NFPA adoption) — live · ').replace('<div class="lc-topic">',`<div class="lc-topic" id="permitLiveCode">`).replace('</div>',`</div><div id="${sid}" class="lc-adopt">… reading the adoption section</div>`);
+  // Read the best adoption section quietly and summarise which editions apply.
+  (async()=>{
+    const slot=document.getElementById(sid); if(!slot) return;
+    const top=d.also.fire.hits[0];
+    if(!top){ slot.innerHTML=_adoptSummary(null, d.client.name); return; }
+    try{ const t=await codeApi(`code-text?productId=${encodeURIComponent(top.productId)}&nodeId=${encodeURIComponent(top.nodeId)}`); slot.innerHTML=_adoptSummary(t.ok?t:null, d.client.name, top); }
+    catch(e){ slot.innerHTML=_adoptSummary(null, d.client.name); }
+  })();
+}
+/* One-line "what applies here" for a generator job, from the adoption section's text. */
+function _adoptSummary(t, jurName, top){
+  const a = t && t.adoption; const src = top ? ` <span class="lc-meta">· per ${esc(top.title.replace(/^\s*(Sec(tion)?s?\.?|§)\s*/i,''))}</span>` : '';
+  const chip=(x)=>`<span class="lc-chip">${esc(x)}</span>`;
+  const implied = `<div class="lc-meta" style="margin-top:4px">For a generator job that means: <b>NFPA 37</b> (5 ft from openings / combustible walls unless listed closer), <b>NFPA 58</b> (LP tank distances), <b>NFPA 54</b> (gas piping), <b>NFPA 70</b> (NEC — transfer switch, bonding). Confirm the current edition with the fire marshal.</div>`;
+  if(a && a.count){
+    return `<div><b>${esc(jurName)}</b> adopts${src}: ${a.nfpa.map(n=>chip('NFPA '+n.std+(n.edition?' ('+n.edition+')':''))).join(' ')}${a.ffpc?' '+chip('Florida Fire Prevention Code'+(a.ffpc!=='adopted'?' '+a.ffpc:'')):''}${a.fbc?' '+chip('Florida Building Code '+a.fbc):''}</div>${implied}`;
+  }
+  if(a && a.ffpc){
+    return `<div><b>${esc(jurName)}</b> adopts the ${chip('Florida Fire Prevention Code'+(a.ffpc!=='adopted'?' '+a.ffpc:''))}${src} — the state code that carries <b>NFPA 1</b> and <b>NFPA 101</b>, which incorporate the generator and LP standards by reference.</div>${implied}`;
+  }
+  return `<div>No local adoption ordinance found on Municode. Florida law (F.S. 633.202) makes the <b>Florida Fire Prevention Code</b> — NFPA 1 and NFPA 101 — the minimum statewide, so it applies in <b>${esc(jurName)}</b> regardless.</div>${implied}`;
 }
 /* Flood card ↔ code lookup handshake. Whichever finishes second fills the slot. */
 window.__codeFind = null;
@@ -3300,7 +3323,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-13d";
+const CODE_API_VERSION = "2026-09-13e";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
