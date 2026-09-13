@@ -3142,27 +3142,33 @@ function fillPermitLiveCode(){
   const g = _lcGroup(d.also.fire, d, base, d.zone||'', false, 'No fire-code adoption section found on Municode — the Florida Fire Prevention Code (state-adopted NFPA 1 & 101, with NFPA 37/54/58 by reference) applies.', null);
   const sid='pfs_'+Math.random().toString(36).slice(2,6);
   el.outerHTML = g.replace('<div class="lc-topic-h">', '<div class="lc-topic-h">Fire prevention code (NFPA adoption) — live · ').replace('<div class="lc-topic">',`<div class="lc-topic" id="permitLiveCode">`).replace('</div>',`</div><div id="${sid}" class="lc-adopt">… reading the adoption section</div>`);
-  // Read the best adoption section quietly and summarise which editions apply.
+  // Local adoption text (Municode) + the state rule that sets the edition (F.A.C. 69A-60, live from flrules.org).
   (async()=>{
     const slot=document.getElementById(sid); if(!slot) return;
     const top=d.also.fire.hits[0];
-    if(!top){ slot.innerHTML=_adoptSummary(null, d.client.name); return; }
-    try{ const t=await codeApi(`code-text?productId=${encodeURIComponent(top.productId)}&nodeId=${encodeURIComponent(top.nodeId)}`); slot.innerHTML=_adoptSummary(t.ok?t:null, d.client.name, top); }
-    catch(e){ slot.innerHTML=_adoptSummary(null, d.client.name); }
+    const [local, state] = await Promise.all([
+      top ? codeApi(`code-text?productId=${encodeURIComponent(top.productId)}&nodeId=${encodeURIComponent(top.nodeId)}`).catch(()=>null) : Promise.resolve(null),
+      codeApi('fire-state').catch(()=>null),
+    ]);
+    slot.innerHTML=_adoptSummary(local&&local.ok?local:null, d.client.name, top, state&&state.ok?state:null);
   })();
 }
 /* One-line "what applies here" for a generator job, from the adoption section's text. */
-function _adoptSummary(t, jurName, top){
+function _adoptSummary(t, jurName, top, st){
   const a = t && t.adoption; const src = top ? ` <span class="lc-meta">· per ${esc(top.title.replace(/^\s*(Sec(tion)?s?\.?|§)\s*/i,''))}</span>` : '';
   const chip=(x)=>`<span class="lc-chip">${esc(x)}</span>`;
+  // State layer: the edition actually in force, from the rule text itself.
+  const stateLine = st
+    ? `<div style="margin-top:6px"><b>State edition in force</b> <span class="lc-meta">· ${esc(st.rule)}, read live from flrules.org${st.effective?' · effective '+esc(st.effective):''}</span><br>${st.edition?chip('Florida Fire Prevention Code, '+st.edition):''} ${(st.nfpa||[]).map(n=>chip('NFPA '+n.std+' ('+n.edition+')')).join(' ')}</div>`
+    : `<div class="lc-meta" style="margin-top:6px">State rule (F.A.C. 69A-60) couldn't be read just now — the edition in force is set there, not locally.</div>`;
   const implied = `<div class="lc-meta" style="margin-top:4px">For a generator job that means: <b>NFPA 37</b> (5 ft from openings / combustible walls unless listed closer), <b>NFPA 58</b> (LP tank distances), <b>NFPA 54</b> (gas piping), <b>NFPA 70</b> (NEC — transfer switch, bonding). Confirm the current edition with the fire marshal.</div>`;
   if(a && a.count){
-    return `<div><b>${esc(jurName)}</b> adopts${src}: ${a.nfpa.map(n=>chip('NFPA '+n.std+(n.edition?' ('+n.edition+')':''))).join(' ')}${a.ffpc?' '+chip('Florida Fire Prevention Code'+(a.ffpc!=='adopted'?' '+a.ffpc:'')):''}${a.fbc?' '+chip('Florida Building Code '+a.fbc):''}</div>${implied}`;
+    return `<div><b>${esc(jurName)}</b> adopts${src}: ${a.nfpa.map(n=>chip('NFPA '+n.std+(n.edition?' ('+n.edition+')':''))).join(' ')}${a.ffpc?' '+chip('Florida Fire Prevention Code'+(a.ffpc!=='adopted'?' '+a.ffpc:'')):''}${a.fbc?' '+chip('Florida Building Code '+a.fbc):''}</div>${stateLine}${implied}`;
   }
   if(a && a.ffpc){
-    return `<div><b>${esc(jurName)}</b> adopts the ${chip('Florida Fire Prevention Code'+(a.ffpc!=='adopted'?' '+a.ffpc:''))}${src} — the state code that carries <b>NFPA 1</b> and <b>NFPA 101</b>, which incorporate the generator and LP standards by reference.</div>${implied}`;
+    return `<div><b>${esc(jurName)}</b> adopts the ${chip('Florida Fire Prevention Code'+(a.ffpc!=='adopted'?' '+a.ffpc:''))}${src} — the state code that carries <b>NFPA 1</b> and <b>NFPA 101</b>, which incorporate the generator and LP standards by reference.</div>${stateLine}${implied}`;
   }
-  return `<div>No local adoption ordinance found on Municode. Florida law (F.S. 633.202) makes the <b>Florida Fire Prevention Code</b> — NFPA 1 and NFPA 101 — the minimum statewide, so it applies in <b>${esc(jurName)}</b> regardless.</div>${implied}`;
+  return `<div>No local adoption ordinance found on Municode. Florida law (F.S. 633.202) makes the <b>Florida Fire Prevention Code</b> — NFPA 1 and NFPA 101 — the minimum statewide, so it applies in <b>${esc(jurName)}</b> regardless.</div>${stateLine}${implied}`;
 }
 /* Flood card ↔ code lookup handshake. Whichever finishes second fills the slot. */
 window.__codeFind = null;
@@ -3323,7 +3329,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-13e";
+const CODE_API_VERSION = "2026-09-13f";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
