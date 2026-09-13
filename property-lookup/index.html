@@ -263,7 +263,24 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .badge.sfha{color:var(--warn);border-color:var(--sfha-line);background:var(--sfha-bg)}
   .badge.safe{color:var(--good);border-color:var(--safe-line);background:var(--safe-bg)}
   .badge.unk{color:var(--dim);border-color:var(--unk-line);background:var(--unk-bg)}
-  .live-code table{border-collapse:collapse;margin:6px 0;font-size:11px} .live-code td,.live-code th{border:1px solid rgba(255,255,255,.15);padding:2px 6px;vertical-align:top} .live-code p{margin:4px 0} .live-code img{max-width:100%;height:auto;display:block;margin:6px 0;border-radius:4px;background:#fff}
+  .live-code{max-width:100%;min-width:0;overflow-wrap:anywhere} .live-code .tbl-scroll{overflow-x:auto;max-width:100%;margin:6px 0;-webkit-overflow-scrolling:touch} .live-code table{border-collapse:collapse;margin:0;font-size:11px;width:max-content;max-width:none} .live-code td,.live-code th{border:1px solid rgba(255,255,255,.15);padding:2px 6px;vertical-align:top;white-space:normal;min-width:48px} .live-code p{margin:4px 0}
+  .lc-body,.lc-xbox,.live-panel,.lc-xcard{min-width:0;max-width:100%} .live-code img{max-width:100%;height:auto;display:block;margin:6px 0;border-radius:4px;background:#fff}
+  .live-panel{margin:8px 0 4px 0;padding:10px 12px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(0,0,0,.18)}
+  .lc-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:12px}
+  .lc-sum{font-family:var(--mono);font-size:11px;opacity:.75;margin:2px 0 6px 0}
+  .lc-meta{font-size:11px;opacity:.65}
+  .lc-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid rgba(255,255,255,.06);font-size:12px}
+  .lc-title{flex:1;min-width:0} .lc-title span{opacity:.85}
+  .lc-flag{margin-left:8px;font-family:var(--mono);font-size:10px;color:var(--warn);border:1px solid var(--warn);border-radius:4px;padding:0 5px}
+  .lc-dot{width:9px;height:9px;border-radius:50%;flex:none;display:inline-block}
+  .lc-dot.ok{background:var(--good)} .lc-dot.warn{background:var(--warn);box-shadow:0 0 0 3px rgba(255,180,0,.2)} .lc-dot.unk{background:rgba(255,255,255,.3)}
+  .lc-read{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:5px;border:1px solid rgba(255,255,255,.2);background:transparent;color:inherit;cursor:pointer}
+  .lc-read:hover{border-color:var(--signal)} .lc-body{padding-left:17px}
+  .badge.open{outline:1px solid var(--signal)}
+  .lc-xref{color:var(--signal);text-decoration:underline dotted;text-underline-offset:2px;cursor:pointer;font-weight:600}
+  .lc-xref:hover{text-decoration-style:solid}
+  .lc-xbox{margin:6px 0 6px 0} .lc-xcard{padding:8px;border:1px solid rgba(244,104,0,.35);border-left:3px solid var(--signal);border-radius:6px;max-height:420px;overflow:auto;font-size:12px}
+  .lc-xclose{margin-left:8px;opacity:.7}
   .badge.stalled{color:var(--warn);border-color:var(--warn);background:transparent}
   /* Per-card retry. Lives in the card header (.ch) so it sits with the card it re-runs, and in
      stalled stubs where it is the only way forward short of a whole new search. */
@@ -3082,7 +3099,7 @@ async function _runFinder(){
     const base = CODE_PROXY_URL.replace(/code-section$/,'');
     const q = `city=${encodeURIComponent(it.cityName||'')}&county=${encodeURIComponent(it.countyName||'')}&inCity=${it.inCity?1:0}&zone=${encodeURIComponent(it.zoneCode||'')}`;
     try{
-      if(!_finderCache[q]) _finderCache[q] = fetch(base+'code-find?'+q).then(r=>r.json());
+      if(!_finderCache[q]) _finderCache[q] = codeApi('code-find?'+q);
       const d = await _finderCache[q];
       el.innerHTML = _finderHtml(d, it, base);
     }catch(e){
@@ -3119,20 +3136,83 @@ function _finderHtml(d, it, base){
     }
     return g;
   };
-  h += list(d.district, d.zone?`Standards for "${d.zone}" — best match opened`:'', `No section title mentions "${d.zone}". The district may be spelled differently in the code (e.g. "RSF-3" vs "RSF 3"), or defined in a table that lists several districts together — open the code and search the table of contents.`, true);
   h += list(d.generator, 'Generator / mechanical-equipment rules — best match opened', 'No generator-specific section found. Look under accessory structures, mechanical equipment, or noise.', true);
+  h += list(d.fuel, 'Fuel — propane / LP tanks / natural gas', 'No fuel-specific section found in this code. LP tank placement then defaults to the Florida Fire Prevention Code (NFPA 58) and NFPA 54 for gas piping — check the county fire marshal.', false);
+  h += list(d.district, d.zone?`Standards for "${d.zone}" — best match opened`:'', `No section title mentions "${d.zone}". The district may be spelled differently in the code (e.g. "RSF-3" vs "RSF 3"), or defined in a table that lists several districts together — open the code and search the table of contents.`, true);
   h += `<a class="palink" href="${esc(d.client.libraryUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Open ${esc(d.client.name)} on Municode</a>`;
   // Open the best district hit and the best generator hit automatically once the card is in the DOM.
   if(autoOpen.length) setTimeout(()=>{ for(const a of autoOpen){ const b=document.getElementById(a.tid+'_btn'); if(b) codeFinderRead(b, base, a.productId, a.nodeId, a.tid, d.client.id); } }, 50);
   h += `<div class="note warnbox" style="margin-top:6px"><b>Live text, not a parsed number.</b> These are Municode's own section titles and text as published today. Read the section; where a table lists several districts, find this parcel's row. Codes lag newly adopted ordinances by weeks to months.</div>`;
   return h;
 }
+
+/* Cross-references inside live code text → tappable. "section 5.03.07", "Sec. 58-236", "§ 56-41(a)",
+   "Table 4.2-4", "Chapter 58" become links; tapping searches that title in the same code and opens the
+   section inline beneath the reference. Needs the Municode clientId of the code being read. */
+/* Wide Municode tables scroll inside the card instead of widening it. */
+function wrapTables(root){ if(!root) return; for(const t of root.querySelectorAll('table')){ if(t.parentElement && t.parentElement.classList.contains('tbl-scroll')) continue; const w=document.createElement('div'); w.className='tbl-scroll'; t.parentNode.insertBefore(w,t); w.appendChild(t); } }
+const XREF_RE = /(?<![\w])((?:LDC\s+|UDC\s+)?(?:sections?|secs?\.|§+|table|chapter|article|division)\s*)(\d+(?:[.\-]\d+)*[A-Za-z]?)/gi;
+function linkifyXrefs(root, base, clientId, productId, selfNodeId){
+  if(!root || !clientId) return;
+  const walker=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  const nodes=[]; let n; while((n=walker.nextNode())) if(XREF_RE.test(n.nodeValue)){ nodes.push(n); } XREF_RE.lastIndex=0;
+  for(const t of nodes){
+    if(t.parentNode && t.parentNode.closest && t.parentNode.closest('a,button,.lc-xref')) continue;
+    const frag=document.createDocumentFragment(); let last=0; const str=t.nodeValue; let m; XREF_RE.lastIndex=0;
+    while((m=XREF_RE.exec(str))){
+      const kind=m[1].trim().toLowerCase(), num=m[2];
+      // skip trivial refs: single small numbers after "table"/"chapter" inside their own section are usually local
+      if(/^(table|chapter|article|division)/.test(kind) && !/[.\-]/.test(num) && !/^(chapter)/.test(kind)) continue;
+      frag.appendChild(document.createTextNode(str.slice(last, m.index)));
+      const a=document.createElement('a'); a.className='lc-xref'; a.textContent=m[0]; a.href='#'; a.title=`Open ${m[0]} live`;
+      const q = /^chapter/.test(kind) ? `Chapter ${num}` : /^(table)/.test(kind) ? `Table ${num}` : num;
+      const qs = /^(table|chapter)/.test(kind) ? q : `"${num}"`;
+      a.onclick=(ev)=>{ ev.preventDefault(); openXref(a, base, clientId, productId, qs, num, kind); };
+      frag.appendChild(a); last=m.index+m[0].length;
+    }
+    frag.appendChild(document.createTextNode(str.slice(last)));
+    t.parentNode.replaceChild(frag, t);
+  }
+}
+async function openXref(a, base, clientId, productId, qs, num, kind){
+  let box=a.nextElementSibling; if(box && box.classList && box.classList.contains('lc-xbox')){ box.style.display=box.style.display==='none'?'':'none'; return; }
+  box=document.createElement('div'); box.className='lc-xbox lc-body'; box.innerHTML='<div class="lc-meta">… finding '+esc(a.textContent)+'</div>'; a.insertAdjacentElement('afterend', box);
+  try{
+    const r=await codeApi(`code-search?clientId=${encodeURIComponent(clientId)}&q=${encodeURIComponent(qs)}&titlesOnly=1`);
+    if(!r.ok) throw new Error(r.error||'search failed');
+    const esc_=num.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const titleRe = /^table/.test(kind) ? new RegExp('^\\s*table\\s+'+esc_+'(?![\\d])','i') : /^chapter/.test(kind) ? new RegExp('^\\s*chapter\\s+'+esc_+'(?![\\d])','i') : new RegExp('^\\s*(sec(tion)?s?\\.?|§)?\\s*'+esc_+'(?!\\d|\\.\\d)','i');
+    const same = r.hits.filter(h=>String(h.productId)===String(productId));
+    const hit = same.find(h=>titleRe.test(h.title)) || r.hits.find(h=>titleRe.test(h.title)) || same[0] || r.hits[0];
+    if(!hit) throw new Error('not found in this code');
+    const d=await codeApi(`code-text?productId=${encodeURIComponent(hit.productId)}&nodeId=${encodeURIComponent(hit.nodeId)}`);
+    if(!d.ok) throw new Error(d.error||'no text');
+    box.innerHTML=`<div class="note lc-xcard"><div class="lc-meta"><b>${esc(d.title||hit.title)}</b> · ${esc(hit.productName||'')}${hit.breadcrumb&&hit.breadcrumb.length?' · '+esc(hit.breadcrumb.join(' › ')):''} <a href="#" class="lc-xclose" onclick="this.closest('.lc-xbox').style.display='none';return false">hide</a></div><div class="live-code">${d.html||esc(d.text||'')}</div></div>`;
+    wrapTables(box.querySelector('.live-code'));
+    linkifyXrefs(box.querySelector('.live-code'), base, clientId, hit.productId, hit.nodeId);
+  }catch(e){ box.innerHTML=`<div class="lc-meta">Couldn't open ${esc(a.textContent)}: ${esc(e.message||String(e))}</div>`; }
+}
+async function codeSectionRead(btn, jur, sec, tid){
+  const box=document.getElementById(tid); if(!box) return;
+  if(box.dataset.open){ box.style.display=box.style.display==='none'?'':'none'; btn.textContent=box.style.display==='none'?`▸ Read § ${sec} live — the paragraph these numbers come from`:'▾ Hide'; return; }
+  btn.textContent='… fetching'; btn.disabled=true;
+  try{
+    const d=await codeApi(`code-section?jur=${encodeURIComponent(jur)}&sec=${encodeURIComponent(sec)}`);
+    if(!d.ok) throw new Error(d.error||'no data');
+    box.dataset.open='1';
+    box.innerHTML=`<div class="note" style="margin-top:6px;padding:8px;border:1px solid rgba(255,255,255,.1);border-radius:6px;max-height:520px;overflow:auto;font-size:12px;line-height:1.45"><div class="lc-meta">${esc(d.title||'')} · ${esc(d.jobMeta&&d.jobMeta.name||'')}${d.verified?' · table verified against this text '+esc(d.verified):''} · ${d.status==='match'?'<span style="color:var(--good)">unchanged since</span>':d.status==='changed'?'<span style="color:var(--warn)">TEXT HAS CHANGED — re-check the numbers</span>':'not yet verified'}</div><div class="live-code">${d.html||esc(d.text||'')}</div></div>`;
+    btn.textContent='▾ Hide';
+    wrapTables(box.querySelector('.live-code'));
+    linkifyXrefs(box.querySelector('.live-code'), CODE_PROXY_URL.replace(/code-section$/,''), d.clientId, d.productId, d.nodeId);
+  }catch(e){ box.innerHTML=`<div class="note">Couldn't fetch: ${esc(e.message||String(e))}</div>`; btn.textContent=`▸ Read § ${sec} live`; }
+  btn.disabled=false;
+}
 async function codeFinderRead(btn, base, productId, nodeId, tid, clientId){
   const box = document.getElementById(tid); if(!box) return;
   if(box.dataset.open){ box.style.display = box.style.display==='none'?'':'none'; btn.textContent = box.style.display==='none'?'▸ Read live text':'▾ Hide'; return; }
   btn.textContent = '… fetching'; btn.disabled = true;
   try{
-    const d = await fetch(`${base}code-text?productId=${encodeURIComponent(productId)}&nodeId=${encodeURIComponent(nodeId)}`).then(r=>r.json());
+    const d = await codeApi(`code-text?productId=${encodeURIComponent(productId)}&nodeId=${encodeURIComponent(nodeId)}`);
     if(!d.ok) throw new Error(d.error||'no data');
     box.dataset.open='1';
     box.innerHTML = `<div class="note" style="margin-top:6px;padding:8px;border:1px solid rgba(255,255,255,.1);border-radius:6px;max-height:520px;overflow:auto;font-size:12px;line-height:1.45">
@@ -3140,6 +3220,8 @@ async function codeFinderRead(btn, base, productId, nodeId, tid, clientId){
       <div class="live-code">${d.html || esc(d.text||'')}</div>
       <div class="live-code-tables"></div></div>`;
     btn.textContent = '▾ Hide';
+    wrapTables(box.querySelector('.live-code'));
+    linkifyXrefs(box.querySelector('.live-code'), base, clientId, productId, nodeId);
     // The section points at a table it doesn't contain ("See Table 4.2-4 below") → go get the table.
     if(!d.hasTable && !d.hasImage && d.tableRefs && d.tableRefs.length && clientId){
       const slot = box.querySelector('.live-code-tables');
@@ -3147,14 +3229,15 @@ async function codeFinderRead(btn, base, productId, nodeId, tid, clientId){
       const found = [];
       for(const ref of d.tableRefs.slice(0,2)){
         try{
-          const r = await fetch(`${base}code-search?clientId=${encodeURIComponent(clientId)}&q=${encodeURIComponent('"Table '+ref+'"')}&titlesOnly=1`).then(x=>x.json());
+          const r = await codeApi(`code-search?clientId=${encodeURIComponent(clientId)}&q=${encodeURIComponent('"Table '+ref+'"')}&titlesOnly=1`);
           const hit = r.ok && r.hits.find(h=>h.nodeId!==nodeId && new RegExp(ref.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i').test(h.title));
-          if(hit){ const t = await fetch(`${base}code-text?productId=${encodeURIComponent(hit.productId)}&nodeId=${encodeURIComponent(hit.nodeId)}`).then(x=>x.json()); if(t.ok) found.push({ref, hit, t}); }
+          if(hit){ const t = await codeApi(`code-text?productId=${encodeURIComponent(hit.productId)}&nodeId=${encodeURIComponent(hit.nodeId)}`); if(t.ok) found.push({ref, hit, t}); }
         }catch(e){}
       }
       slot.innerHTML = found.length
         ? found.map(f=>`<div style="margin-top:8px;padding-top:6px;border-top:1px dashed rgba(255,255,255,.15)"><b>${esc(f.t.title||('Table '+f.ref))}</b> <span style="opacity:.6;font-size:11px">· ${esc(f.hit.productName)}</span><div class="live-code">${f.t.html||esc(f.t.text||'')}</div></div>`).join('')
         : `<div style="opacity:.7;font-size:11px;margin-top:6px">The referenced table isn't a separate searchable section on Municode — it's inside a parent article or published as an image there. Use the Municode link below and open the parent section.</div>`;
+      wrapTables(slot);
     }
   }catch(e){ box.innerHTML = `<div class="note">Couldn't fetch: ${esc(e.message||String(e))}</div>`; btn.textContent='▸ Read live text'; }
   btn.disabled = false;
@@ -3171,8 +3254,31 @@ async function codeFinderRead(btn, base, productId, nodeId, tid, clientId){
 // The API lives on Vercel; the page may be served from GitHub Pages (brandonaog.github.io/AOG or /TESTAOG),
 // from the Vercel project itself, or from localhost via `vercel dev`. Pick the right base automatically.
 // Set CODE_API_HOST to your Vercel project's URL (printed by `vercel --prod`). Set CODE_PROXY_URL = "" to disable.
-const CODE_API_HOST = "https://aog-property-lookup.vercel.app";
-const CODE_PROXY_URL = (/vercel\.app$|^localhost$|^127\.0\.0\.1$/.test(location.hostname) ? "" : CODE_API_HOST) + "/api/code-section";
+// Two hosts, same API. Primary first; on a network error, 5xx or 429 the call is retried on the fallback,
+// and the host that answered is used for the rest of the session. Order them however you like — put the
+// Cloudflare Worker URL first once `npx wrangler deploy` has printed it. Empty list = live features off.
+const CODE_API_HOSTS = [
+  "https://aog-code-api.brandon-5e7.workers.dev",     // Cloudflare Worker — primary (free tier, commercial use OK)
+  "https://aog-property-lookup.vercel.app",           // Vercel — fallback
+];
+// Same-origin when the page itself is served from one of the API hosts (vercel dev, workers.dev, localhost).
+const _sameOrigin = /vercel\.app$|workers\.dev$|^localhost$|^127\.0\.0\.1$/.test(location.hostname);
+const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-section" : "";   // non-empty = live features on
+let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
+/** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
+async function codeApi(pathAndQuery){
+  const hosts = _sameOrigin ? [""] : [_codeApiHost, ...CODE_API_HOSTS.filter(h=>h!==_codeApiHost)];
+  let lastErr = null;
+  for(const host of hosts){
+    try{
+      const r = await fetch(`${host}/api/${pathAndQuery}`);
+      if(r.status===429 || r.status>=500) throw new Error(`${host||'same-origin'} → HTTP ${r.status}`);
+      _codeApiHost = host;                       // this one answers; keep using it
+      return await r.json();                     // 4xx bodies are meaningful (404 not_on_municode, 501 undiscovered)
+    }catch(e){ lastErr = e; if(hosts.length>1) console.warn('[code api] failing over:', e.message||e); }
+  }
+  throw lastErr || new Error('no code API host reachable');
+}
 const _codeVerifyPending = [];
 function codeVerifyBadge(jur, sec){
   if(!CODE_PROXY_URL) return '';
@@ -3190,15 +3296,39 @@ function codeVerifyBadgeAll(jur){
   const id = 'cva_'+jur+'_'+Math.random().toString(36).slice(2,7);
   _codeVerifyPending.push({id, jur, all:true});
   setTimeout(_runCodeVerify, 0);
-  return `<span id="${id}" class="badge unk" style="margin-left:6px" title="Checking every cited section against Municode…">… checking Municode</span>`;
+  return `<span id="${id}" class="badge unk" style="margin-left:6px" title="Checking every cited section against Municode…">… checking Municode</span><div id="${id}_panel" class="live-panel" style="display:none"></div>`;
+}
+/* Live Code panel: every section a card relies on, with status, verified date and live text on demand.
+   Opened by clicking the card's badge. Changed sections sort first. */
+function _liveStatusDot(st){ return st==='match'?'<span class="lc-dot ok" title="unchanged since verified"></span>':st==='changed'?'<span class="lc-dot warn" title="text changed on Municode since verified"></span>':'<span class="lc-dot unk" title="'+(st==='unverified'?'fingerprinted but not yet human-verified':'could not reach Municode')+'"></span>'; }
+function _livePanelHtml(d, base){
+  const order={changed:0,unavailable:1,unverified:2,match:3};
+  const rows=Object.entries(d.sections).sort((a,b)=>(order[a[1].status]??9)-(order[b[1].status]??9)||a[0].localeCompare(b[0],undefined,{numeric:true}));
+  let h=`<div class="lc-head"><b>Live code · ${esc(d.label)}</b><span class="lc-meta">${esc(d.job||'')}${d.fetchedAt?' · checked '+new Date(d.fetchedAt).toLocaleString():''}</span></div>`;
+  h+=`<div class="lc-sum">${d.match} unchanged · ${d.changed} changed · ${d.unverified} unverified${d.unavailable?' · '+d.unavailable+' unreachable':''}</div>`;
+  for(const [sec,v] of rows){
+    const rid='lcr_'+Math.random().toString(36).slice(2,8);
+    h+=`<div class="lc-row">${_liveStatusDot(v.status)}<div class="lc-title"><b>§ ${esc(sec)}</b> <span>${esc((v.title||'').replace(/^Sec\.\s*[\d.\-]+\.?\s*-\s*/,''))}</span>${v.verified?`<span class="lc-meta"> · verified ${esc(v.verified)}</span>`:''}${v.status==='changed'?'<span class="lc-flag">re-read this section</span>':''}</div>`;
+    if(v.nodeId) h+=`<button class="lc-read" id="${rid}_btn" onclick="codeFinderRead(this,'${esc(base)}','${esc(v.productId)}','${esc(v.nodeId)}','${rid}','${esc(d.clientId||'')}')">Read</button>`;
+    h+=`</div><div id="${rid}" class="lc-body"></div>`;
+  }
+  h+=`<a class="palink" href="${esc(d.libraryUrl||'https://library.municode.com/fl')}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(d.label)} on Municode</a>`;
+  h+=`<div class="lc-meta" style="margin-top:6px">Green = the section reads exactly as it did when the table was verified. Amber = the city has amended it; read it and re-check the numbers above. The badge can't tell whether a number moved — only that the words did.</div>`;
+  return h;
+}
+function _wirePanel(el, d, base){
+  const panel=document.getElementById(el.id+'_panel'); if(!panel) return;
+  panel.innerHTML=_livePanelHtml(d, base);
+  el.style.cursor='pointer'; el.title=(el.title||'')+' — click for the live code panel';
+  el.onclick=()=>{ const open=panel.style.display!=='none'; panel.style.display=open?'none':''; el.classList.toggle('open',!open); };
 }
 async function _applyAggregate(el, jur){
-  const url = CODE_PROXY_URL.replace(/code-section$/,'code-status')+`?jur=${encodeURIComponent(jur)}`;
-  if(!_codeStatusCache[jur]) _codeStatusCache[jur] = fetch(url).then(r=>r.json());
+  if(!_codeStatusCache[jur]) _codeStatusCache[jur] = codeApi(`code-status?jur=${encodeURIComponent(jur)}`);
   const d = await _codeStatusCache[jur];
   if(!d || !d.ok) throw new Error(d && d.error || 'no data');
   const job = d.job ? ' · '+d.job : '';
   const changed = Object.entries(d.sections).filter(([,v])=>v.status==='changed').map(([k])=>'§ '+k);
+  _wirePanel(el, d, CODE_PROXY_URL.replace(/code-section$/,''));
   if(d.changed>0){
     el.className='badge sfha'; el.textContent=`! ${d.changed} of ${d.total} sections changed on Municode${job}`;
     el.title=`Changed: ${changed.join(', ')}. Re-verify those before relying on this card.`;
@@ -3225,17 +3355,26 @@ async function _runCodeVerify(){
     }
     if(item.all){
       try{ await _applyAggregate(el, jur); }
-      catch(e){ el.className='badge unk'; el.textContent='✕ live check unavailable'; el.title='Could not reach the code proxy / Municode: '+(e.message||e)+'. Static table shown.'; }
+      catch(e){
+        const msg=String(e.message||e);
+        if(/not discovered/i.test(msg)){ el.className='badge unk'; el.textContent='no Municode source for this zoning code'; el.title='This city publishes its zoning / land development code outside Municode, so there is nothing live to compare against. Verify the table against the city\'s own published code before relying on it.'; }
+        else { el.className='badge unk'; el.textContent='✕ live check unavailable'; el.title='Could not reach the code API / Municode: '+msg+'. Static table shown.'; }
+      }
       continue;
     }
     const key = jur+'|'+sec;
     try{
       if(!_codeVerifyCache[key]){
-        _codeVerifyCache[key] = fetch(`${CODE_PROXY_URL}?jur=${encodeURIComponent(jur)}&sec=${encodeURIComponent(sec)}`).then(r=>r.json());
+        _codeVerifyCache[key] = codeApi(`code-section?jur=${encodeURIComponent(jur)}&sec=${encodeURIComponent(sec)}`);
       }
       const d = await _codeVerifyCache[key];
       if(!d || !d.ok) throw new Error(d && d.error || 'no data');
       const when = d.jobMeta && d.jobMeta.name ? ' · '+d.jobMeta.name : '';
+      // click → live text of this exact section, under the badge
+      const pid='lcs_'+id; if(!document.getElementById(pid)){ const p=document.createElement('div'); p.id=pid; p.className='lc-body'; el.insertAdjacentElement('afterend',p); }
+      el.style.cursor='pointer';
+      el.onclick=()=>{ const box=document.getElementById(pid); if(box.dataset.open){ box.style.display=box.style.display==='none'?'':'none'; return; }
+        box.dataset.open='1'; box.innerHTML=`<div class="note" style="margin-top:6px;padding:8px;border:1px solid rgba(255,255,255,.1);border-radius:6px;max-height:520px;overflow:auto;font-size:12px;line-height:1.45"><div class="lc-meta">${esc(d.title||'')} · ${esc(d.jobMeta&&d.jobMeta.name||'')}${d.verified?' · verified '+esc(d.verified):''}</div><div class="live-code">${d.html||esc(d.text||'')}</div></div>`; wrapTables(box.querySelector('.live-code')); linkifyXrefs(box.querySelector('.live-code'), CODE_PROXY_URL.replace(/code-section$/,''), d.clientId, d.productId, d.nodeId); };
       if(d.status==='match'){
         el.className='badge safe'; el.textContent='✓ matches Municode'+when;
         el.title=`Live § ${sec} text matches what this table was verified against on ${d.verified||'—'}. Fetched ${new Date(d.fetchedAt).toLocaleString()}.`;
@@ -18755,6 +18894,7 @@ function renderNaplesSetbacks(districtCode, yearBuilt){
   const e=naplesSetbacks(districtCode); if(!e) return '';
   const secUrl = e.section ? municodeSection(e.section) : null;
   let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">≈ QUICK REF</span> Naples setbacks${e.label?' · '+esc(e.label):''}${e.section?' · § '+esc(e.section):''}${e.section?codeVerifyBadge('naples', e.section):''}</div>`;
+  if(e.section && CODE_PROXY_URL){ const rid='lcq_'+Math.random().toString(36).slice(2,8); h+=`<div style="margin:6px 0 2px 0"><button class="lc-read" id="${rid}_btn" onclick="codeSectionRead(this,'naples','${esc(e.section)}','${rid}')">▸ Read § ${esc(e.section)} live — the paragraph these numbers come from</button><div id="${rid}" class="lc-body"></div></div>`; }
   function block(o, heading){
     let b='';
     if(heading) b+=`<div class="field"><div class="k" style="opacity:.7">${esc(heading)}</div><div class="v"></div></div>`;
