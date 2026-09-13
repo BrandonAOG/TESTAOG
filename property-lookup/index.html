@@ -281,6 +281,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .lc-hit{display:flex;align-items:center;gap:8px;padding:4px 0} .lc-hit.dim{opacity:.7} .lc-hit-t{flex:1;min-width:0;font-size:12px}
   .lc-also{display:block;text-decoration:none;color:inherit;cursor:pointer;opacity:.8} .lc-also:hover{opacity:1}
   .lc-adopt{font-size:12px;margin:6px 0 4px 0;padding:8px;border-radius:6px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)} .lc-chip{display:inline-block;font-family:var(--mono);font-size:11px;padding:1px 7px;border-radius:4px;border:1px solid rgba(244,104,0,.45);background:rgba(244,104,0,.1);margin:1px 2px}
+  .lc-pending{margin-top:8px;padding:8px;border-radius:6px;border:1px dashed rgba(255,255,255,.3);background:rgba(255,255,255,.03);font-size:12px}
   .lc-more{font-size:11px;opacity:.75;display:inline-block;margin:2px 0 4px 0}
   .lc-zonebar{font-size:11px;margin:2px 0 6px 0;padding:3px 8px;border-radius:4px;background:rgba(244,104,0,.12);border:1px solid rgba(244,104,0,.35)} .lc-zonebar a{color:var(--signal)}
   .live-code table[data-trimmed] td:first-child,.live-code table[data-trimmed] th:first-child{opacity:.85}
@@ -3157,11 +3158,28 @@ function fillPermitLiveCode(){
 function _adoptSummary(t, jurName, top, st){
   const a = t && t.adoption; const src = top ? ` <span class="lc-meta">· per ${esc(top.title.replace(/^\s*(Sec(tion)?s?\.?|§)\s*/i,''))}</span>` : '';
   const chip=(x)=>`<span class="lc-chip">${esc(x)}</span>`;
-  // State layer: the edition actually in force, from the rule text itself.
-  const stateLine = st
-    ? `<div style="margin-top:6px"><b>State edition in force</b> <span class="lc-meta">· ${esc(st.rule)}, read live from flrules.org${st.effective?' · effective '+esc(st.effective):''}</span><br>${st.edition?chip('Florida Fire Prevention Code, '+st.edition):''} ${(st.nfpa||[]).map(n=>chip('NFPA '+n.std+' ('+n.edition+')')).join(' ')}</div>`
-    : `<div class="lc-meta" style="margin-top:6px">State rule (F.A.C. 69A-60) couldn't be read just now — the edition in force is set there, not locally.</div>`;
-  const implied = `<div class="lc-meta" style="margin-top:4px">For a generator job that means: <b>NFPA 37</b> (5 ft from openings / combustible walls unless listed closer), <b>NFPA 58</b> (LP tank distances), <b>NFPA 54</b> (gas piping), <b>NFPA 70</b> (NEC — transfer switch, bonding). Confirm the current edition with the fire marshal.</div>`;
+  // State layer: F.A.C. 69A-60.002 — effective date + history from the rule page; edition/NFPA years from the
+  // rule document when it can be read; pending rulemaking when one is published. All live, nothing assumed.
+  let stateLine;
+  if(st){
+    const eds = st.edition ? chip('Florida Fire Prevention Code, '+st.edition) : '';
+    const nf  = (st.nfpa||[]).map(n=>chip('NFPA '+n.std+' ('+n.edition+')')).join(' ');
+    let pend = '';
+    if(st.pending){
+      const P = st.pending;
+      pend = `<div class="lc-pending"><div><b>⏳ In the works — ${esc(P.edition)}</b> <span class="lc-meta">· ${esc(P.status)} ${esc(P.published)}${P.noticeUrl?` · <a href="${esc(P.noticeUrl)}" target="_blank" rel="noopener">notice</a>`:''}</span></div>`
+           + (P.effective ? `<div>Anticipated effective: <b>${esc(P.effective)}</b></div>` : `<div class="lc-meta">Effective date not stated in the notice yet (FFPC editions have historically taken effect Dec 31 of the adoption year).</div>`)
+           + ((P.nfpa&&P.nfpa.length) ? `<div style="margin-top:3px">${P.nfpa.map(n=>chip('NFPA '+n.std+' ('+n.edition+')')).join(' ')}</div>` : '')
+           + (P.hearing ? `<div class="lc-meta">Hearing: ${esc(P.hearing)}</div>` : '')
+           + (P.summary ? `<div class="lc-meta" style="margin-top:3px">${esc(P.summary)}</div>` : '')
+           + `<div class="lc-meta" style="margin-top:3px">Not in force until the rule is final. On jobs near the changeover, confirm which edition the fire marshal will apply at inspection.</div></div>`;
+    }
+    const doc = st.ruleDoc ? ` · <a href="${esc(st.ruleDoc)}" target="_blank" rel="noopener">rule document</a>` : '';
+    const body = (eds||nf) ? `${eds} ${nf}` : `<span class="lc-meta">Edition and NFPA years are in the rule document, not on the page${st.notes&&st.notes.length?' — '+esc(st.notes[0]):''}. Rule last amended ${esc(st.amendments&&st.amendments.length?st.amendments[st.amendments.length-1]:st.effective||'—')}.</span>`;
+    stateLine = `<div style="margin-top:6px"><b>State rule in force</b> <span class="lc-meta">· ${esc(st.rule)} · effective ${esc(st.effective||'—')} · <a href="${esc(st.source)}" target="_blank" rel="noopener">flrules.org</a>${doc}</span><br>${body}</div>${pend}`;
+  } else {
+    stateLine = `<div class="lc-meta" style="margin-top:6px">State rule (F.A.C. 69A-60.002) couldn't be read just now — the edition in force is set there, not locally. <a href="https://www.flrules.org/gateway/ruleNo.asp?id=69A-60.002" target="_blank" rel="noopener">Open it</a>.</div>`;
+  }
   if(a && a.count){
     return `<div><b>${esc(jurName)}</b> adopts${src}: ${a.nfpa.map(n=>chip('NFPA '+n.std+(n.edition?' ('+n.edition+')':''))).join(' ')}${a.ffpc?' '+chip('Florida Fire Prevention Code'+(a.ffpc!=='adopted'?' '+a.ffpc:'')):''}${a.fbc?' '+chip('Florida Building Code '+a.fbc):''}</div>${stateLine}${implied}`;
   }
@@ -3329,7 +3347,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-13f";
+const CODE_API_VERSION = "2026-09-13h";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
