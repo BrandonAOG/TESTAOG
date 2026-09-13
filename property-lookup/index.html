@@ -265,7 +265,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .badge.unk{color:var(--dim);border-color:var(--unk-line);background:var(--unk-bg)}
   .live-code{max-width:100%;min-width:0;overflow-wrap:anywhere} .live-code .tbl-scroll{overflow-x:auto;max-width:100%;margin:6px 0;-webkit-overflow-scrolling:touch} .live-code table{border-collapse:collapse;margin:0;font-size:11px;width:max-content;max-width:none} .live-code td,.live-code th{border:1px solid rgba(255,255,255,.15);padding:2px 6px;vertical-align:top;white-space:normal;min-width:48px} .live-code p{margin:4px 0}
   .lc-body,.lc-xbox,.live-panel,.lc-xcard{min-width:0;max-width:100%} .live-code img{max-width:100%;height:auto;display:block;margin:6px 0;border-radius:4px;background:#fff}
-  .live-panel{margin:8px 0 4px 0;padding:10px 12px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(0,0,0,.18)}
+  .live-panel{display:block;width:100%;box-sizing:border-box;margin:8px 0 4px 0;padding:10px 12px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(0,0,0,.18)}
   .lc-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:12px}
   .lc-sum{font-family:var(--mono);font-size:11px;opacity:.75;margin:2px 0 6px 0}
   .lc-meta{font-size:11px;opacity:.65}
@@ -3360,7 +3360,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-13q";
+const CODE_API_VERSION = "2026-09-13r";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
@@ -3416,6 +3416,9 @@ function _livePanelHtml(d, base){
 }
 function _wirePanel(el, d, base){
   const panel=document.getElementById(el.id+'_panel'); if(!panel) return;
+  // The panel is created inline next to the badge; move it out of the header line so it spans the card.
+  const hdr = el.closest('.freshline') || el.parentElement;
+  if(hdr && panel.parentElement !== hdr.parentElement) hdr.insertAdjacentElement('afterend', panel);
   panel.innerHTML=_livePanelHtml(d, base);
   el.style.cursor='pointer'; el.title=(el.title||'')+' — click for the live code panel';
   el.onclick=()=>{ const open=panel.style.display!=='none'; panel.style.display=open?'none':''; el.classList.toggle('open',!open); };
@@ -3469,7 +3472,7 @@ async function _runCodeVerify(){
       if(!d || !d.ok) throw new Error(d && d.error || 'no data');
       const when = d.jobMeta && d.jobMeta.name ? ' · '+d.jobMeta.name : '';
       // click → live text of this exact section, under the badge
-      const pid='lcs_'+id; if(!document.getElementById(pid)){ const p=document.createElement('div'); p.id=pid; p.className='lc-body'; el.insertAdjacentElement('afterend',p); }
+      const pid='lcs_'+id; if(!document.getElementById(pid)){ const p=document.createElement('div'); p.id=pid; p.className='lc-body'; const hdr=el.closest('.freshline')||el.parentElement; (hdr||el).insertAdjacentElement('afterend',p); }
       el.style.cursor='pointer';
       el.onclick=()=>{ const box=document.getElementById(pid); if(box.dataset.open){ box.style.display=box.style.display==='none'?'':'none'; return; }
         box.dataset.open='1'; box.innerHTML=`<div class="note" style="margin-top:6px;padding:8px;border:1px solid rgba(255,255,255,.1);border-radius:6px;max-height:520px;overflow:auto;font-size:12px;line-height:1.45"><div class="lc-meta">${esc(d.title||'')} · ${esc(d.jobMeta&&d.jobMeta.name||'')}${d.verified?' · verified '+esc(d.verified):''}</div><div class="live-code">${d.html||esc(d.text||'')}</div></div>`; wrapTables(box.querySelector('.live-code')); linkifyXrefs(box.querySelector('.live-code'), CODE_PROXY_URL.replace(/code-section$/,''), d.clientId, d.productId, d.nodeId); };
