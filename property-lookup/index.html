@@ -275,7 +275,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .lc-dot{width:9px;height:9px;border-radius:50%;flex:none;display:inline-block}
   .lc-dot.ok{background:var(--good)} .lc-dot.warn{background:var(--warn);box-shadow:0 0 0 3px rgba(255,180,0,.2)} .lc-dot.unk{background:rgba(255,255,255,.3)}
   .lc-read{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:5px;border:1px solid rgba(255,255,255,.2);background:transparent;color:inherit;cursor:pointer}
-  .lc-read:hover{border-color:var(--signal)} .lc-body{padding-left:17px}
+  .lc-read:hover{border-color:var(--signal)} .lc-body{padding-left:0}
   .badge.open{outline:1px solid var(--signal)}
   .lc-topic{margin-top:10px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08)} .lc-topic-h{font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;opacity:.8;margin-bottom:4px}
   .lc-hit{display:flex;align-items:center;gap:8px;padding:4px 0} .lc-hit.dim{opacity:.7} .lc-hit-t{flex:1;min-width:0;font-size:12px}
@@ -287,7 +287,8 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .live-code table[data-trimmed] td:first-child,.live-code table[data-trimmed] th:first-child{opacity:.85}
   .lc-xref{color:var(--signal);text-decoration:underline dotted;text-underline-offset:2px;cursor:pointer;font-weight:600}
   .lc-xref:hover{text-decoration-style:solid}
-  .lc-xbox{margin:6px 0 6px 0} .lc-xcard{padding:8px;border:1px solid rgba(244,104,0,.35);border-left:3px solid var(--signal);border-radius:6px;max-height:420px;overflow:auto;font-size:12px}
+  .lc-xbox{margin:6px 0 6px 0} .lc-xcard{padding:8px 8px 8px 10px;border:1px solid rgba(244,104,0,.35);border-left:3px solid var(--signal);border-radius:6px;max-height:420px;overflow:auto;font-size:12px}
+  .lc-body .note{margin-left:0!important} .live-panel .lc-body{margin-left:0}
   .lc-xclose{margin-left:8px;opacity:.7}
   .badge.stalled{color:var(--warn);border-color:var(--warn);background:transparent}
   /* Per-card retry. Lives in the card header (.ch) so it sits with the card it re-runs, and in
@@ -3250,6 +3251,9 @@ function linkifyXrefs(root, base, clientId, productId, selfNodeId){
       const kind=m[1].trim().toLowerCase(), num=m[2];
       // skip trivial refs: single small numbers after "table"/"chapter" inside their own section are usually local
       if(/^(table|chapter|article|division)/.test(kind) && !/[.\-]/.test(num) && !/^(chapter)/.test(kind)) continue;
+      // "§ 2" / "Sec. 1" without a dash or dot is an ordinance clause in a history line, not a code section
+      if(/^(§|sec)/.test(kind) && !/[.\-]/.test(num) && num.replace(/\D/g,'').length < 3) continue;
+      if(/Ord\.\s*No\./i.test(str.slice(Math.max(0,m.index-40), m.index))) continue;
       frag.appendChild(document.createTextNode(str.slice(last, m.index)));
       const a=document.createElement('a'); a.className='lc-xref'; a.textContent=m[0]; a.href='#'; a.title=`Open ${m[0]} live`;
       const q = /^chapter/.test(kind) ? `Chapter ${num}` : /^(table)/.test(kind) ? `Table ${num}` : num;
@@ -3356,7 +3360,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-13p";
+const CODE_API_VERSION = "2026-09-13q";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
