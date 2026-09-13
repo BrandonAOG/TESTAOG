@@ -3360,7 +3360,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-13s";
+const CODE_API_VERSION = "2026-09-13t";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
@@ -3935,6 +3935,7 @@ const ZONING_LIVE = {
     "https://mapping.pascopa.com/arcgis/rest/services/Land_Use/MapServer/1/query"
   ]},
   LEE: { label:"Lee County DCD Zoning",
+    additive:true,                            // the urls below are DIFFERENT areas (unincorporated + each city), not mirrors
     codeField:"ZONING",                       // ZONE / GeneralZoning are null countywide; ZONING is the district
     // POINT LOOKUP is jurisdiction-aware: DCD_Zoning is split into per-municipality sublayers, and only
     // the sublayer containing this parcel can ever match — so queryZoning fires the SINGLE sublayer keyed
@@ -8942,15 +8943,21 @@ async function jurisdictionsInView(){
   // call has no fallback path, so it must not depend on the server supporting a filter).
   const q=`?geometry=${geom}&geometryType=esriGeometryMultipoint&inSR=4326&spatialRel=esriSpatialRelIntersects`+
     `&where=1%3D1&outFields=NAME,CLASSFP,LSAD&returnGeometry=false&f=json`;
+  // County layer: don't assume the field is NAME — ask for everything and take the first county-looking field.
+  const qCounty=`?geometry=${geom}&geometryType=esriGeometryMultipoint&inSR=4326&spatialRel=esriSpatialRelIntersects`+
+    `&where=1%3D1&outFields=*&returnGeometry=false&f=json`;
   const get=u=>fetch(u).then(r=>r.ok?r.json():null).catch(()=>null);
+  const countyNameOf=(a)=>{ if(!a) return ''; for(const k of ['NAME','COUNTY','COUNTYNAME','COUNTY_NAME','NAME_1','CNTYNAME','DESCRIPT','NAMELSAD']){ if(a[k]) return String(a[k]).replace(/\s+county\s*$/i,'').trim(); }
+    const k=Object.keys(a).find(k=>/name|county/i.test(k) && typeof a[k]==='string' && a[k].trim()); return k?String(a[k]).replace(/\s+county\s*$/i,'').trim():''; };
   let cities=[], counties=[];
   try{
-    const [cy,co]=await Promise.all([ get(EP.city+q), get(EP.county+q) ]);
+    const [cy,co]=await Promise.all([ get(EP.city+q), get(EP.county+qCounty) ]);
     // Incorporated places only. A CDP matches no ZONING_LIVE_CITY key so it drew nothing, but it
     // did reach the "Zoning set to …" toast, which named Orangetree as a jurisdiction.
     cities  = [...new Set((cy&&cy.features||[]).filter(f=>isIncorporatedPlace(f&&f.attributes))
                 .map(f=>(f.attributes&&f.attributes.NAME||'').trim()).filter(Boolean))];
-    counties= [...new Set((co&&co.features||[]).map(f=>(f.attributes&&f.attributes.NAME||'').trim()).filter(Boolean))];
+    counties= [...new Set((co&&co.features||[]).map(f=>countyNameOf(f&&f.attributes)).filter(Boolean))];
+    if(!counties.length && co && co.features && co.features.length) console.warn('[zoning overlay] county layer returned features but no recognisable name field:', Object.keys(co.features[0].attributes||{}));
   }catch(e){}
   _zjCache={key,cities,counties,t:Date.now()};
   return {cities,counties};
