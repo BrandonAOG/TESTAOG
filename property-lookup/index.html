@@ -277,6 +277,11 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .lc-read{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:5px;border:1px solid rgba(255,255,255,.2);background:transparent;color:inherit;cursor:pointer}
   .lc-read:hover{border-color:var(--signal)} .lc-body{padding-left:17px}
   .badge.open{outline:1px solid var(--signal)}
+  .lc-topic{margin-top:10px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08)} .lc-topic-h{font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;opacity:.8;margin-bottom:4px}
+  .lc-hit{display:flex;align-items:center;gap:8px;padding:4px 0} .lc-hit.dim{opacity:.7} .lc-hit-t{flex:1;min-width:0;font-size:12px}
+  .lc-more{font-size:11px;opacity:.75;display:inline-block;margin:2px 0 4px 0}
+  .lc-zonebar{font-size:11px;margin:2px 0 6px 0;padding:3px 8px;border-radius:4px;background:rgba(244,104,0,.12);border:1px solid rgba(244,104,0,.35)} .lc-zonebar a{color:var(--signal)}
+  .live-code table[data-trimmed] td:first-child,.live-code table[data-trimmed] th:first-child{opacity:.85}
   .lc-xref{color:var(--signal);text-decoration:underline dotted;text-underline-offset:2px;cursor:pointer;font-weight:600}
   .lc-xref:hover{text-decoration-style:solid}
   .lc-xbox{margin:6px 0 6px 0} .lc-xcard{padding:8px;border:1px solid rgba(244,104,0,.35);border-left:3px solid var(--signal);border-radius:6px;max-height:420px;overflow:auto;font-size:12px}
@@ -3115,34 +3120,34 @@ function _finderHtml(d, it, base){
     }
     return `<div class="freshline snap"><span class="badge unk">▤ LIVE CODE</span> Municode lookup unavailable</div><div class="note">${esc((d&&d.error)||'no data')}</div>`;
   }
-  let h = `<div class="freshline snap"><span class="badge live">● LIVE CODE</span> ${esc(d.client.name)} on Municode${d.fellBack?' <span class="badge unk" style="margin-left:6px" title="The city is not on Municode, or has no code of its own; showing the county&#39;s code.">county code shown</span>':''}</div>`;
+  const zone = d.zone || '';
+  let h = `<div class="freshline snap"><span class="badge live">● LIVE CODE</span> ${esc(d.client.name)}${zone?` · <b>${esc(zone)}</b>`:''}${d.fellBack?' <span class="badge unk" style="margin-left:6px" title="The city is not on Municode, or has no code of its own; showing the county&#39;s code.">county code</span>':''}</div>`;
   const autoOpen = [];
-  const list = (grp, heading, empty, openFirst) => {
+  const group = (grp, openFirst, empty) => {
     if(!grp) return '';
-    let first = true;
-    let g = `<div class="note" style="padding-top:8px"><b>${esc(heading)}</b>${grp.total?` <span style="opacity:.7">· ${grp.total} hit${grp.total===1?'':'s'} in the code${grp.hits.length<grp.total?', best '+grp.hits.length+' shown':''}</span>`:''}</div>`;
-    if(!grp.hits.length) return g + `<div class="note" style="opacity:.8">${esc(empty)}</div>`;
-    for(const x of grp.hits){
-      const tid = 'cft_'+Math.random().toString(36).slice(2,8);
-      g += `<div class="note" style="padding:6px 0 2px 0;border-top:1px solid rgba(255,255,255,.06)">
-        <div><b>${esc(x.title)}</b> <span style="opacity:.6">· ${esc(x.productName)}</span></div>
-        ${x.breadcrumb.length?`<div style="opacity:.65;font-size:11px">${esc(x.breadcrumb.join(' › '))}</div>`:''}
-        ${x.snippet?`<div style="opacity:.85;font-size:12px;margin-top:2px">…${esc(x.snippet)}…</div>`:''}
-        <button class="palink" style="margin-top:4px;cursor:pointer" id="${tid}_btn" onclick="codeFinderRead(this,'${esc(base)}','${esc(x.productId)}','${esc(x.nodeId)}','${tid}','${esc(d.client.id)}')">▸ Read live text</button>
-        <div id="${tid}"></div>
-      </div>`;
-      if(openFirst && first){ autoOpen.push({tid, productId:x.productId, nodeId:x.nodeId}); }
-      first = false;
+    let g = `<div class="lc-topic"><div class="lc-topic-h">${esc(grp.label)}</div>`;
+    if(!grp.hits.length) return g + `<div class="lc-meta">${esc(empty)}</div></div>`;
+    const row = (x, dim) => {
+      const tid='cft_'+Math.random().toString(36).slice(2,8);
+      const t = x.title.replace(/^\s*(Sec(tion)?s?\.?|§)\s*/i,'');
+      return `<div class="lc-hit${dim?' dim':''}"><div class="lc-hit-t"><b>${esc(t)}</b><span class="lc-meta"> · ${esc(x.productName)}${x.breadcrumb.length?' › '+esc(x.breadcrumb[x.breadcrumb.length-1]):''}</span></div>
+        <button class="lc-read" id="${tid}_btn" onclick="codeFinderRead(this,'${esc(base)}','${esc(x.productId)}','${esc(x.nodeId)}','${tid}','${esc(d.client.id)}','${esc(zone)}')">Read</button></div><div id="${tid}" class="lc-body"></div>`;
+    };
+    grp.hits.forEach((x,i)=>{ const html=row(x,false); g+=html; if(openFirst && i===0){ const m=html.match(/id="(cft_\w+)_btn"/); if(m) autoOpen.push({tid:m[1], productId:x.productId, nodeId:x.nodeId}); } });
+    if(grp.more && grp.more.length){
+      const mid='cfm_'+Math.random().toString(36).slice(2,8);
+      g += `<a href="#" class="lc-more" onclick="document.getElementById('${mid}').style.display='';this.style.display='none';return false">+ ${grp.more.length} more</a><div id="${mid}" style="display:none">${grp.more.map(x=>row(x,true)).join('')}</div>`;
     }
-    return g;
+    return g + `</div>`;
   };
-  h += list(d.generator, 'Generator / mechanical-equipment rules — best match opened', 'No generator-specific section found. Look under accessory structures, mechanical equipment, or noise.', true);
-  h += list(d.fuel, 'Fuel — propane / LP tanks / natural gas', 'No fuel-specific section found in this code. LP tank placement then defaults to the Florida Fire Prevention Code (NFPA 58) and NFPA 54 for gas piping — check the county fire marshal.', false);
-  h += list(d.district, d.zone?`Standards for "${d.zone}" — best match opened`:'', `No section title mentions "${d.zone}". The district may be spelled differently in the code (e.g. "RSF-3" vs "RSF 3"), or defined in a table that lists several districts together — open the code and search the table of contents.`, true);
-  h += `<a class="palink" href="${esc(d.client.libraryUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Open ${esc(d.client.name)} on Municode</a>`;
-  // Open the best district hit and the best generator hit automatically once the card is in the DOM.
-  if(autoOpen.length) setTimeout(()=>{ for(const a of autoOpen){ const b=document.getElementById(a.tid+'_btn'); if(b) codeFinderRead(b, base, a.productId, a.nodeId, a.tid, d.client.id); } }, 50);
-  h += `<div class="note warnbox" style="margin-top:6px"><b>Live text, not a parsed number.</b> These are Municode's own section titles and text as published today. Read the section; where a table lists several districts, find this parcel's row. Codes lag newly adopted ordinances by weeks to months.</div>`;
+  h += group(d.mechanical, true, 'No mechanical-equipment or generator section in this code. The county fire marshal and NFPA 37 govern placement.');
+  h += group(d.setbacks, true, zone?`No section title names "${zone}" or "setbacks". Open the code from the link below and search its table of contents.`:'No setback section found.');
+  h += group(d.gas, false, 'No LP / fuel section in this code — NFPA 58 (LP) and NFPA 54 (gas piping) apply via the Florida Fire Prevention Code.');
+  if(window.__parcelSFHA===true) h += group(d.flood, false, 'No local flood ordinance section found; FBC / ASCE 24 elevation rules apply.');
+  else if(window.__parcelSFHA===undefined && d.flood && d.flood.hits.length){ h += `<div class="lc-meta" id="cff_${Math.random().toString(36).slice(2,6)}" data-flood="1">Flood zone not yet known — flood-ordinance sections will appear here if the parcel is in a Special Flood Hazard Area.</div>`; }
+  if(autoOpen.length) setTimeout(()=>{ for(const a of autoOpen){ const b=document.getElementById(a.tid+'_btn'); if(b) codeFinderRead(b, base, a.productId, a.nodeId, a.tid, d.client.id, zone); } }, 50);
+  h += `<a class="palink" href="${esc(d.client.libraryUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(d.client.name)} on Municode</a>`;
+  h += `<div class="lc-meta" style="margin-top:6px">Live Municode text as published today (codes lag new ordinances by weeks to months). Tables are trimmed to ${zone?esc(zone):'this district'} where the code tabulates several districts — tap "all districts" to see the full table.</div>`;
   return h;
 }
 
@@ -3207,21 +3212,23 @@ async function codeSectionRead(btn, jur, sec, tid){
   }catch(e){ box.innerHTML=`<div class="note">Couldn't fetch: ${esc(e.message||String(e))}</div>`; btn.textContent=`▸ Read § ${sec} live`; }
   btn.disabled=false;
 }
-async function codeFinderRead(btn, base, productId, nodeId, tid, clientId){
+async function codeFinderRead(btn, base, productId, nodeId, tid, clientId, zone){
   const box = document.getElementById(tid); if(!box) return;
-  if(box.dataset.open){ box.style.display = box.style.display==='none'?'':'none'; btn.textContent = box.style.display==='none'?'▸ Read live text':'▾ Hide'; return; }
-  btn.textContent = '… fetching'; btn.disabled = true;
+  if(box.dataset.open){ box.style.display = box.style.display==='none'?'':'none'; btn.textContent = box.style.display==='none'?'Read':'Hide'; return; }
+  btn.textContent = '…'; btn.disabled = true;
   try{
-    const d = await codeApi(`code-text?productId=${encodeURIComponent(productId)}&nodeId=${encodeURIComponent(nodeId)}`);
+    const d = await codeApi(`code-text?productId=${encodeURIComponent(productId)}&nodeId=${encodeURIComponent(nodeId)}${zone?'&zone='+encodeURIComponent(zone):''}`);
     if(!d.ok) throw new Error(d.error||'no data');
     box.dataset.open='1';
-    box.innerHTML = `<div class="note" style="margin-top:6px;padding:8px;border:1px solid rgba(255,255,255,.1);border-radius:6px;max-height:520px;overflow:auto;font-size:12px;line-height:1.45">
-      <div style="opacity:.6;font-size:11px;margin-bottom:4px">${esc(d.job||'')}${d.published?' · published '+esc(String(d.published).slice(0,10)):''}</div>
-      <div class="live-code">${d.html || esc(d.text||'')}</div>
+    const zid='cfz_'+Math.random().toString(36).slice(2,8);
+    const zoneBar = d.htmlZone ? `<div class="lc-zonebar">Showing <b>${esc(d.zone)}</b> only · <a href="#" onclick="var a=document.getElementById('${zid}_all'),z=document.getElementById('${zid}_zone');var on=a.style.display==='none';a.style.display=on?'':'none';z.style.display=on?'none':'';this.textContent=on?'this district only':'all districts';return false">all districts</a></div>` : '';
+    box.innerHTML = `<div class="note" style="margin-top:6px;padding:8px;border:1px solid rgba(255,255,255,.1);border-radius:6px;max-height:560px;overflow:auto;font-size:12px;line-height:1.45">
+      <div style="opacity:.6;font-size:11px;margin-bottom:4px">${esc(d.title||'')} · ${esc(d.job||'')}${d.published?' · published '+esc(String(d.published).slice(0,10)):''}</div>
+      ${zoneBar}
+      ${d.htmlZone?`<div class="live-code" id="${zid}_zone">${d.htmlZone}</div><div class="live-code" id="${zid}_all" style="display:none">${d.html||''}</div>`:`<div class="live-code">${d.html || esc(d.text||'')}</div>`}
       <div class="live-code-tables"></div></div>`;
-    btn.textContent = '▾ Hide';
-    wrapTables(box.querySelector('.live-code'));
-    linkifyXrefs(box.querySelector('.live-code'), base, clientId, productId, nodeId);
+    btn.textContent = 'Hide';
+    for(const lc of box.querySelectorAll('.live-code')){ wrapTables(lc); linkifyXrefs(lc, base, clientId, productId, nodeId); }
     // The section points at a table it doesn't contain ("See Table 4.2-4 below") → go get the table.
     if(!d.hasTable && !d.hasImage && d.tableRefs && d.tableRefs.length && clientId){
       const slot = box.querySelector('.live-code-tables');
@@ -3231,15 +3238,15 @@ async function codeFinderRead(btn, base, productId, nodeId, tid, clientId){
         try{
           const r = await codeApi(`code-search?clientId=${encodeURIComponent(clientId)}&q=${encodeURIComponent('"Table '+ref+'"')}&titlesOnly=1`);
           const hit = r.ok && r.hits.find(h=>h.nodeId!==nodeId && new RegExp(ref.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i').test(h.title));
-          if(hit){ const t = await codeApi(`code-text?productId=${encodeURIComponent(hit.productId)}&nodeId=${encodeURIComponent(hit.nodeId)}`); if(t.ok) found.push({ref, hit, t}); }
+          if(hit){ const t = await codeApi(`code-text?productId=${encodeURIComponent(hit.productId)}&nodeId=${encodeURIComponent(hit.nodeId)}${zone?'&zone='+encodeURIComponent(zone):''}`); if(t.ok) found.push({ref, hit, t}); }
         }catch(e){}
       }
       slot.innerHTML = found.length
-        ? found.map(f=>`<div style="margin-top:8px;padding-top:6px;border-top:1px dashed rgba(255,255,255,.15)"><b>${esc(f.t.title||('Table '+f.ref))}</b> <span style="opacity:.6;font-size:11px">· ${esc(f.hit.productName)}</span><div class="live-code">${f.t.html||esc(f.t.text||'')}</div></div>`).join('')
+        ? found.map(f=>`<div style="margin-top:8px;padding-top:6px;border-top:1px dashed rgba(255,255,255,.15)"><b>${esc(f.t.title||('Table '+f.ref))}</b> <span style="opacity:.6;font-size:11px">· ${esc(f.hit.productName)}</span><div class="live-code">${f.t.htmlZone||f.t.html||esc(f.t.text||'')}</div></div>`).join('')
         : `<div style="opacity:.7;font-size:11px;margin-top:6px">The referenced table isn't a separate searchable section on Municode — it's inside a parent article or published as an image there. Use the Municode link below and open the parent section.</div>`;
       wrapTables(slot);
     }
-  }catch(e){ box.innerHTML = `<div class="note">Couldn't fetch: ${esc(e.message||String(e))}</div>`; btn.textContent='▸ Read live text'; }
+  }catch(e){ box.innerHTML = `<div class="note">Couldn't fetch: ${esc(e.message||String(e))}</div>`; btn.textContent='Read'; }
   btn.disabled = false;
 }
 /* ---------- LIVE code verification (Municode via your Vercel proxy) ----------
@@ -3309,7 +3316,7 @@ function _livePanelHtml(d, base){
   for(const [sec,v] of rows){
     const rid='lcr_'+Math.random().toString(36).slice(2,8);
     h+=`<div class="lc-row">${_liveStatusDot(v.status)}<div class="lc-title"><b>§ ${esc(sec)}</b> <span>${esc((v.title||'').replace(/^Sec\.\s*[\d.\-]+\.?\s*-\s*/,''))}</span>${v.verified?`<span class="lc-meta"> · verified ${esc(v.verified)}</span>`:''}${v.status==='changed'?'<span class="lc-flag">re-read this section</span>':''}</div>`;
-    if(v.nodeId) h+=`<button class="lc-read" id="${rid}_btn" onclick="codeFinderRead(this,'${esc(base)}','${esc(v.productId)}','${esc(v.nodeId)}','${rid}','${esc(d.clientId||'')}')">Read</button>`;
+    if(v.nodeId) h+=`<button class="lc-read" id="${rid}_btn" onclick="codeFinderRead(this,'${esc(base)}','${esc(v.productId)}','${esc(v.nodeId)}','${rid}','${esc(d.clientId||'')}','')">Read</button>`;
     h+=`</div><div id="${rid}" class="lc-body"></div>`;
   }
   h+=`<a class="palink" href="${esc(d.libraryUrl||'https://library.municode.com/fl')}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(d.label)} on Municode</a>`;
@@ -21301,6 +21308,7 @@ async function _runLookupInner(lat,lng,searchCtx){
      trips on a stall; abandoning fast and reconnecting is the entire fix. Four attempts takes the
      miss rate from ~40% to ~3% while the typical lookup still costs ~85 ms. growOnAbort:false
      because widening the window would only make each dead attempt more expensive. */
+  window.__parcelSFHA = undefined;
   const pFlood   = _timed('flood (FEMA)', arcQueryRetry(EP.flood, lat, lng, 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF', false, 2500, 4, true, false)).catch(e=>({__err:e.message}));
   // NAME alone can't tell a municipality from a CDP — pull the Census class fields too, so
   // isIncorporatedPlace() can reject unincorporated communities (see below).
@@ -23674,7 +23682,7 @@ async function _runLookupInner(lat,lng,searchCtx){
     nfhlZone=zone;
     if(window.__exportData && zone) window.__exportData.floodZone=String(zone);
     const sub=z.ZONE_SUBTY&&z.ZONE_SUBTY.trim()?z.ZONE_SUBTY:null;
-    const sfha=(z.SFHA_TF==='T');
+    const sfha=(z.SFHA_TF==='T'); window.__parcelSFHA = sfha;
     const bfe=(z.STATIC_BFE!=null && Number(z.STATIC_BFE)>-9999) ? Number(z.STATIC_BFE) : null;
     const depth=(z.DEPTH!=null && Number(z.DEPTH)>-9999 && Number(z.DEPTH)!==0)?Number(z.DEPTH):null;
     // Carry the Base Flood Elevation (or, failing that, the base flood depth) into the
