@@ -3360,7 +3360,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-13t";
+const CODE_API_VERSION = "2026-09-13u";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
@@ -5081,7 +5081,7 @@ function updateLocalAerial(force){
   try{
     arcQuery(EP.county, c.lat, c.lng, 'NAME', false, 5000).then(a=>{
       if(seq!==_localSeq) return;                // a newer pan superseded this
-      const nm = a && (a.NAME||a.name);
+      const nm = a && (countyNameOf(a)||a.NAME||a.name);
       if(!nm) return;                            // query failed → keep the box guess
       const key = localKeyFromCountyName(nm);    // null if that county isn't wired/live → Esri fallback
       if(key!==_localActiveKey) _applyLocalKey(key);
@@ -5702,6 +5702,10 @@ const BOUNDS_FORCE_INCLUDE = [ { like:'ESTERO', norm:'ESTERO' } ];
    force-include list (newer incorporations like Estero) and an explicit name pattern. If nothing
    identifies it as incorporated, treat it as NOT — on this tool "unincorporated county" is the
    safe default, because the county is always a real permitting authority and a CDP never is. */
+/* County name off an FDOT county-boundary feature, whatever the field is called. NAME is what the layer uses
+   today; the fallbacks protect every county read on this page from a schema rename. */
+function countyNameOf(a){ if(!a) return ''; for(const k of ['NAME','COUNTY','COUNTYNAME','COUNTY_NAME','NAME_1','CNTYNAME','DESCRIPT','NAMELSAD']){ if(a[k]) return String(a[k]).replace(/\s+county\s*$/i,'').trim(); }
+  const k=Object.keys(a).find(k=>/name|county/i.test(k) && typeof a[k]==='string' && a[k].trim()); return k?String(a[k]).replace(/\s+county\s*$/i,'').trim():''; }
 function isIncorporatedPlace(p){
   if(!p) return false;
   const nm = String(p.NAME || p.name || '');
@@ -5711,6 +5715,12 @@ function isIncorporatedPlace(p){
   // Newer incorporations first. FDOT's layer is Census-derived and lags: it still classes the Village of
   // Estero (incorporated 31 Dec 2014) as a CDP, so CLASSFP is wrong there and must not get the last word.
   if(BOUNDS_FORCE_INCLUDE.some(w=>n===w.norm || n===w.norm+'VILLAGE' || n==='VILLAGEOF'+w.norm)) return true;
+  // This tool's own incorporated-city sets outrank FDOT's classification too (exact name or name+legal suffix).
+  try{
+    const _forms0=[n, n+'CITY', n+'TOWN', n+'VILLAGE'];
+    for(const S of [COLLIER_INCORP, LEE_INCORP, CHARLOTTE_INCORP, SARASOTA_INCORP, HENDRY_INCORP])
+      if(S) for(const f of _forms0) if(S.has(f)) return true;
+  }catch(_){}
   if(c) return c.charAt(0)==='C';                                                  // authoritative otherwise
   if(l) return l==='25'||l==='43'||l==='47'||l==='21'||l==='53'||l==='62';         // city/town/village LSADs
   if(BOUNDS_FORCE_INCLUDE.some(w=>n.indexOf(w.norm)!==-1)) return true;
@@ -8943,12 +8953,11 @@ async function jurisdictionsInView(){
   // call has no fallback path, so it must not depend on the server supporting a filter).
   const q=`?geometry=${geom}&geometryType=esriGeometryMultipoint&inSR=4326&spatialRel=esriSpatialRelIntersects`+
     `&where=1%3D1&outFields=NAME,CLASSFP,LSAD&returnGeometry=false&f=json`;
-  // County layer: don't assume the field is NAME — ask for everything and take the first county-looking field.
+  // County layer: it has no CLASSFP/LSAD, and ArcGIS rejects a query naming fields the layer lacks — that error is
+  // why the overlay never saw a county. Ask for everything and take the county-looking field.
   const qCounty=`?geometry=${geom}&geometryType=esriGeometryMultipoint&inSR=4326&spatialRel=esriSpatialRelIntersects`+
     `&where=1%3D1&outFields=*&returnGeometry=false&f=json`;
   const get=u=>fetch(u).then(r=>r.ok?r.json():null).catch(()=>null);
-  const countyNameOf=(a)=>{ if(!a) return ''; for(const k of ['NAME','COUNTY','COUNTYNAME','COUNTY_NAME','NAME_1','CNTYNAME','DESCRIPT','NAMELSAD']){ if(a[k]) return String(a[k]).replace(/\s+county\s*$/i,'').trim(); }
-    const k=Object.keys(a).find(k=>/name|county/i.test(k) && typeof a[k]==='string' && a[k].trim()); return k?String(a[k]).replace(/\s+county\s*$/i,'').trim():''; };
   let cities=[], counties=[];
   try{
     const [cy,co]=await Promise.all([ get(EP.city+q), get(EP.county+qCounty) ]);
@@ -21442,7 +21451,7 @@ async function _runLookupInner(lat,lng,searchCtx){
   { const _r = await Promise.all([pCity, pCounty, pLive]);
     city=_r[0]; county=_r[1]; live=_r[2];
     if(myId!==runId) return;
-    const _cn0 = (!county.__err && county.features && county.features[0]) ? county.features[0].attributes.NAME : null;
+    const _cn0 = (!county.__err && county.features && county.features[0]) ? (countyNameOf(county.features[0].attributes)||county.features[0].attributes.NAME) : null;
     const _wiredClick = !liveSource.url && _cn0 && !!COUNTY_LIVE[norm(_cn0)];
     pParcel = startParcelRoll(_wiredClick);        // budget chosen now that the county is known
     parcel = _wiredClick
@@ -21458,7 +21467,7 @@ async function _runLookupInner(lat,lng,searchCtx){
   let parcelLotSqft=null;     // captured from parcel geometry; used for the Development Capacity card
 
   /* ---- Location / jurisdiction ---- */
-  let countyName = (!county.__err && county.features && county.features[0]) ? county.features[0].attributes.NAME : null;
+  let countyName = (!county.__err && county.features && county.features[0]) ? (countyNameOf(county.features[0].attributes)||county.features[0].attributes.NAME) : null;
   /* ── MUNICIPALITY, NOT JUST "THE PLACE THE POINT LANDED IN" ─────────────────────────────────
      This used to be features[0].NAME. The layer is Census place data, so features[0] is just as
      likely to be a CDP (Orangetree, Golden Gate, Lehigh Acres) as a city, and the card printed it
@@ -25543,7 +25552,7 @@ async function geocodeBest(rawQuery){
 async function countyNameAt(lat,lng){
   try{
     const c=await arcQuery(EP.county, lat, lng, 'NAME', false, 6000);
-    if(c && !c.__err && c.features && c.features[0]) return c.features[0].attributes.NAME;
+    if(c && !c.__err && c.features && c.features[0]) return countyNameOf(c.features[0].attributes)||c.features[0].attributes.NAME;
   }catch(e){}
   return null;
 }
