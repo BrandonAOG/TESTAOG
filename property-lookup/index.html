@@ -3143,8 +3143,18 @@ function _finderHtml(d, it, base){
   h += group(d.mechanical, true, 'No mechanical-equipment or generator section in this code. The county fire marshal and NFPA 37 govern placement.');
   h += group(d.setbacks, true, zone?`No section title names "${zone}" or "setbacks". Open the code from the link below and search its table of contents.`:'No setback section found.');
   h += group(d.gas, false, 'No LP / fuel section in this code — NFPA 58 (LP) and NFPA 54 (gas piping) apply via the Florida Fire Prevention Code.');
-  if(window.__parcelSFHA===true) h += group(d.flood, false, 'No local flood ordinance section found; FBC / ASCE 24 elevation rules apply.');
-  else if(window.__parcelSFHA===undefined && d.flood && d.flood.hits.length){ h += `<div class="lc-meta" id="cff_${Math.random().toString(36).slice(2,6)}" data-flood="1">Flood zone not yet known — flood-ordinance sections will appear here if the parcel is in a Special Flood Hazard Area.</div>`; }
+  // Flood group: shown only for parcels in a Special Flood Hazard Area. The FEMA lookup may finish after
+  // this card renders, so leave a slot and fill it when the flood card reports in.
+  const fid='cff_'+Math.random().toString(36).slice(2,6);
+  const floodHtml = () => { const g = group(d.flood, false, 'No local flood-ordinance section found; FBC / ASCE 24 elevation rules apply.'); return g.replace('<div class="lc-topic-h">', `<div class="lc-topic-h">⚠ Parcel is in SFHA${window.__parcelFloodZone?' zone '+esc(window.__parcelFloodZone):''} · `); };
+  if(window.__parcelSFHA===true) h += `<div id="${fid}">${floodHtml()}</div>`;
+  else if(window.__parcelSFHA===undefined){
+    h += `<div id="${fid}"></div>`;
+    const onFlood=(ev)=>{ const el=document.getElementById(fid); if(!el) return; if(ev.detail && ev.detail.sfha) el.innerHTML=floodHtml(); document.removeEventListener('aog:flood', onFlood); };
+    document.addEventListener('aog:flood', onFlood);
+    // belt and braces: if the event already fired before this card mounted, poll briefly
+    let tries=0; const poll=setInterval(()=>{ const el=document.getElementById(fid); if(!el || ++tries>60){ clearInterval(poll); return; } if(window.__parcelSFHA===true){ el.innerHTML=floodHtml(); clearInterval(poll); } else if(window.__parcelSFHA===false){ clearInterval(poll); } },500);
+  }
   if(autoOpen.length) setTimeout(()=>{ for(const a of autoOpen){ const b=document.getElementById(a.tid+'_btn'); if(b) codeFinderRead(b, base, a.productId, a.nodeId, a.tid, d.client.id, zone); } }, 50);
   h += `<a class="palink" href="${esc(d.client.libraryUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(d.client.name)} on Municode</a>`;
   h += `<div class="lc-meta" style="margin-top:6px">Live Municode text as published today (codes lag new ordinances by weeks to months). Tables are trimmed to ${zone?esc(zone):'this district'} where the code tabulates several districts — tap "all districts" to see the full table.</div>`;
@@ -21308,7 +21318,7 @@ async function _runLookupInner(lat,lng,searchCtx){
      trips on a stall; abandoning fast and reconnecting is the entire fix. Four attempts takes the
      miss rate from ~40% to ~3% while the typical lookup still costs ~85 ms. growOnAbort:false
      because widening the window would only make each dead attempt more expensive. */
-  window.__parcelSFHA = undefined;
+  window.__parcelSFHA = undefined; window.__parcelFloodZone = undefined;
   const pFlood   = _timed('flood (FEMA)', arcQueryRetry(EP.flood, lat, lng, 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF', false, 2500, 4, true, false)).catch(e=>({__err:e.message}));
   // NAME alone can't tell a municipality from a CDP — pull the Census class fields too, so
   // isIncorporatedPlace() can reject unincorporated communities (see below).
@@ -23682,7 +23692,7 @@ async function _runLookupInner(lat,lng,searchCtx){
     nfhlZone=zone;
     if(window.__exportData && zone) window.__exportData.floodZone=String(zone);
     const sub=z.ZONE_SUBTY&&z.ZONE_SUBTY.trim()?z.ZONE_SUBTY:null;
-    const sfha=(z.SFHA_TF==='T'); window.__parcelSFHA = sfha;
+    const sfha=(z.SFHA_TF==='T'); window.__parcelSFHA = sfha; window.__parcelFloodZone = (z.FLD_ZONE||'')+(z.ZONE_SUBTY?' '+z.ZONE_SUBTY:''); document.dispatchEvent(new CustomEvent('aog:flood',{detail:{sfha, zone: window.__parcelFloodZone}}));
     const bfe=(z.STATIC_BFE!=null && Number(z.STATIC_BFE)>-9999) ? Number(z.STATIC_BFE) : null;
     const depth=(z.DEPTH!=null && Number(z.DEPTH)>-9999 && Number(z.DEPTH)!==0)?Number(z.DEPTH):null;
     // Carry the Base Flood Elevation (or, failing that, the base flood depth) into the
