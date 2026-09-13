@@ -3142,7 +3142,7 @@ function fillPermitLiveCode(){
   const base = CODE_PROXY_URL.replace(/code-section$/,'');
   const g = _lcGroup(d.also.fire, d, base, d.zone||'', false, 'No fire-code adoption section found on Municode — the Florida Fire Prevention Code (state-adopted NFPA 1 & 101, with NFPA 37/54/58 by reference) applies.', null);
   const sid='pfs_'+Math.random().toString(36).slice(2,6);
-  el.outerHTML = g.replace('<div class="lc-topic-h">', '<div class="lc-topic-h">Fire prevention code (NFPA adoption) — live · ').replace('<div class="lc-topic">',`<div class="lc-topic" id="permitLiveCode">`).replace('</div>',`</div><div id="${sid}" class="lc-adopt">… reading the adoption section</div>`);
+  el.outerHTML = g.replace(/<div class="lc-topic-h">[^<]*<\/div>/, `<div class="lc-topic-h">Fire prevention code — what applies here, live</div>`).replace('<div class="lc-topic">',`<div class="lc-topic" id="permitLiveCode">`).replace('</div>',`</div><div id="${sid}" class="lc-adopt">… reading the adoption section</div>`);
   // Local adoption text (Municode) + the state rule that sets the edition (F.A.C. 69A-60, live from flrules.org).
   (async()=>{
     const slot=document.getElementById(sid); if(!slot) return;
@@ -3347,7 +3347,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-13h";
+const CODE_API_VERSION = "2026-09-13i";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
