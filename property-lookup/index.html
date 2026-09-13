@@ -3360,7 +3360,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-13r";
+const CODE_API_VERSION = "2026-09-13s";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
@@ -5706,9 +5706,12 @@ function isIncorporatedPlace(p){
   const nm = String(p.NAME || p.name || '');
   const c  = String(p.CLASSFP || p.classfp || '').toUpperCase();
   const l  = String(p.LSAD    || p.lsad    || '').trim();
-  if(c) return c.charAt(0)==='C';                                                  // authoritative when present
-  if(l) return l==='25'||l==='43'||l==='47'||l==='21'||l==='53'||l==='62';         // city/town/village LSADs
   const n = nm.toUpperCase().replace(/[^A-Z]/g,'');
+  // Newer incorporations first. FDOT's layer is Census-derived and lags: it still classes the Village of
+  // Estero (incorporated 31 Dec 2014) as a CDP, so CLASSFP is wrong there and must not get the last word.
+  if(BOUNDS_FORCE_INCLUDE.some(w=>n===w.norm || n===w.norm+'VILLAGE' || n==='VILLAGEOF'+w.norm)) return true;
+  if(c) return c.charAt(0)==='C';                                                  // authoritative otherwise
+  if(l) return l==='25'||l==='43'||l==='47'||l==='21'||l==='53'||l==='62';         // city/town/village LSADs
   if(BOUNDS_FORCE_INCLUDE.some(w=>n.indexOf(w.norm)!==-1)) return true;
   /* No class fields at all — either an odd vintage or FDOT rotated the layer schema. Before
      defaulting to unincorporated, check the municipality sets this tool already maintains for its
@@ -5758,7 +5761,8 @@ async function refreshBoundaries(){
   const pb=_padEnvelope(b,0.6);
   const env=`${pb.getWest()},${pb.getSouth()},${pb.getEast()},${pb.getNorth()}`;
   // CLASSFP LIKE 'C%' = incorporated places only (excludes CDP communities U1/U2)
-  const where=encodeURIComponent("CLASSFP LIKE 'C%'");
+  // Incorporated places (C*) plus force-included newer incorporations FDOT still classes as CDPs (Estero).
+  const where=encodeURIComponent("CLASSFP LIKE 'C%'" + BOUNDS_FORCE_INCLUDE.map(w=>` OR UPPER(NAME) LIKE '%${w.like}%'`).join(''));
   const url=EP.city+
     `?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
     `&spatialRel=esriSpatialRelIntersects&where=${where}&outFields=NAME,CLASSFP,LSAD`+
