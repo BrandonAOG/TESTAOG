@@ -279,6 +279,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .badge.open{outline:1px solid var(--signal)}
   .lc-topic{margin-top:10px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08)} .lc-topic-h{font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;opacity:.8;margin-bottom:4px}
   .lc-hit{display:flex;align-items:center;gap:8px;padding:4px 0} .lc-hit.dim{opacity:.7} .lc-hit-t{flex:1;min-width:0;font-size:12px}
+  .lc-also{display:block;text-decoration:none;color:inherit;cursor:pointer;opacity:.8} .lc-also:hover{opacity:1}
   .lc-more{font-size:11px;opacity:.75;display:inline-block;margin:2px 0 4px 0}
   .lc-zonebar{font-size:11px;margin:2px 0 6px 0;padding:3px 8px;border-radius:4px;background:rgba(244,104,0,.12);border:1px solid rgba(244,104,0,.35)} .lc-zonebar a{color:var(--signal)}
   .live-code table[data-trimmed] td:first-child,.live-code table[data-trimmed] th:first-child{opacity:.85}
@@ -3106,7 +3107,7 @@ async function _runFinder(){
     try{
       if(!_finderCache[q]) _finderCache[q] = codeApi('code-find?'+q);
       const d = await _finderCache[q];
-      window.__codeFind = d; setTimeout(fillFloodLiveCode, 0);
+      window.__codeFind = d; setTimeout(fillFloodLiveCode, 0); setTimeout(fillPermitLiveCode, 0);
       el.innerHTML = _finderHtml(d, it, base);
     }catch(e){
       el.innerHTML = `<div class="freshline snap"><span class="badge unk">▤ LIVE CODE</span> Municode lookup unavailable right now</div><div class="note">${esc(e.message||String(e))}. The tables above (where present) still apply.</div>`;
@@ -3131,6 +3132,14 @@ function _lcGroup(grp, d, base, zone, openFirst, empty, autoOpen){
     g += `<a href="#" class="lc-more" onclick="document.getElementById('${mid}').style.display='';this.style.display='none';return false">+ ${grp.more.length} more</a><div id="${mid}" style="display:none">${grp.more.map(x=>row(x,true)).join('')}</div>`;
   }
   return g + `</div>`;
+}
+/* Permits card ↔ code lookup: fire-code adoption section lands here, not on the zoning card. */
+function fillPermitLiveCode(){
+  const el=document.getElementById('permitLiveCode'); const d=window.__codeFind;
+  if(!el || !d || !d.ok || !d.also || !d.also.fire) return;
+  const base = CODE_PROXY_URL.replace(/code-section$/,'');
+  const g = _lcGroup(d.also.fire, d, base, d.zone||'', false, 'No fire-code adoption section found on Municode — the Florida Fire Prevention Code (state-adopted NFPA 1 & 101, with NFPA 37/54/58 by reference) applies.', null);
+  el.outerHTML = g.replace('<div class="lc-topic-h">', '<div class="lc-topic-h">Fire prevention code (NFPA adoption) — live · ').replace('<div class="lc-topic">','<div class="lc-topic" id="permitLiveCode">');
 }
 /* Flood card ↔ code lookup handshake. Whichever finishes second fills the slot. */
 window.__codeFind = null;
@@ -3157,6 +3166,11 @@ function _finderHtml(d, it, base){
   h += group(d.mechanical, false, 'No mechanical-equipment or generator section in this code. The county fire marshal and NFPA 37 govern placement.');
   h += group(d.setbacks, false, zone?`No section title names "${zone}" or "setbacks". Open the code from the link below and search its table of contents.`:'No setback section found.');
   h += group(d.gas, false, 'No LP / fuel section in this code — NFPA 58 (LP) and NFPA 54 (gas piping) apply via the Florida Fire Prevention Code.');
+  if(d.also){
+    const aid='cfa_'+Math.random().toString(36).slice(2,6);
+    const inner = Object.entries(d.also).filter(([k,g])=>k!=='fire' && g.hits.length).map(([k,g])=>group(g,false,'')).join('');
+    if(inner) h += `<div class="lc-topic"><a href="#" class="lc-topic-h lc-also" onclick="var b=document.getElementById('${aid}');var on=b.style.display==='none';b.style.display=on?'':'none';this.textContent=(on?'▾':'▸')+' Also check — noise, screening, encroachments, accessory, corner lots';return false">▸ Also check — noise, screening, encroachments, accessory, corner lots</a><div id="${aid}" style="display:none">${inner}</div></div>`;
+  }
   if(autoOpen.length) setTimeout(()=>{ for(const a of autoOpen){ const b=document.getElementById(a.tid+'_btn'); if(b) codeFinderRead(b, base, a.productId, a.nodeId, a.tid, d.client.id, zone); } }, 50);
   h += `<a class="palink" href="${esc(d.client.libraryUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(d.client.name)} on Municode</a>`;
   h += `<div class="lc-meta" style="margin-top:6px">Live Municode text as published today (codes lag new ordinances by weeks to months). Tables are trimmed to ${zone?esc(zone):'this district'} where the code tabulates several districts — tap "all districts" to see the full table.</div>`;
@@ -3286,7 +3300,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-13c";
+const CODE_API_VERSION = "2026-09-13d";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
@@ -24709,6 +24723,8 @@ async function _runLookupInner(lat,lng,searchCtx){
   if(portal){
     html += `<a class="palink" href="${esc(portal)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(docJur)} permitting portal (survey / site plan / permits)</a>`;
   }
+  // Fire prevention code adoption (NFPA editions → NFPA 37 clearances, NFPA 58 tank distances) — live from Municode
+  if(typeof CODE_PROXY_URL!=='undefined' && CODE_PROXY_URL){ html += `<div id="permitLiveCode" class="lc-topic"><div class="lc-topic-h">Fire prevention code (NFPA adoption) — live</div><div class="lc-meta">… waiting for the code lookup</div></div>`; setTimeout(fillPermitLiveCode, 0); }
   /* Recorded plat (easements, platted setback lines) — filled in place when the city/county plat
      layer answers; nothing rendered where no layer is wired. */
   {
