@@ -3092,7 +3092,7 @@ const _finderPending = [];
 function renderCodeFinder(cityName, countyName, jurName, zoneCode, inCity){
   if(!CODE_PROXY_URL) return '';
   const id = 'cf_'+Math.random().toString(36).slice(2,8);
-  _finderPending.push({id, cityName, countyName, jurName, zoneCode, inCity});
+  _finderPending.push({id, cityName, countyName, jurName, zoneCode, inCity}); window.__finderCtx = {cityName, countyName, inCity};
   setTimeout(_runFinder, 0);
   return `<div id="${id}" style="margin-top:14px">
     <div class="freshline snap"><span class="badge unk">▤ LIVE CODE</span> finding ${zoneCode?esc(String(zoneCode))+' and ':''}generator rules in ${esc(jurName||'the local')} code on Municode… <span class="zone-spin" aria-hidden="true"></span></div>
@@ -3154,6 +3154,24 @@ function fillPermitLiveCode(){
     }catch(e){}
     try{ slot.innerHTML=_adoptSummary(null, '', null, state&&state.ok?state:null); }
     catch(e){ slot.innerHTML=`<div class="lc-meta">Couldn't build the fire-code summary (${esc(e.message||String(e))}).</div>`; console.error('[fire summary]', e); }
+    // Local amendments that are actually in force (re-adopted after the current state edition). Silent otherwise.
+    try{
+      const ctx = window.__finderCtx || {};
+      if(ctx.cityName || ctx.countyName){
+        const q=`city=${encodeURIComponent(ctx.cityName||'')}&county=${encodeURIComponent(ctx.countyName||'')}&inCity=${ctx.inCity?1:0}`;
+        const L = await withTimeout(codeApi('fire-local?'+q).catch(()=>null), 25000);
+        if(L && L.ok && L.amendments && L.amendments.length){
+          const base = CODE_PROXY_URL.replace(/code-section$/,'');
+          let h = `<div style="margin-top:8px"><b>Local fire code amendments in force</b> <span class="lc-meta">· ${esc(L.client.name)} · re-adopted after the state's ${esc(L.stateEffective||'current')} edition (F.S. 633.202)</span></div>`;
+          for(const a of L.amendments){
+            const tid='cft_'+Math.random().toString(36).slice(2,8);
+            h += `<div class="lc-hit"><div class="lc-hit-t"><b>${esc(a.title.replace(/^\s*(Sec(tion)?s?\.?|§)\s*/i,''))}</b><span class="lc-meta"> · last ordinance ${esc(a.lastOrdinance||'—')}${a.generatorRelevant?' · <span style="color:var(--signal)">mentions generators / LP / fuel</span>':''}${a.nfpaRefs&&a.nfpaRefs.length?' · NFPA '+esc(a.nfpaRefs.slice(0,6).join(', ')):''}</span></div><button type="button" class="lc-read" id="${tid}_btn" onclick="codeFinderRead(this,'${esc(base)}','${esc(a.productId)}','${esc(a.nodeId)}','${tid}','${esc(L.client.id)}','')">Read</button></div><div id="${tid}" class="lc-body"></div>`;
+          }
+          h += `<div class="lc-meta">Stricter local rules override the state minimum where they conflict. Lapsed amendments (older than the current state edition) are not shown.</div>`;
+          slot.insertAdjacentHTML('beforeend', h);
+        }
+      }
+    }catch(e){ console.warn('[fire local]', e); }
   })();
 }
 /* One-line "what applies here" for a generator job, from the adoption section's text. */
@@ -3338,7 +3356,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-13o";
+const CODE_API_VERSION = "2026-09-13p";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
