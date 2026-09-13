@@ -3106,11 +3106,43 @@ async function _runFinder(){
     try{
       if(!_finderCache[q]) _finderCache[q] = codeApi('code-find?'+q);
       const d = await _finderCache[q];
+      window.__codeFind = d; setTimeout(fillFloodLiveCode, 0);
       el.innerHTML = _finderHtml(d, it, base);
     }catch(e){
       el.innerHTML = `<div class="freshline snap"><span class="badge unk">▤ LIVE CODE</span> Municode lookup unavailable right now</div><div class="note">${esc(e.message||String(e))}. The tables above (where present) still apply.</div>`;
     }
   }
+}
+
+/* Shared renderer for a topic group (used by the Zoning LIVE CODE card and the Flood card). */
+function _lcGroup(grp, d, base, zone, openFirst, empty, autoOpen){
+  if(!grp) return '';
+  let g = `<div class="lc-topic"><div class="lc-topic-h">${esc(grp.label)}</div>`;
+  if(!grp.hits.length) return g + `<div class="lc-meta">${esc(empty)}</div></div>`;
+  const row = (x, dim) => {
+    const tid='cft_'+Math.random().toString(36).slice(2,8);
+    const t = x.title.replace(/^\s*(Sec(tion)?s?\.?|§)\s*/i,'');
+    return `<div class="lc-hit${dim?' dim':''}"><div class="lc-hit-t"><b>${esc(t)}</b><span class="lc-meta"> · ${esc(x.productName)}${x.breadcrumb.length?' › '+esc(x.breadcrumb[x.breadcrumb.length-1]):''}</span></div>
+      <button class="lc-read" id="${tid}_btn" onclick="codeFinderRead(this,'${esc(base)}','${esc(x.productId)}','${esc(x.nodeId)}','${tid}','${esc(d.client.id)}','${esc(zone||'')}')">Read</button></div><div id="${tid}" class="lc-body"></div>`;
+  };
+  grp.hits.forEach((x,i)=>{ const html=row(x,false); g+=html; if(openFirst && i===0 && autoOpen){ const m=html.match(/id="(cft_\w+)_btn"/); if(m) autoOpen.push({tid:m[1], productId:x.productId, nodeId:x.nodeId}); } });
+  if(grp.more && grp.more.length){
+    const mid='cfm_'+Math.random().toString(36).slice(2,8);
+    g += `<a href="#" class="lc-more" onclick="document.getElementById('${mid}').style.display='';this.style.display='none';return false">+ ${grp.more.length} more</a><div id="${mid}" style="display:none">${grp.more.map(x=>row(x,true)).join('')}</div>`;
+  }
+  return g + `</div>`;
+}
+/* Flood card ↔ code lookup handshake. Whichever finishes second fills the slot. */
+window.__codeFind = null;
+function fillFloodLiveCode(){
+  const el=document.getElementById('floodLiveCode'); const d=window.__codeFind;
+  if(!el || !d || !d.ok) return;
+  const base = CODE_PROXY_URL.replace(/code-section$/,'');
+  const zoneLbl = window.__parcelFloodZone ? ' · zone '+esc(window.__parcelFloodZone) : '';
+  const g = _lcGroup(d.flood, d, base, d.zone||'', true, 'No local flood-ordinance section found on Municode; FBC / ASCE 24 elevation rules still apply.', null);
+  el.outerHTML = g.replace('<div class="lc-topic-h">', `<div class="lc-topic-h">Flood — local ordinance, live${zoneLbl} · `).replace('<div class="lc-topic">','<div class="lc-topic" id="floodLiveCode">');
+  // open the best hit
+  const first=document.querySelector('#floodLiveCode .lc-read'); if(first && d.flood && d.flood.hits[0]) codeFinderRead(first, base, d.flood.hits[0].productId, d.flood.hits[0].nodeId, first.id.replace(/_btn$/,''), d.client.id, d.zone||'');
 }
 function _finderHtml(d, it, base){
   if(!d || !d.ok){
@@ -3123,38 +3155,10 @@ function _finderHtml(d, it, base){
   const zone = d.zone || '';
   let h = `<div class="freshline snap"><span class="badge live">● LIVE CODE</span> ${esc(d.client.name)}${zone?` · <b>${esc(zone)}</b>`:''}${d.fellBack?' <span class="badge unk" style="margin-left:6px" title="The city is not on Municode, or has no code of its own; showing the county&#39;s code.">county code</span>':''}</div>`;
   const autoOpen = [];
-  const group = (grp, openFirst, empty) => {
-    if(!grp) return '';
-    let g = `<div class="lc-topic"><div class="lc-topic-h">${esc(grp.label)}</div>`;
-    if(!grp.hits.length) return g + `<div class="lc-meta">${esc(empty)}</div></div>`;
-    const row = (x, dim) => {
-      const tid='cft_'+Math.random().toString(36).slice(2,8);
-      const t = x.title.replace(/^\s*(Sec(tion)?s?\.?|§)\s*/i,'');
-      return `<div class="lc-hit${dim?' dim':''}"><div class="lc-hit-t"><b>${esc(t)}</b><span class="lc-meta"> · ${esc(x.productName)}${x.breadcrumb.length?' › '+esc(x.breadcrumb[x.breadcrumb.length-1]):''}</span></div>
-        <button class="lc-read" id="${tid}_btn" onclick="codeFinderRead(this,'${esc(base)}','${esc(x.productId)}','${esc(x.nodeId)}','${tid}','${esc(d.client.id)}','${esc(zone)}')">Read</button></div><div id="${tid}" class="lc-body"></div>`;
-    };
-    grp.hits.forEach((x,i)=>{ const html=row(x,false); g+=html; if(openFirst && i===0){ const m=html.match(/id="(cft_\w+)_btn"/); if(m) autoOpen.push({tid:m[1], productId:x.productId, nodeId:x.nodeId}); } });
-    if(grp.more && grp.more.length){
-      const mid='cfm_'+Math.random().toString(36).slice(2,8);
-      g += `<a href="#" class="lc-more" onclick="document.getElementById('${mid}').style.display='';this.style.display='none';return false">+ ${grp.more.length} more</a><div id="${mid}" style="display:none">${grp.more.map(x=>row(x,true)).join('')}</div>`;
-    }
-    return g + `</div>`;
-  };
+  const group = (grp, openFirst, empty) => _lcGroup(grp, d, base, zone, openFirst, empty, autoOpen);
   h += group(d.mechanical, true, 'No mechanical-equipment or generator section in this code. The county fire marshal and NFPA 37 govern placement.');
   h += group(d.setbacks, true, zone?`No section title names "${zone}" or "setbacks". Open the code from the link below and search its table of contents.`:'No setback section found.');
   h += group(d.gas, false, 'No LP / fuel section in this code — NFPA 58 (LP) and NFPA 54 (gas piping) apply via the Florida Fire Prevention Code.');
-  // Flood group: shown only for parcels in a Special Flood Hazard Area. The FEMA lookup may finish after
-  // this card renders, so leave a slot and fill it when the flood card reports in.
-  const fid='cff_'+Math.random().toString(36).slice(2,6);
-  const floodHtml = () => { const g = group(d.flood, false, 'No local flood-ordinance section found; FBC / ASCE 24 elevation rules apply.'); return g.replace('<div class="lc-topic-h">', `<div class="lc-topic-h">⚠ Parcel is in SFHA${window.__parcelFloodZone?' zone '+esc(window.__parcelFloodZone):''} · `); };
-  if(window.__parcelSFHA===true) h += `<div id="${fid}">${floodHtml()}</div>`;
-  else if(window.__parcelSFHA===undefined){
-    h += `<div id="${fid}"></div>`;
-    const onFlood=(ev)=>{ const el=document.getElementById(fid); if(!el) return; if(ev.detail && ev.detail.sfha) el.innerHTML=floodHtml(); document.removeEventListener('aog:flood', onFlood); };
-    document.addEventListener('aog:flood', onFlood);
-    // belt and braces: if the event already fired before this card mounted, poll briefly
-    let tries=0; const poll=setInterval(()=>{ const el=document.getElementById(fid); if(!el || ++tries>60){ clearInterval(poll); return; } if(window.__parcelSFHA===true){ el.innerHTML=floodHtml(); clearInterval(poll); } else if(window.__parcelSFHA===false){ clearInterval(poll); } },500);
-  }
   if(autoOpen.length) setTimeout(()=>{ for(const a of autoOpen){ const b=document.getElementById(a.tid+'_btn'); if(b) codeFinderRead(b, base, a.productId, a.nodeId, a.tid, d.client.id, zone); } }, 50);
   h += `<a class="palink" href="${esc(d.client.libraryUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(d.client.name)} on Municode</a>`;
   h += `<div class="lc-meta" style="margin-top:6px">Live Municode text as published today (codes lag new ordinances by weeks to months). Tables are trimmed to ${zone?esc(zone):'this district'} where the code tabulates several districts — tap "all districts" to see the full table.</div>`;
@@ -21318,7 +21322,7 @@ async function _runLookupInner(lat,lng,searchCtx){
      trips on a stall; abandoning fast and reconnecting is the entire fix. Four attempts takes the
      miss rate from ~40% to ~3% while the typical lookup still costs ~85 ms. growOnAbort:false
      because widening the window would only make each dead attempt more expensive. */
-  window.__parcelSFHA = undefined; window.__parcelFloodZone = undefined;
+  window.__parcelSFHA = undefined; window.__parcelFloodZone = undefined; window.__codeFind = null;
   const pFlood   = _timed('flood (FEMA)', arcQueryRetry(EP.flood, lat, lng, 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF', false, 2500, 4, true, false)).catch(e=>({__err:e.message}));
   // NAME alone can't tell a municipality from a CDP — pull the Census class fields too, so
   // isIncorporatedPlace() can reject unincorporated communities (see below).
@@ -23710,6 +23714,7 @@ async function _runLookupInner(lat,lng,searchCtx){
     html += fieldRow('Base Flood Elev.', bfe!=null?esc(bfe)+' ft (NAVD88)':'<span class="muted">none published for this zone</span>');
     if(depth!=null) html += fieldRow('Base flood depth', esc(depth)+' ft');
     if(zones.length>1) html += fieldRow('Note','Point sits on a zone boundary — '+zones.length+' zones overlap here.');
+    if(sfha && typeof CODE_PROXY_URL!=='undefined' && CODE_PROXY_URL){ html += `<div id="floodLiveCode" class="lc-topic"><div class="lc-topic-h">Flood — local ordinance, live</div><div class="lc-meta">… waiting for the code lookup</div></div>`; setTimeout(fillFloodLiveCode, 0); }
     // --- Whole-parcel check: does the LOT cross flood-zone lines? (pin query above is point-only) ---
     /* Parcel polygon for the whole-lot flood queries below. Order: statewide roll → pre-wired
        county live feed (liveRes) → manually pasted feed (live).
