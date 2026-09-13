@@ -3147,11 +3147,17 @@ function fillPermitLiveCode(){
   (async()=>{
     const slot=document.getElementById(sid); if(!slot) return;
     const top=d.also.fire.hits[0];
-    const [local, state] = await Promise.all([
-      top ? codeApi(`code-text?productId=${encodeURIComponent(top.productId)}&nodeId=${encodeURIComponent(top.nodeId)}`).catch(()=>null) : Promise.resolve(null),
-      codeApi('fire-state').catch(()=>null),
-    ]);
-    slot.innerHTML=_adoptSummary(local&&local.ok?local:null, d.client.name, top, state&&state.ok?state:null);
+    const withTimeout=(p,ms)=>Promise.race([p, new Promise(r=>setTimeout(()=>r(null),ms))]);
+    let local=null, state=null, why='';
+    try{
+      [local, state] = await Promise.all([
+        top ? withTimeout(codeApi(`code-text?productId=${encodeURIComponent(top.productId)}&nodeId=${encodeURIComponent(top.nodeId)}`).catch(e=>{why+=' local:'+(e.message||e);return null;}), 20000) : Promise.resolve(null),
+        withTimeout(codeApi('fire-state').catch(e=>{why+=' state:'+(e.message||e);return null;}), 25000),
+      ]);
+    }catch(e){ why+=' '+(e.message||e); }
+    try{ slot.innerHTML=_adoptSummary(local&&local.ok?local:null, d.client.name, top, state&&state.ok?state:null); }
+    catch(e){ slot.innerHTML=`<div class="lc-meta">Couldn't build the fire-code summary (${esc(e.message||String(e))}).</div>`; console.error('[fire summary]', e); }
+    if(why) console.warn('[fire summary]', why.trim());
   })();
 }
 /* One-line "what applies here" for a generator job, from the adoption section's text. */
@@ -3347,7 +3353,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-13i";
+const CODE_API_VERSION = "2026-09-13j";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
