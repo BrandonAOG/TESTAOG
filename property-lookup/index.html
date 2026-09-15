@@ -3482,7 +3482,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-15b";
+const CODE_API_VERSION = "2026-09-15d";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
@@ -24597,7 +24597,8 @@ async function _runLookupInner(lat,lng,searchCtx){
     const _hi = html.indexOf('<!--HAND-->');
     if(_hi >= 0){
       const head = html.slice(0,_hi), hand = html.slice(_hi+11);
-      html = head + _live + (hand.trim() ? `<details class="hand-ref"><summary>Verified quick reference — hand-checked tables &amp; notes for ${esc(jurName||'this jurisdiction')}</summary>${hand}</details>` : '');
+      // Hand-checked quick reference first (open), the uniform live card beneath it.
+      html = head + (hand.trim() ? `<details class="hand-ref"><summary>Verified quick reference — hand-checked tables &amp; notes for ${esc(jurName||'this jurisdiction')}</summary>${hand}</details>` : '') + _live;
     } else html += _live;
     return html;
   }
