@@ -282,6 +282,8 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .lc-also{display:block;text-decoration:none;color:inherit;cursor:pointer;opacity:.8} .lc-also:hover{opacity:1}
   .lc-adopt{font-size:12px;margin:6px 0 4px 0;padding:8px;border-radius:6px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)} .lc-chip{display:inline-block;font-family:var(--mono);font-size:11px;padding:1px 7px;border-radius:4px;border:1px solid rgba(244,104,0,.45);background:rgba(244,104,0,.1);margin:1px 2px}
   .lc-pending{margin-top:8px;padding:8px;border-radius:6px;border:1px dashed rgba(255,255,255,.3);background:rgba(255,255,255,.03);font-size:12px}
+  .hand-ref{margin-top:12px;border-top:1px solid rgba(255,255,255,.08);padding-top:6px} .hand-ref>summary{cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;opacity:.75;padding:6px 0} .hand-ref>summary:hover{opacity:1}
+  .lc-inline{margin:4px 0 8px 0} .lc-excerpt{font-size:11px;opacity:.7;margin-top:2px}
   .lc-more{font-size:11px;opacity:.75;display:inline-block;margin:2px 0 4px 0}
   .lc-zonebar{font-size:11px;margin:2px 0 6px 0;padding:3px 8px;border-radius:4px;background:rgba(244,104,0,.12);border:1px solid rgba(244,104,0,.35)} .lc-zonebar a{color:var(--signal)}
   .live-code table[data-trimmed] td:first-child,.live-code table[data-trimmed] th:first-child{opacity:.85}
@@ -3095,29 +3097,148 @@ function renderCodeFinder(cityName, countyName, jurName, zoneCode, inCity){
   const id = 'cf_'+Math.random().toString(36).slice(2,8);
   _finderPending.push({id, cityName, countyName, jurName, zoneCode, inCity}); window.__finderCtx = {cityName, countyName, inCity};
   setTimeout(_runFinder, 0);
-  return `<div id="${id}" style="margin-top:14px">
-    <div class="freshline snap"><span class="badge unk">▤ LIVE CODE</span> finding ${zoneCode?esc(String(zoneCode))+' and ':''}generator rules in ${esc(jurName||'the local')} code on Municode… <span class="zone-spin" aria-hidden="true"></span></div>
-  </div>`;
+  return `<div id="${id}" style="margin-top:14px"><div class="freshline snap"><span class="badge unk">▤ LIVE CODE</span> loading ${esc(jurName||'the local')} code… <span class="zone-spin" aria-hidden="true"></span></div></div>`;
 }
-const _finderCache = {};
+/* ---- statewide registry (static files beside index.html: codes/index.json, codes/<slug>.json) ---- */
+const CODES_BASE = new URL('codes/', location.href).toString();
+let _codesIndex = null;
+async function codesIndex(){ if(!_codesIndex){ _codesIndex = fetch(CODES_BASE+'index.json').then(r=>r.ok?r.json():null).catch(()=>null); } return _codesIndex; }
+const _normKey = (x)=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+/** Which registry client governs this parcel: the city if it's on Municode with zoning, else the county. */
+async function codesClientFor(cityName, countyName, inCity){
+  const idx = await codesIndex(); if(!idx) return null;
+  const C = idx.clients; const tryKeys = [];
+  if(inCity && cityName) tryKeys.push(_normKey(cityName), 'CITYOF'+_normKey(cityName), 'TOWNOF'+_normKey(cityName), 'VILLAGEOF'+_normKey(cityName));
+  let city = null; for(const k of tryKeys){ if(C[k] && !C[k].county){ city = C[k]; break; } }
+  const county = countyName ? (C[_normKey(countyName)+'COUNTY'] || C[_normKey(countyName)]) : null;
+  if(city && city.zoning) return { ...city, via:'city' };
+  if(city && !city.zoning && county) return { ...county, via:'county', cityNoZoning: city.name };
+  if(city) return { ...city, via:'city' };
+  if(county) return { ...county, via:'county', fellBack: !!(inCity && cityName) };
+  return null;
+}
+const _codesCache = {};
+async function codesFor(slug){ if(!_codesCache[slug]) _codesCache[slug] = fetch(CODES_BASE+slug+'.json').then(r=>r.ok?r.json():null).catch(()=>null); return _codesCache[slug]; }
+
+/* Trim a multi-district table to one district (client-side twin of the API's trimTablesToZone). */
+function trimTableHtml(html, zone){
+  if(!zone || !/<table/i.test(html)) return { html, trimmed:false };
+  const nz=(x)=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,''); const Z=nz(zone);
+  const isZone=(t)=>{ const s=String(t||''); if(nz(s)===Z) return true; return s.split(/[,;\/]|\band\b|\bor\b|\n/i).some(p=>{ const q=nz(p.replace(/\b(district|zoning|zone)\b/gi,'')); return q===Z||q===Z+'DISTRICT'; }); };
+  const doc = new DOMParser().parseFromString(`<div>${html}</div>`,'text/html'); let trimmed=false;
+  for(const table of doc.querySelectorAll('table')){
+    const rows=[...table.querySelectorAll('tr')]; if(rows.length<2) continue;
+    let done=false;
+    for(let hi=0; hi<Math.min(3,rows.length) && !done; hi++){
+      const cells=[...rows[hi].children]; const idx=cells.findIndex(c=>isZone(c.textContent));
+      if(idx>0){ for(const r of rows){ const cs=[...r.children]; if(cs.length<=idx) continue; cs.forEach((c,i)=>{ if(i!==0&&i!==idx) c.remove(); else { c.removeAttribute('colspan'); c.removeAttribute('rowspan'); } }); } table.dataset.trimmed=zone; trimmed=true; done=true; }
+    }
+    if(done) continue;
+    const headerRows=rows.filter(r=>r.querySelector('th')).slice(0,2);
+    const hitRows=rows.filter(r=>!headerRows.includes(r) && [...r.children].slice(0,2).some(c=>isZone(c.textContent)));
+    if(hitRows.length){ for(const r of rows) if(!headerRows.includes(r)&&!hitRows.includes(r)) r.remove(); table.dataset.trimmed=zone; trimmed=true; }
+  }
+  return { html: doc.body.firstChild.innerHTML, trimmed };
+}
+const _isPlannedZone = (z)=>/^(M|R|C|I|P)?PUD\b|^PD\b|^PDD\b|^PRD\b|^PCD\b|^PID\b|^PDP\b|^MPD\b|^RPD\b|^CPD\b|^PZD\b|^DRI\b|^MXD\b|^TND\b|PLANNED/i.test(String(z||''));
+
 async function _runFinder(){
   while(_finderPending.length){
     const it = _finderPending.shift();
     let el = document.getElementById(it.id);
     if(!el){ it.tries=(it.tries||0)+1; if(it.tries<40){ _finderPending.push(it); setTimeout(_runFinder,250); } break; }
-    const base = CODE_PROXY_URL.replace(/code-section$/,'');
-    const q = `city=${encodeURIComponent(it.cityName||'')}&county=${encodeURIComponent(it.countyName||'')}&inCity=${it.inCity?1:0}&zone=${encodeURIComponent(it.zoneCode||'')}`;
     try{
+      const client = await codesClientFor(it.cityName, it.countyName, it.inCity);
+      if(client){
+        const data = await codesFor(client.slug);
+        if(data){ el.innerHTML = _registryCardHtml(data, client, it); continue; }
+      }
+      // Not in the registry (or file missing) → fall back to the live search card.
+      const base = CODE_PROXY_URL.replace(/code-section$/,'');
+      const q = `city=${encodeURIComponent(it.cityName||'')}&county=${encodeURIComponent(it.countyName||'')}&inCity=${it.inCity?1:0}&zone=${encodeURIComponent(it.zoneCode||'')}`;
       if(!_finderCache[q]) _finderCache[q] = codeApi('code-find?'+q);
       const d = await _finderCache[q];
       window.__codeFind = d; setTimeout(fillFloodLiveCode, 0);
       el.innerHTML = _finderHtml(d, it, base);
     }catch(e){
-      el.innerHTML = `<div class="freshline snap"><span class="badge unk">▤ LIVE CODE</span> Municode lookup unavailable right now</div><div class="note">${esc(e.message||String(e))}. The tables above (where present) still apply.</div>`;
+      el.innerHTML = `<div class="freshline snap"><span class="badge unk">▤ LIVE CODE</span> code lookup unavailable right now</div><div class="note">${esc(e.message||String(e))}. The tables below (where present) still apply.</div>`;
     }
   }
 }
+const _finderCache = {};
 
+/* ---- the uniform card: identical layout for every jurisdiction in the registry ---- */
+function _registryCardHtml(d, client, it){
+  const zone = it.zoneCode || ''; const base = CODE_PROXY_URL.replace(/code-section$/,'');
+  const S = d.sections || {}; const secs=(k)=>S[k]||[];
+  let h = `<div class="freshline snap"><span class="badge live">● LIVE CODE</span> ${esc(d.name)}${zone?` · <b>${esc(zone)}</b>`:''}${d.zoningBook?` <span class="lc-meta">· ${esc(d.zoningBook)}</span>`:''}${codeVerifyBadgeAll('client:'+d.slug)}</div>`;
+  if(client.cityNoZoning) h += `<div class="lc-meta">${esc(client.cityNoZoning)} publishes its zoning code outside Municode — showing the county code.</div>`;
+  else if(client.fellBack) h += `<div class="lc-meta">${esc(it.cityName)} is not on Municode — showing the county code.</div>`;
+  if(!d.zoningOnMunicode){
+    h += `<div class="note">No zoning or land-development sections found in ${esc(d.name)}'s Municode books — the zoning code is published elsewhere (usually a PDF on the planning department's site). <a class="palink" href="${esc(d.libraryUrl)}" target="_blank" rel="noopener">↗ ${esc(d.name)} on Municode</a></div>`;
+    return h;
+  }
+  const nz=(x)=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const row = (x, opts={}) => {
+    const tid='cft_'+Math.random().toString(36).slice(2,8);
+    const t = x.title.replace(/^\s*(Sec(tion)?s?\.?|§)\s*/i,'');
+    let inline='';
+    if(opts.table && x.tables && x.tables.length){
+      const pick = x.tables.map(tb=>trimTableHtml(tb, zone)).find(r=>r.trimmed);
+      if(pick){ const zid='cfz_'+Math.random().toString(36).slice(2,6); inline = `<div class="lc-inline"><div class="lc-zonebar">Showing <b>${esc(zone)}</b> only · <a href="#" onclick="var a=document.getElementById('${zid}_all'),z=document.getElementById('${zid}_zone');var on=a.style.display==='none';a.style.display=on?'':'none';z.style.display=on?'none':'';this.textContent=on?'this district only':'all districts';return false">all districts</a> · <span class="lc-meta">stored ${esc(d.crawled)}</span></div><div class="live-code" id="${zid}_zone">${pick.html}</div><div class="live-code" id="${zid}_all" style="display:none">${x.tables.join('')}</div></div>`; }
+    }
+    return `<div class="lc-hit"><div class="lc-hit-t"><b>${esc(t)}</b><span class="lc-meta"> · ${esc(x.book||'')}${x.path&&x.path.length?' › '+esc(x.path[x.path.length-1]):''}</span>${x.excerpt&&!inline?`<div class="lc-excerpt">${esc(x.excerpt.slice(0,220))}…</div>`:''}</div>
+      <button type="button" class="lc-read" id="${tid}_btn" onclick="codeFinderRead(this,'${esc(base)}','${esc(x.productId)}','${esc(x.nodeId)}','${tid}','${esc(String(d.clientId))}','${esc(zone)}')">Read</button></div>${inline}<div id="${tid}" class="lc-body"></div>`;
+  };
+  const group = (title, items, empty, opts={}) => {
+    let g = `<div class="lc-topic"><div class="lc-topic-h">${esc(title)}</div>`;
+    if(!items.length) return g + `<div class="lc-meta">${esc(empty)}</div></div>`;
+    const shown = items.slice(0, opts.max||3), more = items.slice(opts.max||3, 8);
+    g += shown.map(x=>row(x,opts)).join('');
+    if(more.length){ const mid='cfm_'+Math.random().toString(36).slice(2,6); g += `<a href="#" class="lc-more" onclick="document.getElementById('${mid}').style.display='';this.style.display='none';return false">+ ${more.length} more</a><div id="${mid}" style="display:none">${more.map(x=>row(x,opts)).join('')}</div>`; }
+    return g + `</div>`;
+  };
+  // SETBACKS — sections naming this district first, then those whose stored table has this district's row, then the rest
+  const zre = zone ? new RegExp('(^|[^A-Z0-9])'+zone.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/[- ]/g,'[- ]?')+'(?![A-Z0-9])','i') : null;
+  const setb = secs('setbacks').map(x=>({...x, _s:(zre && zre.test(x.title)?5:0) + (zre && x.excerpt && zre.test(x.excerpt)?4:0) + (zone && (x.tables||[]).some(tb=>trimTableHtml(tb,zone).trimmed)?3:0) + ((x.tables||[]).length?1:0) - (/^(chapter|division|article|part)\b/i.test(x.title)?3:0)})).sort((a,b)=>b._s-a._s);
+  const zoneMatched = setb.length && setb[0]._s >= 3;
+  const sbid='cfs_'+Math.random().toString(36).slice(2,6);
+  h += `<div id="${sbid}">` + group(zone?`Setbacks for ${zone}`:'Setbacks & dimensional standards', setb, `No setback / dimensional section captured for ${esc(d.name)}. Open the code and search its table of contents.`, {table:true, max:2}) + `</div>`;
+  // Hybrid: the registry has this code's setback sections but none names this district → one live title search for
+  // the district code (how discovery found "Sec. 58-176" for R1-10) and put that section first.
+  if(zone && !zoneMatched && d.clientId){
+    setTimeout(async()=>{
+      try{
+        const r = await codeApi(`code-search?clientId=${encodeURIComponent(d.clientId)}&q=${encodeURIComponent('"'+zone+'"')}&titlesOnly=1`);
+        const hit = r && r.ok && r.hits.find(x=>zre.test(x.title) && /yard|setback|dimensional|standard|regulation|district|classification/i.test(x.title)) || (r && r.ok && r.hits.find(x=>zre.test(x.title)));
+        const box=document.getElementById(sbid); if(!hit || !box) return;
+        const x={ nodeId:hit.nodeId, productId:hit.productId, book:hit.productName, title:hit.title, path:hit.breadcrumb, tables:[], excerpt:hit.snippet };
+        const first = box.querySelector('.lc-topic'); if(!first) return;
+        first.insertAdjacentHTML('afterbegin', `<div class="lc-meta" style="margin-bottom:4px">Section naming <b>${esc(zone)}</b> (found live):</div>` + row(x,{}));
+        // auto-open it so the numbers are on screen
+        const btn = first.querySelector('.lc-read'); if(btn) btn.click();
+      }catch(e){}
+    }, 0);
+  }
+  // GENERATORS — generator sections; else supplemental/accessory where equipment rules usually sit
+  const gen = secs('generator'); const suppl = secs('supplemental');
+  if(gen.length) h += group('Generators & mechanical equipment', gen, '', {max:2});
+  else h += group('Generators & mechanical equipment', suppl.slice(0,2), `No generator or mechanical-equipment section in ${esc(d.name)}'s code — the fire marshal and NFPA 37 govern placement.`, {max:2}).replace('<div class="lc-topic-h">Generators &amp; mechanical equipment</div>', '<div class="lc-topic-h">Generators &amp; mechanical equipment</div><div class="lc-meta">No generator-specific section — equipment rules usually sit under these:</div>');
+  // PLANNED DEVELOPMENT — first-class when the parcel is a PUD, otherwise collapsed
+  const pud = secs('planned');
+  if(pud.length){
+    if(_isPlannedZone(zone)) h += `<div class="lc-topic"><div class="lc-topic-h">Planned development — ${esc(zone)}</div><div class="lc-meta" style="margin-bottom:4px">In a PUD the setbacks are usually those in the <b>approved PUD document / master plan</b>, not the district table. These sections say how, and where the plan is kept.</div>${pud.slice(0,2).map(x=>row(x)).join('')}</div>`;
+    else { const pid='cfp_'+Math.random().toString(36).slice(2,6); h += `<div class="lc-topic"><a href="#" class="lc-topic-h lc-also" onclick="var b=document.getElementById('${pid}');var on=b.style.display==='none';b.style.display=on?'':'none';this.textContent=(on?'▾':'▸')+' Planned development (PUD) rules';return false">▸ Planned development (PUD) rules</a><div id="${pid}" style="display:none">${pud.slice(0,2).map(x=>row(x)).join('')}</div></div>`; }
+  }
+  // ENCROACHMENTS + remaining supplemental — collapsed
+  const enc = secs('encroach'); const also = [...enc, ...(gen.length?suppl:suppl.slice(2))].slice(0,4);
+  if(also.length){ const aid='cfa_'+Math.random().toString(36).slice(2,6); h += `<div class="lc-topic"><a href="#" class="lc-topic-h lc-also" onclick="var b=document.getElementById('${aid}');var on=b.style.display==='none';b.style.display=on?'':'none';this.textContent=(on?'▾':'▸')+' Yard encroachments & supplemental standards';return false">▸ Yard encroachments &amp; supplemental standards</a><div id="${aid}" style="display:none">${also.map(x=>row(x)).join('')}</div></div>`; }
+  // FUEL
+  h += group('Gas · LP · fuel', secs('fuel'), `No LP / fuel section in ${esc(d.name)}'s code — NFPA 58 (LP) and NFPA 54 (gas piping) apply through the Florida Fire Prevention Code; see the Permits card.`, {max:2});
+  h += `<a class="palink" href="${esc(d.libraryUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(d.name)} on Municode</a>`;
+  h += `<div class="lc-meta" style="margin-top:6px">Sections and tables stored ${esc(d.crawled)} from Municode; the badge above confirms they still read the same today. Read opens the live text.</div>`;
+  return h;
+}
 /* Shared renderer for a topic group (used by the Zoning LIVE CODE card and the Flood card). */
 function _lcGroup(grp, d, base, zone, openFirst, empty, autoOpen){
   if(!grp) return '';
@@ -3360,7 +3481,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-13u";
+const CODE_API_VERSION = "2026-09-15a";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
@@ -3406,7 +3527,8 @@ function _livePanelHtml(d, base){
   h+=`<div class="lc-sum">${d.match} unchanged · ${d.changed} changed · ${d.unverified} unverified${d.unavailable?' · '+d.unavailable+' unreachable':''}</div>`;
   for(const [sec,v] of rows){
     const rid='lcr_'+Math.random().toString(36).slice(2,8);
-    h+=`<div class="lc-row">${_liveStatusDot(v.status)}<div class="lc-title"><b>§ ${esc(sec)}</b> <span>${esc((v.title||'').replace(/^Sec\.\s*[\d.\-]+\.?\s*-\s*/,''))}</span>${v.verified?`<span class="lc-meta"> · verified ${esc(v.verified)}</span>`:''}${v.status==='changed'?'<span class="lc-flag">re-read this section</span>':''}</div>`;
+    const isNode = /_|^[A-Z]{2,}/.test(sec) && sec.length>12;
+    h+=`<div class="lc-row">${_liveStatusDot(v.status)}<div class="lc-title"><b>${isNode? esc((v.title||sec).replace(/^\s*(Sec(tion)?s?\.?|§)\s*/i,'')) : '§ '+esc(sec)}</b> ${isNode?(v.topic?`<span class="lc-meta">· ${esc(v.topic)}</span>`:''):`<span>${esc((v.title||'').replace(/^Sec\.\s*[\d.\-]+\.?\s*-\s*/,''))}</span>`}${v.verified?`<span class="lc-meta"> · verified ${esc(v.verified)}</span>`:''}${v.status==='changed'?'<span class="lc-flag">re-read this section</span>':''}</div>`;
     if(v.nodeId) h+=`<button type="button" class="lc-read" id="${rid}_btn" onclick="codeFinderRead(this,'${esc(base)}','${esc(v.productId)}','${esc(v.nodeId)}','${rid}','${esc(d.clientId||'')}','')">Read</button>`;
     h+=`</div><div id="${rid}" class="lc-body"></div>`;
   }
@@ -3424,7 +3546,7 @@ function _wirePanel(el, d, base){
   el.onclick=()=>{ const open=panel.style.display!=='none'; panel.style.display=open?'none':''; el.classList.toggle('open',!open); };
 }
 async function _applyAggregate(el, jur){
-  if(!_codeStatusCache[jur]) _codeStatusCache[jur] = codeApi(`code-status?jur=${encodeURIComponent(jur)}`);
+  if(!_codeStatusCache[jur]) _codeStatusCache[jur] = codeApi(jur.startsWith('client:') ? `code-status?client=${encodeURIComponent(jur.slice(7))}` : `code-status?jur=${encodeURIComponent(jur)}`);
   const d = await _codeStatusCache[jur];
   if(!d || !d.ok) throw new Error(d && d.error || 'no data');
   const job = d.job ? ' · '+d.job : '';
@@ -24326,6 +24448,7 @@ async function _runLookupInner(lat,lng,searchCtx){
     if(zhit.code!=null && String(zhit.code).trim()!==''){ html += fieldRow('Zoning district', esc(String(zhit.code)), 'big'); if(window.__exportData) window.__exportData.zoning=String(zhit.code).trim(); }
     if(zhit.extras) for(const ex of zhit.extras) html += fieldRow(ex.label, esc(ex.value));
     if(zhit.desc!=null && String(zhit.desc).trim()!=='' && norm(zhit.desc)!==norm(zhit.code)) html += fieldRow('District name', esc(String(zhit.desc)));
+    html += '<!--HAND-->';   // everything after this point is the hand-checked quick reference; folded under the live card below
     if(norm(cityName)==='NAPLES' && zhit.code){ html += renderNaplesSetbacks(zhit.code, parcelYearBuilt); html += renderCapacityCard(NAPLES_CAPACITY, zhit.code, parcelLotSqft, 'City of Naples', null); }
     if(norm(cityName)==='MARCOISLAND' && zhit.code){ html += renderMarcoSetbacks(zhit.code); }
     // Collier COUNTY setbacks apply only to UNINCORPORATED Collier. The incorporated cities —
@@ -24468,8 +24591,13 @@ async function _runLookupInner(lat,lng,searchCtx){
     })();
     html += `<div class="note">Collier's legally adopted zoning map, archived as searchable map sheets. Not point-queryable, so use it to confirm the district above for any legal/permitting decision.</div>`;
   }
-    // Statewide live-code finder — every parcel, every Florida jurisdiction on Municode.
-    html += renderCodeFinder(cityName, countyName, jurName, (zhit && !zhit.__slow && zhit.code!=null) ? String(zhit.code).trim() : null, !!zr.inCity);
+    // Uniform live-code card (statewide registry) FIRST; the hand-checked tables fold underneath it.
+    const _live = renderCodeFinder(cityName, countyName, jurName, (zhit && !zhit.__slow && zhit.code!=null) ? String(zhit.code).trim() : null, !!zr.inCity);
+    const _hi = html.indexOf('<!--HAND-->');
+    if(_hi >= 0){
+      const head = html.slice(0,_hi), hand = html.slice(_hi+11);
+      html = head + _live + (hand.trim() ? `<details class="hand-ref"><summary>Verified quick reference — hand-checked tables &amp; notes for ${esc(jurName||'this jurisdiction')}</summary>${hand}</details>` : '');
+    } else html += _live;
     return html;
   }
   // FAST PATH: zoning was ready within ZONING_FAST — render it inline right now.
