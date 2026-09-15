@@ -3100,9 +3100,11 @@ function renderCodeFinder(cityName, countyName, jurName, zoneCode, inCity){
   return `<div id="${id}" style="margin-top:14px"><div class="freshline snap"><span class="badge unk">▤ LIVE CODE</span> loading ${esc(jurName||'the local')} code… <span class="zone-spin" aria-hidden="true"></span></div></div>`;
 }
 /* ---- statewide registry (static files beside index.html: codes/index.json, codes/<slug>.json) ---- */
-const CODES_BASE = new URL('codes/', location.href).toString();
-let _codesIndex = null;
-async function codesIndex(){ if(!_codesIndex){ _codesIndex = fetch(CODES_BASE+'index.json').then(r=>r.ok?r.json():null).catch(()=>null); } return _codesIndex; }
+// One compressed pack beside index.html, same format as the parcel packs: { built, index, clients:{slug:{...}} }.
+const CODES_PACK = new URL('fl_codes_v1.json.gz', location.href).toString();
+let _codesPack = null;
+async function codesPack(){ if(!_codesPack){ _codesPack = fetchMaybeGzip(CODES_PACK).catch(()=>null); } return _codesPack; }
+async function codesIndex(){ const p = await codesPack(); return p ? { built:p.built, clients:p.index } : null; }
 const _normKey = (x)=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 /** Which registry client governs this parcel: the city if it's on Municode with zoning, else the county. */
 async function codesClientFor(cityName, countyName, inCity){
@@ -3117,8 +3119,7 @@ async function codesClientFor(cityName, countyName, inCity){
   if(county) return { ...county, via:'county', fellBack: !!(inCity && cityName) };
   return null;
 }
-const _codesCache = {};
-async function codesFor(slug){ if(!_codesCache[slug]) _codesCache[slug] = fetch(CODES_BASE+slug+'.json').then(r=>r.ok?r.json():null).catch(()=>null); return _codesCache[slug]; }
+async function codesFor(slug){ const p = await codesPack(); return p && p.clients ? (p.clients[slug]||null) : null; }
 
 /* Trim a multi-district table to one district (client-side twin of the API's trimTablesToZone). */
 function trimTableHtml(html, zone){
@@ -3481,7 +3482,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-15a";
+const CODE_API_VERSION = "2026-09-15b";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
