@@ -3482,7 +3482,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-15d";
+const CODE_API_VERSION = "2026-09-16b";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
@@ -8058,7 +8058,20 @@ const PLAT_LAYERS_COUNTY = {
                           link:(a.RecordDoclink && /^https?:/i.test(a.RecordDoclink)) ? a.RecordDoclink : null, linkLabel:'search Lee Clerk official records' }) },
   SARASOTA:  { url:'https://ags3.scgov.net/server/rest/services/Hosted/PlatBoundary/FeatureServer/0', pick:_platSniff },
   MANATEE:   { url:'https://www.mymanatee.org/gisits/rest/services/commonoperational/parcels_pl_only/MapServer/0', pick:_platSniff },
-  COLLIER:   { url:'https://services2.arcgis.com/SlIq32SqARUHIhSx/ArcGIS/rest/services/Parcels/FeatureServer/0', pick:_platSniff },
+  /* Collier: no county layer publishes plat book/page. The PA-joined parcel layer gives subdivision number,
+     block, lot and map number; the subdivision NAME comes from the legal description the HOA card already
+     parsed (window.__parcelSubdivName). Link → the PA property card for this folio (legal line shows the plat
+     reference) and the Clerk's records search. Upgrade to a direct sheet link when a PA layer with PB/PG is found. */
+  COLLIER:   { url:'https://services2.arcgis.com/SlIq32SqARUHIhSx/ArcGIS/rest/services/Parcel_Tax_Assessment_and_Ownership/FeatureServer/0',
+               fields:'Folio,SubdivisionCondoNumber,BlockBldg,LotUnit,MapNumber,StrapNumber',
+               pick:a=>{ const nm=(window.__parcelPlatName||window.__parcelSubdivName||'').trim(); const bits=[]; if(a.BlockBldg&&String(a.BlockBldg).trim()) bits.push('Block '+String(a.BlockBldg).trim()); if(a.LotUnit&&String(a.LotUnit).trim()) bits.push('Lot '+String(a.LotUnit).trim()); if(a.MapNumber&&String(a.MapNumber).trim()) bits.push('PA map '+String(a.MapNumber).trim());
+                        const label=(nm||('Subdivision #'+(a.SubdivisionCondoNumber||'?')))+(bits.length?' · '+bits.join(', '):''); const folio=a.Folio?String(a.Folio).trim():'';
+                        // COR Access (cor.collierclerk.com) is a Blazor app: plat sheets stream over a live session with no URL, so the
+                        // best link is its Map search. Copy button for the subdivision name → paste → Search → the sheet.
+                        // COR Access honours ?mapName= — the link opens the plat search already run for this subdivision.
+                        const q = nm.replace(/\bEST\b/g,'ESTATES').replace(/\bHTS\b/g,'HEIGHTS').replace(/\bGDNS\b/g,'GARDENS').replace(/\bTERR\b/g,'TERRACE').replace(/\bVLG\b/g,'VILLAGE').replace(/\bADD\b/g,'ADDITION').replace(/\bRPLT\b/g,'REPLAT').replace(/\bSUB\b/g,'SUBDIVISION').replace(/\bPK\b/g,'PARK').replace(/\bMNR\b/g,'MANOR').replace(/\bLKS?\b/g,'LAKES').replace(/\b(UNIT|PHASE|PH)\s+(?=\d)/g,'').replace(/\s{2,}/g,' ').trim();   // COR Map Name: "GOLDEN GATE ESTATES 97", "NAPLES PARK 5", "NAPLES MANOR LAKES REPLAT" — the number without the word UNIT
+                        return { label, link: nm?`https://cor.collierclerk.com/coraccess/search/map?mapName=${encodeURIComponent(q)}`:'https://cor.collierclerk.com/coraccess/search/map', linkLabel: nm?`Recorded plat "${q}" — Collier Clerk (COR Access)`:'Collier Clerk plat search (COR Access)', copyText: nm?q:null, copyLabel: 'Copy name', copyNote: 'COR Access remembers your last search in the same browser session — if it shows the previous plat, paste this name into Map Name and search again.',
+                                 extraLink: null, extraLabel: null }; } },
   /* Hillsborough: same Subdivision Names layer — carries the recorded plat book/page and the date
      it was recorded, which is exactly what the Permits card wants for easements/setback lines. */
   HILLSBOROUGH:{ url:'https://maps.hillsboroughcounty.org/arcgis/rest/services/DSD_Viewer_Services/DSD_Viewer_Governance/MapServer/2',
@@ -8070,6 +8083,7 @@ const PLAT_LAYERS_COUNTY = {
 };
 async function queryRecordedPlat(lat, lng, cityName, countyName, timeoutMs){
   const L = PLAT_LAYERS[norm(cityName||'')] || PLAT_LAYERS_COUNTY[norm(countyName||'')];
+  if(L && L.fields){ try{ const r=await arcQuery(L.url.replace(/\/query$/,'')+'/query', lat, lng, L.fields, false, timeoutMs||8000); const a=r&&r.features&&r.features[0]&&r.features[0].attributes; if(!a) return null; const x=L.pick(a); return x&&x.label?x:null; }catch(e){ return null; } }
   if(!L) return null;
   const pt = encodeURIComponent(JSON.stringify({x:lng,y:lat,spatialReference:{wkid:4326}}));
   const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(), timeoutMs||7000);
@@ -8208,8 +8222,7 @@ function renderCommunityBlock(c, countyName){
     h += fieldRow('Subdivision', esc(sb.name), (a||c.pd)?'':'big');
     const bits=[]; if(sb.type) bits.push(esc(sb.type)); if(sb.units) bits.push(sb.units+' units'); if(sb.gated!=null) bits.push(gated?'gated':'not gated');
     if(bits.length) h += fieldRow('Details', bits.join(' · '));
-    if(sb.book) h += fieldRow('Plat', `Book ${esc(sb.book)}, Page ${esc(sb.page||'')}`);
-    if(sb.link) h += `<a class="palink" href="${esc(sb.link)}" target="_blank" rel="noopener" style="margin-top:6px">↗ Recorded plat</a>`;
+    // Plat book/page and the recorded-plat link live on the Permits card now (one place, every county).
     if(gated && !a && !c.pd) h += `<div class="note">Gated subdivisions have an association by necessity (someone owns the gate and the private roads). Search Sunbiz for the subdivision name.</div>`;
     if(!a && !c.pd) h += `<a class="palink" href="${esc(_sunbizQ(sb.name))}" target="_blank" rel="noopener" style="margin-top:8px">↗ Sunbiz: &ldquo;${esc(sb.name)}&rdquo;</a>`;
   }
@@ -21161,14 +21174,25 @@ function skeletonCard(icn, title, src, msg){
      2. The zip was fetched on every lookup and dropped on the floor here, so the box read
         "…, NAPLES" when it could read "…, NAPLES 34102" — which is what makes the value
         re-searchable and unambiguous when it goes into history or back through the geocoder. */
+/* Site-address second line ("NAPLES 34119"): drop the city when the first line already carries it
+   ("6393 HIGHCROFT DR, NAPLES") so the card doesn't read NAPLES twice. */
+function addrLine2(site, city, zip){
+  const c=String(city||'').trim(), z=String(zip||'').trim(); if(!c && !z) return '';
+  const cw=c.replace(/^(CITY|TOWN|VILLAGE)\s+OF\s+/i,'').trim();
+  const has = cw && new RegExp('\\b'+cw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*$','i').test(String(site||'').replace(/,?\s*FL\.?$/i,'').trim());
+  const siteHasFL = /\bFL\b\.?\s*$/i.test(String(site||''));
+  const cityPart = has ? '' : c;
+  return [cityPart ? cityPart + (siteHasFL ? '' : ',') : '', siteHasFL ? '' : 'FL', z].filter(Boolean).join(' ').replace(/,\s*FL/,', FL');
+}
 function siteBoxAddr(site, city, zip){
-  const base = joinSiteCity(site, city);
+  let base = joinSiteCity(site, city);
   if(!base) return '';
   const z = String(zip==null?'':zip).trim();
-  if(!z) return base;
+  const hasFL = /\bFL\b\.?/i.test(base) || /\bFLORIDA\b/i.test(base);
+  if(!z){ return hasFL ? base : base.replace(/,?\s*$/, '') + ', FL'; }
   // Don't double up if the site string already carries the zip.
-  if(new RegExp('\\b'+z.replace(/[^0-9-]/g,'').slice(0,5)+'\\b').test(base)) return base;
-  return base + ' ' + z;
+  if(new RegExp('\\b'+z.replace(/[^0-9-]/g,'').slice(0,5)+'\\b').test(base)){ return hasFL ? base : base.replace(new RegExp('\\s*'+z.slice(0,5)+'.*$'), ', FL '+z); }
+  return base + (hasFL ? '' : ', FL') + ' ' + z;
 }
 function joinSiteCity(site, city){
   const s=String(site||'').trim(), c=String(city||'').trim();
@@ -21179,6 +21203,9 @@ function joinSiteCity(site, city){
   const want=norm(c);
   // "CITYOFNAPLES" contains "NAPLES", and a bare "NAPLES" equals it — either way, don't append.
   if(want && tail && (tail===want || tail.indexOf(want)>=0 || want.indexOf(tail)>=0)) return s;
+  // City already anywhere in the string as a whole word ("6393 HIGHCROFT DR NAPLES, FL") — don't append again.
+  const cityWord = String(c).replace(/^(CITY|TOWN|VILLAGE)\s+OF\s+/i,'').trim();
+  if(cityWord && new RegExp('\\b'+cityWord.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','i').test(s)) return s;
   return s + ', ' + c;
 }
 /* Re-point the living-area provenance when a county block overrides AFTER the shared decision.
@@ -21251,8 +21278,7 @@ function renderParcelGeneric(a, d){
     try{ if(window.__livOverride){ h += `<div class="note">Living area shown is the heated/living figure (${window.__livOverride.shown.toLocaleString('en-US')} sq ft). The other source listed ${window.__livOverride.other.toLocaleString('en-US')} sq ft &mdash; an adjusted/under-roof or multi-structure total.</div>`; window.__livOverride=null; } }catch(e){}
   }
   if(lotSf) h += fieldRow('Lot area', lotSf+' sq ft');
-  if(site) h += fieldRow('Site address',
-    esc(site) + ((city||zip) ? '<br>'+esc([city, zip].filter(Boolean).join(' ')) : ''));
+  if(site){ const _l2=addrLine2(site, city, zip); h += fieldRow('Site address', esc(site) + (_l2 ? '<br>'+esc(_l2) : '')); }
   if(mail) h += fieldRow('Owner mailing',
     esc(mail) + ((mailCity||mailZip) ? '<br>'+esc([mailCity, mailZip].filter(Boolean).join(' ')) : ''));
   if(use)  h += fieldRow('Existing use', esc(use));
@@ -21425,6 +21451,8 @@ async function runLookup(lat,lng,searchCtx){
 }
 async function _runLookupInner(lat,lng,searchCtx){
   const myId=++runId;
+  // Every lookup (address search OR map click) starts here: clear per-parcel state so nothing carries over.
+  window.__parcelSFHA = undefined; window.__parcelFloodZone = undefined; window.__codeFind = null; window.__parcelPlatName = ''; window.__parcelSubdivName = ''; window.__platNameFn = null;
   try{ if(window.Measure){ Measure.stop(); Measure.clear(); } }catch(e){}   // measurements belong to the previous site
   // ── LOOKUP TIMING (debug) ─────────────────────────────────────────────────────────────────────
   // Each source is timed individually (they run in parallel, so these are latencies, not additive).
@@ -21545,7 +21573,6 @@ async function _runLookupInner(lat,lng,searchCtx){
      trips on a stall; abandoning fast and reconnecting is the entire fix. Four attempts takes the
      miss rate from ~40% to ~3% while the typical lookup still costs ~85 ms. growOnAbort:false
      because widening the window would only make each dead attempt more expensive. */
-  window.__parcelSFHA = undefined; window.__parcelFloodZone = undefined; window.__codeFind = null;
   const pFlood   = _timed('flood (FEMA)', arcQueryRetry(EP.flood, lat, lng, 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF', false, 2500, 4, true, false)).catch(e=>({__err:e.message}));
   // NAME alone can't tell a municipality from a CDP — pull the Census class fields too, so
   // isIncorporatedPlace() can reject unincorporated communities (see below).
@@ -23595,8 +23622,7 @@ async function _runLookupInner(lat,lng,searchCtx){
       try{ if(window.__livOverride){ html += `<div class="note">Living area shown is the heated/living figure (${window.__livOverride.shown.toLocaleString('en-US')} sq ft). The other source listed ${window.__livOverride.other.toLocaleString('en-US')} sq ft &mdash; an adjusted/under-roof or multi-structure total.</div>`; window.__livOverride=null; } }catch(e){}
     }
     if(lsf) html += fieldRow('Lot area', lsf+' sq ft');
-    if(site)     html += fieldRow('Site address',
-      esc(site) + ((siteCity||_rzip) ? '<br>'+esc([siteCity,_rzip].filter(Boolean).join(' ')) : ''));
+    if(site){ const _l2=addrLine2(site, siteCity, _rzip); html += fieldRow('Site address', esc(site) + (_l2 ? '<br>'+esc(_l2) : '')); }
     // MAP-CLICK ADDRESS FILL (roll-fallback counties): same as the live branch above — including
     // the viaMap test, since this branch had the identical `!searchCtx` condition.
     if((!searchCtx || searchCtx.viaMap===true) && site){
@@ -23722,7 +23748,20 @@ async function _runLookupInner(lat,lng,searchCtx){
   }
 
   {
-    const _subdiv = _getSubdivName();
+    const _subdiv = _getSubdivName(); window.__parcelSubdivName = _subdiv||'';
+    // Plat name straight from the legal description (not the appraiser's grouping label): keep UNIT / REPLAT — that's the plat's name.
+    function _platNameFromLegal(){ try{
+      let legal=null;
+      if(parcel && !parcel.__err && parcel.features && parcel.features[0]) legal = pick(parcel.features[0].attributes,'S_LEGAL');
+      if(!legal && liveRes && liveRes.features && liveRes.features[0]) legal = ciPick(liveRes.features[0].attributes,'LEGAL','LEGAL_DESC','LEGAL_DESCRIPTION','S_LEGAL','LEGALDESC');
+      if(!legal) return '';
+      const u=String(legal).toUpperCase().replace(/\s+/g,' ').trim();
+const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC\s+\d|S\d{2}T\d{2}|A\s+CONDO|CONDOMINIUM|PARCEL\b|(?:N|S|E|W|NE|NW|SE|SW)\s*(?:\d|1\/2|1\/4|½|¼)|(?:N|S|E|W|NE|NW|SE|SW)\s*\d+(?:\.\d+)?\s*FT\b|\d+\s*FT\b|LESS\b|EXC\b|AND\s+\d|THE\s+(N|S|E|W)\b)/);
+      let n=(cut>0?u.slice(0,cut):u).trim().replace(/[,;:.]+$/,'');
+      n=n.replace(/\s+(N|S|E|W|NE|NW|SE|SW|NLY|SLY|ELY|WLY)$/,'').trim();   // truncated legals end in a bare direction ("…UNIT 97 E")
+      return n.length>=4?n:'';
+    }catch(e){ return ''; } }
+    window.__parcelPlatName = _platNameFromLegal(); window.__platNameFn = _platNameFromLegal;
     const _sunbizBase = 'https://search.sunbiz.org/Inquiry/CorporationSearch/ByName';
     const _sunbizUrl = q => _sunbizBase + '?inquirytype=EntityName&inquiryDirectionType=ForwardList&searchNameOrder=&corporationNameSearchString=' + encodeURIComponent(q);
     const _googleUrl = q => 'https://www.google.com/search?q=' + encodeURIComponent(q);
@@ -24942,14 +24981,29 @@ async function _runLookupInner(lat,lng,searchCtx){
      layer answers; nothing rendered where no layer is wired. */
   {
     const _platSlot='platLive-'+myId;
-    if(PLAT_LAYERS[norm(cityName||'')] || PLAT_LAYERS_COUNTY[norm(countyName||'')]){
+    // Also accept a county whose COMMUNITY 'sub' layer carries plat book/page (Charlotte) — same slot, same look.
+    const _subPlat = (COMMUNITY_LAYERS[norm(countyName||'')]||[]).find(l=>l.key==='sub' && /book/i.test(String(l.pick)));
+    if(PLAT_LAYERS[norm(cityName||'')] || PLAT_LAYERS_COUNTY[norm(countyName||'')] || _subPlat){
       html += `<div id="${_platSlot}"></div>`;
-      queryRecordedPlat(lat, lng, cityName, countyName, 8000).then(p=>{
+      if(!window.__parcelPlatName && window.__platNameFn){ try{ window.__parcelPlatName = window.__platNameFn(); }catch(e){} }
+      const _platQ = (PLAT_LAYERS[norm(cityName||'')] || PLAT_LAYERS_COUNTY[norm(countyName||'')])
+        ? queryRecordedPlat(lat, lng, cityName, countyName, 8000)
+        : arcQuery(_subPlat.url.replace(/\/query$/,'')+'/query', lat, lng, '*', false, 8000).then(r=>{ const a=r&&r.features&&r.features[0]&&r.features[0].attributes; if(!a) return null; const x=_subPlat.pick(a); if(!x||!x.name) return null; return { label: x.name + (x.book?` · Plat Book ${x.book}${x.page?`, Page ${x.page}`:''}`:''), link:x.link||null }; }).catch(()=>null);
+      _platQ.then(p=>{
         if(myId!==runId || !p) return;
         patchSlot(_platSlot,
           `<div class="note" style="margin-top:6px">Recorded plat: <b>${esc(p.label)}</b></div>`
           + (p.link ? `<a class="palink" href="${esc(p.link)}" target="_blank" rel="noopener" style="margin-top:6px">↗ ${esc(p.linkLabel||'Recorded plat')}</a>` : '')
-          + `<div class="note" style="margin-top:4px">Platted utility &amp; drainage easements and any platted setback lines are on the recorded plat, not the zoning code — check it before siting the pad.</div>`);
+          + (p.copyText ? `<div class="note" style="margin-top:4px"><code>${esc(p.copyText)}</code> <button type="button" class="copyfolio lc-read" data-folio="${esc(p.copyText)}">${esc(p.copyLabel||'Copy')}</button>${p.copyNote?`<div class="lc-meta" style="margin-top:3px">${esc(p.copyNote)}</div>`:''}</div>` : '')
+          + (p.extraLink ? `<a class="palink" href="${esc(p.extraLink)}" target="_blank" rel="noopener" style="margin-top:6px">↗ ${esc(p.extraLabel||'Records search')}</a>` : '')
+          + `<div class="note" style="margin-top:4px">Platted utility &amp; drainage easements and any platted setback lines are on the recorded plat, not the zoning code — check it before siting the pad.</div>`
+          + (norm(countyName)==='COLLIER' ? (()=>{ const ex=window.__exportData||{}; const a=String(ex.address||'').replace(/,/g,' ').replace(/\s+/g,' ').trim(); if(!a) return '';
+              const city=String(ex.city||'').replace(/,/g,' ').trim().toUpperCase(), zip=String(ex.zip||'').trim();
+              // the site address often already ends in the city ("6393 HIGHCROFT DR NAPLES") — don't add it twice
+              const A=a.toUpperCase(); const hasCity = city && new RegExp('\\b'+city.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(\\s+FL)?(\\s+\\d{5})?\\s*$').test(A);
+              const q=[A.replace(/\s+FL(\s+\d{5})?\s*$/,''), hasCity?'':city, 'FL', zip].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+              return `<a class="palink" href="https://cor.collierclerk.com/coraccess/search/address?address=${encodeURIComponent(q)}" target="_blank" rel="noopener" style="margin-top:6px">↗ Recorded deed for ${esc(q)} — Collier Clerk (COR Access)</a>`
+                   + `<div class="note" style="margin-top:4px"><code>${esc(q)}</code> <button type="button" class="copyfolio lc-read" data-folio="${esc(q)}">Copy address</button><div class="lc-meta" style="margin-top:3px">Private easements and deed restrictions that never made the plat are in the deed. Same session note as the plat: if COR shows the last address, paste this one.</div></div>`; })() : ''));
       }).catch(()=>{});
     }
   }
