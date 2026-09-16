@@ -284,6 +284,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .lc-pending{margin-top:8px;padding:8px;border-radius:6px;border:1px dashed rgba(255,255,255,.3);background:rgba(255,255,255,.03);font-size:12px}
   .hand-ref{margin-top:12px;border-top:1px solid rgba(255,255,255,.08);padding-top:6px} .hand-ref>summary{cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;opacity:.75;padding:6px 0} .hand-ref>summary:hover{opacity:1}
   .lc-inline{margin:4px 0 8px 0} .lc-excerpt{font-size:11px;opacity:.7;margin-top:2px}
+  .dim-label{background:transparent;color:#fff;border:0;border-radius:3px;padding:0;font-family:var(--mono);font-size:10px;box-shadow:none} .dim-label span{background:rgba(0,0,0,.55);padding:0 4px;border-radius:3px} .dim-label::before{display:none}
   .lc-more{font-size:11px;opacity:.75;display:inline-block;margin:2px 0 4px 0}
   .lc-zonebar{font-size:11px;margin:2px 0 6px 0;padding:3px 8px;border-radius:4px;background:rgba(244,104,0,.12);border:1px solid rgba(244,104,0,.35)} .lc-zonebar a{color:var(--signal)}
   .live-code table[data-trimmed] td:first-child,.live-code table[data-trimmed] th:first-child{opacity:.85}
@@ -1503,6 +1504,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
       <button id="btnBounds" class="active" title="Color-coded incorporated city-limit outlines">◰ City limits</button>
       <button id="btnParcels" title="Statewide parcel / lot lines — zoom in close (FL cadastral)">▦ Parcels</button>
       <button id="btnZoning" title="Zoning districts for the current county — zoom in close. Hover a zone for its district code.">⬡ Zoning</button>
+      <button id="btnSketch" class="active" title="Recorded easements (hatched) and lot-line dimensions for the looked-up parcel — Lee County land records">▨ Easements &amp; lot lines</button>
       <button id="zoningRefresh" class="zl-refresh-row" title="Reload zoning for the area you're currently viewing (e.g. after panning out of a city into the county)">⟳ Refresh zoning to this view</button>
     </div>
   </div>
@@ -3320,6 +3322,37 @@ function _adoptSummary(t, jurName, top, st){
   }
   return h + implied;
 }
+/* Zoning card ↔ zoning-atlas exceptions (Collier): standards on THIS lot differ from the district table. */
+document.addEventListener('aog:zexc', (ev)=>{
+  const slots=document.querySelectorAll('[id^="preserveNote-"]'); if(!slots.length) return; const slot=slots[slots.length-1]; const list=ev.detail;
+  if(!list || !list.length) return;
+  let h=`<div class="note warnbox" style="margin-top:8px"><b>Zoning-atlas exception on this lot.</b> Collier's graphic zoning atlas flags this parcel as having development standards that differ from the district table (nonconforming lot, corner-lot rule, setback exception or conditional use). Read the note and confirm with Growth Management before relying on the table above.`;
+  for(const e of list) h+=`<div style="margin-top:4px">${e.code?`<span class="lc-chip">${esc(e.code)}</span> `:''}${esc(e.notes||'(no note recorded on the atlas)')}</div>`;
+  h+=`</div>`;
+  slot.insertAdjacentHTML('afterbegin', h);
+});
+/* Zoning card ↔ preserve check (Collier): a preserve-boundary setback the district table doesn't show. */
+document.addEventListener('aog:preserve', (ev)=>{
+  const slots=document.querySelectorAll('[id^="preserveNote-"]'); if(!slots.length) return; const slot=slots[slots.length-1]; const r=ev.detail;
+  if(!r || !r.near){ return; }
+  const cls = r.ft <= r.accessoryFt+5 ? 'warnbox' : '';
+  slot.insertAdjacentHTML('beforeend', `<div class="note ${cls}" style="margin-top:8px"><b>Preserve tract ${r.touching?'adjoins':'is '+r.ft+' ft from'} this lot.</b> ${esc(r.rule)}. A generator or LP tank is an accessory structure — keep it <b>${r.accessoryFt} ft</b> off the preserve line, in addition to the district yard. Preserve shown hatched green on the map.</div>`);
+});
+/* Permits card ↔ site sketch: list the recorded easements found on the lot (Lee land records). */
+document.addEventListener('aog:sketch', (ev)=>{
+  const slots=document.querySelectorAll('[id^="easeList-"]'); if(!slots.length) return;
+  const d=ev.detail; const slot=slots[slots.length-1];
+  if(!d){ slot.innerHTML=''; return; }
+  const dimTxt = d.dims.length ? d.dims.map(x=>(x.approx?'≈':'')+x.ft+"'").join(' · ') : '';
+  const dimNote = d.dims.length ? (d.dimsSource==='recorded' ? `Lot lines (recorded): ${dimTxt}` : `Lot lines (measured from the parcel polygon, not a survey): ${dimTxt}`) : '';
+  if(!d.easementsLayer){ slot.innerHTML=`${dimNote?`<div class="lc-meta">${dimNote}</div>`:''}<div class="lc-meta">${esc(titleCase(d.county||''))} County doesn't publish an easements layer — platted easements are on the plat sheet above.</div>`; return; }
+  if(!d.easements.length){ slot.innerHTML=`<b>Recorded easements on this lot:</b> <span class="lc-meta">none mapped in ${esc(titleCase(d.county||''))} County land records. Platted easements shown on the plat sheet still apply.</span>${dimNote?`<div class="lc-meta" style="margin-top:3px">${dimNote}</div>`:''}`; return; }
+  let h=`<b>Recorded easements on this lot</b> <span class="lc-meta">· ${esc(titleCase(d.county||''))} County land records · hatched on the map</span>`;
+  for(const e of d.easements){ h+=`<div class="lc-hit" style="padding:3px 0"><div class="lc-hit-t"><span style="color:#ff73df">▨</span> <b>${esc(e.type)}</b>${e.width?` · ${(+e.width).toFixed(0)} ft`:''}${e.grantee?` · ${esc(e.grantee)}`:''}${e.orbkpg?` <span class="lc-meta">· OR ${esc(e.orbkpg)}</span>`:''}${e.blanket?' <span class="lc-flag">blanket</span>':''}</div>${e.url?`<a class="lc-read" href="${esc(e.url)}" target="_blank" rel="noopener" style="text-decoration:none">Document</a>`:''}</div>`; }
+  if(dimNote) h+=`<div class="lc-meta" style="margin-top:3px">${dimNote}</div>`;
+  h+=`<div class="lc-meta" style="margin-top:3px">Nothing goes in a utility or drainage easement — pad, LP tank or gas line. Hover a hatched strip on the map for its details.</div>`;
+  slot.innerHTML=h;
+});
 /* Flood card ↔ code lookup handshake. Whichever finishes second fills the slot. */
 window.__codeFind = null;
 function fillFloodLiveCode(){
@@ -3482,7 +3515,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-16b";
+const CODE_API_VERSION = "2026-09-16l";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
@@ -9271,6 +9304,8 @@ async function refreshZoning(){
   zoningKey=key;
   zoningBusy=false;
 }
+const btnSketch=document.getElementById('btnSketch');
+if(btnSketch) btnSketch.addEventListener('click',()=>{ sketchOn=!sketchOn; btnSketch.classList.toggle('active',sketchOn); if(!sketchOn) clearSiteSketch(); else if(parcelLayer && window.__lastParcelGeom) drawSiteSketch(window.__lastParcelGeom, window.__parcelCounty||''); });
 const btnZoning=document.getElementById('btnZoning');
 const zoningLegend=document.getElementById('zoningLegend');
 if(btnZoning) btnZoning.onclick=function(){
@@ -19861,9 +19896,165 @@ function renderCapeCoralGeneratorRules(districtCode){
    still draw the outline so the user sees what was returned, but we DON'T let it drive the zoom —
    we keep a house-level view centered on the queried point so the labels stay legible.
    (MAX_HOME_LOT_ACRES is declared up by pickSpecificParcel so the address-picker can use it too.) */
+/* ---------- SITE SKETCH: recorded easements + lot-line dimensions on the looked-up parcel ----------
+   Lee County publishes both as land-records layers (Data Explorer › LandRecords): easement polygons with type,
+   width, grantee, OR book/page and a link to the recorded instrument; and the parcel-fabric boundary lines with
+   their platted distances. Drawn over the lot after drawParcel(); listed on the Permits card. Toggle: Layers ›
+   Easements & lot lines. Other counties get added here as their layers are found. */
+const SITE_SKETCH = {
+  LEE: { easements:'https://gismapserver.leegov.com/gisserver910/rest/services/DataExplorer/LandRecords/MapServer/2',
+         dims:'https://gismapserver.leegov.com/gisserver910/rest/services/DataExplorer/LandRecords/MapServer/7' },
+};
+/* Collier preserve tracts (Growth Management "Preserves"). LDC 3.05.07 H.3: principal structures 25 ft and
+   ACCESSORY structures 10 ft from a preserve boundary — a rear setback the district table never mentions, and
+   the generator is an accessory structure. Checked against the looked-up parcel; drawn on the map when near. */
+const PRESERVE_LAYERS = {
+  COLLIER: { url:'https://services2.arcgis.com/SlIq32SqARUHIhSx/ArcGIS/rest/services/Preserves/FeatureServer/1', rule:'LDC 3.05.07 H.3 — accessory structures 10 ft, principal structures 25 ft from the preserve boundary', accessoryFt:10, principalFt:25 },
+};
+/* Collier zoning-atlas exceptions: polygons marking lots whose development standards differ from the district
+   table — nonconforming lots, corner-lot rules, setback exceptions, conditional uses (GMD, from the graphic zoning
+   atlas). Rare, but decisive when present. Shown on the Zoning card only when one touches the parcel. */
+const ZONING_EXCEPTION_LAYERS = {
+  COLLIER: { url:'https://services2.arcgis.com/SlIq32SqARUHIhSx/ArcGIS/rest/services/Zoning_Exception_(Editable)_view/FeatureServer/2', fields:'OBJECTID,EXCP,EXPNOTES1,EXPNOTES2' },
+};
+async function checkZoningExceptions(g, countyName){
+  const Z=ZONING_EXCEPTION_LAYERS[norm(countyName||'')]; if(!Z || !g || !g.rings) return null;
+  const rings=g.rings; const env=_ringsEnvelope(rings);
+  let r=null; try{ r=await _arcEnv(Z.url, env, Z.fields, true); }catch(e){ return null; }
+  const out=[];
+  for(const f of (r&&r.features)||[]){
+    const a=f.attributes||{}; const pr=f.geometry&&f.geometry.rings;
+    // must actually overlap/touch the lot, not just share the envelope
+    const touches = !pr || pr.some(rg=>rg.some(p=>_ptToRingsM(p[0],p[1],rings)<2)) || rings.some(rg=>rg.some(p=>_ptToRingsM(p[0],p[1],pr)<2));
+    if(!touches) continue;
+    out.push({ code:String(a.EXCP||'').trim(), notes:[a.EXPNOTES1,a.EXPNOTES2].filter(x=>x&&String(x).trim()).map(x=>String(x).trim()).join(' ') });
+  }
+  return out;
+}
+/* Fire districts: whose fire marshal reviews the LP tank / generator clearances and inspects. Collier's layer
+   carries only the district NAME; the contacts below are the districts' own fire-prevention pages. */
+const FIRE_DISTRICT_LAYERS = {
+  COLLIER: { url:'https://services2.arcgis.com/SlIq32SqARUHIhSx/ArcGIS/rest/services/Fire_District/FeatureServer/0', field:'NAME' },
+};
+const FIRE_DISTRICT_CONTACTS = [
+  // Home pages (stable). Replace with the district's fire-prevention / plan-review page when known.
+  { re:/north collier/i,                                          name:'North Collier Fire Control & Rescue District', url:'https://www.northcollierfire.com/' },
+  { re:/greater naples|east naples|golden gate|isles of capri/i,  name:'Greater Naples Fire Rescue District',           url:'https://www.gnfire.org/' },
+  { re:/immokalee/i,                                              name:'Immokalee Fire Control District',               url:'https://www.immokaleefire.com/' },
+  { re:/ochopee/i,                                                name:'Ochopee Fire Control District (Collier County)', url:'https://www.colliercountyfl.gov/' },
+  { re:/marco/i,                                                  name:'Marco Island Fire-Rescue (City)',                url:'https://www.cityofmarcoisland.com/' },
+  { re:/city of naples|naples fire/i,                             name:'Naples Fire-Rescue (City)',                      url:'https://www.naplesgov.com/' },
+];
+async function queryFireDistrict(lat, lng, countyName){
+  const F=FIRE_DISTRICT_LAYERS[norm(countyName||'')]; if(!F) return null;
+  try{ const r=await arcQuery(F.url+'/query', lat, lng, F.field, false, 8000); const a=r&&r.features&&r.features[0]&&r.features[0].attributes; const nm=a&&a[F.field]?String(a[F.field]).trim():null; if(!nm) return null;
+       const c=FIRE_DISTRICT_CONTACTS.find(x=>x.re.test(nm)); return { name:nm, contact:c||null }; }catch(e){ return null; }
+}
+let _preserveLayers=[];
+function clearPreserves(){ for(const l of _preserveLayers){ try{ map.removeLayer(l); }catch(e){} } _preserveLayers=[]; }
+async function checkPreserves(g, countyName){
+  clearPreserves();
+  const P=PRESERVE_LAYERS[norm(countyName||'')]; if(!P || !g || !g.rings) return null;
+  const rings=g.rings; const env=_ringsEnvelope(rings); const pad=0.0006;   // ~60 m search box
+  let r=null; try{ r=await _arcEnv(P.url, {xmin:env.xmin-pad,ymin:env.ymin-pad,xmax:env.xmax+pad,ymax:env.ymax+pad}, 'OBJECTID', true); }catch(e){ return null; }
+  const feats=(r&&r.features)||[]; if(!feats.length) return { near:false, rule:P.rule };
+  let best=1e9;
+  for(const f of feats){ const pr=f.geometry&&f.geometry.rings; if(!pr) continue;
+    for(const ring of pr) for(const p of ring){ const d=_ptToRingsM(p[0],p[1],rings); if(d<best) best=d; }
+    for(const ring of rings) for(const p of ring){ const d=_ptToRingsM(p[0],p[1],pr); if(d<best) best=d; }
+    if(sketchOn){ const poly=L.polygon(pr.map(rg=>rg.map(p=>[p[1],p[0]])),{renderer:canvasRenderer,color:'#37d399',weight:1.5,dashArray:'6 4',fillColor:'#37d399',fillOpacity:.15}).addTo(map); poly.bindTooltip('<b>Preserve tract</b><br>'+P.rule,{sticky:true,direction:'top',className:'parcel-tip',opacity:1}); _preserveLayers.push(poly); }
+  }
+  const ft=Math.round(best*3.28084);
+  return { near:true, ft, touching: ft<=3, rule:P.rule, accessoryFt:P.accessoryFt, principalFt:P.principalFt };
+}
+let sketchOn = true; let _sketchLayers = []; let _sketchRun = 0;
+function clearSiteSketch(){ for(const l of _sketchLayers){ try{ map.removeLayer(l); }catch(e){} } _sketchLayers=[]; }
+function _ringsEnvelope(rings){ let xmin=1e9,ymin=1e9,xmax=-1e9,ymax=-1e9; for(const r of rings) for(const p of r){ if(p[0]<xmin)xmin=p[0]; if(p[0]>xmax)xmax=p[0]; if(p[1]<ymin)ymin=p[1]; if(p[1]>ymax)ymax=p[1]; } return {xmin,ymin,xmax,ymax}; }
+function _ptToRingsM(lng,lat,rings){ let best=1e9; for(const r of rings) for(let i=1;i<r.length;i++){ const d=_distPtSegM(lng,lat,r[i-1][0],r[i-1][1],r[i][0],r[i][1]); if(d<best) best=d; } return best; }
+async function _arcEnv(url, env, outFields, geom){
+  const g=encodeURIComponent(JSON.stringify({xmin:env.xmin,ymin:env.ymin,xmax:env.xmax,ymax:env.ymax,spatialReference:{wkid:4326}}));
+  const r=await fetch(`${url}/query?geometry=${g}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=${encodeURIComponent(outFields)}&returnGeometry=${geom?'true':'false'}&outSR=4326&f=json`);
+  if(!r.ok) return null; return r.json();
+}
+/* Edge lengths straight from the parcel polygon: collinear vertices merged (bearing within 4°), edges under
+   8 ft skipped (curve fragments), labelled at the midpoint. ≈ because GIS parcel fabric is not a survey. */
+function _computedDims(rings){
+  const R=6371008.8, toRad=x=>x*Math.PI/180;
+  const distM=(a,b)=>{ const dLat=toRad(b[1]-a[1]), dLng=toRad(b[0]-a[0]); const m=Math.sin(dLat/2)**2+Math.cos(toRad(a[1]))*Math.cos(toRad(b[1]))*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(m)); };
+  const bear=(a,b)=>Math.atan2(Math.cos(toRad(a[1]))*(b[0]-a[0]), (b[1]-a[1]))*180/Math.PI;
+  const out=[];
+  for(const r0 of rings){
+    const r=r0.slice(); if(r.length>1 && r[0][0]===r[r.length-1][0] && r[0][1]===r[r.length-1][1]) r.pop();
+    if(r.length<3) continue;
+    // merge collinear runs
+    const segs=[]; let start=0;
+    for(let i=1;i<=r.length;i++){ const a=r[start], b=r[i%r.length], c=r[(i+1)%r.length]; if(i===r.length){ segs.push([r[start], r[0]]); break; } const bb=bear(a,b), bc=bear(b,c); let d=Math.abs(bb-bc); if(d>180) d=360-d; if(d>4){ segs.push([a,b]); start=i; } }
+    for(const [a,b] of segs){ const ft=distM(a,b)*3.28084; if(ft<8) continue; out.push({ft:Math.round(ft), path:[a,b], mid:[(a[0]+b[0])/2,(a[1]+b[1])/2], approx:true}); }
+  }
+  return out;
+}
+async function drawSiteSketch(g, countyName){
+  clearSiteSketch();
+  if(!g || !g.rings){ document.dispatchEvent(new CustomEvent('aog:sketch',{detail:null})); return; }
+  const S = SITE_SKETCH[norm(countyName||'')] || {};
+  const run = ++_sketchRun; const rings=g.rings; const env=_ringsEnvelope(rings);
+  const pad=0.00005; const envP={xmin:env.xmin-pad,ymin:env.ymin-pad,xmax:env.xmax+pad,ymax:env.ymax+pad};
+  const out={ easements:[], dims:[], county: countyName, easementsLayer: !!S.easements, dimsSource: S.dims ? 'recorded' : 'computed' };
+  try{
+    const [ea, dm] = await Promise.all([
+      S.easements ? _arcEnv(S.easements, envP, 'TYPE1,TYPE2,WIDTH_FT,GRANTEE,ORBKPG,INST_NUM,Record_URL,Blanket_Easement', true).catch(()=>null) : Promise.resolve(null),
+      S.dims ? _arcEnv(S.dims, envP, 'Distance,Bearing,Category,ParcelID', true).catch(()=>null) : Promise.resolve(null),
+    ]);
+    if(run!==_sketchRun) return;
+    // Easements — keep those actually touching this lot (any vertex within 2 m of the lot, or the lot within the easement)
+    for(const f of (ea&&ea.features)||[]){
+      const a=f.attributes||{}; const gr=f.geometry&&f.geometry.rings; if(!gr) continue;
+      const touches = gr.some(r=>r.some(p=>_ptToRingsM(p[0],p[1],rings)<2)) || rings.some(r=>r.some(p=>_ptToRingsM(p[0],p[1],gr)<2));
+      if(!touches) continue;
+      const type=[a.TYPE1,a.TYPE2].filter(Boolean).join(' / ') || 'Easement';
+      const label=`${type}${a.WIDTH_FT?' · '+(+a.WIDTH_FT).toFixed(0)+' ft':''}${a.GRANTEE?' · '+a.GRANTEE:''}${a.ORBKPG?' · OR '+a.ORBKPG:''}${String(a.Blanket_Easement||'').toLowerCase()==='yes'?' · blanket':''}`;
+      out.easements.push({ type, width:a.WIDTH_FT||null, grantee:a.GRANTEE||null, orbkpg:a.ORBKPG||null, inst:a.INST_NUM||null, url:(a.Record_URL&&/^https?:/i.test(a.Record_URL))?a.Record_URL:null, blanket:String(a.Blanket_Easement||'').toLowerCase()==='yes', label });
+      if(sketchOn){
+        const poly=L.polygon(gr.map(r=>r.map(p=>[p[1],p[0]])),{renderer:canvasRenderer,color:'#ff73df',weight:1.5,dashArray:'4 3',fillColor:'#ff73df',fillOpacity:.22,className:'ease-poly'}).addTo(map);
+        poly.bindTooltip(`<b>${esc(type)}</b>${a.WIDTH_FT?' · '+(+a.WIDTH_FT).toFixed(0)+' ft wide':''}${a.GRANTEE?'<br>'+esc(a.GRANTEE):''}${a.ORBKPG?'<br>OR '+esc(a.ORBKPG):''}`,{sticky:true,direction:'top',className:'parcel-tip',opacity:1});
+        _sketchLayers.push(poly);
+      }
+    }
+    // Lot-line dimensions — boundary / frontage lines whose midpoint lies on this lot's edge
+    for(const f of (dm&&dm.features)||[]){
+      const a=f.attributes||{}; const paths=f.geometry&&f.geometry.paths; if(!paths||a.Distance==null) continue;
+      if(a.Category!=null && ![0,5].includes(+a.Category)) continue;
+      for(const path of paths){
+        if(path.length<2) continue; const mid=path[Math.floor(path.length/2)]; const m2=path.length%2===0 ? [(path[path.length/2-1][0]+path[path.length/2][0])/2,(path[path.length/2-1][1]+path[path.length/2][1])/2] : mid;
+        if(_ptToRingsM(m2[0],m2[1],rings)>1.5) continue;
+        const ft=Math.round(+a.Distance); out.dims.push({ft, bearing:a.Bearing});
+        if(sketchOn){
+          const pl=L.polyline(path.map(p=>[p[1],p[0]]),{renderer:canvasRenderer,color:'#ffffff',weight:1,opacity:.0}).addTo(map);
+          // Rotate the label to the line: screen-space angle between the two path ends (Mercator keeps it constant across zoom)
+          let deg=0; try{ const a=map.latLngToLayerPoint([path[0][1],path[0][0]]), b=map.latLngToLayerPoint([path[path.length-1][1],path[path.length-1][0]]); deg=Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI; if(deg>90) deg-=180; if(deg<-90) deg+=180; }catch(e){}
+          const tip=L.tooltip({permanent:true,direction:'center',className:'dim-label',opacity:1}).setContent(`<span style="display:inline-block;transform:rotate(${deg.toFixed(1)}deg)">${ft}'</span>`).setLatLng([m2[1],m2[0]]).addTo(map);
+          _sketchLayers.push(pl, tip);
+        }
+      }
+    }
+    if(!out.dims.length){
+      out.dimsSource='computed';
+      for(const d of _computedDims(rings)){
+        out.dims.push({ft:d.ft, approx:true});
+        if(sketchOn){
+          let deg=0; try{ const a=map.latLngToLayerPoint([d.path[0][1],d.path[0][0]]), b=map.latLngToLayerPoint([d.path[1][1],d.path[1][0]]); deg=Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI; if(deg>90) deg-=180; if(deg<-90) deg+=180; }catch(e){}
+          const tip=L.tooltip({permanent:true,direction:'center',className:'dim-label',opacity:1}).setContent(`<span style="display:inline-block;transform:rotate(${deg.toFixed(1)}deg)">≈${d.ft}'</span>`).setLatLng([d.mid[1],d.mid[0]]).addTo(map);
+          _sketchLayers.push(tip);
+        }
+      }
+    }
+  }catch(e){ console.warn('[site sketch]', e); }
+  if(run===_sketchRun){ window.__siteSketch = out; document.dispatchEvent(new CustomEvent('aog:sketch',{detail:out})); }
+}
 function drawParcel(g, info){
   try{
     if(g&&g.rings){
+      window.__lastParcelGeom = g;
       // Real-world acreage (deg²→ft² at the parcel's latitude). Infinity if it can't be computed.
       let acres=Infinity;
       try{ const _d=parcelDimensions(g); if(_d&&_d.acres>0) acres=_d.acres; }catch(e){}
@@ -19879,6 +20070,9 @@ function drawParcel(g, info){
       parcelLayer=L.polygon(latlngs,{renderer:canvasRenderer,color:col,weight:oversized?3.5:2,
         fillColor:col,fillOpacity:oversized?.05:.12,
         dashArray:oversized?'6 5':null,opacity:oversized?.85:1}).addTo(map);
+      try{ if(!oversized) drawSiteSketch(g, (info&&info.county)||window.__parcelCounty||''); else clearSiteSketch(); }catch(e){}
+      try{ checkPreserves(g, (info&&info.county)||window.__parcelCounty||'').then(res=>{ window.__preserveCheck=res; document.dispatchEvent(new CustomEvent('aog:preserve',{detail:res})); }); }catch(e){}
+      try{ checkZoningExceptions(g, (info&&info.county)||window.__parcelCounty||'').then(res=>{ document.dispatchEvent(new CustomEvent('aog:zexc',{detail:res})); }); }catch(e){}
       // Hover popup: address / parcel ID / owner. Follows the cursor (sticky) while over the lot.
       const tip=parcelTooltipHTML(info);
       if(tip){
@@ -21475,6 +21669,7 @@ async function _runLookupInner(lat,lng,searchCtx){
   if(marker) map.removeLayer(marker);
   marker=L.circleMarker([lat,lng],{renderer:canvasRenderer,radius:6,color:'#F46800',weight:2,fillColor:'#F46800',fillOpacity:.9}).addTo(map);
   if(parcelLayer){ map.removeLayer(parcelLayer); parcelLayer=null; }
+  try{ clearSiteSketch(); window.__siteSketch=null; clearPreserves(); window.__preserveCheck=null; }catch(e){}
   try{ resetElevationGrid(); }catch(e){}   // grid follows the parcel — stale points must not linger
   if(homeParcelLayer){ map.removeLayer(homeParcelLayer); homeParcelLayer=null; }
   clearNeighborNumbers(); _nbrCtx=null;
@@ -21618,6 +21813,7 @@ async function _runLookupInner(lat,lng,searchCtx){
 
   /* ---- Location / jurisdiction ---- */
   let countyName = (!county.__err && county.features && county.features[0]) ? (countyNameOf(county.features[0].attributes)||county.features[0].attributes.NAME) : null;
+  try{ window.__parcelCounty = countyName; }catch(e){}
   /* ── MUNICIPALITY, NOT JUST "THE PLACE THE POINT LANDED IN" ─────────────────────────────────
      This used to be features[0].NAME. The layer is Census place data, so features[0] is just as
      likely to be a CDP (Orangetree, Golden Gate, Lehigh Acres) as a city, and the card printed it
@@ -24536,7 +24732,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   }
   // Collier County generator siting (LDC 5.03.07) — UNINCORPORATED Collier only. The incorporated
   // cities (Naples has its own § 56-41 rendered above; Marco Island has its own LDC) are excluded.
-  if(norm(countyName)==='COLLIER' && !COLLIER_INCORP.has(norm(cityName))){ html += renderCollierGeneratorRules(); }
+  if(norm(countyName)==='COLLIER' && !COLLIER_INCORP.has(norm(cityName))){ html += renderCollierGeneratorRules(); html += `<div id="preserveNote-${myId}"></div>`; }
   // Tampa Bay / SW-FL cities wired in the zoning-layer expansion — each carries a generator-siting note
   // read from its own adopted code (verified per city). Dispatched by cityName so it rides on any parcel
   // in that city, whether or not a district code was read. (Marco Island's setback table renders above;
@@ -24975,6 +25171,12 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   if(portal){
     html += `<a class="palink" href="${esc(portal)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(docJur)} permitting portal (survey / site plan / permits)</a>`;
   }
+  // Fire district (who reviews the LP / generator clearances and inspects) — county GIS where published
+  if(FIRE_DISTRICT_LAYERS[norm(countyName||'')]){
+    html += `<div id="fireDist-${myId}"></div>`;
+    queryFireDistrict(lat, lng, countyName).then(fd=>{ if(myId!==runId || !fd) return; patchSlot('fireDist-'+myId,
+      `<div class="note" style="margin-top:6px"><b>Fire district:</b> ${esc(fd.name)}${fd.contact?` — <a href="${esc(fd.contact.url)}" target="_blank" rel="noopener">${esc(fd.contact.name)} ↗</a>`:''}<div class="lc-meta">This district's fire marshal reviews the LP tank and generator clearances (NFPA 58 / NFPA 37) and does the final inspection.</div></div>`); }).catch(()=>{});
+  }
   // Fire prevention code adoption (NFPA editions → NFPA 37 clearances, NFPA 58 tank distances) — live from Municode
   if(typeof CODE_PROXY_URL!=='undefined' && CODE_PROXY_URL){ html += `<div id="permitLiveCode" class="lc-topic"></div>`; setTimeout(fillPermitLiveCode, 50); }
   /* Recorded plat (easements, platted setback lines) — filled in place when the city/county plat
@@ -24997,6 +25199,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
           + (p.copyText ? `<div class="note" style="margin-top:4px"><code>${esc(p.copyText)}</code> <button type="button" class="copyfolio lc-read" data-folio="${esc(p.copyText)}">${esc(p.copyLabel||'Copy')}</button>${p.copyNote?`<div class="lc-meta" style="margin-top:3px">${esc(p.copyNote)}</div>`:''}</div>` : '')
           + (p.extraLink ? `<a class="palink" href="${esc(p.extraLink)}" target="_blank" rel="noopener" style="margin-top:6px">↗ ${esc(p.extraLabel||'Records search')}</a>` : '')
           + `<div class="note" style="margin-top:4px">Platted utility &amp; drainage easements and any platted setback lines are on the recorded plat, not the zoning code — check it before siting the pad.</div>`
+          + `<div id="easeList-${myId}" class="note" style="margin-top:6px"><span class="lc-meta">… measuring the lot${SITE_SKETCH[norm(countyName||'')]?' and reading recorded easements':''}</span></div>`
           + (norm(countyName)==='COLLIER' ? (()=>{ const ex=window.__exportData||{}; const a=String(ex.address||'').replace(/,/g,' ').replace(/\s+/g,' ').trim(); if(!a) return '';
               const city=String(ex.city||'').replace(/,/g,' ').trim().toUpperCase(), zip=String(ex.zip||'').trim();
               // the site address often already ends in the city ("6393 HIGHCROFT DR NAPLES") — don't add it twice
