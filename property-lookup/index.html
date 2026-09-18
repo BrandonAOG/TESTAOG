@@ -3515,7 +3515,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-16l";
+const CODE_API_VERSION = "2026-09-17b";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
@@ -21430,7 +21430,10 @@ function renderParcelGeneric(a, d){
   const liv   = d.liv?fmtNum(pick(a,d.liv)):null;
   const lotSf = d.lotSqft?fmtNum(pick(a,d.lotSqft)):null;
   const sp    = d.saleP?fmtMoney(pick(a,d.saleP)):null;
-  const sy    = d.saleY?pick(a,d.saleY):null;
+  let   sy    = d.saleY?pick(a,d.saleY):null;
+  // Lee (and some others) hand back the sale DATE as epoch milliseconds in the "year" field — show a real date.
+  if(sy!=null && /^\d{11,13}$/.test(String(sy).trim())){ const dt=new Date(Number(sy)); if(!isNaN(dt)) sy = dt.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}); }
+  else if(sy!=null && /^\d{4}-\d{2}-\d{2}/.test(String(sy))){ const dt=new Date(String(sy).slice(0,10)+'T12:00:00'); if(!isNaN(dt)) sy = dt.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}); }
   const mail  = d.mail?pick(a,d.mail):null;
   const mailCity = d.mailCity?pick(a,d.mailCity):null;
   /* Zips arrive as Integer on some layers (Collier's SiteZipCode) and String on others, and a few
@@ -21536,9 +21539,13 @@ function renderParcelGeneric(a, d){
   if(a.__municipality)
     h += fieldRow('Municipality (per appraiser)', esc(String(a.__municipality)));
   if(a.__fireDist) h += fieldRow('Fire district', esc(String(a.__fireDist)));
-  if(a.__municode)
-    h += fieldRow('Municipality code', esc(String(a.__municode))
-      + ' <span class="muted" style="font-size:11px">appraiser MUNICODE — raw, not mapped to a name</span>');
+  if(a.__municode && !a.__municipality){
+    // Lee County appraiser MUNICODE letters (per Lee PA data dictionary): C Cape Coral, F Fort Myers, B Bonita Springs,
+    // S Sanibel, M Fort Myers Beach, E Estero, U unincorporated. Anything else shows raw.
+    const MC={C:'Cape Coral',F:'Fort Myers',B:'Bonita Springs',S:'Sanibel',M:'Fort Myers Beach',E:'Estero',U:'Unincorporated Lee County'};
+    const nm=MC[String(a.__municode).trim().toUpperCase()];
+    h += fieldRow('Municipality (per appraiser)', nm ? esc(nm) : esc(String(a.__municode))+' <span class="muted" style="font-size:11px">appraiser code</span>');
+  }
   if(a.__maintDate)
     h += fieldRow('Parcel record updated', esc(String(a.__maintDate)));
   if(a.__notes) h += fieldRow('Appraiser notes', '<span style="font-size:11px">'+esc(String(a.__notes))+'</span>');
@@ -22825,6 +22832,11 @@ async function _runLookupInner(lat,lng,searchCtx){
       // year built (actual)
       if(!det.yr){ const _y=pick(_ra,'ACT_YR_BLT','YR_BLT','EFF_YR_BLT','ACTYRBLT');
         if(_num(_y)){ _la.ACT_YR_BLT=_y; det.yr='ACT_YR_BLT'; } }
+      // effective year, sale, building count — the DOR roll carries these for every county; counties whose own
+      // feed lacks them (Collier) get them here so their card matches Lee's.
+      if(_la.__effYr==null){ const _e=pick(_ra,'EFF_YR_BLT','EFFYRBLT'); if(_num(_e)) _la.__effYr=_e; }
+      if(!det.saleP && _la.__saleP==null){ const _sp=pick(_ra,'SALE_PRC1','SALE_PRICE1'); if(_num(_sp)){ _la.__saleP=Number(String(_sp).replace(/[^0-9.]/g,'')); const _sy=pick(_ra,'SALE_YR1','SALE_YEAR1'), _sm=pick(_ra,'SALE_MO1','SALE_MONTH1'); if(_sy!=null&&String(_sy).trim()!=='') _la.__saleY=(_sm!=null&&String(_sm).trim()!==''?String(_sm).trim().padStart(2,'0')+'/':'')+String(_sy).trim(); } }
+      if(_la.__bldgCount==null){ const _nb=pick(_ra,'NO_BULDNG','NO_BLDG','NUM_BLDGS'); if(_num(_nb)) _la.__bldgCount=Number(_nb); }
       // lot / land square footage
       if(!det.lotSqft){ const _ls=pick(_ra,'LND_SQFOOT','LOT_SQFT','LAND_SQFT','LOTSQFT','SQFT_LND');
         if(_num(_ls)){ _la.LND_SQFOOT=_ls; det.lotSqft='LND_SQFOOT'; } }
