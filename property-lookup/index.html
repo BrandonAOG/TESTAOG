@@ -1558,7 +1558,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     </div>
     <div class="kick">Florida Parcel &amp; Flood Instrument</div>
     <h1>Property Lookup</h1>
-    <p class="intro-note noprint">Flood &amp; jurisdiction query official servers in real time. Owner/parcel auto-uses the <b>live county feed</b> for all supported counties (Lee, Collier, Charlotte, Manatee, Sarasota, Glades, Hendry, Hillsborough, Pinellas, Pasco, Polk, Marion, Hernando, Citrus, Sumter, Levy, Orange, Osceola, Brevard, Miami-Dade, Broward, Lake, DeSoto, Hardee, Highlands, Monroe, St. Lucie) and the dated state roll elsewhere. Add any county's live URL below. Florida only.</p>
+    <p class="intro-note noprint">Flood &amp; jurisdiction query official servers in real time. Owner/parcel auto-uses the <b>live county feed</b> for all supported counties (Lee, Collier, Charlotte, Manatee, Sarasota, Glades, Hendry, Hillsborough, Pinellas, Pasco, Polk, Marion, Hernando, Citrus, Sumter, Levy, Orange, Osceola, Brevard, Miami-Dade, Broward, Lake, DeSoto, Hardee, Highlands, Monroe, St. Lucie, Martin, Volusia, Putnam) and the dated state roll elsewhere. Add any county's live URL below. Florida only.</p>
   </header>
 
   <div class="search">
@@ -2507,6 +2507,225 @@ const COUNTY_LIVE = {
     // use code and no legal, so a card from this URL degrades to roll data for those. Confidential
     // records are pre-stripped here (no IsConfidential field — the county already removed them).
     "https://slcgis.stlucieco.gov/hosting/rest/services/Property/ParcelsPublic/MapServer/0/query"
+  ]},
+
+  /* ══════ AUTO-DISCOVERED by the 67-county sniffer (18 Sep 2026) — NOT yet live-tested. ══════
+     Only the two picks with clean county provenance made the cut. Rejected sniffer parcel picks:
+     Duval (a Jacksonville REDLINING research map — not appraiser data), Palm Beach (a random telecom
+     user's AGOL copy, vintage unknown), Nassau + Union + Walton (third-party/consultant copies),
+     Franklin (geometry-only layer inside a zoning web map, no owner/site fields). Those counties
+     stay on the state-roll fallback, which is safer than a stale copy. */
+  VOLUSIA: { label:"Volusia County (Property Appraiser · vcgov Open Data)", urls:[
+    // Sniffer pick on the COUNTY'S OWN server (maps5.vcgov.org), Open_Data_3 FeatureServer 34.
+    // 313,740 parcels, extent=VOLUSIA, coverage 1.0. Full appraiser schema — OWNER1/OWNER2, ADDRFULL
+    // (+CITYNAME/ZIP1), PARID/ALT_ID/DORPID, TOTJUST/LANDJUST/IMPRJUST, RES_TOTAL_SFLA, RES_BEDROOM/
+    // RES_BATHROOM, LASTSALEDT/LASTSALEPRICE, CALCACRES, LEGAL1-3, full mailing block. Fields should
+    // auto-detect; add a VOLUSIA guard later if owner/site pick the wrong column. Volusia zoning is
+    // already wired in ZONING_LIVE, so this entry makes Volusia FULLY live (parcel + zoning).
+    "https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_3/FeatureServer/34/query"
+  ]},
+  PUTNAM: { label:"Putnam County (Property Appraiser · PCGIS)", urls:[
+    // Sniffer pick, OWNER = brooke.tillis_PCGIS (the county GIS org) — "PutnamCountyDispatchLayer"
+    // FeatureServer 19. 98,276 parcels, extent=PUTNAM, coverage 0.99. Rich schema: OWNERNME1/2,
+    // SITEADDRESS, PARCELID, CNTASSDVAL/CNTTXBLVAL/LNDVALUE, RESYRBLT, RESFLRAREA/BLDGAREA,
+    // USECD/USEDSCRP, LEGAL, WATERSERV/SEWERSERV, PA_URL (deep link to the appraiser card), and a
+    // LASTUPDATE/EditDate stamp for vintage. NOTE Putnam has NO countywide zoning feed yet (its
+    // "PDS - County Zoning" candidate returned only 24 features — likely a broken sublayer).
+    "https://services1.arcgis.com/YZc1OyqL6jbIOeOv/arcgis/rest/services/PutnamCountyDispatchLayer/FeatureServer/19/query"
+  ]},
+
+  /* ══════ ADDED 18 Sep 2026 — LIVE-TESTED, not sniffer guesses. ══════
+     Every entry below cleared the same three gates before it was written here:
+       1. the layer's REST metadata loaded token-free and CROSS-ORIGIN (so the browser can
+          read it from this page without a proxy),
+       2. returnCountOnly on the whole layer gave a parcel count in the right order of
+          magnitude for that county, and
+       3. the SAME query clipped to that county's FDOT boundary envelope returned the same
+          count — coverage 1.0.
+     Gate 3 is the one that matters: it is what mechanically rejects the third-party and
+     consultant COPIES that dominate an ArcGIS Online title search (a "Duval Parcels" layer
+     holding 12,533 features over a Duval-shaped extent is a sliver, not the county), and it
+     is why the counties below are safe to trust where the earlier sniffer had to reject its
+     own picks by hand. Field names in each comment were read off the live schema AND a live
+     sample record, not inferred from the title. */
+
+  PALMBEACH: { label:"Palm Beach County (Property Appraiser · PBCGOV_GIS)", urls:[
+    // ✅ THE COUNTY'S OWN AGOL ORG (PBCGOV_GIS, org ZWOoUZbtaYePLlPw) — deliberately NOT the
+    // "pat10263@esri.com_telecomrc" Palm_Beach_County_Parcels copy that an AGOL title search
+    // surfaces first and that the earlier sniffer was right to reject (random user, unknown
+    // vintage). 684,864 parcels, coverage 1.0, SR 2881 (FL State Plane ft — the tool sends
+    // inSR=4326 and the server reprojects, same as Citrus/Sumter).
+    // LEE-GRADE SCHEMA, verified on a live record:
+    //   owner   OWNER_NAME1 / OWNER_NAME2
+    //   site    SITE_ADDR_STR (pre-composed) — also split as STREET_NUMBER / STREET_FRACTION /
+    //           PRE_DIR / STREET_NAME / STREET_SUFFIX_ABBR / POST_DIR, plus MUNICIPALITY
+    //   mail    PADDR1 / PADDR2 / PADDR3 + CITYNAME / STATE / ZIP1 / ZIP2
+    //   id      PARCEL_NUMBER (= PARID, 17-digit PCN)
+    //   value   TOTAL_MARKET, LAND_MARKET, IMPRV_MRKT, ASSESSED_VAL, TOTAL_TAXABLE, EXEMPTION,
+    //           CAP_ADJ_VAL, MKT_CAPPED / MKT_NOT_CAPPED, HMSTD_FLG
+    //   sale    SALE_DATE (epoch ms) + PRICE + BOOK/PAGE + INSTRUMENT + MONTHS_SINCE_SALE
+    //   detail  YRBLT, ACRES, LEGAL1-3, SUBDIV_NAME, PROPERTY_USE, CONDO, NBHD, CRA
+    // ✅ LIVE POINT-TESTED at the county courthouse: OWNER_NAME1 "PALM BEACH COUNTY",
+    // SITE_ADDR_STR "301 N OLIVE AVE", MUNICIPALITY "WEST PALM BEACH", TOTAL_MARKET 65,409,250,
+    // YRBLT 1928, CONFID_FLG "N".
+    // ⚠️ Ch.119 CONFIDENTIALITY: this layer carries CONFID_FLG ('Y' = owner exempt from public
+    // disclosure). Unlike St. Lucie, Palm Beach does NOT publish a pre-stripped parallel layer —
+    // the flag is the only protection, so the PALMBEACH guard in the render path suppresses owner
+    // AND mailing whenever it is set. Same contract as the St. Lucie guard: the parcel stays
+    // public, the person does not.
+    "https://services1.arcgis.com/ZWOoUZbtaYePLlPw/arcgis/rest/services/Parcels_and_Property_Details_WebMercator/FeatureServer/0/query",
+    // ↳ fallback: the identical table published in the county's local projection. Same field
+    // names, same row count — only the SR differs, so the guard below covers both.
+    "https://services1.arcgis.com/ZWOoUZbtaYePLlPw/arcgis/rest/services/Parcels_and_Property_Details_Local_Projection/FeatureServer/0/query"
+  ]},
+
+  BAY: { label:"Bay County (Property Appraiser · BayCounty_GISadmin)", urls:[
+    // ✅ The county's own AGOL org (QB0VWfqR9MD4lF0F). 134,677 parcels, coverage 1.0, SR 2238.
+    // This is one of the RICHEST parcel feeds in the state — it carries the structure detail most
+    // counties make you infer from the roll, straight on the polygon:
+    //   owner   A2OWNAME          mail   A3MAILADDR/A4/A5 + A6MAILCITY/A7MAILST/A8MAILZIP
+    //   site    DSITEADDR (composed) + DSITEZIP — also split AHSENO/ASTDIR/ASTNAME/ASTMD/ASTUNIT
+    //   id      A1RENUM           legal  LEGALINE1..LEGALINE9
+    //   value   VASJUST (just), VAPLNDMRK (land market), VAPBLDG (building), VAPFEATXTR (extra
+    //           features), VAPTOTAL, VASTOTAL, VASTAXABLE, VASEXEMPT, DEXEMPTS ("HX HB")
+    //   struct  S1AREAHEAT (heated), S1AREATTL (total), S1BEDRMS, S1BATHRMS, S1STORIES,
+    //           S1YRBLTACT / S1YRBLTEFF, BLDCNT, XFTCNT
+    //   sale    SALE1DATE/SALE1PRADJ/SALE1INST/SALE1QU_VI — and SALE2*/SALE3* for two priors
+    //   use     DORAPPCODE ("0100") / DORAPPDESC ("SINGLE FAMILY"), DTAXACRES, DSECTION
+    //   link    PLINK → the qPublic/Schneider card for the parcel
+    // The layer also declares Zoning, FLU and FloodZone as parcel ATTRIBUTES — but they came back
+    // NULL on every live parcel sampled (Lynn Haven, Panama City, Southport), so treat them as
+    // present-but-unpopulated, not as a zoning source. Bay's dedicated zoning POLYGON layer
+    // (ZONING_LIVE.BAY) is what actually answers; the parcel attribute is spliced through
+    // __zoning only as a labeled fallback for the rows that do carry it — same treatment as
+    // Osceola, deliberately NOT the Orange arrangement.
+    // ✅ LIVE POINT-TESTED: Panama City 705 15TH ST W -> owner "STATE OF FLORIDA DEPARTMENT OF",
+    // VASJUST 218,089, S1AREAHEAT 4,975, S1YRBLTACT 1960, SALE1DATE "2024-09-13".
+    "https://services1.arcgis.com/QB0VWfqR9MD4lF0F/arcgis/rest/services/Parcels/FeatureServer/0/query"
+  ]},
+
+  ALACHUA: { label:"Alachua County (Property Appraiser · ACPA via county GIS)", urls:[
+    // ✅ The county's OWN ArcGIS Server (maps.alachuacounty.us), "Hosted/ParcelsPublic" — the
+    // deliberately-published public cut. 110,743 parcels, coverage 1.0.
+    //   owner   firstname1  ← ONE field holding the WHOLE owner name (entity or person); there is
+    //           no lastname1 column at all. Do not let the auto-detector reach for ownersubdv,
+    //           which is a concatenated owner+address SORT KEY, not a name.
+    //   ⚠️ NO SITE ADDRESS EXISTS ON THIS LAYER. address1/address2/city/state/zip are the OWNER'S
+    //   MAILING address — on the sample record they read "3900 COMMONWEALTH BLVD, TALLAHASSEE"
+    //   for a parcel physically in High Springs. Mapping them to the site would render a
+    //   confidently wrong address on every absentee-owned parcel in the county, so the guard maps
+    //   them to MAIL and leaves det.site alone for the statewide roll to fill. zip5 is the site zip.
+    //   value   justvalue, impvalue, taxamount, taxyear, hmstdb / hmstdpermred, agexempt
+    //   ✅ LIVE POINT-TESTED in downtown Gainesville: firstname1 "ALACHUA COUNTY", justvalue
+    //      10,486,453, heatedsquarefeet 62,104, zonedistrict "DT", zonedefin "Downtown".
+    //   struct  heatedsquarefeet, squarefeet, nonresarea, acres, dwunits, buildingquantity
+    //   sale    saledate + saleamount
+    //   use     propertyuse (readable), puse (DOR code), p_category, pusecat
+    //   id      parcel        subdivision/sbdv/plabel, section_/township/range, str
+    //   links   link_acpa (qPublic card), acpamaplink (parcel PDF), strmaplink, link_plat
+    // ⭐ ZONING + FLU RIDE ALONG, WITH THE CODE CITATION: zonecode/zonedistrict/zonedefin plus
+    // sectioncode ("403.20") and zonelink — a DIRECT Municode deep link to that district's
+    // ordinance node — and flucode/fludefin/flupolicy/flulink for future land use. That pairs
+    // straight into the existing Municode/XREF code-lookup path; zonedistrict is spliced via
+    // __zoning as the labeled roll fallback behind the ZONING_LIVE polygon.
+    "https://maps.alachuacounty.us/server/rest/services/Hosted/ParcelsPublic/FeatureServer/0/query",
+    // ↳ fallback: the dated annual cut (parcels_2025). Same schema except zonedistrict is spelled
+    // zonedistri (truncated) — the guard reads both spellings.
+    "https://maps.alachuacounty.us/server/rest/services/Hosted/parcels_2025/FeatureServer/0/query"
+  ]},
+
+  OKALOOSA: { label:"Okaloosa County (Property Appraiser · ags.myokaloosa.com)", urls:[
+    // ✅ The county's own ArcGIS Server, Land-Ownership folder. 138,656 rows, coverage 1.0.
+    // PCL_ADDR_Final is the parcel polygon JOINED to addressing, so it is the better primary:
+    //   owner OWNER   site SITE_ADDR (fully composed incl. unit + city + zip) + ZIP_CITY/ZIP
+    //   mail  ADDR1/ADDR2/ADDR3 + CITY/STATE/ZIPCODE   id PIN (+ PAN)
+    //   value TOTALAPPR, ASSEDVAL, TAXVAL, BLDGVAL, MKTLAND, TAXDIST
+    //   struct BLDGAYB (actual year built) / BLDGEYB (effective)   use USECODE/USEDESC
+    //   legal LEGL1/LEGL2/LEGL3
+    // NOTE: no heated-area column on this layer — det.liv is deliberately left for the roll.
+    // ✅ LIVE POINT-TESTED in Fort Walton Beach: OWNER "FIRST CHURCH OF CHRIST SCIENTI",
+    // SITE_ADDR "45 FIRST ST SW FORT WALTON BEACH FL 32548", TOTALAPPR 169,169, BLDGAYB 1958,
+    // USEDESC "CHURCHES". The Property_Data fallback answered the same parcel with
+    // PATPCL_SALEDT1 = 19651108 — confirming the yyyymmdd-integer format the guard parses.
+    "https://ags.myokaloosa.com/arcgis/rest/services/Land-Ownership/Parcels_with_Addressing/MapServer/121/query",
+    // ↳ fallback: the raw PARCELS layer on Property_Data. Same county, PATPCL_-prefixed schema,
+    // 113,970 rows. Thinner on address (PATPCL_ADDR1 is MAILING) but it is the one that carries
+    // SALES — PATPCL_SALE1..3 with PATPCL_SALEDT1..3 (yyyymmdd ints) and SALEBK/SALEPG book+page —
+    // plus PATPCL_JUSTVAL / PATPCL_EXMPTVAL / PATPCL_AGVAL and PATPCL_LEGL1-3.
+    "https://ags.myokaloosa.com/arcgis/rest/services/Land-Ownership/Property_Data/MapServer/34/query"
+  ]},
+
+  CLAY: { label:"Clay County (Property Appraiser · maps.claycountygov.com)", urls:[
+    // ✅ The county's own ArcGIS Server. 106,633 parcels, coverage 1.0, SR 2881.
+    //   owner Name   site Address1 (composed) — also split HouseNo/HouseNoSuffix/StreetDir/
+    //         StreetName/StreetMd/StreetUnit + StreetCity/StreetZip5
+    //   mail  Address1..Address3 + City/StateProvince/ZipCode/MailZip   ⚠️ SEE THE GUARD: this
+    //         layer reuses the Address1/City names for BOTH site and mailing depending on column
+    //         (StreetCity is situs, City is mailing) — the guard pins situs explicitly so an
+    //         out-of-county owner can't poison the site address. THIS IS NOT THEORETICAL — two of
+    //         three live test parcels had an out-of-STATE mailing city: a Green Cove Springs
+    //         shopping centre whose City reads "Brooklyn", and a Middleburg restaurant whose City
+    //         reads "Orinda" (California). Unguarded, both would render a wrong address.
+    //   ✅ LIVE POINT-TESTED: Fleming Island -> "Clay County Utility Authority", ParcelDisp
+    //         05-05-26-014190-001-00, StreetCity "Fleming Island", Usedesc "UTILITIES/CL".
+    //   id    ParcelDisp (display, "01-04-23-000001-001-00") / PIN (raw)
+    //   use   Usedesc     acres GISACRES     legal LegalLines1/2/3
+    // ⚠️ THIN ON MONEY: this layer carries NO values, no year built and no sale. That is fine and
+    // intentional — the card takes owner/address/legal/use/acres live from the county and lets the
+    // statewide FDOR roll splice fill value, year built and sale, exactly like the St. Lucie
+    // ParcelsPublic fallback. Clay zoning IS wired as a polygon layer in ZONING_LIVE.
+    "https://maps.claycountygov.com/server/rest/services/Parcel/FeatureServer/0/query"
+  ]},
+
+  LEON: { label:"Leon County (Property Appraiser · Tallahassee-Leon County GIS)", urls:[
+    // ✅ ADDED 18 Sep 2026. Found by resolving the county's ArcGIS Online ORG rather than by title
+    // search — tlcgis.maps.arcgis.com resolves to org ptvDyBs1KkcwzQNJ, "Tallahassee-Leon County
+    // GIS", and enumerating that org is what surfaced this host. Title search never finds it.
+    // "PARNAL Query Layer" — PAR + NAL, i.e. the parcel polygon joined to the Name-Address-Legal
+    // roll. 113,578 parcels, coverage 1.0.
+    //   owner OWNER1   id TAXID_LABE (display, "11-19-20-401-000-0") / TAXID (raw)
+    //   value PYR_MARKET, PYR_LAND, PYR_TAXABL, PYR_SOH (Save-Our-Homes), HOMESTEAD flag
+    //   legal LEGAL1..LEGAL4   acres CALC_ACREA   use PROP_USE (DOR code)   lot/block LOT_LABEL/BLOCK_LABE
+    // ⚠️ ADDR1/ADDR2/ZIP1 ARE THE MAILING ADDRESS, NOT THE SITUS. The live test parcel is an
+    // apartment complex in Tallahassee whose ADDR1 reads "585 BOYLSTON ST FL 4" — a Boston office.
+    // Same trap as Clay and Alachua; the guard maps them to mail and leaves det.site to the roll.
+    // ⚠️ The values are PRIOR-YEAR (PYR_ prefix), so they lag the current roll by a cycle. They are
+    // still per-parcel appraiser figures; the roll splice fills anything missing.
+    // ✅ LIVE POINT-TESTED in Tallahassee: OWNER1 "ASHFORD APARTMENTS LLC", TAXID_LABE
+    // 11-19-20-401-000-0, CALC_ACREA 6.23, PYR_MARKET 11,086,720.
+    "https://intervector.leoncountyfl.gov/intervector/rest/services/MapServices/TLC_OverlayProperty_D_WM/MapServer/10/query",
+    // ↳ fallback: Parcel_PropInfo on the sibling service — 182,903 polygons, and the single most
+    // information-dense layer found in this state. It carries ZONING + ZONED (readable), FUTURELU +
+    // LANDUSE (readable), FLDZONE, CITYINOUT (in/out of Tallahassee city limits), assigned
+    // elementary/middle/high school, fire station name and address, polling place, and every
+    // elected representative for the parcel. No owner column, so it is a fallback for the card but
+    // the PRIMARY source for Leon zoning — see ZONING_LIVE.LEON.
+    "https://intervector.leoncountyfl.gov/intervector/rest/services/MapServices/TLC_PropertyInfo_D_WM/MapServer/2/query"
+  ]},
+
+  SANTAROSA: { label:"Santa Rosa County (Property Appraiser · SRC GIS Data Portal)", urls:[
+    // ✅ ADDED 18 Sep 2026. Found by resolving the org: santarosagis.maps.arcgis.com → org
+    // Eg4L1xEv2R3abuQd, "Santa Rosa County, Florida - GIS Data Portal". NOTE the near-miss —
+    // santarosa.maps.arcgis.com resolves to the City of Santa Rosa, CALIFORNIA. Name-matching alone
+    // would have taken the wrong one; the county bbox test is what separates them.
+    // "ParcelsOpenData" — the county's deliberately-published open cut. 116,862 parcels,
+    // 116,859 inside the county envelope (coverage 1.0).
+    //   owner OwnerName   id ParcelDisp (display, "13-2S-26-2376-00A00-0010") / PAR_NUM (raw)
+    //   situs StrNum + StrName + StSuffix (composed in the guard)   zip Zip5/Zip4
+    //   mail  Addr1/Addr2/Addr3 + City/State/Cntry
+    //   use   PropertyUs (readable, "SINGLE FAMILY") / PRuse (DOR code)
+    //   detail CALC_ACRE, BldgCnt, LandCnt, XtraFeaCnt, NumUnits, SUBCODE/SubdCode, LOT_NUM, TxDist
+    // ⚠️ Ch.119: carries ConfFlag. The guard suppresses owner + mailing when it is set, same
+    // contract as Palm Beach and St. Lucie.
+    // ⚠️ NO VALUES, NO YEAR BUILT, NO SALE on this layer — those keys are left alone so the
+    // statewide FDOR roll fills them, exactly like Clay.
+    // ⚠️ Addr1-3/City look like a street address but belong to the OWNER's mailing block, so the
+    // guard composes situs from the Str* columns instead. Fourth county in this file with that
+    // trap (Clay, Alachua, Leon, Santa Rosa) — assume it until proven otherwise.
+    // ✅ LIVE POINT-TESTED near Milton: OwnerName "US  PUBLIC WORKS OFFICER", ParcelDisp
+    // 18-2S-26-0000-00300-0000, PropertyUs "FEDERAL".
+    // Santa Rosa zoning is already wired in ZONING_LIVE, so this makes the county fully live.
+    "https://services.arcgis.com/Eg4L1xEv2R3abuQd/arcgis/rest/services/ParcelsOpenData/FeatureServer/0/query"
   ]}
 };
 
@@ -3322,22 +3541,44 @@ function _adoptSummary(t, jurName, top, st){
   }
   return h + implied;
 }
-/* Zoning card ↔ zoning-atlas exceptions (Collier): standards on THIS lot differ from the district table. */
-document.addEventListener('aog:zexc', (ev)=>{
-  const slots=document.querySelectorAll('[id^="preserveNote-"]'); if(!slots.length) return; const slot=slots[slots.length-1]; const list=ev.detail;
-  if(!list || !list.length) return;
-  let h=`<div class="note warnbox" style="margin-top:8px"><b>Zoning-atlas exception on this lot.</b> Collier's graphic zoning atlas flags this parcel as having development standards that differ from the district table (nonconforming lot, corner-lot rule, setback exception or conditional use). Read the note and confirm with Growth Management before relying on the table above.`;
-  for(const e of list) h+=`<div style="margin-top:4px">${e.code?`<span class="lc-chip">${esc(e.code)}</span> `:''}${esc(e.notes||'(no note recorded on the atlas)')}</div>`;
-  h+=`</div>`;
-  slot.insertAdjacentHTML('afterbegin', h);
-});
-/* Zoning card ↔ preserve check (Collier): a preserve-boundary setback the district table doesn't show. */
-document.addEventListener('aog:preserve', (ev)=>{
-  const slots=document.querySelectorAll('[id^="preserveNote-"]'); if(!slots.length) return; const slot=slots[slots.length-1]; const r=ev.detail;
-  if(!r || !r.near){ return; }
-  const cls = r.ft <= r.accessoryFt+5 ? 'warnbox' : '';
-  slot.insertAdjacentHTML('beforeend', `<div class="note ${cls}" style="margin-top:8px"><b>Preserve tract ${r.touching?'adjoins':'is '+r.ft+' ft from'} this lot.</b> ${esc(r.rule)}. A generator or LP tank is an accessory structure — keep it <b>${r.accessoryFt} ft</b> off the preserve line, in addition to the district yard. Preserve shown hatched green on the map.</div>`);
-});
+/* Zoning card lot notes — footprint distances, zoning-atlas exceptions, preserve setback. Results land in window.__*
+   whenever the map queries finish; the slots land whenever the card renders; whichever is second calls this. */
+function _fillLotNotes(){
+  const fp=document.querySelectorAll('[id^="fpNote-"]'); const pv=document.querySelectorAll('[id^="preserveNote-"]');
+  const fpSlot=fp[fp.length-1], pvSlot=pv[pv.length-1];
+  if(fpSlot && window.__footprint!==undefined && !fpSlot.dataset.done){
+    const r=window.__footprint;
+    if(r===null){ /* still loading */ }
+    else if(!r.found){ fpSlot.innerHTML=''; fpSlot.dataset.done='1'; }
+    else if(r.approx){
+      fpSlot.innerHTML=`<div class="note" style="margin-top:8px"><b>Building footprint:</b> <span class="lc-meta">shown faintly on the map from FEMA's statewide trace${r.traced?` (${r.traced} aerial)`:''}${r.sqft?` · ≈${r.sqft.toLocaleString()} sq ft`:''}. That dataset can sit several feet off the true roofline, so house-to-lot-line distances aren't computed from it — this county doesn't publish its own footprint layer. Use the measured lot lines and a tape.</span></div>`;
+      fpSlot.dataset.done='1';
+    }
+    else {
+      const order=['N','E','S','W'], name={N:'north',E:'east',S:'south',W:'west'};
+      const parts=order.filter(k=>r.ft[k]!=null).map(k=>`<b>≈${r.ft[k]}′</b> ${name[k]}`);
+      fpSlot.innerHTML=`<div class="note" style="margin-top:8px"><b>House to lot lines:</b> ${parts.join(' · ')}${r.accessory?` <span class="lc-meta">· +${r.accessory} accessory structure${r.accessory>1?'s':''}</span>`:''}<div class="lc-meta">From the ${esc(r.source||'building-footprint trace')}${r.traced?` (${r.traced} aerial)`:''}${r.sqft?` · footprint ≈${r.sqft.toLocaleString()} sq ft`:''}, measured to the nearest lot line on each side — not a survey. A generator needs the side where this number exceeds the required yard by at least the unit's width (≈3 ft for an air-cooled Generac). Footprint outlined on the map.</div></div>`;
+      fpSlot.dataset.done='1';
+    }
+  }
+  if(pvSlot && !pvSlot.dataset.zx && window.__zoningExceptions){
+    const list=window.__zoningExceptions;
+    if(list.length){
+      const lee = list.some(e=>e.link!==undefined);
+      let h=`<div class="note warnbox" style="margin-top:8px"><b>${lee?'Zoning case on this lot.':'Zoning-atlas exception on this lot.'}</b> ${lee?'A variance, deviation or rezoning has been decided for this parcel — its setbacks may differ from the district table. Read the case before relying on the table above.':'Collier\'s graphic zoning atlas flags this parcel as having development standards that differ from the district table (nonconforming lot, corner-lot rule, setback exception or conditional use). Read the note and confirm with Growth Management before relying on the table above.'}`;
+      for(const e of list) h+=`<div class="lc-hit" style="padding:3px 0"><div class="lc-hit-t">${e.code?`<span class="lc-chip">${esc(e.code)}</span> `:''}${esc(e.notes||'(no note recorded)')}${e.status||e.when?`<span class="lc-meta"> · ${[e.status,e.when].filter(Boolean).map(esc).join(' · ')}</span>`:''}${e.resolution?`<span class="lc-meta"> · Res. ${esc(e.resolution)}</span>`:''}</div>${e.link?`<a class="lc-read" href="${esc(e.link)}" target="_blank" rel="noopener" style="text-decoration:none">Case file</a>`:''}</div>`;
+      pvSlot.insertAdjacentHTML('afterbegin', h+'</div>'); }
+    pvSlot.dataset.zx='1';
+  }
+  if(pvSlot && !pvSlot.dataset.pv && window.__preserveCheck){
+    const r=window.__preserveCheck;
+    if(r.near){ const cls = r.ft <= r.accessoryFt+5 ? 'warnbox' : '';
+      pvSlot.insertAdjacentHTML('beforeend', `<div class="note ${cls}" style="margin-top:8px"><b>Preserve tract ${r.touching?'adjoins':'is '+r.ft+' ft from'} this lot.</b> ${esc(r.rule)}. A generator or LP tank is an accessory structure — keep it <b>${r.accessoryFt} ft</b> off the preserve line, in addition to the district yard. Preserve shown hatched green on the map.</div>`); }
+    pvSlot.dataset.pv='1';
+  }
+}
+// The card renders after the map queries most of the time — poll briefly so late slots still fill.
+function _pollLotNotes(){ let n=0; const t=setInterval(()=>{ _fillLotNotes(); if(++n>40) clearInterval(t); },300); }
 /* Permits card ↔ site sketch: list the recorded easements found on the lot (Lee land records). */
 document.addEventListener('aog:sketch', (ev)=>{
   const slots=document.querySelectorAll('[id^="easeList-"]'); if(!slots.length) return;
@@ -3515,7 +3756,7 @@ const CODE_PROXY_URL = (CODE_API_HOSTS.length || _sameOrigin) ? "/api/code-secti
 let _codeApiHost = _sameOrigin ? "" : (CODE_API_HOSTS[0] || "");
 // Bump CODE_API_VERSION whenever the API changes: every URL becomes new, so both hosts' 6-hour edge caches
 // miss and you see the new behaviour immediately. Add ?nocache=1 to the PAGE URL to bypass caches for a visit.
-const CODE_API_VERSION = "2026-09-17b";
+const CODE_API_VERSION = "2026-09-17i";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
@@ -4278,6 +4519,147 @@ const ZONING_LIVE = {
     // LUCIE — the county's largest city — runs its OWN GIS and is NOT on this server, so PSL addresses
     // will correctly return blank here until a PSL entry is added. That's a coverage gap, not a bug.
     "https://slcgis.stlucieco.gov/hosting/rest/services/LandUse/Zoning/MapServer/0/query"
+  ]},
+
+  /* ══════ AUTO-DISCOVERED by the 67-county GIS sniffer (out.zip, run 18 Sep 2026). ══════
+     ⚠️ NOT yet live-tested against a real address like the entries above — the sniffer confirmed
+     each layer exists, is token-free, is polygon, and its extent sits inside the right county, and
+     field pins below were re-derived by hand from the sniffer's field lists + sample values (the
+     sniffer's own codeField guesses were wrong in several counties — e.g. it picked app_no on
+     Alachua and OSTATE on Nassau). Live-test each with a known address, then move it up with a
+     verified comment block. */
+  ALACHUA: { label:"Alachua County Zoning (countywide)", codeField:"zonedistrict", descField:"zonedefin", urls:[
+    // ✅ UPGRADE 18 Sep 2026 — COUNTYWIDE, on the county's OWN ArcGIS Server: "Hosted/
+    // ZoningCountyWidePublic" (maps.alachuacounty.us). 7,938 polygons vs the 4,697 on the
+    // unincorporated-only layer below, coverage 1.0, and it is the *Public* cut the county
+    // publishes for exactly this use. IDENTICAL field names (zonecode / zonedistrict / zonedefin /
+    // zonelink), so codeField/descField above are unchanged and the legend keeps reading real
+    // district names. Because it already spans Gainesville, Alachua, Newberry, High Springs,
+    // Hawthorne, Archer, Micanopy, Waldo and LaCrosse, no per-city Alachua entries are needed in
+    // ZONING_LIVE_CITY — the county publishes each of those as its own sibling service
+    // (ZoningGainesville, ZoningNewberry, …) if a single city ever needs to be pinned.
+    // zonelink is a DIRECT Municode node URL per district — the richest zoning feed in the table.
+    "https://maps.alachuacounty.us/server/rest/services/Hosted/ZoningCountyWidePublic/FeatureServer/0/query",
+    // ↳ fallback (was primary): unincorporated only.
+    // Sniffer pick (via seed), Alachua County's hosted "Alachua_County_Zoning" FeatureServer 0.
+    // 4,697 polygons, extent=ALACHUA, coverage 1.0. Sample: zonecode "0100A", zonedistrict "A",
+    // zonedefin "Agricultural (A)", sectioncode "403.03(a)", zonelink → Municode. codeField pinned to
+    // zonedistrict (the human district, e.g. "A"), descField zonedefin (readable name). NOTE the
+    // sniffer suggested app_no — that's the rezoning APPLICATION number (Z-356), not the district;
+    // corrected here. juris field present — Gainesville city parcels likely need the city's own layer.
+    "https://services2.arcgis.com/Zzhtlau4ccHkQgTu/arcgis/rest/services/Alachua_County_Zoning/FeatureServer/0/query"
+  ]},
+  ESCAMBIA: { label:"Escambia County Zoning", codeField:"ZONING", urls:[
+    // Sniffer pick (via seed) on the COUNTY'S OWN ArcGIS Server (gismaps.myescambia.com),
+    // "Individual_Layers/Zoning" MapServer 0. 7,800 polygons, extent=ESCAMBIA, coverage 0.92.
+    // Lean schema (OBJECTID, CASE_NUMBER, ZONING) — sample ZONING "MDR". Code-only, no desc field.
+    "https://gismaps.myescambia.com/arcgis/rest/services/Individual_Layers/Zoning/MapServer/0/query"
+  ]},
+  FLAGLER: { label:"Flagler County Zoning (unincorporated)", codeField:"ZONECODE", descField:"ZONENAME", urls:[
+    // Sniffer pick (via seed), "Unincorporated_Zoning" FeatureServer 0. 637 polygons, extent=FLAGLER,
+    // coverage 0.97. Sample ZONECODE/LABEL "AC-2"; ZONENAME readable; PUDNAME + CITYCODE/CITYNAME
+    // also present. UNINCORPORATED only by name — Palm Coast (the county's big city) needs its own feed.
+    "https://services3.arcgis.com/hSKL9bYjhP4rHxSD/arcgis/rest/services/Unincorporated_Zoning/FeatureServer/0/query"
+  ]},
+  SANTAROSA: { label:"Santa Rosa County Zoning", codeField:"DISTRICT", descField:"Descriptio", urls:[
+    // Sniffer pick (via agol:zoning), OWNER = gisupdates_SantaRosaGIS — the county GIS org's own
+    // hosted "Zoning" FeatureServer 0. 7,002 polygons, extent=SANTA ROSA. Sample DISTRICT "R1",
+    // Descriptio "Single Family Residential District". Coverage untested by the sniffer (null).
+    "https://services.arcgis.com/Eg4L1xEv2R3abuQd/arcgis/rest/services/Zoning/FeatureServer/0/query"
+  ]},
+  LEON: { label:"Leon County Zoning (Tallahassee–Leon TLC GIS)", codeField:"ZONING", descField:"ZONED", urls:[
+    // ⚠️ VERIFY FIRST. Sniffer pick on the county's own intervector.leoncountyfl.gov server, but the
+    // service is named "TLC_OverlayZoning_D_WM" — could be the joint Tallahassee–Leon zoning layer
+    // (fields ZONING, ZONED, PUDNUM, JURISDICTION look like base districts; sample ZONING "OS"), or
+    // could be overlay districts only. 1,287 polygons, extent=LEON, coverage 1.0. Test a known
+    // residential address (expect e.g. R-1/RP) before trusting; JURISDICTION field can split
+    // city vs county results later.
+    // ✅ 18 Sep 2026 — THAT DOUBT IS NOW RESOLVED, and this layer has been DEMOTED to fallback.
+    // Parcel_PropInfo (below, listed first) carries the real adopted district on every parcel:
+    // ZONING is the code and ZONED is the full readable name, live-tested in Tallahassee as
+    // ZONING "RP-1" / ZONED "Residential Preservation-1" — a proper district, not an overlay.
+    // It also gives FUTURELU/LANDUSE ("UN" / "Urban Neighborhood") for future land use.
+    // ⚠️ IT IS PARCEL-LEVEL, so it is 182,903 polygons countywide rather than ~1,300 district
+    // shapes: the overlay draws one polygon per PARCEL, and adjacent same-zoned parcels render as
+    // separate shapes rather than one merged district. ZONING_MAXRECORDS (1200) is what keeps that
+    // honest — a wide view simply asks you to zoom in, which is the existing behaviour for every
+    // dense jurisdiction. The site card is unaffected: point-in-polygon returns exactly one parcel.
+    // descField is pinned to ZONED so the legend reads real district names instead of bare codes.
+    "https://intervector.leoncountyfl.gov/intervector/rest/services/MapServices/TLC_PropertyInfo_D_WM/MapServer/2/query",
+    "https://intervector.leoncountyfl.gov/intervector/rest/services/MapServices/TLC_OverlayZoning_D_WM/MapServer/0/query"
+  ]},
+
+  /* ══════ ADDED 18 Sep 2026 — LIVE-TESTED county zoning polygons. ══════
+     Same three gates as the COUNTY_LIVE block above (token-free cross-origin metadata, plausible
+     polygon count, and the count holding at coverage 1.0 when clipped to the county's own FDOT
+     boundary envelope). codeField on each is pinned to the column that actually held a district
+     code on a live sample record — not to whatever the layer's renderer happened to symbolize on,
+     which is how a whole county ends up painted one flat colour. */
+
+  BAY: { label:"Bay County Zoning", codeField:"ZONING", urls:[
+    // ✅ The county's OWN ArcGIS Server (gis.baycountyfl.gov), LandUsePlanning MapServer sublayer 1.
+    // 8,556 polygons, coverage 1.0, SR 2238 (tool sends inSR=4326; the server reprojects).
+    // codeField ZONING — live sample "AG-1". No readable district-name column exists, so this runs
+    // CODE-ONLY, like Hernando.
+    // ✅ LIVE POINT-TESTED at three real Bay locations: Southport -> AG-1 (unincorporated),
+    // Panama City Beach -> CH, Lynn Haven -> "See FLU" (see the sentinel note immediately below).
+    // ⚠️ SENTINEL VALUE — "See FLU": inside Lynn Haven (and other Bay jurisdictions that regulate
+    // by future land use rather than by a zoning district), the polygon's ZONING literally reads
+    // "See FLU" and Label reads "See FLU(LH)". It is a POINTER, not a district code — but it is a
+    // non-empty string, so zoneCodeOf() passes it straight through: the zoning card and the map
+    // legend will both show "See FLU" and it gets its own colour like any real code. That is at
+    // least honest (it correctly says Bay assigns no zoning district there) but it is not a
+    // district. The fix when you want it: Bay publishes FutureLandUse as a sibling service on the
+    // same org — services1.arcgis.com/QB0VWfqR9MD4lF0F/.../FutureLandUse/FeatureServer — so those
+    // polygons can be resolved against it. Left unwired deliberately rather than silently
+    // swallowing the value and rendering a hole in the map.
+    // NOT USED AS descField, on purpose: "Label" holds the code with a jurisdiction suffix baked in
+    // ("AG-1(BC)"). As a desc it would render every legend row as "AG-1 — AG-1(BC)", which is noise
+    // rather than a district name. It IS the field to reach for later if Bay's city zoning needs
+    // splitting out of this countywide layer — (BC) marks unincorporated Bay County.
+    // Also carries ORD_NUM + ORD_DATE (adopting ordinance) and CONDITIONS/COMMENTS free text —
+    // candidates for a future "adopted by" line on the zoning card, not surfaced yet.
+    "https://gis.baycountyfl.gov/arcgis/rest/services/LandUsePlanning/MapServer/1/query"
+  ]},
+
+  CLAY: { label:"Clay County Zoning", codeField:"Zoning", urls:[
+    // ✅ The county's OWN ArcGIS Server (maps.claycountygov.com). 6,974 polygons, coverage 1.0,
+    // SR 2881. codeField "Zoning" (note the lowercase-g spelling) — live sample "IA", "AG".
+    // Lean 7-column layer, no readable district name, so code-only.
+    // Zoning_Ordinance carries the ADOPTING ORDINANCE per polygon ("2017-34", "CPA 08-1-FLU-2") —
+    // that is a direct hook for the Municode/XREF lookup already in this file, since a Clay
+    // ordinance number is exactly what that path resolves. Not surfaced yet.
+    // MP_Zoning (master-plan zoning) and OptOut_Zoning exist but were empty on every sample row.
+    "https://maps.claycountygov.com/server/rest/services/Zoning/FeatureServer/0/query"
+  ]},
+
+  STJOHNS: { label:"St. Johns County Zoning", codeField:"ZONING", urls:[
+    // ✅ The county GIS office's OWN AGOL org (StJohnsCountyGIS, t2yugAJW83eUIFui) — chosen over
+    // the "St Johns Zoning" copy owned by a commercial real-estate account, which has more rows
+    // (10,950) but no provenance. 2,242 polygons, coverage 1.0, SR 3857.
+    // codeField ZONING — live samples "AD", "OR", "PUD" etc. Four-column layer, code-only.
+    // ⚠️ A minority of polygons carry ZONING as blank/whitespace ("  "). zoneCodeOf() already
+    // treats an empty pinned field as absent and falls through to auto-detect, which finds nothing
+    // here, so those polygons simply drop out of the legend instead of rendering a blank swatch —
+    // the intended behaviour, no guard needed.
+    // The same org also publishes Overlay_Districts, Future_Land_Use and Ponte_Vedra_Zoning_District
+    // as separate services if overlays are ever surfaced.
+    "https://services1.arcgis.com/t2yugAJW83eUIFui/arcgis/rest/services/Zoning/FeatureServer/0/query"
+  ]},
+
+  NASSAU: { label:"Nassau County Zoning (unincorporated)", codeField:"ZONING", urls:[
+    // ✅ Published by the NASSAU COUNTY PROPERTY APPRAISER'S own account (kmulcahy@nassauflpa.com,
+    // org F73IhFZbCCYUexxB) — about as authoritative as a Florida zoning layer gets, and the
+    // last_edited_user on live rows is that same office. 683 polygons, coverage 1.0, SR 3857.
+    // codeField ZONING — live sample "IW". Abb duplicates the code on every row sampled, so it is
+    // NOT wired as descField (it would render "IW — IW").
+    // ⭐ CARRIES DIMENSIONAL RULES PER DISTRICT: DensityAllowed, Max_Height, and LiveLocalAct (the
+    // Live Local Act preemption flag), plus ORD and ORDDocument (a link to the adopting ordinance).
+    // That is the same shape of data as the Hernando LDC layer's setback columns — enough to drive
+    // a live density/height line on the zoning card later.
+    // ⚠️ UNINCORPORATED ONLY — Fernandina Beach, Callahan and Hilliard set their own zoning and are
+    // NOT in this layer. A lookup inside those city limits correctly falls through to the roll.
+    "https://services5.arcgis.com/F73IhFZbCCYUexxB/arcgis/rest/services/Unincorporated_Nassau_County_Zoning/FeatureServer/154/query"
   ]}
 };
 
@@ -4584,7 +4966,7 @@ const ZONING_LIVE_CITY = {
   // parcel layer (ZONING_LIVE.MANATEE) returns for Palmetto parcels, which stays as the fallback.
   PALMETTO: { label:"City of Palmetto Zoning", codeField:"ZONE", descField:"DESC_", urls:[
     "https://services1.arcgis.com/L2Neyx2ylSeTBS0F/arcgis/rest/services/Zoning/FeatureServer/0/query"
-  ]}
+  ]},
   // NOTE: Longboat Key is intentionally NOT wired as a city zoning layer. LBK is incorporated and DOES
   // publish its own queryable layer (www.mymanatee.org/arcgis01/rest/services/municipal/lbkzoning/
   // MapServer/0, field ZONING), but it returns the SAME LBK_-prefixed codes (LBK_OS, LBK R-3MX,
@@ -4593,6 +4975,81 @@ const ZONING_LIVE_CITY = {
   // (PA_), where the city layer was a cleaner upgrade over the county's prefixed codes, LBK's town layer
   // is not an upgrade, so it's left out. LBK parcels resolve via the Manatee county zoning on the
   // Manatee side; the Sarasota side has no district data in either county feed (city-of-LBK enclave).
+
+  /* ══════ AUTO-DISCOVERED by the 67-county sniffer (18 Sep 2026) — NOT yet live-tested. ══════
+     These three were the sniffer's *county* zoning picks for Seminole, Indian River and St. Johns,
+     but each is actually a CITY layer (a sniffer scoring bug — extent sits inside the county so it
+     promoted them). Salvaged here under the correct city keys; their counties still have NO
+     countywide zoning feed. */
+  CASSELBERRY: { label:"City of Casselberry Zoning (Seminole)", codeField:"ZONING", urls:[
+    // City's own ArcGIS Server (maps.casselberry.org), CommDev/Casselberry_Zoning FeatureServer 0.
+    // Fields: PARCEL, ZONING, ORDINANCE, ANNEXATION, RESOLUTION. Sample ZONING "R-9".
+    "https://maps.casselberry.org/mapping/rest/services/CommDev/Casselberry_Zoning/FeatureServer/0/query"
+  ]},
+  SEBASTIAN: { label:"City of Sebastian Zoning (Indian River)", codeField:"ZONING", descField:"ZONE_NAME", urls:[
+    // Hosted "Zoning" FeatureServer 0 — SEB_ZP_ID field marks it as Sebastian's. 880 polygons.
+    // Sample ZONING "PS", ZONE_NAME "Public Service"; Municode_L link field present.
+    "https://services3.arcgis.com/NkT47EHQsmn9GxB3/arcgis/rest/services/Zoning/FeatureServer/0/query"
+  ]},
+  STAUGUSTINEBEACH: { label:"City of St. Augustine Beach Zoning (St. Johns)", codeField:"Zoning", urls:[
+    // Hosted "St_Augustine_Beach_Zoning_view" FeatureServer 0. Small beach city; codeField from the
+    // sniffer ("Zoning", conf 0.85) — sample values came back empty, so verify on a known address.
+    "https://services1.arcgis.com/t2yugAJW83eUIFui/arcgis/rest/services/St_Augustine_Beach_Zoning_view/FeatureServer/0/query"
+  ]},
+  SAINTAUGUSTINEBEACH: { label:"City of St. Augustine Beach Zoning (St. Johns)", codeField:"Zoning", urls:[
+    // Same as STAUGUSTINEBEACH — duplicate key covers both "St." and "Saint" normalizations (same
+    // pattern as STPETERSBURG / SAINTPETERSBURG above).
+    "https://services1.arcgis.com/t2yugAJW83eUIFui/arcgis/rest/services/St_Augustine_Beach_Zoning_view/FeatureServer/0/query"
+  ]},
+
+  /* ══════ ADDED 18 Sep 2026 — from the 412-municipality sweep. ══════
+     Every incorporated place in Florida was tested against its own FDOT city boundary, and against
+     the county zoning layer wired for its county. The finding that shaped this block: 297 of 412
+     cities are ALREADY answered by a countywide county layer, so a per-city entry for them would be
+     duplicate work. Only the cities their county layer genuinely excludes are worth wiring, and
+     these three are the large ones. Each cleared the same gates as the county entries — polygon
+     geometry, plausible count, and the count holding when clipped to the CITY boundary. */
+
+  TALLAHASSEE: { label:"City of Tallahassee Zoning", codeField:"ZONING", descField:"ZONED", urls:[
+    // ✅ This layer was previously sitting in ZONING_LIVE.LEON as a county fallback, with a comment
+    // wondering whether it was "overlay districts only". It is neither — it is the CITY OF
+    // TALLAHASSEE's zoning atlas, and the sweep proved it: 1,287 polygons total, 1,151 of them
+    // inside the Tallahassee city boundary (89% — the remainder sit just outside the limits within
+    // the bounding box). Live samples ZONING "OS", "R-4", "R-3" are real city districts.
+    // It belongs here, keyed to the city, where the city-before-county lookup order will reach it
+    // for a Tallahassee address. Leon County's own parcel-level zoning (ZONING_LIVE.LEON,
+    // Parcel_PropInfo) covers the unincorporated county.
+    // descField ZONED carries the readable district name alongside the code.
+    "https://intervector.leoncountyfl.gov/intervector/rest/services/MapServices/TLC_OverlayZoning_D_WM/MapServer/0/query"
+  ]},
+
+  ORLANDO: { label:"City of Orlando Zoning", codeField:"Zoning", urls:[
+    // ✅ 2,092 polygons, 2,029 inside the Orlando city boundary (97%). Code-only — no readable
+    // district-name column on the layer.
+    // ⚠️ ORLANDO CODES ARE COMPOUND: live samples read "P/T/SP", "R-3B/T", "I-P/RP/W" — a base
+    // district followed by slash-separated overlays (T = traffic, SP = special plan, W = wellhead
+    // protection, RP = restricted parking). Each distinct combination therefore becomes its own
+    // legend row and its own colour, so a dense Orlando view produces a long legend. That is
+    // faithful to the source rather than a bug; splitting the base district off the overlays would
+    // mean inventing a parsing rule the city does not publish. If the legend gets unwieldy, split
+    // on the first "/" for the colour and keep the full string on the card.
+    // Orange County's own layer (ZONING_LIVE.ORANGE) is unincorporated-only, so without this entry
+    // every Orlando address fell through to the OCPA roll code.
+    "https://services5.arcgis.com/mMuoPCaIYD4wEgDl/arcgis/rest/services/OrlandoLUZoning/FeatureServer/0/query"
+  ]},
+
+  PORTSTLUCIE: { label:"City of Port St. Lucie Zoning", codeField:"ZONING", urls:[
+    // ✅ 1,334 polygons, coverage 1.00 against the city boundary — the cleanest city result in the
+    // sweep. ZONING holds the FULL DISTRICT NAME rather than an abbreviation ("GENERAL COMMERCIAL"),
+    // so the legend reads in plain English with no descField needed.
+    // ⚠️ Do NOT pin codeField to ZoneHasSEU, the other zoning-ish column on this layer — it is a
+    // Special Exception Use boolean, not a district. An earlier pass of the sweeper picked it
+    // automatically, which is why the field ranker now prefers an exact ZONING/ZONE name over any
+    // partial match and rejects has/flag-style columns.
+    // St. Lucie County's layer (ZONING_LIVE.STLUCIE) covers the unincorporated county; Fort Pierce
+    // is already wired above. Port St. Lucie is the county's largest city by a wide margin.
+    "https://services1.arcgis.com/YdUP5V6WwzeG8T8r/arcgis/rest/services/Zoning/FeatureServer/1/query"
+  ]}
 };
 
 /* Auto-detect the zoning code & description fields from a layer's attribute keys.
@@ -8178,6 +8635,10 @@ const COMMUNITY_LAYERS = {
   /* Collier publishes on ArcGIS Online (org SlIq32SqARUHIhSx), not on its own servers — which is
      why the county hosts refused directory listings. PUD fields verified 9 Sep 2026. */
   COLLIER: [
+    // City of Naples' own HOA boundaries (Planning/HOA) — answers only inside the city limits; the association
+    // NAME straight from the city, which beats inferring it from the legal description.
+    { key:'assoc', url:'https://g.naplesgov.com/arcgis/rest/services/Planning/HOA/MapServer/0',
+      pick:a=>({ name:a.Layer, type:'City of Naples HOA map', master:null, note:a.Overlapping_Districts||null }) },
     { key:'pd',  url:'https://services2.arcgis.com/SlIq32SqARUHIhSx/ArcGIS/rest/services/PUD/FeatureServer/5',
       pick:a=>({ name:a.NAME, category:[a.STATUS, a.AKA&&String(a.AKA).trim()?('aka '+String(a.AKA).trim()):null].filter(Boolean).join(' · ')||null,
                  desc:a.ORD_NUM?`Ordinance ${a.ORD_NUM}${a.PETITION&&String(a.PETITION).trim()?' · '+String(a.PETITION).trim():''}`:null }) },
@@ -8212,9 +8673,10 @@ function renderCommunityBlock(c, countyName){
   }
   const a = c.assoc || c.master;
   if(a){
-    h += `<div class="freshline"><span class="badge live">● ASSOCIATION MAPPED</span> ${esc(cn)} County registers neighborhood &amp; master associations</div>`;
+    h += `<div class="freshline"><span class="badge live">● ASSOCIATION MAPPED</span> ${a.type==='City of Naples HOA map' ? 'City of Naples maps its homeowner associations' : esc(cn)+' County registers neighborhood &amp; master associations'}</div>`;
     h += fieldRow('Association', esc(a.name), 'big');
-    if(a.type)   h += fieldRow('Type', esc(a.type));
+    if(a.type && a.type!=='City of Naples HOA map')   h += fieldRow('Type', esc(a.type));
+    if(a.note) h += fieldRow('Also within', esc(a.note));
     if(a.master && c.assoc) h += fieldRow('Master assoc.', esc(a.master));
     if(c.assoc && c.master && c.master.name!==a.master) h += fieldRow('Master (mapped)', esc(c.master.name));
     if(a.phone)  h += fieldRow('Phone', esc(a.phone));
@@ -19915,7 +20377,12 @@ const PRESERVE_LAYERS = {
    table — nonconforming lots, corner-lot rules, setback exceptions, conditional uses (GMD, from the graphic zoning
    atlas). Rare, but decisive when present. Shown on the Zoning card only when one touches the parcel. */
 const ZONING_EXCEPTION_LAYERS = {
-  COLLIER: { url:'https://services2.arcgis.com/SlIq32SqARUHIhSx/ArcGIS/rest/services/Zoning_Exception_(Editable)_view/FeatureServer/2', fields:'OBJECTID,EXCP,EXPNOTES1,EXPNOTES2' },
+  COLLIER: { url:'https://services2.arcgis.com/SlIq32SqARUHIhSx/ArcGIS/rest/services/Zoning_Exception_(Editable)_view/FeatureServer/2', fields:'OBJECTID,EXCP,EXPNOTES1,EXPNOTES2',
+             map:(a)=>({ code:String(a.EXCP||'').trim(), notes:[a.EXPNOTES1,a.EXPNOTES2].filter(x=>x&&String(x).trim()).map(x=>String(x).trim()).join(' '), rank:0 }) },
+  // Lee: zoning cases with type, status, decision, the request text and a link to the case file.
+  LEE:     { url:'https://services2.arcgis.com/LvWGAAhHwbCJ2GMP/ArcGIS/rest/services/ZoningCases/FeatureServer/0', fields:'OBJECTID,RECORD_ID,CASE_NAME,CASE_STATUS,DECISION_DATE,ZONING_RESOLUTION,CASE_LINK,DESCRIPTION,CASE_TYPE,YEAR',
+             map:(a)=>{ const t=String(a.CASE_TYPE||''); const rank=/varian|deviat|special exception|administrative|setback/i.test(t+' '+(a.DESCRIPTION||''))?0:1; const when=a.DECISION_DATE?new Date(a.DECISION_DATE):null;
+                        return { code:[t, a.RECORD_ID].filter(Boolean).join(' '), notes:[a.CASE_NAME, a.DESCRIPTION].filter(x=>x&&String(x).trim()).join(' — ').slice(0,260), status:a.CASE_STATUS||null, when: when&&!isNaN(when)?when.getFullYear():(a.YEAR||null), link:(a.CASE_LINK&&/^https?:/i.test(a.CASE_LINK))?a.CASE_LINK:null, resolution:a.ZONING_RESOLUTION||null, rank }; } },
 };
 async function checkZoningExceptions(g, countyName){
   const Z=ZONING_EXCEPTION_LAYERS[norm(countyName||'')]; if(!Z || !g || !g.rings) return null;
@@ -19927,14 +20394,16 @@ async function checkZoningExceptions(g, countyName){
     // must actually overlap/touch the lot, not just share the envelope
     const touches = !pr || pr.some(rg=>rg.some(p=>_ptToRingsM(p[0],p[1],rings)<2)) || rings.some(rg=>rg.some(p=>_ptToRingsM(p[0],p[1],pr)<2));
     if(!touches) continue;
-    out.push({ code:String(a.EXCP||'').trim(), notes:[a.EXPNOTES1,a.EXPNOTES2].filter(x=>x&&String(x).trim()).map(x=>String(x).trim()).join(' ') });
+    out.push(Z.map(a));
   }
-  return out;
+  out.sort((x,y)=>(x.rank||0)-(y.rank||0)); return out.slice(0,5);
 }
 /* Fire districts: whose fire marshal reviews the LP tank / generator clearances and inspects. Collier's layer
    carries only the district NAME; the contacts below are the districts' own fire-prevention pages. */
 const FIRE_DISTRICT_LAYERS = {
   COLLIER: { url:'https://services2.arcgis.com/SlIq32SqARUHIhSx/ArcGIS/rest/services/Fire_District/FeatureServer/0', field:'NAME' },
+  // Lee's layer carries the district's own address and phone — shown directly, no lookup table needed.
+  LEE:     { url:'https://services2.arcgis.com/LvWGAAhHwbCJ2GMP/ArcGIS/rest/services/FireDistricts/FeatureServer/0', field:'FIREDISTRICT', extra:['ADDRESS','CITY','ZIP','PHONE'] },
 };
 const FIRE_DISTRICT_CONTACTS = [
   // Home pages (stable). Replace with the district's fire-prevention / plan-review page when known.
@@ -19947,8 +20416,10 @@ const FIRE_DISTRICT_CONTACTS = [
 ];
 async function queryFireDistrict(lat, lng, countyName){
   const F=FIRE_DISTRICT_LAYERS[norm(countyName||'')]; if(!F) return null;
-  try{ const r=await arcQuery(F.url+'/query', lat, lng, F.field, false, 8000); const a=r&&r.features&&r.features[0]&&r.features[0].attributes; const nm=a&&a[F.field]?String(a[F.field]).trim():null; if(!nm) return null;
-       const c=FIRE_DISTRICT_CONTACTS.find(x=>x.re.test(nm)); return { name:nm, contact:c||null }; }catch(e){ return null; }
+  try{ const r=await arcQuery(F.url+'/query', lat, lng, [F.field,...(F.extra||[])].join(','), false, 8000); const a=r&&r.features&&r.features[0]&&r.features[0].attributes; const nm=a&&a[F.field]?String(a[F.field]).trim():null; if(!nm) return null;
+       const c=FIRE_DISTRICT_CONTACTS.find(x=>x.re.test(nm));
+       const phone=a.PHONE?String(a.PHONE).trim():null; const addr=[a.ADDRESS,a.CITY,a.ZIP].filter(x=>x&&String(x).trim()).map(x=>String(x).trim()).join(', ');
+       return { name:nm, contact:c||null, phone, addr: addr||null }; }catch(e){ return null; }
 }
 let _preserveLayers=[];
 function clearPreserves(){ for(const l of _preserveLayers){ try{ map.removeLayer(l); }catch(e){} } _preserveLayers=[]; }
@@ -19966,6 +20437,57 @@ async function checkPreserves(g, countyName){
   }
   const ft=Math.round(best*3.28084);
   return { near:true, ft, touching: ft<=3, rule:P.rule, accessoryFt:P.accessoryFt, principalFt:P.principalFt };
+}
+/* Building footprints: how far the house actually sits from each lot line. Collier publishes footprints per
+   aerial year (Buildings/FeatureServer, layer 1 = 2025); Lee's land records carry them (LandRecords/8).
+   Drawn on the map; distances to the N/E/S/W lot edges reported on the Zoning card as ≈ (GIS, not a survey). */
+const FOOTPRINT_LAYERS = {
+  COLLIER: 'https://services2.arcgis.com/SlIq32SqARUHIhSx/ArcGIS/rest/services/Buildings/FeatureServer/1',
+  LEE:     'https://gismapserver.leegov.com/gisserver910/rest/services/DataExplorer/LandRecords/MapServer/8',
+};
+// Statewide fallback: FEMA / ORNL "USA Structures" (Living Atlas, public). Every structure in Florida, traced
+// from aerials; PRIM_OCC says what it is, IMAGE_DATE says when it was traced. Used wherever no county layer exists.
+const FOOTPRINT_STATEWIDE = 'https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/USA_Structures_View/FeatureServer/0';
+let _fpLayers=[];
+function clearFootprints(){ for(const l of _fpLayers){ try{ map.removeLayer(l); }catch(e){} } _fpLayers=[]; }
+const _ptInRing=(x,y,ring)=>{ let inside=false; for(let i=0,j=ring.length-1;i<ring.length;j=i++){ const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1]; if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside; } return inside; };
+async function checkFootprint(g, countyName){
+  clearFootprints();
+  if(!g || !g.rings) return null;
+  const countyUrl=FOOTPRINT_LAYERS[norm(countyName||'')];
+  const url=countyUrl||FOOTPRINT_STATEWIDE; const statewide=!countyUrl;
+  const rings=g.rings; const env=_ringsEnvelope(rings);
+  let r=null; try{ r=await _arcEnv(url, env, statewide?'OBJECTID,PRIM_OCC,IMAGE_DATE,SQFEET':'OBJECTID', true); }catch(e){ return null; }
+  let feats=(r&&r.features)||[];
+  // county layer answered nothing (gap in its trace) → try the statewide set before giving up
+  if(!feats.length && countyUrl){ try{ const r2=await _arcEnv(FOOTPRINT_STATEWIDE, env, 'OBJECTID,PRIM_OCC,IMAGE_DATE,SQFEET', true); feats=(r2&&r2.features)||[]; if(feats.length){ var usedStatewide=true; } }catch(e){} }
+  if(!feats.length) return { found:false };
+  // keep footprints whose centroid is inside the lot (the house, not the neighbours')
+  const inside=feats.filter(f=>{ const fr=f.geometry&&f.geometry.rings&&f.geometry.rings[0]; if(!fr) return false; const cx=fr.reduce((a,p)=>a+p[0],0)/fr.length, cy=fr.reduce((a,p)=>a+p[1],0)/fr.length; return rings.some(rg=>_ptInRing(cx,cy,rg)); });
+  if(!inside.length) return { found:false };
+  // largest footprint = principal structure
+  const areaOf=(fr)=>{ let a=0; for(let i=0,j=fr.length-1;i<fr.length;j=i++) a+=(fr[j][0]+fr[i][0])*(fr[j][1]-fr[i][1]); return Math.abs(a/2); };
+  inside.sort((a,b)=>areaOf(b.geometry.rings[0])-areaOf(a.geometry.rings[0]));
+  const house=inside[0].geometry.rings; const others=inside.slice(1);
+  if(sketchOn){
+    const approxNow=!!(statewide||usedStatewide);
+    const poly=L.polygon(house.map(rg=>rg.map(p=>[p[1],p[0]])),{renderer:canvasRenderer,color:'#ffffff',weight:approxNow?1:1.5,fillColor:'#ffffff',fillOpacity:approxNow?.04:.08,dashArray:approxNow?'1 4':'2 3',opacity:approxNow?.55:1}).addTo(map); poly.bindTooltip(approxNow?'<b>Building footprint (approximate)</b><br>FEMA statewide trace — can sit several feet off the roofline':'<b>Building footprint</b><br>county aerial trace',{sticky:true,direction:'top',className:'parcel-tip',opacity:1}); _fpLayers.push(poly);
+    for(const o of others){ const p2=L.polygon(o.geometry.rings.map(rg=>rg.map(p=>[p[1],p[0]])),{renderer:canvasRenderer,color:'#ffffff',weight:1,fillOpacity:.04,dashArray:'2 3',opacity:.6}).addTo(map); _fpLayers.push(p2); }
+  }
+  // Distance from the house to each lot edge, grouped by the edge's compass facing (which side of the lot it is).
+  const lotRing=rings[0]; const cx=lotRing.reduce((a,p)=>a+p[0],0)/lotRing.length, cy=lotRing.reduce((a,p)=>a+p[1],0)/lotRing.length;
+  const sides={N:1e9,E:1e9,S:1e9,W:1e9};
+  for(let i=1;i<lotRing.length;i++){
+    const a=lotRing[i-1], b=lotRing[i]; const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2;
+    const ang=Math.atan2(my-cy,(mx-cx)*Math.cos(cy*Math.PI/180))*180/Math.PI; // direction from lot centre to edge midpoint
+    const side = (ang>=45&&ang<135)?'N':(ang>=-45&&ang<45)?'E':(ang>=-135&&ang<-45)?'S':'W';
+    let best=1e9; for(const rg of house) for(const p of rg){ const d=_distPtSegM(p[0],p[1],a[0],a[1],b[0],b[1]); if(d<best) best=d; }
+    if(best<sides[side]) sides[side]=best;
+  }
+  const ft={}; for(const k of Object.keys(sides)) if(sides[k]<1e8) ft[k]=Math.round(sides[k]*3.28084);
+  const a0=inside[0].attributes||{}; const imgDate=a0.IMAGE_DATE?new Date(a0.IMAGE_DATE):null;
+  const approx = !!(statewide||usedStatewide);   // FEMA polygons drift 5–10 ft off the roofline: outline only, no numbers
+  return { found:true, ft: approx?null:ft, approx, accessory: others.length, source: approx?'FEMA USA Structures (statewide)':'county footprint layer', traced: imgDate&&!isNaN(imgDate)?imgDate.getFullYear():null, occ: a0.PRIM_OCC||null, sqft: a0.SQFEET?Math.round(a0.SQFEET):null };
 }
 let sketchOn = true; let _sketchLayers = []; let _sketchRun = 0;
 function clearSiteSketch(){ for(const l of _sketchLayers){ try{ map.removeLayer(l); }catch(e){} } _sketchLayers=[]; }
@@ -20071,8 +20593,9 @@ function drawParcel(g, info){
         fillColor:col,fillOpacity:oversized?.05:.12,
         dashArray:oversized?'6 5':null,opacity:oversized?.85:1}).addTo(map);
       try{ if(!oversized) drawSiteSketch(g, (info&&info.county)||window.__parcelCounty||''); else clearSiteSketch(); }catch(e){}
-      try{ checkPreserves(g, (info&&info.county)||window.__parcelCounty||'').then(res=>{ window.__preserveCheck=res; document.dispatchEvent(new CustomEvent('aog:preserve',{detail:res})); }); }catch(e){}
-      try{ checkZoningExceptions(g, (info&&info.county)||window.__parcelCounty||'').then(res=>{ document.dispatchEvent(new CustomEvent('aog:zexc',{detail:res})); }); }catch(e){}
+      try{ checkPreserves(g, (info&&info.county)||window.__parcelCounty||'').then(res=>{ window.__preserveCheck=res; _fillLotNotes(); }); }catch(e){}
+      try{ checkZoningExceptions(g, (info&&info.county)||window.__parcelCounty||'').then(res=>{ window.__zoningExceptions=res; _fillLotNotes(); }); }catch(e){}
+      try{ if(!oversized) checkFootprint(g, (info&&info.county)||window.__parcelCounty||'').then(res=>{ window.__footprint=res; _fillLotNotes(); }); else clearFootprints(); }catch(e){}
       // Hover popup: address / parcel ID / owner. Follows the cursor (sticky) while over the lot.
       const tip=parcelTooltipHTML(info);
       if(tip){
@@ -21676,7 +22199,7 @@ async function _runLookupInner(lat,lng,searchCtx){
   if(marker) map.removeLayer(marker);
   marker=L.circleMarker([lat,lng],{renderer:canvasRenderer,radius:6,color:'#F46800',weight:2,fillColor:'#F46800',fillOpacity:.9}).addTo(map);
   if(parcelLayer){ map.removeLayer(parcelLayer); parcelLayer=null; }
-  try{ clearSiteSketch(); window.__siteSketch=null; clearPreserves(); window.__preserveCheck=null; }catch(e){}
+  try{ clearSiteSketch(); window.__siteSketch=null; clearPreserves(); window.__preserveCheck=null; clearFootprints(); window.__footprint=null; window.__zoningExceptions=null; }catch(e){}
   try{ resetElevationGrid(); }catch(e){}   // grid follows the parcel — stale points must not linger
   if(homeParcelLayer){ map.removeLayer(homeParcelLayer); homeParcelLayer=null; }
   clearNeighborNumbers(); _nbrCtx=null;
@@ -23036,6 +23559,255 @@ async function _runLookupInner(lat,lng,searchCtx){
     // "TRUE_" prefix that dodges the generic detectFields regexes: owner (TRUE_OWNER1) and site city
     // (TRUE_SITE_CITY). Pin them here, and surface assessed roll-year + building value via the standard
     // custom-key channels. Gap-only; guarded to Miami-Dade. Fields verified from live layer metadata.
+    /* ══════════ GUARDS FOR THE FIVE COUNTIES ADDED 18 Sep 2026 ══════════
+       All gap-only (they never overwrite something detectFields already resolved correctly) and
+       each is fenced to its own county, so none of them can reach another county's card. */
+
+    // Palm Beach. Most of PBCGOV's schema auto-detects, but three things need pinning and one
+    // needs suppressing.
+    // ⚠️ Ch.119 CONFIDENTIALITY FIRST: CONFID_FLG='Y' marks an owner exempt from public disclosure
+    // (law enforcement, judges, victims of stalking). Palm Beach does NOT publish a pre-stripped
+    // parallel layer the way St. Lucie does, so this flag is the ONLY thing standing between an
+    // exempt owner and the card. Suppression runs BEFORE the mapping below and clears the keys
+    // detectFields has already filled (OWNER_NAME1/PADDR1 auto-detect cleanly), because a later
+    // "if(!det.owner)" gap-fill would be a no-op against an already-populated key — the same trap
+    // documented on the St. Lucie guard. Geometry, values and use stay: the parcel is public, the
+    // person is not.
+    if(norm(countyName)==='PALMBEACH'){
+      const _la=liveRes.features[0].attributes;
+      const _n=v=>v!=null&&String(v).replace(/[^0-9.]/g,'')!==''&&Number(String(v).replace(/[^0-9.]/g,''))>0;
+      const _t=v=>v!=null&&String(v).trim()!=='' ? String(v).trim() : null;
+      const _conf = _la.CONFID_FLG!=null && /^Y/i.test(String(_la.CONFID_FLG).trim());
+      if(_conf){ ['owner','owner2','mail','mailCity'].forEach(_k=>{ det[_k]=null; }); }
+      if(!det.owner  && !_conf && _t(_la.OWNER_NAME1)) det.owner='OWNER_NAME1';
+      if(!det.owner2 && !_conf && _t(_la.OWNER_NAME2)) det.owner2='OWNER_NAME2';
+      if(!det.site && _t(_la.SITE_ADDR_STR)) det.site='SITE_ADDR_STR';
+      // Situs CITY: CITYNAME belongs to the MAILING block (PADDR1-3), so it must never become the
+      // site city — MUNICIPALITY is the parcel's own jurisdiction. Blank on unincorporated PBC,
+      // which is correct and simply leaves the field to the roll.
+      if(!det.city && _t(_la.MUNICIPALITY)) det.city='MUNICIPALITY';
+      if(!det.jv   && _n(_la.TOTAL_MARKET)) det.jv='TOTAL_MARKET';
+      if(!det.land && _n(_la.LAND_MARKET))  det.land='LAND_MARKET';
+      if(!det.yr   && _n(_la.YRBLT))        det.yr='YRBLT';
+      if(!det.use  && _t(_la.PROPERTY_USE)) det.use='PROPERTY_USE';
+      if(!det.sub  && _t(_la.SUBDIV_NAME))  det.sub='SUBDIV_NAME';
+      if(_la.__assessedVal==null && _n(_la.ASSESSED_VAL))  _la.__assessedVal=_la.ASSESSED_VAL;
+      if(_la.__taxableVal==null  && _n(_la.TOTAL_TAXABLE)) _la.__taxableVal=_la.TOTAL_TAXABLE;
+      if(_la.__legal==null){
+        const _lg=[_la.LEGAL1,_la.LEGAL2,_la.LEGAL3].filter(_t).map(v=>String(v).trim());
+        if(_lg.length) _la.__legal=_lg.join(' ').replace(/\s+/g,' ').trim();
+      }
+      // Sale: SALE_DATE is epoch ms, PRICE is the consideration. Keep the year only, like Lee.
+      if(!det.saleP && _la.__saleP==null && _n(_la.PRICE)){
+        _la.__saleP=_la.PRICE;
+        if(_n(_la.SALE_DATE)){ try{ const _y=new Date(Number(_la.SALE_DATE)).getUTCFullYear();
+          if(_y>1900 && _y<2100) _la.__saleY=String(_y); }catch(e){} }
+      }
+    }
+
+    // Bay County. The A#/S1/VAS prefixes dodge every generic detectFields regex, so almost
+    // everything is pinned here — but this layer repays it: it is one of very few in the state
+    // carrying beds, baths, stories and heated area directly on the parcel polygon.
+    if(norm(countyName)==='BAY'){
+      const _la=liveRes.features[0].attributes;
+      const _n=v=>v!=null&&String(v).replace(/[^0-9.]/g,'')!==''&&Number(String(v).replace(/[^0-9.]/g,''))>0;
+      // Bay pads empty strings with a single space rather than null — treat " " as absent.
+      const _t=v=>v!=null&&String(v).trim()!=='' ? String(v).trim() : null;
+      if(!det.owner && _t(_la.A2OWNAME))  det.owner='A2OWNAME';
+      if(!det.site  && _t(_la.DSITEADDR)) det.site='DSITEADDR';
+      if(!det.zip   && _t(_la.DSITEZIP))  det.zip='DSITEZIP';
+      if(!det.mail  && _t(_la.A3MAILADDR)) det.mail='A3MAILADDR';
+      if(!det.mailCity && _t(_la.A6MAILCITY)) det.mailCity='A6MAILCITY';
+      if(!det.pid   && _t(_la.A1RENUM))   det.pid='A1RENUM';
+      if(!det.jv    && _n(_la.VASJUST))   det.jv='VASJUST';
+      if(!det.land  && _n(_la.VAPLNDMRK)) det.land='VAPLNDMRK';
+      if(!det.liv   && _n(_la.S1AREAHEAT)) det.liv='S1AREAHEAT';   // heated, NOT S1AREATTL
+      if(!det.yr    && _n(_la.S1YRBLTACT)) det.yr='S1YRBLTACT';    // actual, NOT effective
+      if(!det.use   && _t(_la.DORAPPDESC)) det.use='DORAPPDESC';
+      if(_la.__assessedVal==null && _n(_la.VASTOTAL))   _la.__assessedVal=_la.VASTOTAL;
+      if(_la.__taxableVal==null  && _n(_la.VASTAXABLE)) _la.__taxableVal=_la.VASTAXABLE;
+      if(_la.__bldgCount==null   && _n(_la.BLDCNT))     _la.__bldgCount=_la.BLDCNT;
+      if(_la.__legal==null){
+        const _lg=[]; for(let _i=1;_i<=9;_i++){ const _v=_t(_la['LEGALINE'+_i]); if(_v) _lg.push(_v); }
+        if(_lg.length) _la.__legal=_lg.join(' ').replace(/\s+/g,' ').trim();
+      }
+      // SALE1DATE is an ISO date STRING ("2006-12-06"), not epoch — take the leading year.
+      if(!det.saleP && _la.__saleP==null && _n(_la.SALE1PRADJ)){
+        _la.__saleP=_la.SALE1PRADJ;
+        const _sd=_t(_la.SALE1DATE); const _m=_sd && _sd.match(/^(\d{4})/);
+        if(_m) _la.__saleY=_m[1];
+      }
+      // Bay's zoning polygon layer (ZONING_LIVE.BAY) owns the Zoning card; the parcel's own Zoning
+      // attribute rides along via __zoning as the labeled "per parcel roll" fallback only.
+      if(_la.__zoning==null && _t(_la.Zoning)) _la.__zoning=_t(_la.Zoning);
+    }
+
+    // Alachua. Two traps on this layer, both of which would render confidently wrong data:
+    //   1. address1/city/state/zip are the OWNER'S MAILING address, NOT the situs — an absentee
+    //      owner's home town would show as the property's address. They are mapped to MAIL, and
+    //      det.site is left untouched so the statewide roll supplies the situs.
+    //   2. ownersubdv looks owner-ish to a regex but is a concatenated owner+address SORT KEY
+    //      ("3900 COMMONWEALTH BLVDTALLAHASSEE000000"). If detectFields grabbed it, clear it —
+    //      the real owner is firstname1, a single column holding the entire name.
+    if(norm(countyName)==='ALACHUA'){
+      const _la=liveRes.features[0].attributes;
+      const _n=v=>v!=null&&String(v).replace(/[^0-9.]/g,'')!==''&&Number(String(v).replace(/[^0-9.]/g,''))>0;
+      const _t=v=>v!=null&&String(v).trim()!=='' ? String(v).trim() : null;
+      if(det.owner==='ownersubdv') det.owner=null;
+      if(det.site==='address1' || det.site==='address2') det.site=null;   // see trap 1
+      if(det.city==='city') det.city=null;
+      if(!det.owner && _t(_la.firstname1)) det.owner='firstname1';
+      if(!det.mail  && _t(_la.address1))   det.mail='address1';
+      if(!det.mailCity && _t(_la.city))    det.mailCity='city';
+      if(!det.pid   && _t(_la.parcel))     det.pid='parcel';
+      if(!det.jv    && _n(_la.justvalue))  det.jv='justvalue';
+      if(!det.liv   && _n(_la.heatedsquarefeet)) det.liv='heatedsquarefeet';
+      if(!det.lotSqft && _n(_la.squarefeet))     det.lotSqft='squarefeet';
+      if(!det.use   && _t(_la.propertyuse)) det.use='propertyuse';
+      if(!det.sub   && _t(_la.subdivision)) det.sub='subdivision';
+      if(_la.__asmtYr==null && _n(_la.taxyear)) _la.__asmtYr=_la.taxyear;
+      if(!det.saleP && _la.__saleP==null && _n(_la.saleamount)){
+        _la.__saleP=_la.saleamount;
+        const _sd=_t(_la.saledate);
+        if(_sd){ const _m=_sd.match(/(\d{4})/); if(_m) _la.__saleY=_m[1];
+                 else { try{ const _y=new Date(Number(_sd)).getUTCFullYear(); if(_y>1900&&_y<2100) _la.__saleY=String(_y); }catch(e){} } }
+      }
+      // Zoning rides on the roll here (zonedistrict; spelled zonedistri on the parcels_2025
+      // fallback). Surfaced via __zoning behind ZONING_LIVE.ALACHUA's polygon, same as Bay.
+      if(_la.__zoning==null){ const _z=_t(_la.zonedistrict)||_t(_la.zonedistri); if(_z) _la.__zoning=_z; }
+    }
+
+    // Okaloosa. Covers BOTH configured URLs: the plain-named PCL_ADDR_Final primary and the
+    // PATPCL_-prefixed Property_Data fallback, since either may be the one that answered.
+    if(norm(countyName)==='OKALOOSA'){
+      const _la=liveRes.features[0].attributes;
+      const _n=v=>v!=null&&String(v).replace(/[^0-9.]/g,'')!==''&&Number(String(v).replace(/[^0-9.]/g,''))>0;
+      const _t=v=>v!=null&&String(v).trim()!=='' ? String(v).trim() : null;
+      // ── primary layer (PCL_ADDR_Final) ──
+      if(!det.owner && _t(_la.OWNER))     det.owner='OWNER';
+      if(!det.site  && _t(_la.SITE_ADDR)) det.site='SITE_ADDR';
+      if(!det.city  && _t(_la.ZIP_CITY))  det.city='ZIP_CITY';   // situs city; CITY is mailing
+      if(!det.mail  && _t(_la.ADDR1))     det.mail='ADDR1';
+      if(!det.mailCity && _t(_la.CITY))   det.mailCity='CITY';
+      if(!det.pid   && _t(_la.PIN))       det.pid='PIN';
+      if(!det.jv    && _n(_la.TOTALAPPR)) det.jv='TOTALAPPR';
+      if(!det.land  && _n(_la.MKTLAND))   det.land='MKTLAND';
+      if(!det.yr    && _n(_la.BLDGAYB))   det.yr='BLDGAYB';      // actual, not BLDGEYB
+      if(!det.use   && _t(_la.USEDESC))   det.use='USEDESC';
+      if(_la.__assessedVal==null && _n(_la.ASSEDVAL)) _la.__assessedVal=_la.ASSEDVAL;
+      if(_la.__taxableVal==null  && _n(_la.TAXVAL))   _la.__taxableVal=_la.TAXVAL;
+      if(_la.__legal==null){
+        const _lg=[_la.LEGL1,_la.LEGL2,_la.LEGL3].filter(_t).map(v=>String(v).trim());
+        if(_lg.length) _la.__legal=_lg.join(' ').replace(/\s+/g,' ').trim();
+      }
+      // ── fallback layer (Property_Data/34, PATPCL_ prefix) ──
+      if(!det.owner && _t(_la.PATPCL_OWNER)) det.owner='PATPCL_OWNER';
+      if(!det.pid   && _t(_la.PATPCL_PIN))   det.pid='PATPCL_PIN';
+      if(!det.jv    && _n(_la.PATPCL_JUSTVAL))   det.jv='PATPCL_JUSTVAL';
+      if(!det.land  && _n(_la.PATPCL_MKTLAND))   det.land='PATPCL_MKTLAND';
+      if(!det.yr    && _n(_la.PATPCL_BLDGAYB))   det.yr='PATPCL_BLDGAYB';
+      if(!det.use   && _t(_la.PATPCL_USEDESC))   det.use='PATPCL_USEDESC';
+      if(_la.__assessedVal==null && _n(_la.PATPCL_ASSEDVAL)) _la.__assessedVal=_la.PATPCL_ASSEDVAL;
+      if(_la.__taxableVal==null  && _n(_la.PATPCL_TAXVAL))   _la.__taxableVal=_la.PATPCL_TAXVAL;
+      if(_la.__legal==null){
+        const _lg=[_la.PATPCL_LEGL1,_la.PATPCL_LEGL2,_la.PATPCL_LEGL3].filter(_t).map(v=>String(v).trim());
+        if(_lg.length) _la.__legal=_lg.join(' ').replace(/\s+/g,' ').trim();
+      }
+      // PATPCL_SALEDT1 is a yyyymmdd INTEGER (20251117), not epoch and not ISO.
+      if(!det.saleP && _la.__saleP==null && _n(_la.PATPCL_SALE1)){
+        _la.__saleP=_la.PATPCL_SALE1;
+        const _d=String(_la.PATPCL_SALEDT1||'');
+        if(/^\d{8}$/.test(_d)) _la.__saleY=_d.slice(0,4);
+      }
+    }
+
+    // Clay. The trap here is that Address1/City are the MAILING block while StreetCity is the
+    // situs city — on the live sample the parcel sits in Clay Hill but the owner's City reads
+    // "Jacksonville". Situs is therefore composed explicitly from the split street columns rather
+    // than trusting the composed Address1, and det.city is pinned to StreetCity.
+    // No values / year built / sale exist on this layer at all — those keys are deliberately left
+    // untouched so the statewide FDOR roll splice fills them (same contract as St. Lucie's
+    // ParcelsPublic fallback). Do not be tempted to map GISACRES to a value field.
+    if(norm(countyName)==='CLAY'){
+      const _la=liveRes.features[0].attributes;
+      const _t=v=>v!=null&&String(v).trim()!=='' ? String(v).trim() : null;
+      if(det.site==='Address1') det.site=null;
+      if(det.city==='City')     det.city=null;
+      if(!det.owner && _t(_la.Name)) det.owner='Name';
+      if(!det.site){
+        const _addr=[_la.HouseNo,_la.HouseNoSuffix,_la.StreetDir,_la.StreetName,_la.StreetMd,_la.StreetUnit]
+          .filter(_t).map(v=>String(v).trim()).join(' ').replace(/\s+/g,' ').trim();
+        if(_addr){ _la.__claySite=_addr; det.site='__claySite'; }
+        else if(_t(_la.Address1)){ det.site='Address1'; }   // last resort if the split cols are empty
+      }
+      if(!det.city && _t(_la.StreetCity)) det.city='StreetCity';
+      if(!det.zip  && _t(_la.StreetZip5)) det.zip='StreetZip5';
+      if(!det.mail && _t(_la.Address1))   det.mail='Address1';
+      if(!det.mailCity && _t(_la.City))   det.mailCity='City';
+      if(!det.pid  && _t(_la.ParcelDisp)) det.pid='ParcelDisp';
+      if(!det.use  && _t(_la.Usedesc))    det.use='Usedesc';
+      if(_la.__legal==null){
+        const _lg=[_la.LegalLines1,_la.LegalLines2,_la.LegalLines3].filter(_t)
+          .map(v=>String(v).trim().replace(/~+$/,'').trim());
+        if(_lg.length) _la.__legal=_lg.join(' ').replace(/\s+/g,' ').trim();
+      }
+    }
+
+    // Leon. Same mailing-vs-situs trap as Clay and Alachua, and worse here because ADDR1 looks
+    // exactly like a street address: the live test parcel is a Tallahassee apartment complex whose
+    // ADDR1 reads "585 BOYLSTON ST FL 4" — the owner's office in Boston. ADDR1/ADDR2/ZIP1 go to
+    // MAIL and det.site is left for the statewide roll.
+    // Values carry the PYR_ (prior-year) prefix — real appraiser dollars, one cycle behind.
+    if(norm(countyName)==='LEON'){
+      const _la=liveRes.features[0].attributes;
+      const _n=v=>v!=null&&String(v).replace(/[^0-9.]/g,'')!==''&&Number(String(v).replace(/[^0-9.]/g,''))>0;
+      const _t=v=>v!=null&&String(v).trim()!=='' ? String(v).trim() : null;
+      if(det.site==='ADDR1'||det.site==='ADDR2') det.site=null;
+      if(!det.owner && _t(_la.OWNER1))     det.owner='OWNER1';
+      if(!det.mail  && _t(_la.ADDR1))      det.mail='ADDR1';
+      if(!det.mailCity && _t(_la.ADDR2))   det.mailCity='ADDR2';
+      if(!det.pid   && _t(_la.TAXID_LABE)) det.pid='TAXID_LABE';
+      if(!det.jv    && _n(_la.PYR_MARKET)) det.jv='PYR_MARKET';
+      if(!det.land  && _n(_la.PYR_LAND))   det.land='PYR_LAND';
+      if(_la.__taxableVal==null && _n(_la.PYR_TAXABL)) _la.__taxableVal=_la.PYR_TAXABL;
+      if(_la.__legal==null){
+        const _lg=[]; for(let _i=1;_i<=4;_i++){ const _v=_t(_la['LEGAL'+_i]); if(_v) _lg.push(_v); }
+        if(_lg.length) _la.__legal=_lg.join(' ').replace(/\s+/g,' ').trim();
+      }
+      // If the PropInfo fallback answered instead, it has no owner but it does carry the district
+      // with a readable name plus future land use — surface those rather than dropping them.
+      if(!det.use && _t(_la.LANDUSE)) det.use='LANDUSE';
+      if(_la.__zoning==null){
+        const _z=_t(_la.ZONING), _zd=_t(_la.ZONED);
+        if(_z) _la.__zoning = (_zd && _zd!==_z) ? (_z+' · '+_zd) : _z;
+      }
+    }
+
+    // Santa Rosa. Ch.119 suppression first (ConfFlag), then the mailing-vs-situs split: Addr1-3 and
+    // City are the OWNER's mailing block, so situs is composed from the parcel's own Str* columns.
+    // This layer pads empty strings with a single space rather than null — " " must read as absent
+    // or the card renders a blank owner instead of falling through to the roll.
+    if(norm(countyName)==='SANTAROSA'){
+      const _la=liveRes.features[0].attributes;
+      const _t=v=>v!=null&&String(v).trim()!=='' ? String(v).trim() : null;
+      const _conf = _la.ConfFlag!=null && /^(Y|1|T)/i.test(String(_la.ConfFlag).trim());
+      if(_conf){ ['owner','owner2','mail','mailCity'].forEach(_k=>{ det[_k]=null; }); }
+      if(det.site==='Addr1'||det.site==='Addr2'||det.site==='Addr3') det.site=null;
+      if(det.city==='City') det.city=null;
+      if(!det.owner && !_conf && _t(_la.OwnerName)) det.owner='OwnerName';
+      if(!det.mail  && !_conf && _t(_la.Addr2))     det.mail='Addr2';
+      if(!det.mailCity && !_conf && _t(_la.City))   det.mailCity='City';
+      if(!det.site){
+        const _a=[_la.StrNum,_la.StrName,_la.StSuffix].filter(_t).map(v=>String(v).trim())
+          .join(' ').replace(/\s+/g,' ').trim();
+        if(_a){ _la.__srSite=_a; det.site='__srSite'; }
+      }
+      if(!det.zip && _t(_la.Zip5)) det.zip='Zip5';
+      if(!det.pid && _t(_la.ParcelDisp)) det.pid='ParcelDisp';
+      if(!det.use && _t(_la.PropertyUs)) det.use='PropertyUs';
+      if(_la.__bldgCount==null && _la.BldgCnt!=null && Number(_la.BldgCnt)>0) _la.__bldgCount=_la.BldgCnt;
+    }
+
     if(norm(countyName)==='MIAMIDADE'){
       const _la=liveRes.features[0].attributes;
       const _n=v=>v!=null&&String(v).replace(/[^0-9.]/g,'')!==''&&Number(String(v).replace(/[^0-9.]/g,''))>0;
@@ -24696,6 +25468,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
     if(zhit.code!=null && String(zhit.code).trim()!==''){ html += fieldRow('Zoning district', esc(String(zhit.code)), 'big'); if(window.__exportData) window.__exportData.zoning=String(zhit.code).trim(); }
     if(zhit.extras) for(const ex of zhit.extras) html += fieldRow(ex.label, esc(ex.value));
     if(zhit.desc!=null && String(zhit.desc).trim()!=='' && norm(zhit.desc)!==norm(zhit.code)) html += fieldRow('District name', esc(String(zhit.desc)));
+    html += `<div id="fpNote-${myId}"></div>`; setTimeout(_pollLotNotes,0);
     html += '<!--HAND-->';   // everything after this point is the hand-checked quick reference; folded under the live card below
     if(norm(cityName)==='NAPLES' && zhit.code){ html += renderNaplesSetbacks(zhit.code, parcelYearBuilt); html += renderCapacityCard(NAPLES_CAPACITY, zhit.code, parcelLotSqft, 'City of Naples', null); }
     if(norm(cityName)==='MARCOISLAND' && zhit.code){ html += renderMarcoSetbacks(zhit.code); }
@@ -24744,7 +25517,8 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   }
   // Collier County generator siting (LDC 5.03.07) — UNINCORPORATED Collier only. The incorporated
   // cities (Naples has its own § 56-41 rendered above; Marco Island has its own LDC) are excluded.
-  if(norm(countyName)==='COLLIER' && !COLLIER_INCORP.has(norm(cityName))){ html += renderCollierGeneratorRules(); html += `<div id="preserveNote-${myId}"></div>`; }
+  if(norm(countyName)==='COLLIER' && !COLLIER_INCORP.has(norm(cityName))){ html += renderCollierGeneratorRules(); }
+  if(ZONING_EXCEPTION_LAYERS[norm(countyName||'')] || PRESERVE_LAYERS[norm(countyName||'')]){ html += `<div id="preserveNote-${myId}"></div>`; setTimeout(_pollLotNotes,0); }
   // Tampa Bay / SW-FL cities wired in the zoning-layer expansion — each carries a generator-siting note
   // read from its own adopted code (verified per city). Dispatched by cityName so it rides on any parcel
   // in that city, whether or not a district code was read. (Marco Island's setback table renders above;
@@ -25187,7 +25961,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   if(FIRE_DISTRICT_LAYERS[norm(countyName||'')]){
     html += `<div id="fireDist-${myId}"></div>`;
     queryFireDistrict(lat, lng, countyName).then(fd=>{ if(myId!==runId || !fd) return; patchSlot('fireDist-'+myId,
-      `<div class="note" style="margin-top:6px"><b>Fire district:</b> ${esc(fd.name)}${fd.contact?` — <a href="${esc(fd.contact.url)}" target="_blank" rel="noopener">${esc(fd.contact.name)} ↗</a>`:''}<div class="lc-meta">This district's fire marshal reviews the LP tank and generator clearances (NFPA 58 / NFPA 37) and does the final inspection.</div></div>`); }).catch(()=>{});
+      `<div class="note" style="margin-top:6px"><b>Fire district:</b> ${esc(fd.name)}${fd.contact?` — <a href="${esc(fd.contact.url)}" target="_blank" rel="noopener">${esc(fd.contact.name)} ↗</a>`:''}${fd.phone?` · <a href="tel:${esc(fd.phone.replace(/[^0-9+]/g,''))}">${esc(fd.phone)}</a>`:''}${fd.addr?`<div class="lc-meta">${esc(fd.addr)}</div>`:''}<div class="lc-meta">This district's fire marshal reviews the LP tank and generator clearances (NFPA 58 / NFPA 37) and does the final inspection.</div></div>`); }).catch(()=>{});
   }
   // Fire prevention code adoption (NFPA editions → NFPA 37 clearances, NFPA 58 tank distances) — live from Municode
   if(typeof CODE_PROXY_URL!=='undefined' && CODE_PROXY_URL){ html += `<div id="permitLiveCode" class="lc-topic"></div>`; setTimeout(fillPermitLiveCode, 50); }
