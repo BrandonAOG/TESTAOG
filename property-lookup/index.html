@@ -255,6 +255,22 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .field:last-child{border-bottom:none}
   .field .k{font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;flex:none;padding-top:1px;width:118px}
   .field .v{font-family:var(--mono);font-size:12.5px;color:var(--ink);text-align:right;overflow-wrap:anywhere;flex:1;min-width:0}
+  /* Stacked field rows — label on its own line, body full width beneath it. The default .field is a
+     two-column flex row built for SHORT values: .k is clamped to 118px and .v is right-aligned, which
+     suits "Acreage / 0.23 ac" and fights a sentence. The septic/sewer, easement and setback blocks are
+     prose — under the default rules their captions wrapped to three ragged lines while the body sat
+     hard against the right edge. This class is what those rows use instead. */
+  .field.stack{display:block;padding:8px 0}
+  .field.stack .k{width:auto;display:block;margin-bottom:5px}
+  .field.stack .k .cap{text-transform:none;letter-spacing:0;font-size:10px;color:var(--faint);
+    display:inline-block;margin-left:6px}
+  /* Proportional, not mono: these are sentences carrying utility names and phone numbers, and mono
+     spaces them into something that reads like console output. */
+  .field.stack .v{text-align:left;font-family:inherit;font-size:12.5px;line-height:1.55}
+  /* Icon in its own column so a wrapped line aligns under the TEXT, not under the icon. */
+  .field.stack .v .ln{display:flex;gap:7px;align-items:baseline;margin:3px 0}
+  .field.stack .v .ln>.ic{flex:none;width:11px;text-align:center}
+  .field.stack .v .ln>.tx{flex:1;min-width:0}
   .field .v.big{font-size:14px;color:var(--signal);font-weight:600}
   .field .v.zone{font-size:15px;font-weight:600}
   .v.muted{color:var(--faint)}
@@ -3446,6 +3462,53 @@ const COUNTY_FOOTPRINTS = {
                 statusField:"Status", nameField:"ProjectName", typeField:"ProjectType", linkField:"PortalLink" } */
 const COUNTY_PROJECTS = {};
 
+/* ---------- Traffic cameras (FL511 / DIVAS) — INVESTIGATED 20 Sep 2026, NOT WIRED ---------------
+   Asked for: a "TRAFFIC CAMS" layer with markers; click a marker and the live camera opens and plays.
+   Conclusion: not deliverable without a server. Findings recorded so nobody re-derives them.
+
+   HOW FL511 ACTUALLY SERVES VIDEO — a three-step handshake, not a URL:
+     1. GET  fl511.com/Camera/GetVideoUrl?imageId=<id>   -> {token, sourceId, systemSourceId}
+     2. POST divas.cloud/VDS-API/SecureTokenUri/GetSecureTokenUriBySourceId  (that JSON as the body)
+             -> a query-string suffix, e.g. "?token=cd6cf2f4b2ef..."
+     3. Stream = the element's data-videourl + that suffix, e.g.
+             https://dis-se5.divas.cloud:8200/chan-6343_h/index.m3u8?token=...
+        FL511 re-mints it every 60 s (EnableVideoUrlRefresh / setInterval 6e4).
+     Camera markup carries data-videoauth="true", the flag that triggers this path.
+
+   WHY A STATIC PAGE CANNOT DO IT — three independent blockers, each fatal alone:
+     - Step 1 sends NO CORS headers. From any other origin it is a hard "Failed to fetch", so the
+       token can never be minted client-side.
+     - The stream is ORIGIN-LOCKED at the server, not merely token-gated. Proven: a token minted on
+       fl511.com and used 31 SECONDS LATER returned HTTP 200 on fl511.com and HTTP 401 from another
+       origin — same URL, same token, seconds apart. A native <video> element fails identically
+       (MediaError code 4), so this is not a hls.js quirk another player would dodge.
+     - The playlist answers access-control-allow-origin: null, so even holding a valid token hls.js
+       could not read it cross-origin.
+     This is why floridamap.app runs a server-side proxy (/video-token, /fl511/Cameras) — that proxy
+     is not a convenience, it is the only way. (Its /video-token was 500ing when tested.)
+
+   AND THERE IS NO DEEP LINK TO FALL BACK ON. Every candidate checked:
+     - fl511.com/map#camera-<id> — their own list page emits this format, but the map ignores it;
+       loaded twice, the map came up on its DEFAULT view with unrelated cameras.
+     - fl511.com/map?lat=&lon=&zoom= — ignored; still the default view.
+     - /list/cameras?camera=, /map?camera=, /Camera/Details/<id> — no filtering, or 404. The list
+       filters (region/county/roadway) are client-side DataTables and never touch the URL.
+     - Camera cards carry NO permalink anchor — rendered client-side after an AJAX call.
+     So "open straight to that camera and play" has no URL that expresses it.
+
+   OTHER SOURCES CHECKED:
+     - fl511.com/map/Cctv/<id> — works, but it is a 640x480 JPEG snapshot, explicitly not wanted.
+     - gis.fdot.gov/.../DIVAS_Cameras/MapServer — good fields (Id, Description, County, Highway,
+       Direction, Lat/Lng) but QUERY IS DISABLED: every query returns "Requested operation is not
+       supported by this service." Draw-only, same as the Pasco footprint layer rejected earlier.
+     - Camera LOCATIONS from fl511.com (/map/mapIcons/Cameras and friends) are CORS-blocked too, so
+       even marker positions would have to be harvested once and embedded rather than fetched live.
+
+   IF REVISITED: the only path to real embedded video is a small proxy (a Cloudflare Worker doing
+   steps 1-3 and re-serving the HLS with CORS headers). Before building one, determine whether the
+   401 is REFERER-based or IP-based — a referer check a proxy satisfies, a source-IP allowlist it
+   cannot. That test could not be run from here: the egress proxy cannot reach divas.cloud:8200. */
+
 /* ---------- Recorded easements on the parcel (EASEMENTS) --------------------------------------
    Wired 20 Sep 2026. After a drainfield, a recorded easement is the thing that most often moves a
    generator pad: the 10 ft utility strip down the side lot line, the drainage easement across the
@@ -3776,6 +3839,18 @@ const SEPTIC_SEWER = {
      two cities Broward returns nothing here, which is correct — better silent than guessed.
      514 ms / 217 ms. */
   BROWARD: [
+    /* ⭐ ADDED 20 Sep 2026, found while sweeping the hosts turned up by the imagery pass. Broward
+       publishes a COUNTYWIDE utility service-area layer on its GIS AGOL org — 46 polygons naming 20
+       utilities (BC Water & Wastewater, Fort Lauderdale, Coral Springs Improvement District, North
+       Springs Improvement District, …), last edited 9 Jul 2026. Until now Broward was covered only by
+       two CITY layers (Miramar parcels, Hollywood unsewered areas), so most of the county answered
+       nothing. Point-tested: Fort Lauderdale 168 ms → "Fort Lauderdale"; Parkland 142 ms → "North
+       Springs Improvement District". A Miramar point returned NO polygon — which is consistent, not
+       a miss: Miramar's own parcel layer flags that area septic, and an unserved point is exactly
+       what a utility service-area layer should say there. Listed first so the countywide answer
+       leads and the two city layers refine it. */
+    { kind:'sewer', label:'Broward County utility service areas', nameField:'UTL_NAME',
+      url:'https://services.arcgis.com/JMAJrTsHNLrSsWf5/arcgis/rest/services/WaterandSewer/FeatureServer/0/query' },
     { kind:'status', label:'City of Miramar sewer status', statusField:'SewerStatus', idField:'FOLIO',
       url:'https://services6.arcgis.com/OlJkQnf39yF1a7pM/arcgis/rest/services/Sewer_System_Parcels/FeatureServer/1/query' },
     { kind:'unsewered', label:'City of Hollywood unsewered area',
@@ -3802,6 +3877,19 @@ const SEPTIC_SEWER = {
       url:'https://g.naplesgov.com/arcgis/rest/services/PublicWorks_Utilities/SewerServiceArea/MapServer/0/query' },
     { kind:'sewer', label:'Marco Island sewer district', nameField:'NAME1',
       url:'https://gis.cityofmarcoisland.com/arcgis/rest/services/General/SewerDist/MapServer/0/query' }
+  ],
+  /* Marion — found 20 Sep 2026 on the county’s own server (gis.marionfl.org), which the imagery
+     pass surfaced. "Utility Territorial Boundaries": 106 polygons naming every franchised utility in
+     the county, from City of Ocala Utilities down to single-subdivision HOA systems (Falls of Ocala
+     HOA, Legendary Trails POA, Leighton Estates Utilities LLC). A MISS here is the useful answer in
+     rural Marion — no franchised utility means no public sewer, so septic. Point-tested: Ocala 207 ms
+     → City of Ocala Utilities; Belleview 310 ms → City of Belleview; Dunnellon 104 ms → FGUA/Dunnellon;
+     a rural north-east point returned nothing, which is correct rather than a failure.
+     NOTE the layer names the utility, not the SERVICE TYPE — several of these are water-only, so a
+     hit is evidence of a utility presence rather than proof of sewer. Labelled accordingly. */
+  MARION: [
+    { kind:'sewer', label:'Marion County utility territories', nameField:'NAME',
+      url:'https://gis.marionfl.org/public/rest/services/UtilitiesDepartment/Service_Areas/MapServer/1/query' }
   ],
   /* Santa Rosa — 12 franchise polygons that TILE the county, including an explicit "No Sewer
      Franchise" polygon. That value is the useful one: a hit on it is a positive septic answer for
@@ -7810,8 +7898,14 @@ const natgeo = L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/servic
 // and hands that canvas to Leaflet as the tile.
 //
 // COVERAGE & ALIGNMENT CAVEATS (read before relying on this for siting/measurements):
-//  - Service extent is small (~13km x ~11km in Web Mercator, roughly the Naples/North Naples
-//    area) — outside that box every tile is empty/error and Esri imagery shows through.
+//  - COVERAGE (re-measured 20 Sep 2026): the service now spans ~116 km x ~96 km — essentially the
+//    WHOLE county, not the Naples box this note used to claim. That old "~13km x ~11km, roughly
+//    Naples/North Naples" line was stale by about 100x in area; Collier grew the service after it
+//    was first wired. COLLIER2026_EXTENT below already carries the correct full-county numbers and
+//    matches the live service exactly, so the GATE IS RIGHT — only this prose was wrong. Tiles were
+//    render-confirmed at Immokalee and Marco Island, both far outside the old described box.
+//    Do not "fix" the extent constant to match an older comment. Outside the real extent every tile
+//    is empty/error and Esri imagery shows through, which is the intended behavior.
 //  - Service LODs (0-11) are NOT the same grid as standard slippy tiles: resolution at service
 //    LOD n is close to (but ~2% finer than) standard zoom (n+9), AND the tile origin differs from
 //    the standard Web-Mercator slippy origin. This layer picks the nearest LOD and the single
@@ -7822,6 +7916,20 @@ const natgeo = L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/servic
 const COLLIER2026_R_MERC = 20037508.342789244;
 const COLLIER2026_ORIGIN_X = -20037507.8427882;
 const COLLIER2026_ORIGIN_Y = 30240971.4583861;
+/* WHY ImageryAll2026 AND NOT THE OTHER TWO 2026 SERVICES. Collier publishes three for 2026, and
+   they look interchangeable from their titles. Compared 20 Sep 2026:
+     ImageryAll2026          6 in (0.1524 m/px), 12 LODs, full county (~3,445 sq mi)   ← wired
+     ImageryTiled2026Urban   6 in, 11 LODs, urban subset only (~1,460 sq mi)
+     ImageryTiled2026400     12 in (0.3048 m/px), full county — half the resolution
+   The "Urban" one is titled as though it were a separate, better urban product. It is not: fetched
+   the same ground tile from both (same tile origin, same row/col, same 0.1524 m/px — verified, not
+   assumed) and diffed the bytes. Naples tile: 122,043 bytes each, differing in 24 bytes starting at
+   offset 10 — the LERC2 header/checksum region. Marco Island: 118,842 bytes each, 16 bytes differing,
+   same offset. The image payload is byte-identical. It is the same imagery republished over a smaller
+   declared extent, so switching to it would LOSE county coverage and one zoom level for no gain.
+   And the LERC decoding below is not a workaround for a bad choice — it is the only door. All three
+   services report capabilities "Image,TilesOnly" and exportImage returns HTTP 400 on every one of
+   them, so there is no JPEG/PNG path to fall back to. */
 const COLLIER2026_BASE_URL = "https://tiledimageservices2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/ImageryAll2026/ImageServer";
 const COLLIER2026_MAX_LOD = 11;
 // Actual resolutions per LOD level, taken from the service's tileInfo.lods (m/px, EPSG:3857).
@@ -8286,7 +8394,15 @@ const LOCAL_AERIAL = {
     candidates:[ ...fdepChain("COLLIER"),
                  "https://ags2.colliercountyfl.gov/gis/rest/services/Public/Aerials_2024/ImageServer",
                  "https://ags2.colliercountyfl.gov/gis/rest/services/Public/Aerials/MapServer" ] },
-  MANATEE:  { label:"Manatee County (2025)", bounds:[-82.70,27.30,-82.00,27.65], kind:"tilexyz",
+  MANATEE:  { label:"Manatee County (2025)", bounds:[-82.70,27.385,-82.00,27.65], kind:"tilexyz",
+    /* ⚠️ SOUTH EDGE CORRECTED 20 Sep 2026: was 27.30, which reached ~0.09° INTO Sarasota and
+       overlapped Sarasota’s box (north edge 27.39). Because localCountyForCenter() resolves an
+       overlap by nearest box CENTRE, downtown Sarasota (27.336) sat closer to Manatee’s centre
+       than to Sarasota’s and picked MANATEE — so Sarasota’s own 3-inch aerial lost the first
+       paint to Manatee’s in the county’s largest city. The async FDOT county query corrected it
+       a moment later, which is why this never looked like an outright failure. 27.385 is the
+       actual Manatee/Sarasota line and removes the overlap. Found by testing every county seat
+       against the real selection rule, not by looking at the boxes. */
     // CONFIRMED: Manatee serves its current aerial from mymanatee.org/gisimg (NOT /arcgis). "current/
     // aerials" is the live 2025 flight (12/13/24–01/25/25) and is a TILED cache (singleFusedMapCache),
     // so the probe will auto-detect kind=tilexyz and use the fast {z}/{y}/{x} path. DRAFT2025 is the
@@ -8329,11 +8445,25 @@ const LOCAL_AERIAL = {
     // kept as fallback). Canvas-verified near Brooksville: 858 ms, mean 91.4, sd 47.2.
     "https://www25.swfwmd.state.fl.us/arcgis12/rest/services/Imagery/Imagery_2023_NC/MapServer",
                  ...fdepChain("HILLSBOROUGH") ] },
-  MARION:      { label:"Marion County (2023)", bounds:[-82.53,28.90,-81.63,29.51], kind:"export",
-    candidates:[ "https://gis.marionfl.org/image/rest/services/Aerials/Aerials_2023/ImageServer", "https://www45.swfwmd.state.fl.us/arcgisimg/rest/services/ImageryOP/swfwmd_2026_6in_NC/ImageServer",
-    // ⭐ SWFWMD 2026 6-inch promoted 20 Sep 2026 (three years newer than the 2023 below, which is
-    // kept as fallback). Canvas-verified near Brooksville: 858 ms, mean 91.4, sd 47.2.
-    "https://www25.swfwmd.state.fl.us/arcgis12/rest/services/Imagery/Imagery_2023_NC/MapServer",
+  MARION:      { label:"Marion County (2024)", bounds:[-82.53,28.90,-81.63,29.51], kind:"export",
+    /* ⭐ UPGRADED TO MARION’S OWN 2024 on 20 Sep 2026, and the SWFWMD fallback DEMOTED — read why.
+       Marion straddles two water districts (SWFWMD west, SJRWMD east), and the SWFWMD 2026 flight
+       stops at the district line. Probed W→E across the county:
+         Dunnellon (far west) REAL sd 51.8 · Ocala BLANK sd 0 · Silver Springs BLANK ·
+         Ocklawaha BLANK · Salt Springs BLANK
+       So SWFWMD 2026 is blank over roughly the eastern four-fifths of Marion INCLUDING OCALA, the
+       county’s largest city. It had been sitting second in this chain, which meant any hiccup on
+       Marion’s own server would have dropped Ocala onto a white tile. It is kept only as a last
+       resort ahead of FDEP, because it IS the best source for the Dunnellon corner.
+       Marion’s own 2024 is countywide and fast — all five probes real, 172 ms at Ocala (mean 156.5,
+       sd 68.1). The 2023 on the same server stays as the first fallback.
+       LESSON worth keeping: a water-district flight is only trustworthy for counties fully inside
+       that district. The five counties wired on SWFWMD 2026 in this pass (Citrus, Sumter, DeSoto,
+       Hardee, Highlands) were each re-probed at three spread points afterwards and all held. */
+    candidates:[ "https://gis.marionfl.org/image/rest/services/Aerials/Aerial2024/ImageServer",
+                 "https://gis.marionfl.org/image/rest/services/Aerials/Aerials_2023/ImageServer",
+                 "https://www45.swfwmd.state.fl.us/arcgisimg/rest/services/ImageryOP/swfwmd_2026_6in_NC/ImageServer",
+                 "https://www25.swfwmd.state.fl.us/arcgis12/rest/services/Imagery/Imagery_2023_NC/MapServer",
                  ...fdepChain("MARION") ] },
   PASCO:       { label:"Pasco County (2023)", bounds:[-82.82,28.15,-82.03,28.66], kind:"export",
     candidates:[ "https://pascogis.pascocountyfl.net/giswebi/rest/services/Aerials/Pasco_2023/ImageServer", "https://www45.swfwmd.state.fl.us/arcgisimg/rest/services/ImageryOP/swfwmd_2026_6in_NC/ImageServer",
@@ -8362,6 +8492,168 @@ const LOCAL_AERIAL = {
     // ⭐ SWFWMD 2026 6-inch promoted 20 Sep 2026 (three years newer than the 2023 below, which is
     // kept as fallback). Canvas-verified near Brooksville: 858 ms, mean 91.4, sd 47.2.
     "https://www25.swfwmd.state.fl.us/arcgis12/rest/services/Imagery/Imagery_2023_NC/MapServer", ...fdepChain("POLK") ] },
+
+  /* ══ ADDED 20 Sep 2026 — 21 counties that had NO local aerial at all (Local HD fell through to
+     Esri, ~z19/0.5 m). Every entry below was RENDER-TESTED, not taken on metadata: the service was
+     drawn at a real town centre and the pixels read back off a canvas. Real photography lands around
+     sd 40-60; a "no data" white tile reads sd 0. Numbers per entry are from those runs.
+     Two things the test caught that metadata would not have:
+       - Bay's /export returns a BLANK white tile (sd 0) because the service is cached — it only
+         answers on /tile, which is why it is tilexyz below and not mapexport.
+       - A Lake probe came back sd 3.5 and looked like a dead service. It was open water (Lake
+         Louisa). Re-probed at four town centres, all real. Judge a blank by WHERE you probed. ══ */
+
+  /* ⭐⭐ DUVAL 2026 — Jacksonville's own server, the newest flight found in this pass. COJ keeps the
+     full series 2004→2026 in one folder, so the fallbacks are real, not guesses.
+     Canvas: downtown 1,636 ms mean 127.1 sd 49.2; Arlington 880 ms mean 88.5 sd 52.0. */
+  DUVAL:    { label:"Duval County / Jacksonville (2026)", bounds:[-82.05,30.10,-81.32,30.58],
+    candidates:[ "https://maps.coj.net/coj/rest/services/imagery/Duval2026/MapServer",
+                 "https://maps.coj.net/coj/rest/services/imagery/Duval2025/MapServer",
+                 ...fdepChain("DUVAL") ] },
+
+  /* ⭐⭐ BROWARD 2026 — 6-inch, flown Jan 2026, published Mar 2026, on the county's AGOL tile org.
+     Use Aerials2026_V2: the v1 service is marked deprecated in its own description. Its item JSON
+     carries access:SECURE yet serves anonymously — tiles render fine, but if Broward ever enforces
+     that, the 2025 below takes over. Canvas: Fort Lauderdale 417 ms mean 116.5 sd 55.6. */
+  BROWARD:  { label:"Broward County (6-in, 2026)", bounds:[-80.90,25.95,-80.03,26.33], kind:"tilexyz", kindLock:true,
+    candidates:[ "https://tiles.arcgis.com/tiles/JMAJrTsHNLrSsWf5/arcgis/rest/services/Aerials2026_V2/MapServer",
+                 "https://tiles.arcgis.com/tiles/JMAJrTsHNLrSsWf5/arcgis/rest/services/2025_Aerials/MapServer" ] },
+
+  /* MIAMI-DADE 2025 — ~7.8 in at the deepest built level. NOT tilexyz: the cache origin is
+     y=30241100 with only 9 LODs (max level 8), the same non-standard grid Collier uses, so standard
+     {z}/{y}/{x} math misses every tile (tested — it errors). /export works and is used instead,
+     though it is slow (12 s cold, faster warm). Canvas via /export: Miami mean 96.9 sd 55.5. */
+  MIAMIDADE:{ label:"Miami-Dade County (2025)", bounds:[-80.88,25.13,-80.11,25.98],
+    candidates:[ "https://gisweb.miamidade.gov/arcgis/rest/services/MapCache/MDCImagery_WebMercator/MapServer",
+                 ...fdepChain("MIAMIDADE") ] },
+
+  /* PALM BEACH — 6-inch. ⚠️ THE FOLDER NAMES ARE PUBLICATION YEARS, NOT FLIGHT YEARS: the service
+     called "2023" states flight dates 01/14/2022-01/29/2022 in its own description. 2023 is
+     genuinely the newest of the 15 services in that folder.
+     Canvas: West Palm 628 ms mean 93.9 sd 58.7; Boca 211 ms mean 98.6 sd 55.5. */
+  PALMBEACH:{ label:"Palm Beach County (6-in)", bounds:[-80.88,26.32,-79.97,27.00],
+    candidates:[ "https://maps.co.palm-beach.fl.us/arcgis/rest/services/Aerials/2023/MapServer",
+                 "https://maps.co.palm-beach.fl.us/arcgis/rest/services/Aerials/2022/MapServer",
+                 ...fdepChain("PALMBEACH") ] },
+
+  /* ST. LUCIE 2025 — the imagery rides inside a combined parcel+imagery tile service on the county
+     GIS AGOL org; there is no standalone imagery service. Canvas: Fort Pierce 688 ms mean 142.3 sd 63.3. */
+  STLUCIE:  { label:"St. Lucie County (2025)", bounds:[-80.70,27.19,-80.02,27.57], kind:"tilexyz", kindLock:true,
+    candidates:[ "https://tiles.arcgis.com/tiles/2fk66zq5sgMBsD3C/arcgis/rest/services/Offline_Parcel_Map-Imagery/MapServer" ] },
+
+  /* VOLUSIA 2024 — 3-inch (0.25 ftUS pixel), flown Jan 2024 by Eagleview per the service description.
+     Canvas: DeLand mean 149.5 sd 48.6. */
+  VOLUSIA:  { label:"Volusia County (3-in, 2024)", bounds:[-81.68,28.60,-80.72,29.44],
+    candidates:[ "https://maps5.vcgov.org/arcgis/rest/services/Aerials/2024_Aerial/ImageServer",
+                 "https://maps5.vcgov.org/arcgis/rest/services/Aerials/2023_Aerial/ImageServer",
+                 ...fdepChain("VOLUSIA") ] },
+
+  /* LAKE 2025 — 6-inch (0.5 ftUS pixel). Note the instance path is /lakegis/, not /arcgis/.
+     Canvas: Tavares 612 ms sd 41.5; Clermont sd 34.4; Leesburg sd 51.1; Eustis sd 44.2; Mount Dora
+     sd 42.9. A fifth probe over Lake Louisa read sd 3.5 — that is WATER, not a coverage hole. */
+  LAKE:     { label:"Lake County (6-in, 2025)", bounds:[-82.00,28.42,-81.30,29.06],
+    candidates:[ "https://gis.lakecountyfl.gov/lakegis/rest/services/Aerial2025/ImageServer",
+                 "https://gis.lakecountyfl.gov/lakegis/rest/services/Aerial2022/ImageServer",
+                 ...fdepChain("LAKE") ] },
+
+  /* OKALOOSA 2025 — note the host: ags.myokaloosa.com 302-redirects to okgis.myokaloosa.com, so the
+     okgis name is wired directly. Canvas: Fort Walton Beach 1,266 ms sd 41.2; Crestview 699 ms sd 45.6. */
+  OKALOOSA: { label:"Okaloosa County (2025)", bounds:[-86.80,30.38,-86.32,31.00],
+    candidates:[ "https://okgis.myokaloosa.com/arcgis/rest/services/imagery/Aerial2025/MapServer",
+                 "https://okgis.myokaloosa.com/arcgis/rest/services/imagery/Aerial2022/MapServer",
+                 ...fdepChain("OKALOOSA") ] },
+
+  /* ALACHUA 2020 — from the PROPERTY APPRAISER's AGOL org (copyrightText names ACPA), because the
+     county's own maps.alachuacounty.us sits behind a WAF that answers every path with "Default rule
+     reached" (same wall that blocked its septic layers). 2020 is old but still beats Esri.
+     Canvas: Gainesville 521 ms mean 108.6 sd 51.7. */
+  ALACHUA:  { label:"Alachua County (2020)", bounds:[-82.66,29.42,-82.05,29.95], kind:"tilexyz", kindLock:true,
+    candidates:[ "https://tiles.arcgis.com/tiles/cNo3jpluyt69V8Ek/arcgis/rest/services/Aerial_2020/MapServer",
+                 "https://tiles.arcgis.com/tiles/cNo3jpluyt69V8Ek/arcgis/rest/services/Aerial_2017/MapServer" ] },
+
+  /* BAY 2020 — ⚠️ CACHED, so /export returns a BLANK WHITE TILE (measured: mean 222.3, sd 0.0). It
+     answers only on /tile, hence tilexyz+kindLock. The advertised LOD list runs to 23 but the cache
+     was only BUILT to 21 (22 and 23 error); harmless here because localAerial caps at maxNativeZoom
+     20 and upsamples above that. Canvas at Panama City: z18 sd 38.9, z19 sd 30.9, z21 sd 26.6. */
+  BAY:      { label:"Bay County (2020)", bounds:[-86.02,29.92,-85.36,30.57], kind:"tilexyz", kindLock:true,
+    candidates:[ "https://gis.baycountyfl.gov/arcgis/rest/services/Aerials/Aerials2020/MapServer",
+                 "https://gis.baycountyfl.gov/arcgis/rest/services/Aerials/Aerials2019/MapServer" ] },
+
+  /* ══ BIG BEND 2022 — six counties off ONE regional host. Tallahassee/Leon County GIS publishes
+     per-county 2022 RGB imagery for its neighbours on the same AGOL tile org that already serves
+     LEON above (ptvDyBs1KkcwzQNJ). Same org, same grid, same kindLock. Each was render-tested at its
+     county seat. This is the vendor-org pattern paying off again: one host, six dark counties lit. ══ */
+  FRANKLIN: { label:"Franklin County (2022)", bounds:[-85.30,29.55,-84.40,30.06], kind:"tilexyz", kindLock:true,
+    /* Apalachicola 420 ms mean 143.7 sd 62.9 */
+    candidates:[ "https://tiles.arcgis.com/tiles/ptvDyBs1KkcwzQNJ/arcgis/rest/services/Imagery_2022_RGB_Franklin_County/MapServer" ] },
+  GADSDEN:  { label:"Gadsden County (2022)", bounds:[-85.02,30.36,-84.38,30.79], kind:"tilexyz", kindLock:true,
+    /* Quincy 524 ms mean 104.9 sd 69.4 */
+    candidates:[ "https://tiles.arcgis.com/tiles/ptvDyBs1KkcwzQNJ/arcgis/rest/services/Imagery_2022_RGB_Gadsden_County/MapServer" ] },
+  JEFFERSON:{ label:"Jefferson County (2022)", bounds:[-84.15,30.10,-83.70,30.71], kind:"tilexyz", kindLock:true,
+    /* Monticello 390 ms mean 56.4 sd 49.0 */
+    candidates:[ "https://tiles.arcgis.com/tiles/ptvDyBs1KkcwzQNJ/arcgis/rest/services/Imagery_2022_RGB_Jefferson_County/MapServer" ] },
+  LIBERTY:  { label:"Liberty County (2022)", bounds:[-85.12,30.02,-84.63,30.60], kind:"tilexyz", kindLock:true,
+    /* Bristol 436 ms mean 126.6 sd 47.4 */
+    candidates:[ "https://tiles.arcgis.com/tiles/ptvDyBs1KkcwzQNJ/arcgis/rest/services/Imagery_2022_RGB_Liberty_County/MapServer" ] },
+  TAYLOR:   { label:"Taylor County (2022)", bounds:[-84.10,29.58,-83.34,30.29], kind:"tilexyz", kindLock:true,
+    /* Perry 394 ms mean 150.3 sd 41.5 */
+    candidates:[ "https://tiles.arcgis.com/tiles/ptvDyBs1KkcwzQNJ/arcgis/rest/services/Imagery_2022_RGB_Taylor_County/MapServer" ] },
+  WAKULLA:  { label:"Wakulla County (2022)", bounds:[-84.75,29.90,-84.15,30.43], kind:"tilexyz", kindLock:true,
+    /* Crawfordville 515 ms mean 62.5 sd 49.6 */
+    candidates:[ "https://tiles.arcgis.com/tiles/ptvDyBs1KkcwzQNJ/arcgis/rest/services/Imagery_2022_RGB_Wakulla_County/MapServer" ] },
+
+  /* ══ SWFWMD 2026 6-INCH — five more counties that sit inside the district and had nothing wired.
+     The district's 2026 flight was already promoted for Hernando/Polk/Charlotte earlier in the day;
+     these five simply had no entry at all. Each render-tested at its county seat. SWFWMD is slow
+     cold (4-6 s) and fast warm, which is why these probes had to be run serially to avoid timeouts.
+     ⚠️ Levy was tested too and came back mean 0 / sd 0 — Levy is SRWMD, not SWFWMD. Not wired. ══ */
+  CITRUS:   { label:"Citrus County (SWFWMD 6-in, 2026)", bounds:[-82.77,28.66,-82.05,29.07],
+    /* Inverness mean 110.7 sd 54.3 */
+    candidates:[ "https://www45.swfwmd.state.fl.us/arcgisimg/rest/services/ImageryOP/swfwmd_2026_6in_NC/ImageServer",
+                 "https://www25.swfwmd.state.fl.us/arcgis12/rest/services/Imagery/Imagery_2023_NC/MapServer",
+                 ...fdepChain("CITRUS") ] },
+  SUMTER:   { label:"Sumter County (SWFWMD 6-in, 2026)", bounds:[-82.33,28.47,-81.88,29.01],
+    /* Bushnell mean 77.3 sd 31.6 */
+    candidates:[ "https://www45.swfwmd.state.fl.us/arcgisimg/rest/services/ImageryOP/swfwmd_2026_6in_NC/ImageServer",
+                 "https://www25.swfwmd.state.fl.us/arcgis12/rest/services/Imagery/Imagery_2023_NC/MapServer",
+                 ...fdepChain("SUMTER") ] },
+  DESOTO:   { label:"DeSoto County (SWFWMD 6-in, 2026)", bounds:[-82.06,26.94,-81.56,27.35],
+    /* Arcadia mean 97.0 sd 46.6 */
+    candidates:[ "https://www45.swfwmd.state.fl.us/arcgisimg/rest/services/ImageryOP/swfwmd_2026_6in_NC/ImageServer",
+                 "https://www25.swfwmd.state.fl.us/arcgis12/rest/services/Imagery/Imagery_2023_NC/MapServer",
+                 ...fdepChain("DESOTO") ] },
+  HARDEE:   { label:"Hardee County (SWFWMD 6-in, 2026)", bounds:[-82.06,27.34,-81.56,27.65],
+    /* Wauchula mean 69.2 sd 39.2 */
+    candidates:[ "https://www45.swfwmd.state.fl.us/arcgisimg/rest/services/ImageryOP/swfwmd_2026_6in_NC/ImageServer",
+                 "https://www25.swfwmd.state.fl.us/arcgis12/rest/services/Imagery/Imagery_2023_NC/MapServer",
+                 ...fdepChain("HARDEE") ] },
+  HIGHLANDS:{ label:"Highlands County (SWFWMD 6-in, 2026)", bounds:[-81.57,27.03,-80.99,27.66],
+    /* Sebring mean 145.7 sd 58.1. The county's OWN server has an Imagery folder but it is
+       token-secured (error 499), so the district flight is the public route. */
+    candidates:[ "https://www45.swfwmd.state.fl.us/arcgisimg/rest/services/ImageryOP/swfwmd_2026_6in_NC/ImageServer",
+                 "https://www25.swfwmd.state.fl.us/arcgis12/rest/services/Imagery/Imagery_2023_NC/MapServer",
+                 ...fdepChain("HIGHLANDS") ] },
+
+  /* SEARCHED AND NOT WIRED (20 Sep 2026) — so this ground is not re-covered:
+       WALTON    — WaltonCounty2019Aerial exists on the county AGOL tile org but EVERY tile level
+                   18-23 errors; the cache appears unbuilt. Its only other item is a small drone
+                   ortho of one project area, not countywide.
+       MONROE    — every county/PA host fails DNS; the county AGOL org has no imagery tiles.
+       ORANGE    — maps.ocpafl.org is behind a WAF (503 to every path); all other hosts fail DNS.
+       SEMINOLE  — gis.seminolecountyfl.gov resolves but times out.
+       OSCEOLA   — gis.osceola.org serves an incomplete TLS chain.
+       SUMTER/CITRUS/FLAGLER — county servers answer 404/500 on every guessed instance path; covered
+                   above by SWFWMD where the district reaches them, otherwise still dark.
+       STJOHNS, MARTIN, CLAY, NASSAU, PUTNAM, INDIANRIVER, HOLMES, JACKSON, CALHOUN, GULF,
+       SANTAROSA, ESCAMBIA, BAKER, COLUMBIA, BRADFORD, GILCHRIST, LEVY, DIXIE, HAMILTON — no public
+                   REST imagery service found. Several have live viewers whose endpoints are
+                   JS-only (Escambia's escpa.org, Santa Rosa's map.srcpa.gov, Gulf's RokTech
+                   GoMaps) — those are the best leads if this is revisited.
+     NOTE: WebSearch was unavailable for this pass (disabled org-wide), so discovery ran through
+     REST directory listings and AGOL org-id pivoting rather than a search engine. The highest-yield
+     trick was pivoting: find any mundane dataset for a county, read the org id out of its
+     services.arcgis.com URL, then list tiles.arcgis.com/tiles/<orgid>/arcgis/rest/services — that
+     is exactly how Broward's 2026 flight surfaced after gis.broward.org proved unreachable. */
 
 };
 // Resolved-at-runtime state: which counties' services actually responded, and their working URLs.
@@ -8495,9 +8787,11 @@ const localAerial = new LocalAerial("", {
 // tile) still shows photography rather than blank. It caps at native z19 and upsamples to fill.
 const localEsriBase = L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?_cb=1",
   {maxZoom:23,maxNativeZoom:19,updateWhenIdle:false,updateWhenZooming:false,keepBuffer:6,crossOrigin:true});
-// TEMP (evaluating): layer Collier's 2026 imagery (LERC-decoded, self-limits to its Naples/N.Naples
-// extent — transparent elsewhere) ON TOP of the county aerials inside Local HD. Over that 2026 box you
-// get the 2026 imagery; everywhere else it's transparent and the county aerial beneath shows through.
+// Collier's 2026 imagery (LERC-decoded, self-limiting to the service extent — transparent elsewhere)
+// layered ON TOP of the county aerials inside Local HD. Inside the 2026 extent you get 2026 imagery;
+// outside it the layer is transparent and the county aerial beneath shows through. That extent is the
+// WHOLE COUNTY (~116 x ~96 km), not the Naples box an earlier note here claimed — see the coverage
+// note on Collier2026Layer.
 // Confirmed a pixel match with the source and promoted into Local HD; the standalone basemap was retired.
 const localCollier2026 = new Collier2026Layer();
 const sarcoGroup = L.layerGroup([localEsriBase, localAerial, localCollier2026, labels]);   // the "Local HD" basemap
@@ -25722,29 +26016,17 @@ function injectEasements(res){
     const container=document.getElementById('results'); if(!container) return;
     if(container.querySelector('[data-easements]')) return;
     const live=res.live, dead=res.dead||[];
-    /* NOTHING FOUND. Whether that is worth saying depends entirely on how much of the county has
-       actually been digitized, which was measured per county on 20 Sep 2026 (see the coverage notes
-       on EASEMENTS). In Pinellas, where 68% of sampled parcels carry a mapped easement, a blank is
-       real information. In Lee — 0% of 40 sampled Cape Coral parcels, 13% in Fort Myers — a blank
-       means the county has not mapped this lot, NOT that the lot is clear. Staying silent there
-       would let an empty map read as "no easements here", which is the most dangerous thing this
-       feature could do on a siting call. So: say nothing when coverage is good, warn when it is not. */
-    if(!live.length && !dead.length){
-      if(res.coverage === 'good') return;
-      const html0='<div class="field" data-easements="1" style="display:block">'
-        +'<div class="k">Easements <span class="muted" style="font-size:10px">(county GIS)</span></div>'
-        +'<div class="v" style="font-size:12px;line-height:1.55"><span class="muted">'
-        +'No mapped easement on this parcel — but this county has only partially digitized them, '
-        +'so <b>treat this as unknown, not clear</b>. Check the recorded plat before siting a pad.'
-        +'</span></div></div>';
-      let a0=null;
-      const h0=[...container.querySelectorAll('h2')].find(el=>/parcel\s*&\s*owner/i.test(el.textContent||''));
-      if(h0){ a0=h0.closest('.ch')||h0; }
-      const n0=document.createElement('div'); n0.innerHTML=html0; const e0=n0.firstChild;
-      if(a0 && a0.parentNode){ a0.parentNode.insertBefore(e0, a0.nextSibling); }
-      else container.insertAdjacentElement('afterbegin', e0);
-      return;
-    }
+    /* NOTHING FOUND — render nothing at all. An earlier version printed a "this county has only
+       partially digitized easements, treat this as unknown not clear" caveat here, reasoning that a
+       blank should not read as an all-clear. REMOVED 20 Sep 2026 at Brandon's request: in the sparse
+       counties that is most parcels, so the row fired on nearly every lookup and became noise to
+       scroll past — which is worse than silence, because a warning nobody reads still costs
+       attention and trains people to ignore the card.
+       The measured per-county coverage tiers stay on EASEMENTS, and they still caveat a NON-empty
+       list below ("what is shown may not be all of them"). Only the empty-result row is gone.
+       The underlying fact has not changed and is recorded on EASEMENTS: outside Pinellas a blank
+       means the county has not mapped this lot, not that the lot is clear. */
+    if(!live.length && !dead.length) return;
     const one = r => {
       const bits=[];
       if(r.type) bits.push('<b>'+esc(r.type)+'</b>');
@@ -25755,10 +26037,14 @@ function injectEasements(res){
       if(r.acres) bits.push((Math.round(Number(r.acres)*100)/100)+' ac');
       if(r.grantee) bits.push('to '+esc(r.grantee));
       if(r.rec) bits.push('<span class="muted">'+esc(r.rec)+'</span>');
-      let line = (r.onPoint?'<span style="color:var(--warn)">\u25CF</span> ':'\u00b7 ') + bits.join(' \u00b7 ');
-      if(r.note) line += '<br><span class="muted" style="font-size:11px;padding-left:12px">'+esc(r.note)+'</span>';
+      // Same icon/text columns as the septic rows, so a long entry wraps under its own text instead
+      // of under the bullet. The point-hit marker doubles as the icon.
+      let line = bits.join(' \u00b7 ');
+      if(r.note) line += '<br><span class="muted" style="font-size:11px">'+esc(r.note)+'</span>';
       if(r.link) line += ' <a href="'+esc(r.link)+'" target="_blank" rel="noopener" style="color:var(--signal)">record \u2197</a>';
-      return '<div style="margin:2px 0">'+line+'</div>';
+      const ic = r.onPoint ? '<span class="ic" style="color:var(--warn)">\u25CF</span>'
+                           : '<span class="ic" style="opacity:.45">\u00b7</span>';
+      return '<div class="ln">'+ic+'<span class="tx">'+line+'</span></div>';
     };
     let head='';
     if(res.onPoint){
@@ -25798,9 +26084,9 @@ function injectEasements(res){
       ? '<div style="margin-top:5px"><span class="muted" style="font-size:10px">On the map:</span>'+legend+'</div>'
       : '';
     const srcName = (live[0]||dead[0]||{}).label || 'county GIS';
-    const html='<div class="field" data-easements="1" style="display:block">'
-      +'<div class="k">Easements <span class="muted" style="font-size:10px">('+esc(srcName)+' \u00b7 verify against the plat)</span></div>'
-      +'<div class="v" style="font-size:12px;line-height:1.55">'+head+body+'</div></div>';
+    const html='<div class="field stack" data-easements="1">'
+      +'<div class="k">Easements<span class="cap">'+esc(srcName)+' · verify against the plat</span></div>'
+      +'<div class="v">'+head+body+'</div></div>';
     let anchor=null;
     const h2=[...container.querySelectorAll('h2')].find(el=>/parcel\s*&\s*owner/i.test(el.textContent||''));
     if(h2){ anchor=h2.closest('.ch')||h2; }
@@ -25819,11 +26105,12 @@ function injectSepticSewer(lines){
     if(container.querySelector('[data-septicsewer]')) return;
     const col = t => t==='septic' ? 'var(--warn)' : (t==='sewer' ? 'var(--ok,var(--signal))' : 'var(--dim)');
     const body = lines.map(l =>
-      '<div style="margin:2px 0"><span style="color:'+col(l.tone)+'">'+l.icon+'</span> '+l.text+'</div>'
+      '<div class="ln"><span class="ic" style="color:'+col(l.tone)+'">'+l.icon+'</span>'
+      + '<span class="tx">'+l.text+'</span></div>'
     ).join('');
-    const html='<div class="field" data-septicsewer="1" style="display:block">'
-      +'<div class="k">Septic / sewer <span class="muted" style="font-size:10px">(county GIS · verify on site)</span></div>'
-      +'<div class="v" style="font-size:12px;line-height:1.55">'+body+'</div></div>';
+    const html='<div class="field stack" data-septicsewer="1">'
+      +'<div class="k">Septic / sewer<span class="cap">county GIS · verify on site</span></div>'
+      +'<div class="v">'+body+'</div></div>';
     let anchor=null;
     const h2=[...container.querySelectorAll('h2')].find(el=>/parcel\s*&\s*owner/i.test(el.textContent||''));
     if(h2){ anchor=h2.closest('.ch')||h2; }
@@ -25851,9 +26138,9 @@ function injectCitrusSetbacks(a){
     if(!rows.length) return;
     const _pdRaw = a.PD!=null ? String(a.PD).trim() : '';
     const pd = (_pdRaw!=='' && !/^n(o|\/?a)?$/i.test(_pdRaw) && _pdRaw!=='0') ? _pdRaw : null;
-    const html='<div class="field" data-ldcsetback="1" style="display:block">'
-      +'<div class="k">Setbacks &amp; height <span class="muted" style="font-size:10px">(Citrus LDC · verify)</span></div>'
-      +'<div class="v" style="font-size:12px;line-height:1.55">'
+    const html='<div class="field stack" data-ldcsetback="1">'
+      +'<div class="k">Setbacks &amp; height<span class="cap">Citrus LDC · verify</span></div>'
+      +'<div class="v">'
       + rows.map(r=>'<b>'+esc(r[0])+':</b> '+r[1]).join('<br>')
       + (pd?'<br><span class="muted" style="font-size:11px">Planned development: '+esc(pd)+'</span>':'')
       +'</div></div>';
