@@ -2098,6 +2098,30 @@ const COUNTY_LIVE = {
     // Folio and OwnerLine1 in one place. Using this first means the live-feed card reads the right
     // address directly (no poisoned address-point reverse-lookup that mislabeled this block as "669"
     // / "8th St N"), and it matches what resolveCountyParcel() anchors to.
+    // ✅ UPGRADED 19 Sep 2026 — "ParcelJoin" on the SAME Collier org, found by enumerating the org
+    // rather than by title. 103 fields against the 10 on the layer below, which carried only Folio /
+    // ParcelId / OwnerLine1 / SiteCity / SiteZipCode — no values, no use, no situs street.
+    // 295,381 polygons, ALL 295,381 inside the county envelope (1.000). One tax year (2026) and one
+    // roll type, so there are no year-duplicate rows to filter out.
+    //   owner  OwnerLine1        situs  SiteStreetAddress + SiteCity + SiteZipCode
+    //   mail   OwnerLine2..5 + OwnerCity / OwnerState / OwnerZip
+    //   id     Folio (StrapNumber also present)    use  UseCode (numeric) + ClassCode
+    //   value  TotalJustValue / LandJustValue / ImprovementsJustValue / CountyAssessedValue /
+    //          CountyTaxableValue       land  TotalAcres
+    // ⚠️ OwnerLine2..5 ARE THE MAILING ADDRESS, NOT CO-OWNERS. The name is OwnerLine1 alone — a
+    //    sampled folio reads OwnerLine1 "MADSEN, JAMES T=& ANNE", OwnerLine2 "1815 MUSTIQUE ST".
+    //    Treating OwnerLine2 as a second owner would print a street address in the owner row.
+    // ⚠️ RollType is "PRELIMINARY" on every row — the appraiser's current working figures, not the
+    //    certified roll. Fine to show, worth knowing before quoting them as final.
+    // ✅ ARITHMETIC VERIFIED on two parcels: Land + Improvements = TotalJustValue exactly, and
+    //    TotalJustValue − SohBenefit = CountyAssessedValue exactly (655,052 − 186,184 = 468,868).
+    // ✅ POINT-TESTED: folio 54465005049 resolves by point to 1815 MUSTIQUE ST, MADSEN, $655,052.
+    // ✅ ALSO CARRIES, unused for now: every exemption class (homestead, senior, veteran, disabled,
+    //    widow, blind, deployed, affordable housing), per-authority taxable values, millage rates and
+    //    actual tax amounts (CountyTaxes / SchoolTaxes / TotalTaxes, MillageArea).
+    // The thin layer stays behind it as the fallback, and the two share Folio / OwnerLine1 / SiteCity
+    // so the neighbour-label and address-resolver paths below keep working unchanged.
+    "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/ParcelJoin/FeatureServer/0/query",
     "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Parcel/FeatureServer/2/query",
     // Secondary: the lean parcels layer (owner/folio/acres only, no address) as a fallback.
     "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Parcels/FeatureServer/42/query"
@@ -2206,6 +2230,15 @@ const COUNTY_LIVE = {
     // the __zoning custom key. NOTE: some records (esp. large/vacant/split parcels) come back with many
     // null fields — that's a data-quality trait of this specific record, not a wiring problem. Verified
     // Aug 2026 (owner "OVERSTREET MARK F", ASSD_TOT 1624237, ZONING field present).
+    // ✅ COUNTY-DIRECT FIRST, ADDED 19 Sep 2026. Polk's own server, Property Appraiser parcels.
+    // 438,623 polygons, 438,244 inside the county envelope (1.000), CORS-open. That is 4,352 MORE
+    // parcels than the SWFWMD mirror below (434,271), and on a shared parcel (OVERSTREET MARK F,
+    // 13961 Hwy 98 N) the county says ASSESSVAL 1,667,243 where SWFWMD says 1,624,237 — so the
+    // county copy is genuinely fresher, not just differently named.
+    // Components reconcile exactly: TOT_LND_VAL 1,018,244 + TOT_BLD_VAL 1,532,952 + TOT_XF_VAL
+    // 120,809 = TOTALVAL 2,672,005, and TAXVAL <= ASSESSVAL <= TOTALVAL.
+    // SWFWMD IS KEPT BEHIND IT, not replaced — one regional outage should not take out a county.
+    "https://gis.polk-county.net/server/rest/services/Map_Property_Appraiser/FeatureServer/1/query",
     "https://www25.swfwmd.state.fl.us/arcgiswmis/rest/services/r27/LocationInfo/MapServer/78/query"
   ]},
   PINELLAS : { label:"Pinellas County (PAO ParcelPropertyInfo)", urls:[
@@ -2361,6 +2394,16 @@ const COUNTY_LIVE = {
     // ✅ "Highlands County Parcels" (sublayer 6) on the SAME SWFWMD parcel_search MapServer — identical schema
     // to the other SWFWMD counties above. Same 6 A.M.–10 P.M. window with automatic statewide-roll fallback
     // off-hours/if down. SR 2882; tool sends inSR=4326. Verified Aug 2026.
+    // ✅ COUNTY-DIRECT FIRST, ADDED 19 Sep 2026. Highlands County's own server, "PAO TAX PARCEL".
+    // 113,168 polygons, all inside the county envelope, CORS-open. SWFWMD reports 113,173 for the
+    // same county — five apart, which is what a faithful near-current mirror looks like, so this
+    // swap is about freshness and independence rather than fixing bad data.
+    // ⚠️ NO JUST/MARKET COLUMN. The layer publishes Assessed_Value, Taxable_Value and the three
+    //    components, and on sampled rows Total_Land + Total_Building + Total_XF equals
+    //    ASSESSED, not just value. Do NOT synthesise __jvNum from that sum — it would label an
+    //    assessed figure as market. Just value is left to the statewide roll.
+    // ⚠️ `Owne_Name_2` is spelled that way ON THE SERVER (missing "r"). Not a typo here.
+    "https://gis.highlandsfl.gov/server/rest/services/Layers/PAO_Parcels/FeatureServer/0/query",
     "https://www25.swfwmd.state.fl.us/arcgis12/rest/services/BaseVector/parcel_search/MapServer/6/query"
   ]},
   OSCEOLA : { label:"Osceola County (Property Appraiser · county GIS)", urls:[
@@ -2504,7 +2547,7 @@ const COUNTY_LIVE = {
     // SFYIValue or Shape.STArea() into living area; the former is a VALUE (special-feature/yard-item
     // dollars) and the latter is LOT area, and either would silently render a wrong square footage.
     // Field notes for the guard below: owner is split across CuO1LastName/CuO1FirstName (+CuO2*);
-    // site address is split across StreetNumber/LocDirection/StreetName with LocationCity separate;
+    // site address is split across StreetNumber/LocDirection/StreetName with SiteCity separate;
     // values are TotalAppraisedValue / TotalAppraisedLandValue / TotalAppraisedBuildingValue;
     // use is LandUseDescription (readable) with LUC the 4-char code; legal is LegalDescription;
     // mailing is CuOStreet1/2 + CuOCity/CuOState/CuOPostal (OWNER'S address, never situs).
@@ -2699,6 +2742,85 @@ const COUNTY_LIVE = {
     // SALES — PATPCL_SALE1..3 with PATPCL_SALEDT1..3 (yyyymmdd ints) and SALEBK/SALEPG book+page —
     // plus PATPCL_JUSTVAL / PATPCL_EXMPTVAL / PATPCL_AGVAL and PATPCL_LEGL1-3.
     "https://ags.myokaloosa.com/arcgis/rest/services/Land-Ownership/Property_Data/MapServer/34/query"
+  ]},
+
+  WALTON: { label:"Walton County (Property Appraiser roll · Walton County GIS)", urls:[
+    // ✅ ADDED 19 Sep 2026. Walton's property appraiser publishes through Schneider/Beacon, which
+    // has no public REST API — so this was found the same way Leon and Santa Rosa were: by
+    // resolving the county's ArcGIS Online ORG rather than by title search. Org TaXHPwWfIMuzJ7Ov
+    // is Walton County (identified by its Inlet Beach / Grayton / dune-lake / DeFuniak Springs
+    // service set), and it publishes 186 services. A title search for "Walton parcels" finds none
+    // of them; enumerating the org is what surfaced this.
+    // The parcel roll is layer 4 of the EnerGov permitting basemap — the same burial pattern as
+    // Okaloosa. 96,575 parcels; 96,574 fall inside the county envelope (coverage 1.0).
+    //   owner OWNER_NAME   id PARCELNO ("36-3S-18-16120-000-0170") / PRCL_PARCEL_NUMBER
+    //   value JUST_VALUE, BLDG_VALUE, EXTRA_FEATURE_VALUE, AG_LAND   use USE_CODE / USE_DESC
+    //   mail  OWN_ADDRESS_1/2 + OWN_CITY/OWN_STATE/OWN_ZIPCODE      legal LEGAL_1..3
+    //   acres PA_TOT_ACRES (appraiser) and GIS_ACRES (measured)     tax TAX_DIST / TAX_DIST_DESC
+    // ⚠️ EVERY MONEY/ACREAGE COLUMN IS A **STRING**, not a number ("68803", ".1010"). A numeric
+    //    WHERE against them is a STRING comparison and will mislead — the guard parses instead.
+    // ⚠️ NO SITE ADDRESS EXISTS ON THIS LAYER. OWN_ADDRESS_1/OWN_CITY are the OWNER'S MAILING
+    //    address — the live Miramar Beach test parcel's owner city reads "ATLANTA", and the
+    //    DeFuniak Springs one reads "FORT WALTON BEACH". Same trap as Clay, Leon and Alachua; the
+    //    guard maps them to MAIL and leaves det.site for the statewide roll.
+    //    (Situs DOES exist on sibling layer 9, "EnerGov Address Parcel" — address points joined to
+    //    parcel + zoning + FLU + flood. It is POINTS, so it cannot answer a map click; noted here
+    //    in case an address-point path is ever wanted.)
+    // ⚠️ NO SALE PRICE. SALE_DATE_1/2 (ISO "2020-08-25") + BOOK/PAGE only — the price column does
+    //    not exist, so __saleP is deliberately never set. Do not map BOOK or PAGE to a price.
+    // ⚠️ APPRAISED_VALUE IS NOT THE ASSESSED VALUE — THE BIGGEST TRAP ON THIS LAYER. It differs
+    //    from JUST_VALUE on 5,559 of 96,575 parcels, which looks like a Save-Our-Homes capped
+    //    value. It is not. Sampling 400 of the differing rows: APPRAISED_VALUE is LOWER than
+    //    JUST_VALUE in 400/400 and equals AG_LAND exactly — they are agricultural/timberland
+    //    classified-use parcels. Meanwhile a homesteaded parcel (EX_CODE "HX-HB--") has
+    //    APPRAISED_VALUE == JUST_VALUE, so SOH caps are NOT reflected here at all. Mapping it to
+    //    assessed would print "assessed = just" on every homestead in the county, which is wrong
+    //    for the exact parcels a homeowner looks up. Assessed is therefore LEFT for the statewide
+    //    FDOR roll, which carries the real capped figure. Same contract as Clay/Leon.
+    // ✅ LIVE POINT-TESTED: Miramar Beach -> "DESTIN LLC", 27-2S-21-42000-004-0000, MOBILE HOME
+    //    PARK, JUST_VALUE 8,923,429, 23.66 ac. DeFuniak Springs -> "FIRST NATIONAL BANK & TRUST",
+    //    25-3N-19-19070-000-7680, PARKING LT — the SAME parcel number the City of DeFuniak
+    //    Springs zoning layer returns at that point, which cross-validates both layers.
+    "https://services1.arcgis.com/TaXHPwWfIMuzJ7Ov/arcgis/rest/services/EnerGov/FeatureServer/4/query",
+    // ↳ fallback: EnerGov_Backup, a true mirror — same 96,575 rows, same 40 columns.
+    // ⚠️ Do NOT use CitizenServe/FeatureServer/1 as a fallback: it is also called "Parcels" and
+    // looks equivalent (96,442 rows) but carries only 38 columns and HAS NO OWNER_NAME.
+    "https://services1.arcgis.com/TaXHPwWfIMuzJ7Ov/arcgis/rest/services/EnerGov_Backup/FeatureServer/4/query"
+  ]},
+
+  GULF: { label:"Gulf County (Property Appraiser roll · Gulf County GIS)", urls:[
+    // ✅ ADDED 19 Sep 2026. Layer 9 "Parcel" — the full appraiser roll. 19,313 polygons, 18,334
+    // inside the Gulf envelope. Sample geometry lands at -85.089, 30.012 (Wewahitchka) ✓.
+    //   owner OWNER_NAME   id PIN_DSP ("00011-004R") / PIN_NODELIM
+    //   situs HOUSE_NO + HSESUF + ST_DIR + STREET + ST_MD + ST_UNIT, ST_CITY, ST_ZIP5  ⟵ SPLIT
+    //   mail  ADDRESS_1/2/3 + CITY_NAME/ST/ZIPCODE
+    //   value TOTAL_ASSESSED_VAL, CAPPEDVAL, ASSESSLAND, AGLAND, BLDG, XFOB
+    //   use   USECD/USEDESC   acres TOTALACRES/ACREAGE   legal LEGL1..3
+    //   sale  SALEADJ1..3 (price) + SALEDT1..3 (epoch ms) + BOOK/PAGE/INST/VIMP/QU
+    // ⚠️ ADDRESS_1 / CITY_NAME / ZIPCODE ARE THE OWNER'S MAILING ADDRESS, NOT THE SITUS — and on
+    //    this roll that trap fires constantly. Two of the first three sampled parcels are absentee:
+    //      situs 7409 CR 381, WEWAHITCHKA 32465   mail "44 COREY CAY AVE", ST AUGUSTINE 32092
+    //      situs 7856 CR 381, WEWAHITCHKA 32465   mail "22 N ORLANDO AVE", KISSIMMEE 34741
+    //    ADDRESS_1 even LOOKS like a street address, so the generic detector grabs it happily. The
+    //    guard nulls it and composes the situs from the split columns instead.
+    // ⚠️ CAMPV_TOTAL_SQFT IS THE **LOT** SQUARE FOOTAGE, NOT LIVING AREA. The name invites exactly
+    //    the wrong mapping. Tested on 60 built parcels: 60/60 equal TOTALACRES x 43,560 to within
+    //    2%. Worse, 17 of those 60 land in the 300-12,000 sq ft range where a "living area" reading
+    //    looks entirely plausible — so the error would pass a spot check and be wrong every time.
+    //    Mapped to LOT sq ft; this layer has NO living-area column, so det.liv is left to the roll.
+    // ✅ VALUE FIELDS, resolved by arithmetic rather than by name: ASSESSLAND + BLDG + XFOB equals
+    //    TOTAL_ASSESSED_VAL on built parcels, while CAPPEDVAL is the Save-Our-Homes/ag capped
+    //    figure. Checked across 400 parcels: CAPPEDVAL <= TOTAL_ASSESSED_VAL on 400/400, strictly
+    //    lower on 219. So TOTAL_ASSESSED_VAL behaves as JUST/market (despite its name) and
+    //    CAPPEDVAL as ASSESSED. On an ag parcel TOTAL_ASSESSED_VAL 21,285 vs ASSESSLAND/AGLAND
+    //    2,606 — i.e. ASSESSLAND carries the CLASSIFIED value on ag land, not market land value.
+    // ⚠️ SALEADJ1 is the sale PRICE but is 0 on non-arms-length transfers (one of three samples).
+    //    The guard only takes it when > 0, so a $0 quit-claim can't render as a sale.
+    // ⚠️ THE SERVICE IS NAMED "TEST2_WFL1" and its only sibling is "TEST_WFL1" (address points +
+    //    city limits). There is no production-named alternative in the org — this IS Gulf County's
+    //    published data, edited by the county's own GIS user — but a name like that can be renamed
+    //    or removed, so if Gulf ever goes dark check the org for a renamed service first.
+    "https://services6.arcgis.com/UKA0gLwZODMsn8XE/arcgis/rest/services/TEST2_WFL1/FeatureServer/9/query"
   ]},
 
   CLAY: { label:"Clay County (Property Appraiser · maps.claycountygov.com)", urls:[
@@ -2984,7 +3106,16 @@ const COUNTY_FOOTPRINTS = {
   // Indian River County GIS building footprints — same layer wired for lot-line distances in
   // FOOTPRINT_LAYERS (see the provenance note there). Used here only to nudge the map marker off the
   // parcel centroid and onto the actual structure.
-  INDIANRIVER: "https://services9.arcgis.com/M0DpVhTwTZ42jNsw/ArcGIS/rest/services/IRC_Building_Footprints/FeatureServer/0/query"
+  INDIANRIVER: "https://services9.arcgis.com/M0DpVhTwTZ42jNsw/ArcGIS/rest/services/IRC_Building_Footprints/FeatureServer/0/query",
+  // ─── Added 19 Sep 2026 with the FOOTPRINT_LAYERS sweep. Same six layers, /query form, so the
+  // marker nudge and the lot-line distances read the same source. Provenance screen and the
+  // REJECTED list live on FOOTPRINT_LAYERS above — read that before adding to either map.
+  LAKE:         "https://gis.lakecountyfl.gov/lakegis/rest/services/InteractiveMap/MapServer/66/query",
+  LEON:         "https://intervector.leoncountyfl.gov/intervector/rest/services/MapServices/TLC_OverlayBuildings_D_WM/MapServer/0/query",
+  BAY:          "https://services1.arcgis.com/QB0VWfqR9MD4lF0F/arcgis/rest/services/BuildingFootprints/FeatureServer/0/query",
+  MIAMIDADE:    "https://services.arcgis.com/8Pc9XBTAsYuxx9Ny/arcgis/rest/services/BuildingFootprint2D_gdb/FeatureServer/0/query",
+  MONROE:       "https://services.arcgis.com/D7K7hj5GW1YIVRiA/arcgis/rest/services/Building_Footprints/FeatureServer/1/query",
+  HILLSBOROUGH: "https://arcgis.tampagov.net/arcgis/rest/services/ReferenceData/BuildingFootprints/MapServer/0/query"   // City of Tampa only
   // Sarasota: add its footprint layer /query URL here when confirmed.
 };
 
@@ -4246,7 +4377,13 @@ const NAPLES_SETBACKS = {
     rearNote:"15 ft base. 50 ft where adjacent to a residential zoning district; 25 ft where adjacent to a water body." }
 };
 /* Normalize a zoning code for forgiving matching: uppercase, strip non-alphanumerics. */
-function normZoneKey(s){ return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,''); }
+/* ⚠️ `s==null?'':s`, NOT `s||''`. A zoning code is not always a string: City of Freeport stores
+   the district as a subtype INTEGER, and its non-district junk rows carry the value 0 — which is
+   FALSY, so `String(0||'')` collapsed to '' and the value silently stopped matching itself. That
+   let Freeport's `badCodes:["0",...]` guard miss every one of those rows (caught by replaying the
+   real legend/lookup functions over live data, not by reading the code). Any numeric-0 district
+   anywhere hit the same bug, and '' could additionally false-match an empty key. */
+function normZoneKey(s){ return String(s==null?'':s).toUpperCase().replace(/[^A-Z0-9]/g,''); }
 /* Look up Naples setbacks for a detected district. Exact → normalized → base-code prefix match. */
 function naplesSetbacks(districtCode){
   if(!districtCode) return null;
@@ -4480,10 +4617,31 @@ const ZONING_LIVE = {
   // the vintage is acceptable. NOTE: for CITY parcels, Broward county has no zoning to show — the city's
   // own layer would be needed (see per-city entries if/when added).
   BROWARD: { label:"Broward County Zoning (unincorporated BMSD · Ch. 39)",
-    codeField:"ZONING", descField:"TITLESESCR",
+    codeField:"ZONE_NAME", descField:"ZONING",
     extra:[ {field:"AREANAME", label:"BMSD neighborhood"},
             {field:"LAND_USE", label:"Future land use"} ],
     urls:[
+    // ✅ ADDED 19 Sep 2026 — CITYWIDE ZONING, the big gap in this county.
+    // What was wired alone below (BMSDParcels) is the Broward Municipal Services District: the
+    // UNINCORPORATED remnant, just 5,352 parcels in a county that is almost entirely incorporated.
+    // Every parcel inside a city fell through it, which is why Broward accounted for 15 of the 18
+    // hard municipal zoning gaps.
+    // This layer is BCPA's "City Zoning Codes" — 5,400 district polygons, 5,351 inside the county
+    // envelope, covering the municipalities. Found on the SAME MapServer the Broward parcel feed
+    // already uses, so no new host and no new CORS question.
+    // ⚠️ THE FIELD NAMED "ZONING" IS THE WRONG ONE. It is populated on 183 of 5,400 rows (3%) and
+    //    holds the long description ("AGRICULTURAL ESTATE DISTRICT"). The district CODE lives in
+    //    ZONE_NAME, populated on 5,308 (98%). Hence codeField=ZONE_NAME, descField=ZONING — the
+    //    description simply stays blank on the 97% that lack it.
+    // ⚠️ ZONE_NAME values carry inconsistent trailing whitespace (three separate "B-1" variants in
+    //    a distinct-values pull) and include the non-districts "N/A" and "WATER FEATURES".
+    // ⚠️ BMSDParcels IS KEPT BEHIND IT for the unincorporated pockets this layer does not cover.
+    //    It has no ZONE_NAME column, so the pin falls through to the detector there, which finds its
+    //    own ZONING field — the two layers coexist without a conflict.
+    // ✅ LIVE POINT-TESTED at folio 503911072230 (856 Sunflower Cir, Weston): BMSDParcels returns
+    //    NO HIT (Weston is incorporated), this layer returns ZONE_NAME "R-2". Neighbours in the same
+    //    envelope read RE / R-1 / R-3 / MU.
+    "https://gisweb-adapters.bcpa.net/arcgis/rest/services/BCPA_EXTERNAL_JAN26/MapServer/9/query",
     "https://bcgishub.broward.org/pdm/rest/services/PDMD/BMSDParcels/MapServer/4/query"
   ]},
   MONROE: { label:"Monroe County Zoning (Land Use District, unincorporated Keys)", codeField:"ZONE_", descField:"Zone_Desc", urls:[
@@ -4596,16 +4754,25 @@ const ZONING_LIVE = {
     // recent. The mirror is UNINCORPORATED-ONLY — an in-city point (Cape Coral) returns NO HIT — so
     // it is deliberately not added to any of the city keys below.
     byCity: {
-      "":               ["https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/0/query",
-                         "https://services2.arcgis.com/LvWGAAhHwbCJ2GMP/arcgis/rest/services/Zoning/FeatureServer/0/query"],
+      // ⚡ ORDER FLIPPED 19 Sep 2026 — AGOL MIRROR FIRST, on-prem second. Timed head-to-head on the
+      // same query: the AGOL mirror answered in 7ms, gismapserver in 137-270ms when healthy and not
+      // at all when not (during this session's testing it went from 137ms to refusing every request,
+      // single or concurrent). Both return count 10,174 and byte-identical attributes, so there is
+      // nothing to lose by preferring the fast copy. The on-prem layer stays as the fallback.
+      "":               ["https://services2.arcgis.com/LvWGAAhHwbCJ2GMP/arcgis/rest/services/Zoning/FeatureServer/0/query",
+                         "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/0/query"],
       "CAPECORAL":      "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/1/query",
       "FORTMYERS":      "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/2/query",
       "ESTERO":         "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/5/query",
       "FORTMYERSBEACH": "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/6/query",
       "BONITASPRINGS":  "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/7/query"
     },
+    // OVERLAY list. Unincorporated is taken from the AGOL mirror (same data, ~7ms) rather than the
+    // on-prem sublayer 0, which leaves only the 5 CITY sublayers on gismapserver — and pooledMap caps
+    // those at 3 concurrent, which is the most that host tolerates. Before this, all 6 fired at once
+    // and the overlay drew NOTHING for Lee.
     urls:[
-    "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/0/query", // unincorporated Lee
+    "https://services2.arcgis.com/LvWGAAhHwbCJ2GMP/arcgis/rest/services/Zoning/FeatureServer/0/query", // unincorporated Lee (AGOL mirror of sublayer 0)
     "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/1/query", // City of Cape Coral
     "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/2/query", // City of Fort Myers
     "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/5/query", // Village of Estero
@@ -4629,6 +4796,8 @@ const ZONING_LIVE = {
   // Charlotte has no separate zoning-polygon service, so we reuse layer 17 and PIN the fields — the
   // auto-detector would otherwise grab "description" (the long legal text) as the district name.
   CHARLOTTE: { label:"Charlotte County Zoning",
+    parcelPaint:{ url:"https://agis.charlottecountyfl.gov/arcgis/rest/services/Essentials/CCGIS_Web_Layers2022/MapServer/17/query",
+                  codeField:"zoningcode", minZoom:17 },   // 100% of 224,846 parcels; 69 districts. Values are space-padded on this layer — trimmed by the engine
     codeField:"zoningcode", descField:"landuse",
     urls:[
     "https://agis.charlottecountyfl.gov/arcgis/rest/services/Essentials/CCGIS_Web_Layers2022/MapServer/17/query"
@@ -4640,7 +4809,10 @@ const ZONING_LIVE = {
   // CountyZoning) tested BAD PATH (host + CORS OK but the service isn't published there), so it's been
   // removed — only the working ags3 endpoint is listed. Degrades gracefully to the Municode/permit
   // links below if it's ever down.
-  SARASOTA: { label:"Sarasota County Zoning (UDC)", urls:[
+  SARASOTA: { label:"Sarasota County Zoning (UDC)", 
+    parcelPaint:{ url:"https://services3.arcgis.com/icrWMv7eBkctFu1f/arcgis/rest/services/ParcelProperty_Scpao/FeatureServer/0/query",
+                  codeField:"ZONING", minZoom:17 },   // 100% of 310,650 parcels; 146 districts
+    urls:[
     "https://ags3.scgov.net/server/rest/services/Hosted/CountyZoning/FeatureServer/0/query"
   ]},
   // ✅ Glades County zoning. PRIMARY is the county's OWN ArcGIS Online feature layer (services6 —
@@ -4676,7 +4848,10 @@ const ZONING_LIVE = {
   // pinned to ZONECLASS so detection can't drift to a description/ordinance column. Covers the whole
   // county; incorporated-city parcels (Ocala, Belleview, Dunnellon, McIntosh, Reddick) are excluded
   // from county setbacks via MARION_INCORP in the renderer.
-  MARION: { label:"Marion County Zoning", codeField:"ZONECLASS", descField:"ZONEDESC", urls:[
+  MARION: { label:"Marion County Zoning", codeField:"ZONECLASS", descField:"ZONEDESC", 
+    parcelPaint:{ url:"https://services5.arcgis.com/zh4IrtLvSvA0sfub/arcgis/rest/services/Reach_Parcels/FeatureServer/0/query",
+                  codeField:"ZONE1", minZoom:17 },   // 100% of 284,639 parcels; 81 districts
+    urls:[
     "https://services1.arcgis.com/oMGpBoZpy1Db2sAl/arcgis/rest/services/ZoningClassifications/FeatureServer/0/query"
   ]},
   // ✅ Manatee County — the district rides on the county's public "Parcels" FeatureServer (the same
@@ -4737,6 +4912,8 @@ const ZONING_LIVE = {
     "https://geoweb.martin.fl.us/arcgis/rest/services/Administrative_Areas/Administrative_Areas/MapServer/8/query"
   ]},
   STLUCIE: { label:"St. Lucie County Zoning (unincorporated)", codeField:"Zoned",
+    parcelPaint:{ url:"https://map.paslc.gov/arcgis/rest/services/GISPublic/TaxMap/MapServer/9/query",
+                  codeField:"Zoning", minZoom:17 },   // 92% of 194,242 parcels; 82 districts
     extra:[ {field:"Resolution", label:"Rezoning resolution"},
             {field:"Remarks",    label:"Remarks"} ],
     urls:[
@@ -4916,6 +5093,8 @@ const ZONING_LIVE = {
   ]},
 
   DUVAL: { label:"Duval County / Jacksonville Zoning", codeField:"ZON_LABEL",
+    parcelPaint:{ url:"https://maps.coj.net/coj/rest/services/PropertyPhotos/PropertyPolygons/MapServer/0/query",
+                  codeField:"ZON_LABEL", minZoom:17 },   // 94% of 408,341 parcels; 47 districts
     extra:[{field:"LND_LABEL", label:"Future land use"}], urls:[
     // ✅ ADDED 19 Sep 2026. SAME LAYER as COUNTY_LIVE.DUVAL — Jacksonville carries the zoning
     // district on the parcel itself rather than publishing a separate district-polygon service, and
@@ -4928,6 +5107,62 @@ const ZONING_LIVE = {
     //    district, not merged district polygons, so at county zoom it will hit the record cap and
     //    the existing density guard takes over. That is the intended behaviour here, not a fault.
     "https://maps.coj.net/coj/rest/services/PropertyPhotos/PropertyPolygons/MapServer/0/query"
+  ]},
+
+  OKALOOSA: { label:"Okaloosa County Zoning (unincorporated)", codeField:"ZNGPY_ZONE",
+    where:"ZNGPY_ZONE NOT IN ('CRESTVIEW','DESTIN','FWB','NICEVILLE','VALPARAISO','SHALIMAR','MARY ESTHER','CINCO BAYOU','LAUREL HILL','EGLIN AFB','WATER')",
+    // Same list as the WHERE above, for the POINT lookup (which sends no WHERE). Without this the
+    // card printed the city name as the district on every in-city parcel. 19 Sep 2026.
+    badCodes:["CRESTVIEW","DESTIN","FWB","NICEVILLE","VALPARAISO","SHALIMAR","MARY ESTHER","CINCO BAYOU","LAUREL HILL","EGLIN AFB","WATER"],
+    urls:[
+    // ✅ ADDED 19 Sep 2026 — closes one of the three card-but-no-zoning counties.
+    // NOT a service named "zoning": it is sublayer 9 of LocalGovernment/EnerGov_Basemap on the
+    // county's own ArcGIS Server. Nothing in the catalog's service NAMES matches zoning at all —
+    // it only turned up by walking every MapServer's LAYER list. Worth remembering as a technique:
+    // a county with "no zoning layer" may just have it buried inside a permitting basemap.
+    // 1,098 polygons, 1,097 inside the county envelope. Sibling layer 10 is Future Landuse
+    // (FLUPY_ZONE, 952 polygons) if that is ever wanted.
+    // ⚠️ MUNICIPAL SENTINELS — same trap as Okeechobee's 'X'. ZNGPY_ZONE mixes REAL districts
+    //    (R-1/R-2/R-3, B-1..B-4, C-1/C-3, MU/MU-1/MU-2, AC-1/AC-.5, I-1/I-2, INST, REC, MHP, RR,
+    //    SR, AA) with CITY NAMES used as placeholders meaning "inside a municipality, not county
+    //    zoned": CRESTVIEW, DESTIN, FWB, NICEVILLE, VALPARAISO, SHALIMAR, MARY ESTHER, CINCO BAYOU,
+    //    LAUREL HILL, EGLIN AFB — plus WATER, which is not a district either. Unfiltered, a
+    //    Crestview parcel would render "CRESTVIEW" as its zoning district and the overlay would
+    //    paint the whole city as one. The `where` above drops them at the server: 1,098 → 939,
+    //    159 sentinel polygons removed.
+    // ✅ VERIFIED: a point in Crestview returns "CRESTVIEW" unfiltered and NO HIT filtered, which is
+    //    the correct answer for a city the county does not zone. A point near Willwall St returns
+    //    R-2 either way.
+    // Destin runs its own code and is wired separately in ZONING_LIVE_CITY.
+    "https://ags.myokaloosa.com/arcgis/rest/services/LocalGovernment/EnerGov_Basemap/MapServer/9/query"
+  ]},
+
+  WALTON: { label:"Walton County Zoning", codeField:"ZONE_CLASS",
+    // ⚠️ Same municipal-sentinel trap as Okaloosa. "Municipal" (113 polygons) is not a district —
+    // it means DeFuniak Springs / Freeport / Paxton, which zone their own land. "Eglin AFB" (7)
+    // is federal. Two rows are NULL. Filtered for the paint (where) and the card (badCodes):
+    // 2,735 -> 2,613 real district polygons.
+    where:"ZONE_CLASS IS NOT NULL AND ZONE_CLASS NOT IN ('Municipal','Eglin AFB')",
+    badCodes:["Municipal","Eglin AFB"],
+    extra:[{field:"PLAN_AREA", label:"Planning area"}], urls:[
+    // ✅ ADDED 19 Sep 2026. Layer 19 of the same EnerGov basemap that carries the parcel roll.
+    // 2,735 polygons, 2,735 inside the county envelope (coverage 1.0).
+    // ZONE_CLASS holds READABLE district names, not abbreviations — "Neighborhood Infill",
+    // "Coastal Center", "Village Mixed Use", "Rural Village", "Traditional Neighborhood
+    // Development", "Conservation Residential 1 unit per 2.5 acres", the four Bay-Walton Sector
+    // Plan classes, etc. 41 distinct values. Pinned so the detector can't reach elsewhere.
+    // ⚠️ DO NOT surface FLU_Sub_Type: it is a SmallInteger with NO coded-value domain attached,
+    //    so it renders as a meaningless number (15, 16, 19). PLAN_AREA (North / North Central /
+    //    South Central / South) is the useful supporting column and is carried as an extra.
+    // ⚠️ Walton also publishes a standalone FLU service (services1/.../FLU/FeatureServer/0,
+    //    "FutureLandUse", 3,032 polygons). Its CLASS values are nearly the same vocabulary as
+    //    ZONE_CLASS, so it is easy to wire by mistake — it is FUTURE LAND USE, not zoning.
+    // ✅ POINT-TESTED: Santa Rosa Beach -> "Neighborhood Infill" (South); Miramar Beach ->
+    //    "Coastal Center" (South); DeFuniak Springs and Freeport -> "Municipal", correctly
+    //    suppressed so the city layer / Municode answers instead.
+    "https://services1.arcgis.com/TaXHPwWfIMuzJ7Ov/arcgis/rest/services/EnerGov/FeatureServer/19/query",
+    // ↳ fallback: the EnerGov_Backup mirror — same 2,735 rows, same schema.
+    "https://services1.arcgis.com/TaXHPwWfIMuzJ7Ov/arcgis/rest/services/EnerGov_Backup/FeatureServer/19/query"
   ]},
 
   OKEECHOBEE: { label:"Okeechobee County Zoning", codeField:"Zoning", descField:"DESCRIPTION",
@@ -4953,7 +5188,10 @@ const ZONING_LIVE = {
     // Basinger → A / Agriculture; city hall → no feature, as it should be.
     "https://services3.arcgis.com/jE4lvuOFtdtz6Lbl/arcgis/rest/services/Zoning/FeatureServer/0/query"
   ]},
-  NASSAU: { label:"Nassau County Zoning (unincorporated)", codeField:"ZONING", urls:[
+  NASSAU: { label:"Nassau County Zoning (unincorporated)", codeField:"ZONING", 
+    parcelPaint:{ url:"https://services5.arcgis.com/F73IhFZbCCYUexxB/arcgis/rest/services/Nassau_Land_Parcels/FeatureServer/144/query",
+                  codeField:"ZoningDistrict", minZoom:17 },   // 100% of 59,303 parcels; 71 values. Also COUNTYWIDE, so the paint covers the municipalities the district layer beside it excludes
+    urls:[
     // ✅ Published by the NASSAU COUNTY PROPERTY APPRAISER'S own account (kmulcahy@nassauflpa.com,
     // org F73IhFZbCCYUexxB) — about as authoritative as a Florida zoning layer gets, and the
     // last_edited_user on live rows is that same office. 683 polygons, coverage 1.0, SR 3857.
@@ -4966,6 +5204,71 @@ const ZONING_LIVE = {
     // ⚠️ UNINCORPORATED ONLY — Fernandina Beach, Callahan and Hilliard set their own zoning and are
     // NOT in this layer. A lookup inside those city limits correctly falls through to the roll.
     "https://services5.arcgis.com/F73IhFZbCCYUexxB/arcgis/rest/services/Unincorporated_Nassau_County_Zoning/FeatureServer/154/query"
+  ]},
+  /* ─── Added 19 Sep 2026 — Putnam had a COUNTY_LIVE card but no zoning. ───────────────────────
+     Putnam runs its OWN AGOL org (services1.arcgis.com/YZc1OyqL6jbIOeOv, 182 services, owners
+     amanda.gabriel_PCGIS / brooke.tillis_PCGIS) and publishes county AND municipal zoning as two
+     sibling layers of ONE service, Planning_ReferenceMap ("Planning Data Service"):
+         0 PDS - Firm Panels            3 PDS - Municipal Zoning
+         1 PDS - FEMA Flood Zones       4 PDS - County Proposed Land Use
+         2 PDS - County Zoning          5 PDS - Municipal Future Land Use
+     Both zoning layers share the SAME schema — ZONECLASS / ZONEDESC / BASEELEV / HEIGHT /
+     LASTUPDATE / LASTEDITOR — so one codeField/descField pin covers both, and both are renderered
+     on ZONECLASS. Token-free, CORS-open, pagination true. Last edited 6 Sep 2024 (both layers).
+     ⭐ ZONEDESC IS A REAL DESCRIPTION FIELD, not a duplicate of the code — "R-1HA" → "Residential,
+     Single-Family (area > 0.5 acres)", "CPO" → "Commercial, Professional Office". Better readable
+     coverage than most counties in this table, so descField is pinned rather than left off.
+     ── WHY BOTH URLS, MUNICIPAL FIRST ───────────────────────────────────────────────────────────
+     The two layers are COMPLEMENTARY, not overlapping: layer 2 is unincorporated, layer 3 is the
+     five municipalities (Palatka, Interlachen, Welaka, Crescent City, Pomona Park). Verified — a
+     point inside Palatka (-81.657370, 29.646966, the centroid of an R-2 municipal polygon) returns
+     NOTHING from layer 2. Municipal is listed first so a city's own district wins wherever both
+     somehow answer, which is the correct precedence (a city zones its own land).
+     ── COVERAGE, MEASURED BY AREA (not by sampling — sampling can't prove absence of holes) ──────
+       layer 2 county zoning  SUM(Shape__Area) = 19,991,486,679 sq ft =  717.1 sq mi
+       layer 3 municipal      SUM(Shape__Area) =    576,775,887 sq ft =   20.69 sq mi
+       Municipal_Boundaries__All_Incorporated_Areas/38 = 656,460,383 sq ft = 23.55 sq mi
+     Putnam's land area is 722 sq mi, so the county layer is ~99% complete — effectively gapless.
+     The MUNICIPAL layer covers only 87.9% of incorporated area: there ARE real holes inside the
+     city limits (two separate downtown-Palatka probes returned no feature from layer 3 OR from the
+     standalone MunicipalZoning_CityOfPalatka_hub, despite both bboxes containing the point). An
+     in-city lookup that lands in one of those holes correctly falls through to the roll rather
+     than borrowing a neighbouring district.
+     ── JUNK ROWS (why there is a `where` but NO `badCodes`) ─────────────────────────────────────
+     Layer 3 has exactly two non-district rows: OBJECTID 27 (ZONECLASS null, ZONEDESC null) and
+     OBJECTID 1 (ZONECLASS " ", ZONEDESC "NR", geometry = four thin slivers). OBJECTID 27 is
+     already dropped by the "no code AND no desc AND no extras AND no sheet" guard in queryZoning.
+     OBJECTID 1 is deliberately LEFT ALONE: `badCodes:["NR"]` would also kill the many legitimate
+     rows whose ZONECLASS genuinely IS "NR", and on that one row "NR" in ZONEDESC looks like the
+     class simply typed into the wrong column — so surfacing it is more right than wrong. `where`
+     keeps both out of the OVERLAY paint and the legend, which is where a blank swatch would show.
+     ── `badCodes:["COUNTY"]` — the in-city sentinel ─────────────────────────────────────────────
+     Layer 3 carries 4 polygons (1,406,125 sq ft ≈ 32 acres, 0.24% of the layer) whose ZONECLASS is
+     the literal string "COUNTY", meaning "inside city limits but still zoned by the county". The
+     real district is tacked onto the END of ZONEDESC: "AGRICULTURE, AG" / "INDUSTRIAL, HEAVY, IH"
+     / "RESIDENTIAL, SINGLE/MULTI, R-1/R-3". Same family of trap as Okaloosa's city-name rows and
+     DeSoto's "CITY". Listed in badCodes so the card never prints "COUNTY" as a district; the
+     trailing code in ZONEDESC could be parsed out later to recover those 32 acres, but at this
+     size the roll fallback is fine.
+     ── ZONEDESC QUALITY DIFFERS BETWEEN THE TWO LAYERS ──────────────────────────────────────────
+     On layer 2 (county) ZONEDESC is a clean sentence for all 24 classes. On layer 3 (municipal) it
+     is mostly a real description ("DOWNTOWN RIVERFRONT", "MOBILE HOME RESIDENTIAL", "COMMERCIAL,
+     GENERAL") but on roughly a fifth of rows it is just ANOTHER code — R-1A→"SRLD", PF-2→"OPF",
+     PO-1→"CPO", LI-1→"IL", MR-1→"R-3", CG→"GC", PUD/*→"PUD". Those render as "R-1A — SRLD", which
+     is imperfect but not wrong (SRLD is Palatka's matching FLU category), so descField stays
+     pinned rather than dropping readable descriptions for the other four fifths.
+     ✅ LIVE POINT-TESTED 19 Sep 2026: rural (-81.79, 29.63) → AG / "Agriculture" from layer 2;
+     Palatka (-81.657370, 29.646966) → R-1A / "SRLD" from layer 3, and NO feature from layer 2 —
+     which is what proves the two layers are complementary rather than overlapping.
+     ── ALSO ON THIS ORG, NOT YET WIRED ──────────────────────────────────────────────────────────
+     Tax_Parcel_AGO, Parcels_01062025, Site_Address_Points(_AGO), FEMAFloodZones_AGO,
+     Future_Land_Use_AGO, Wetlands_AGO, Soils_AGO, Subdivisions_AGO, Municipal_Boundaries,
+     RechargeAreas_AGO, plus per-city zoning/FLU services for each of the five municipalities. */
+  PUTNAM: { label:"Putnam County Zoning", codeField:"ZONECLASS", descField:"ZONEDESC",
+    where:"ZONECLASS IS NOT NULL", badCodes:["COUNTY"],
+    urls:[
+    "https://services1.arcgis.com/YZc1OyqL6jbIOeOv/arcgis/rest/services/Planning_ReferenceMap/FeatureServer/3/query",
+    "https://services1.arcgis.com/YZc1OyqL6jbIOeOv/arcgis/rest/services/Planning_ReferenceMap/FeatureServer/2/query"
   ]}
 };
 
@@ -5063,6 +5366,146 @@ const ZONING_LIVE_CITY = {
   //   • ParcelData/City_of_Dunedin_Basemap/MapServer/12   (geometry:null)
   // Self-hosted server (SR sent as 4326, server returns 4326 here) — verify CORS with the diagnostic
   // (esp. older iOS); falls back to the Pinellas county layer (unincorporated-only) / Municode links.
+  // ✅ City of DeFuniak Springs (Walton County) — "Zoning_Updated" on the county's own AGOL org,
+  // published for the city. 3,743 PARCEL-LEVEL polygons keyed to PARCELNO, so the map paints per
+  // lot. Districts: R-1, R-2, C-1, C-2, AG, WCD, MIXED USE, Light Industrial, "PD, Planned
+  // Development". The blank value " " is a sentinel and is filtered from both paint and card.
+  // ✅ POINT-TESTED downtown: ZONING "C-2" on parcel 25-3N-19-19070-000-7680 — the SAME parcel
+  //    number the county parcel roll returns at that point, which cross-validates both layers.
+  // ⚠️ ZONE_NOTES is the city's own data-quality log and is surfaced deliberately: values include
+  //    "Old GIS layer shows R-2/PDF shows AG", "Check PDF parcel alignment", "Parcel split by City
+  //    Limits". Where one is present the district is genuinely uncertain and the user should see
+  //    that rather than a clean-looking answer. (Most rows are blank; blanks never render.)
+  // The Walton county layer is appended as a fallback and correctly declines — DeFuniak Springs is
+  // the "Municipal" sentinel there.
+  DEFUNIAKSPRINGS: { label:"City of DeFuniak Springs Zoning", codeField:"ZONING",
+    where:"ZONING IS NOT NULL AND ZONING <> ' '", badCodes:[" "],
+    extra:[{field:"ZONE_NOTES", label:"City data note"}], urls:[
+    // ⚠️ TWO NEAR-IDENTICAL COPIES OF THIS LAYER EXIST and picking the wrong one silently serves
+    // four-year-old zoning. Both are on the county org, same schema, same answer at the test point:
+    //   WeeklyUpdatesDFS/7  "DeFuniak_Zoning"  3,750 rows, editingInfo lastEditDate SEP 2026  ← this
+    //   CityofDefuniakSprings/0 "Zoning_Updated" 3,743 rows, lastEditDate JUN 2022           ← stale
+    // The name is the trap: "Zoning_Updated" is the OLDER one. editingInfo is what separates them.
+    // The county maintains a WeeklyUpdates* service for each of its three cities, which is the
+    // current published set; the 2022 copy is kept below only as a fallback.
+    "https://services1.arcgis.com/TaXHPwWfIMuzJ7Ov/arcgis/rest/services/WeeklyUpdatesDFS/FeatureServer/7/query",
+    "https://services1.arcgis.com/TaXHPwWfIMuzJ7Ov/arcgis/rest/services/CityofDefuniakSprings/FeatureServer/0/query"
+  ]},
+
+  // ✅ City of Freeport (Walton County) — "Zoning_Freeport", layer 7 of the county's
+  // WeeklyUpdatesFreeport service. 384 district polygons covering 30.4382–30.5621 N,
+  // -86.1999 to -86.0736 W, which is the city.
+  // ⚠️ THE DISTRICT IS STORED AS A BARE SUBTYPE INTEGER. `Zoning` is esriFieldTypeSmallInteger
+  //    holding 1..16 and carries NO coded-value domain; `Description` is blank (" ") on EVERY row.
+  //    Read as-is the card would print the zoning district as "9". The human labels exist only in
+  //    the layer's `types` / renderer legend, so they are transcribed into valueMap below — that
+  //    is what turns 9 into "C-2 · High Intensity Commercial". Do not pin descField to Description.
+  // ⚠️ DO NOT USE the AGOL org "City_of_Freeport" (services2/1Wpk33n06s235zfI). It publishes a
+  //    service literally titled "Zoning" with 11,169 parcels and clean B-1/B-3 districts — and it
+  //    is FREEPORT, ILLINOIS. Its layer geometry lands at 42.3201 N, -89.6340 W. Note that the
+  //    metadata `extent` on these AGOL layers is unreliable (the DeFuniak layer above reports an
+  //    extent in Cameroon yet point-tests correctly in Florida), so the location test that
+  //    actually works is fetching a feature's GEOMETRY in 4326 — not reading layer.extent.
+  // ✅ POINT-TESTED: downtown Freeport -> 9 -> "C-2 · High Intensity Commercial"; US-98 north ->
+  //    4 -> "R-1 · Low Density Residential".
+  FREEPORT: { label:"City of Freeport Zoning", codeField:"Zoning",
+    // ⚠️ TWO NON-DISTRICT CODES. 15 = "Un-Designated" (3 polygons) is in the layer's own legend.
+    //    0 (7 polygons) is NOT in the legend at all — those rows are junk slivers: 0.5–3 ac, blank
+    //    Description, SHAPE_Leng exactly 0, and DUPLICATED OBJECTIDs (42380 and 42109 each appear
+    //    twice). Unfiltered, a parcel landing on one would print its district as "0".
+    //    Dropped from the paint (where) and the card (badCodes): 384 -> 374.
+    where:"Zoning NOT IN (0,15)",
+    badCodes:["0","15"],
+    valueMap:{
+      "1": {code:"RV",  desc:"Rural Village"},
+      "2": {code:"RA",  desc:"Rural Agriculture"},
+      "3": {code:"RR",  desc:"Rural Residential"},
+      "4": {code:"R-1", desc:"Low Density Residential"},
+      "5": {code:"R-2", desc:"Medium Density Residential"},
+      "6": {code:"R-3", desc:"High Density Residential"},
+      "7": {code:"RC",  desc:"Residential Commercial"},
+      "8": {code:"C-1", desc:"General Commercial"},
+      "9": {code:"C-2", desc:"High Intensity Commercial"},
+      "10":{code:"I-1", desc:"Light Industrial"},
+      "11":{code:"I-2", desc:"General Industrial"},
+      "12":{code:"CON", desc:"Conservation"},
+      "13":{code:"PS",  desc:"Public Service"},
+      "14":{code:"SDD", desc:"Special Development District"},
+      "15":{code:"UD",  desc:"Un-Designated"},
+      "16":{code:"I-3", desc:"Heavy Industrial"}
+    }, urls:[
+    "https://services1.arcgis.com/TaXHPwWfIMuzJ7Ov/arcgis/rest/services/WeeklyUpdatesFreeport/FeatureServer/7/query"
+  ]},
+
+  // ⛔ CITY OF PAXTON (Walton County) — deliberately NOT wired. The county publishes
+  // WeeklyUpdatesPaxton, but that service has only "Paxton_Future_Land_Use" (layer 6, 103
+  // polygons, FLU_CLASS = AG/CM/CV/ID/LDR/MU/PB). There is NO zoning layer in it, and none exists
+  // anywhere else — a row comment on the data reads "Future Land Use provided as file geodatabase
+  // from Paxton Planning Official 8/14/2022", i.e. FLU is what the town handed over.
+  // Future land use is NOT zoning, so wiring it under a "Zoning district" heading would print a
+  // confidently wrong district. Paxton (pop. ~650) falls through to Municode instead.
+
+  // ══ OKALOOSA MUNICIPALITIES ══════════════════════════════════════════════════════════════════
+  // The county layer (EnerGov_Basemap/9) zones UNINCORPORATED land only — every municipality comes
+  // back as its own name used as a sentinel. Each city below therefore needs its own layer, found
+  // 19 Sep 2026. Still unwired, because no public zoning GIS exists for them at all (checked: the
+  // county server, each city's own domain, and every AGOL item owned by the cities): NICEVILLE,
+  // VALPARAISO, SHALIMAR, CINCO BAYOU, LAUREL HILL. Those five fall through to Municode links.
+  // ⚠️ "Valparaiso" searches on ArcGIS Online return Valparaíso, CHILE first — same-name trap.
+
+  // ✅ City of Crestview. Its AGOL org (services9/zvdDL6ILvlkPNTg8) is unlabelled — identified by
+  // the CityLimits/Mainstreet/Eglin_Parcels service set and confirmed by the layer's own extent:
+  // 30.6947–30.8059 N, -86.6375 to -86.5259 W (Crestview sits at 30.762 N, -86.571 W).
+  // PARCEL-LEVEL: 10,914 polygons keyed to PATPCL_PIN, which is the Okaloosa roll's own parcel id
+  // format (e.g. "04-3n-23-1840-0002-0020") — so the paint is per-lot, no parcelPaint join needed.
+  // ✅ POINT-TESTED at three district centroids: C-1, PUD and R-1 all returned correctly.
+  // ⚠️ SENTINELS in ZONING: "COUNTY", "NOT ASSIGNED", "NOT ASSIGNED (CON)", "Needs Rezoning" and a
+  //    single-space value. Dropped from both the paint (where) and the card (badCodes).
+  // ⚠️ NO description column exists — codes only. FLU is carried as a supporting row instead.
+  CRESTVIEW: { label:"City of Crestview Zoning", codeField:"ZONING",
+    where:"ZONING NOT IN ('COUNTY','NOT ASSIGNED','NOT ASSIGNED (CON)','Needs Rezoning',' ')",
+    badCodes:["COUNTY","NOT ASSIGNED","NOT ASSIGNED (CON)","Needs Rezoning"],
+    extra:[{field:"FLU", label:"Future land use"}],
+    urls:[
+    "https://services9.arcgis.com/zvdDL6ILvlkPNTg8/arcgis/rest/services/flu_zoning/FeatureServer/0/query"
+  ]},
+
+  // ✅ City of Fort Walton Beach — the city's OWN self-hosted server (gis.fwb.org), service name
+  // "ZONING". 8,795 polygons, 8,685 inside the city envelope (99%). Parcel-level, SR 4326 natively.
+  // ✅ POINT-TESTED at -86.6180, 30.4060: Zoning "R-1" / Zoning_Desc "R-1   Single Family
+  //    Residential". Zoning_Desc repeats the code as a prefix — that is the layer's own wording.
+  // ⚠️ Zoning_Hyperlink / FLU_Hyperlink hold an HTML <a> tag, not a bare URL, so the urlish() guard
+  //    would NOT catch them — never let this layer auto-detect; codeField/descField are pinned.
+  // Self-hosted ArcGIS (not AGOL) — if CORS ever regresses, the county layer is appended as the
+  // fallback and will correctly decline (FWB parcels are the "FWB" sentinel there).
+  FORTWALTONBEACH: { label:"City of Fort Walton Beach Zoning", codeField:"Zoning", descField:"Zoning_Desc",
+    extra:[{field:"FLU_Desc", label:"Future land use"}], urls:[
+    "https://gis.fwb.org/arcgis/rest/services/Maps/Zoning/MapServer/0/query"
+  ]},
+
+  // ✅ City of Mary Esther — MaryEsther_FLU_Zoning on AGOL (services2/xDFo56nFuq1SBnBw). 2,066
+  // parcel-level polygons; extent 30.4058–30.4213 N, -86.6821 to -86.6407 W, which is the city.
+  // ✅ POINT-TESTED at -86.6650, 30.4110: ZONING "PL" / ZONE_DEF "PL - Public Lands".
+  // Only six districts exist: R-1, R-2, C-1, C-2, PL and the sentinel "County".
+  // ⚠️ The county's Mary_Esther_EnerGov service has NO zoning layer — this is the only source.
+  MARYESTHER: { label:"City of Mary Esther Zoning", codeField:"ZONING", descField:"ZONE_DEF",
+    where:"ZONING <> 'County'", badCodes:["County"],
+    extra:[{field:"FLU_DEF", label:"Future land use"}], urls:[
+    "https://services2.arcgis.com/xDFo56nFuq1SBnBw/arcgis/rest/services/MaryEsther_FLU_Zoning/FeatureServer/0/query"
+  ]},
+
+  DESTIN: { label:"Destin Zoning", codeField:"Zone_ABBR", descField:"Zone_", urls:[
+    // ✅ ADDED 19 Sep 2026. Destin sets its own zoning and appears only as the sentinel "DESTIN" in
+    // the county layer, so it needs its own entry. Sublayer 6 of LocalGovernment/Destin_EnerGov on
+    // the county's server — 378 polygons, all inside the county envelope.
+    // Unusually, this layer carries BOTH forms: Zone_ABBR is the code (NHMU, GRMU, CBR, LDR-V …)
+    // and Zone_ is the full name ("North Harbor Mixed Use", "Gulf Resort Mixed Use", "Crystal Beach
+    // Resort"), so the card can show a readable district instead of an abbreviation.
+    // ⚠️ Zone_Label is a THIRD column and is blank on sampled rows — do not pin it.
+    // ✅ POINT-TESTED at the harbour: Zone_ABBR "NHMU" / Zone_ "North Harbor Mixed Use".
+    "https://ags.myokaloosa.com/arcgis/rest/services/LocalGovernment/Destin_EnerGov/MapServer/6/query"
+  ]},
+
   DUNEDIN: { label:"City of Dunedin Zoning", codeField:"ZONECLASS", descField:"ZONEDESC", urls:[
     "https://gis.dunedingov.com/server/rest/services/CommunityDevelopment/DunedinERP_PublicBasemap/MapServer/17/query"
   ]},
@@ -5355,6 +5798,64 @@ const ZONING_LIVE_CITY = {
     // St. Lucie County's layer (ZONING_LIVE.STLUCIE) covers the unincorporated county; Fort Pierce
     // is already wired above. Port St. Lucie is the county's largest city by a wide margin.
     "https://services1.arcgis.com/YdUP5V6WwzeG8T8r/arcgis/rest/services/Zoning/FeatureServer/1/query"
+  ]},
+
+  /* ─── Added 19 Sep 2026 — the ONLY queryable zoning anywhere in DeSoto County. ────────────────
+     Arcadia is DeSoto's only municipality (pop. ~7,500) and its county seat. This layer is NOT
+     published by the city or the county: it belongs to the CENTRAL FLORIDA REGIONAL PLANNING
+     COUNCIL (services5.arcgis.com/gutFqkMq9XlLck8D, owner cfrpcouncil), which does GIS for its
+     member counties — DeSoto, Hardee, Highlands, Okeechobee, Polk. Same org also carries
+     City_of_Arcadia_Future_Land_Use, Lake_Hamilton_Zoning and Lake_Hamilton_Future_Land_Use.
+     ✅ VERIFIED, not assumed:
+       • extent -81.8820/27.2023 → -81.8345/27.2456 = Arcadia, DeSoto County FL (the name traps are
+         thick here — a "DeSoto County zoning" hub is MISSISSIPPI, and an "Arcadia Zoning; Zonage"
+         web map is NEW BRUNSWICK, on GeoNB basemaps. Always check the extent, never the title.)
+       • CITY = "ARCADIA" and COUNTY = "DESOTO" on every row sampled — no municipal sentinel
+       • 3,213 polygons, parcel-level (PARCEL_ID per row)
+       • COVERAGE MEASURED BY AREA, not asserted from the parcel count: SUM(ACRES) over the rows
+         that survive badCodes is 2,054.8 ac against Arcadia's 2,834.9 ac of city limits (CFRPC
+         City_Limits/6, OBJECTID 1, 4.43 sq mi) = 72.5%. All 3,213 rows incl. the junk ones reach
+         80.2%. An earlier draft of this note claimed coverage was "effectively complete" because
+         3,213 ≈ Arcadia's parcel count — the area check says otherwise, and the area check wins.
+         The missing ~27% is street right-of-way, water and unzoned parcels: normal for a
+         parcel-based layer in a densely platted grid town, but it does mean roughly one in four
+         in-city points lands in a gap and falls through to the roll rather than returning a
+         district. Two of five hand-placed probes missed for exactly this reason.
+       • LIVE-REPLAYED 19 Sep 2026 through this file's own arcQuery()/normZoneKey()/badCodes path,
+         not just eyeballed: N Arcadia → R-1A (LDR), E → R-1B (LDR), W → C-1 (MDR), Hwy 70 E → B-2
+         (PBG); downtown and S Arcadia → no feature (ROW gaps); a point outside the city → no
+         feature, correctly. 143–296 ms per lookup, so no timeout exposure.
+     ── WHY A 2018 LAYER IS WIRED HERE WHEN A 2017 PARCEL LAYER WAS REJECTED FOR BRADFORD ────────
+     lastEditDate is 16 Aug 2018 and ZON_ORD/ZON_DATE are null on every row, so there is no
+     per-parcel adoption date behind it. That was nearly reason enough to skip it — until the CITY'S
+     OWN published zoning map turned out to be a PNG at
+         https://arcadia-fl.gov/wp-content/uploads/2019/08/Arcadia-Zoning-Map.png
+     uploaded in Aug 2019, with no viewer, no service and no newer edition on the city's Planning &
+     Zoning page. So this layer is within about a year of the map Arcadia still hands out today; it
+     is the digital twin of the current wall map, not a stale copy of something newer. Contrast
+     Bradford, where the 2017 CEDRA parcel layer WAS rejected: owner names and assessed values churn
+     continuously, so a frozen snapshot of those is actively wrong, while a zoning district only
+     changes through a rezoning hearing. Vintage is carried in the label so the card shows its age.
+     ── badCodes ─────────────────────────────────────────────────────────────────────────────────
+     23 of 3,213 rows (0.7%) are non-districts: "<ROW>" ×6 (right-of-way), "<OUT>" ×2 (outside city),
+     "NA" ×15. None of Arcadia's real districts normalize to ROW/OUT/NA under normZoneKey(), so the
+     guard is unambiguous. `where` keeps the same rows out of the overlay paint and the legend.
+     ── FIELDS ───────────────────────────────────────────────────────────────────────────────────
+     ZON is code-only (B-1, B-1A, B-2, B-3, C-1, M-1, M-2, MHP, P-1, PBG, PUC-C, PUD, PUD-I, R-1A,
+     R-1B, R-1C, R-2A, R-2B, R-3, R-4, RPB) — there is NO readable-name column, so no descField.
+     FLU rides along as an extra (LDR/MDR/BUS/IND…), the same treatment as Fort Pierce's LandUseDes.
+     Also present and unused: ANNEX_ORD/ANNEX_DATE/ANNEX_DESC, ACRES, FLU_ORD/FLU_DATE.
+     ⚠️ UNINCORPORATED DESOTO REMAINS DARK. The county's only complete zoning is Horner & Shifrin
+     layer 11 (skyview.hornershifrin.com Geocortex, 20,434 parcels, May 2026), which is CORS-blocked;
+     the Property Appraiser sits on the shared gz.floridapa.com MapServer with GetFeatureInfo and
+     GetCapabilities both disabled; and desotobocc's own AGOL org has no zoning layer (its Planning
+     and Zoning Projects web map points at a token-required service). */
+  ARCADIA: { label:"City of Arcadia Zoning (CFRPC, 2018)", codeField:"ZON",
+    extra:[ {field:"FLU", label:"Future land use"} ],
+    badCodes:["<ROW>","<OUT>","NA"],
+    where:"ZON IS NOT NULL AND ZON NOT IN ('<ROW>','<OUT>','NA')",
+    urls:[
+    "https://services5.arcgis.com/gutFqkMq9XlLck8D/arcgis/rest/services/City_of_Arcadia_Zoning/FeatureServer/0/query"
   ]}
 };
 
@@ -5372,10 +5873,60 @@ function detectZoningFields(fields){
 /* Manual zoning-layer override (pasted in the Advanced panel; persisted). */
 let zoningSource = { url:null };
 
+/* ── PER-HOST CONCURRENCY POOL ───────────────────────────────────────────────────────────────
+   Several county GIS servers REFUSE concurrent connections from one origin, and they fail in a way
+   that looks like the layer is broken rather than busy: the request rejects instantly (a TypeError,
+   not a timeout), so allSettled/catch swallows it and the overlay just draws nothing.
+
+   MEASURED 19 Sep 2026, same layers, parallel vs one-at-a-time:
+     gismapserver.leegov.com   6 at once -> 0/6 succeed (all reject in ~33ms)
+                               3 at once -> 3/3 ok       1 at a time -> 6/6 ok, 120-270ms each
+     gis.sumtercountyfl.gov    5 at once -> 3/5 succeed, survivors 4-5x slower
+                               1 at a time -> 5/5 ok, ~205ms each
+     gis.hardeecounty.net      4 at once -> 4/4 ok but one took 4,325ms
+                               1 at a time -> 4/4 ok, ~144ms each
+   The four `additive` registries each fan out to a SINGLE host — Lee 6 URLs, Sumter 5, Hardee 4,
+   Miami-Dade 2 — so Lee's zoning overlay could never draw, Sumter silently lost 2 of its 5
+   sublayers (real missing districts, not just slowness), and Hardee paid a 30x latency penalty.
+
+   This runs at most `perHost` requests against any ONE host at a time while still letting DIFFERENT
+   hosts run fully in parallel — so a multi-jurisdiction view (city + county on separate servers) is
+   as fast as before. Order of results is preserved. Never throws; fn's own errors propagate. */
+function _poolHostOf(u){ try{ return new URL(String(u), location.href).host; }catch(e){ return String(u); } }
+async function pooledMap(items, fn, perHost){
+  const limit = Math.max(1, perHost || 3);
+  const out = new Array(items.length);
+  const groups = new Map();
+  items.forEach((it,i)=>{
+    const h = _poolHostOf(typeof it==='string' ? it : ((it && (it.url||it.baseUrl)) || ''));
+    if(!groups.has(h)) groups.set(h, []);
+    groups.get(h).push(i);
+  });
+  await Promise.all([...groups.values()].map(async idxs=>{
+    let next = 0;
+    const workers = new Array(Math.min(limit, idxs.length)).fill(0).map(async ()=>{
+      while(next < idxs.length){ const i = idxs[next++]; out[i] = await fn(items[i], i); }
+    });
+    await Promise.all(workers);
+  }));
+  return out;
+}
+
 /* Point-query the resolved zoning layer(s). Returns {code,desc,layerName,lastEdit,url}
    or null when nothing is wired / no polygon covers the point. Never throws. */
 async function queryZoning(lat,lng, cityName, countyName){
   let cands = [], pin = null, isOverride=false;   // pin = explicit {codeField,descField} from a registry entry
+  /* ── SENTINEL GUARD FOR THE POINT LOOKUP (`badCodes`) ─────────────────────────────────────────
+     `reg.where` is applied ONLY to the map overlay (see refreshZoning) — arcQuery() sends no WHERE
+     at all, so a sentinel row that `where` strips from the paint would STILL be returned here and
+     rendered as the parcel's district. That is exactly the Okaloosa trap: ZNGPY_ZONE stores city
+     NAMES ("CRESTVIEW", "FWB", "NICEVILLE"…) as placeholders meaning "inside a municipality, not
+     county zoned". The overlay was clean; the site card would have printed "Zoning: CRESTVIEW".
+     A reg may now list those values in `badCodes`. A layer that answers with one is treated as
+     HAVING NOT ANSWERED, so the next candidate (a city layer, or nothing) gets its turn — which is
+     the truthful outcome: the county does not zone that parcel. Compared with normZoneKey(), so
+     case/spacing/punctuation don't matter ("Mary Esther" == "MARY ESTHER"). */
+  const _badByUrl = new Map();
   if(zoningSource.url){ cands = [zoningSource.url]; isOverride=true; }   // manual paste wins
   else {
     const cityReg = cityName ? ZONING_LIVE_CITY[norm(cityName)] : null;   // city is its own zoning authority
@@ -5423,7 +5974,7 @@ async function queryZoning(lat,lng, cityName, countyName){
       return r.urls || (r.url?[r.url]:[]);
     };
     const reg = cityReg || cntyReg;
-    if(reg){ cands = lookupUrls(reg); pin = (reg.codeField||reg.descField||reg.extra) ? {codeField:reg.codeField, descField:reg.descField, extra:reg.extra} : null; }
+    if(reg){ cands = lookupUrls(reg); pin = (reg.codeField||reg.descField||reg.extra||reg.valueMap) ? {codeField:reg.codeField, descField:reg.descField, extra:reg.extra, valueMap:reg.valueMap} : null; }
     // If the city has its OWN layer set AND the county also has one, append the county layer(s) as a
     // fallback: a city's GIS endpoint may be down, moved, or not actually carry the district at this
     // point. The county/regional zoning service often still covers in-city parcels (e.g. Lee's
@@ -5431,6 +5982,13 @@ async function queryZoning(lat,lng, cityName, countyName){
     // nothing — the setback renderer keys on the code, so any valid code keeps the chain alive. The
     // county fallback is resolved jurisdiction-aware too, so only the matching sublayer is appended.
     if(cityReg && cntyReg){ for(const u of lookupUrls(cntyReg)) if(!cands.includes(u)) cands.push(u); }
+    // Map each candidate URL back to its entry's sentinel list (city and county entries can each
+    // carry their own), so the results loop below knows which values to disbelieve per layer.
+    for(const _r of [cityReg, cntyReg]){
+      if(!_r || !Array.isArray(_r.badCodes) || !_r.badCodes.length) continue;
+      const _set = new Set(_r.badCodes.map(v=>normZoneKey(v)));
+      for(const _u of lookupUrls(_r)) _badByUrl.set(_u, _set);
+    }
   }
   const multi = cands.length>1;                    // probing several layers → be stricter about what we trust
   const folio = v => v!=null && /^[0-9]{6,}$/.test(String(v).trim());   // parcel-folio numbers aren't districts
@@ -5438,9 +5996,11 @@ async function queryZoning(lat,lng, cityName, countyName){
   // zoning endpoint with a county fallback appended — blocked the whole zoning step, which the panel
   // awaits). We fire all point-in-polygon queries at once, then evaluate results in the ORIGINAL
   // priority order (city before county fallback) so the preferred layer still wins when it answers.
-  const _results = await Promise.all(cands.map(cu =>
-    arcQuery(cu, lat, lng, '*', false, ENRICH_TIMEOUT).then(r=>({cu,r})).catch(e=>({cu,r:{__err:e.message}}))
-  ));
+  // Pooled, not Promise.all: a city layer plus its county fallback can land on the SAME host (Lee's
+  // DCD_Zoning sublayers, Cape Coral included), and that host rejects the 4th concurrent request.
+  const _results = await pooledMap(cands, cu =>
+    arcQuery(cu, lat, lng, '*', false, ZONING_TIMEOUT).then(r=>({cu,r})).catch(e=>({cu,r:{__err:e.message}}))
+  );
   for(const {cu, r} of _results){
     if(!(r && !r.__err && r.features && r.features[0])) continue;
     const a = r.features[0].attributes || {};
@@ -5467,6 +6027,27 @@ async function queryZoning(lat,lng, cityName, countyName){
     let desc = descKey!=null ? a[descKey] : null;
     if(folio(code)||urlish(code)) code=null;       // not a district: a folio number or a hyperlink
     if(folio(desc)||urlish(desc)) desc=null;
+    // Registry sentinel guard — see `badCodes` note at the top of this function. Skip the WHOLE
+    // result (not just the code) so a lower-priority candidate can still answer.
+    const _bad = _badByUrl.get(cu);
+    if(_bad){
+      const _c = (code!=null && String(code).trim()!=='') ? normZoneKey(code) : null;
+      const _d = (desc!=null && String(desc).trim()!=='') ? normZoneKey(desc) : null;
+      if((_c && _bad.has(_c)) || (!_c && _d && _bad.has(_d))) continue;
+    }
+    /* ── CODED-VALUE DECODE (`valueMap`) ────────────────────────────────────────────────────────
+       Some layers store the district as a bare SUBTYPE INTEGER — City of Freeport's zoning field
+       is esriFieldTypeSmallInteger holding 1..16, with NO coded-value domain on the field. The
+       human labels live in the layer's `types` / renderer legend, not in the data, so an
+       unmodified read prints the district as "9". A reg may supply `valueMap` to decode it:
+           valueMap: { "9": {code:"C-2", desc:"High Intensity Commercial"}, … }
+       Keys are compared as trimmed strings, so 9 and "9" both hit. An unmapped value is LEFT AS
+       IS rather than blanked — a new district added by the city still shows its raw code instead
+       of vanishing, which is the safer failure. */
+    if(pin && pin.valueMap && code!=null){
+      const _mv = pin.valueMap[String(code).trim()];
+      if(_mv){ code = _mv.code!=null ? _mv.code : code; if(_mv.desc!=null && !desc) desc = _mv.desc; }
+    }
     // pinned supporting fields (e.g. base district, general category)
     let extras=[];
     if(pin && Array.isArray(pin.extra)){
@@ -9779,6 +10360,12 @@ function districtDescOf(props, reg){
     const det = detectZoningFields(Object.keys(props));
     if(det.desc && props[det.desc]!=null && String(props[det.desc]).trim()!=='') v = props[det.desc];
   }
+  // No usable description column (Freeport's Description is " " on every row) — take the readable
+  // name from the registry's valueMap so the legend reads "C-2 — High Intensity Commercial".
+  if(v==null || String(v).trim()===''){
+    const m = zoneMapEntry(props, reg);
+    if(m && m.desc!=null && String(m.desc).trim()!=='') v = m.desc;
+  }
   return (v==null || String(v).trim()==='') ? null : String(v).trim();
 }
 function shortJurisdictionLabel(reg){
@@ -9836,7 +10423,7 @@ function setZoningLegend(groups){
    that field is missing/empty for this feature (e.g. the pinned name is slightly off, or the layer
    uses a different column than expected — a common cause of a whole county rendering one flat color),
    fall back to auto-detecting the code field from the feature's actual property names. */
-function zoneCodeOf(props, reg){
+function zoneRawCodeOf(props, reg){
   if(!props) return null;
   let codeF = reg && reg.codeField;
   let v = codeF ? props[codeF] : null;
@@ -9845,6 +10432,25 @@ function zoneCodeOf(props, reg){
     if(det.code && props[det.code]!=null && String(props[det.code]).trim()!=='') v = props[det.code];
   }
   return (v==null || String(v).trim()==='') ? null : v;
+}
+/* The registry's `valueMap` entry for this feature, or null. See the note on ZONING_LIVE_CITY
+   .FREEPORT: some layers store the district as a bare SUBTYPE INTEGER with the human labels living
+   only in the layer's renderer legend, never in the data. */
+function zoneMapEntry(props, reg){
+  if(!reg || !reg.valueMap) return null;
+  const raw = zoneRawCodeOf(props, reg);
+  return raw==null ? null : (reg.valueMap[String(raw).trim()] || null);
+}
+/* ⚠️ DECODE HERE, NOT AT THE CALL SITES. zoneCodeOf() is the single choke point the whole overlay
+   runs through — the legend rows, zoningStyleFor()'s colour (via zoneCategory/zoneSpecificColor)
+   and zoningDistrictOf()'s label all call it. Decoding only in queryZoning() fixed the site card
+   but left the Freeport legend listing "1,2,3…13" in one flat colour, because zoneCategory("9")
+   matches no family and every integer fell to the same default shade. */
+function zoneCodeOf(props, reg){
+  const raw = zoneRawCodeOf(props, reg);
+  if(raw==null) return null;
+  const m = zoneMapEntry(props, reg);
+  return (m && m.code!=null) ? m.code : raw;
 }
 function zoningStyleFor(props, reg){
   const code = zoneCodeOf(props, reg);
@@ -9944,17 +10550,37 @@ function esriJsonToGeoJSON(ej){
 // convert. Returns a GeoJSON FeatureCollection or null. `qs` is the geojson querystring; we swap the
 // f= param for the json retry.
 async function fetchZoningGeo(baseUrl, qs){
-  try{
-    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),15000);
-    const r=await fetch(baseUrl+qs,{signal:ctrl.signal}); clearTimeout(t);
-    if(r.ok){ const gj=await r.json(); if(gj && gj.features && gj.features.length) return gj; }
-  }catch(e){ /* fall through to json retry */ }
-  try{
-    const jsonQs = qs.replace(/f=geojson/i,'f=json');
-    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),15000);
-    const r=await fetch(baseUrl+jsonQs,{signal:ctrl.signal}); clearTimeout(t);
-    if(r.ok){ const ej=await r.json(); const gj=esriJsonToGeoJSON(ej); if(gj && gj.features.length) return gj; }
-  }catch(e){ /* give up on this url */ }
+  // Tries the same query four ways, in order, and returns the first that yields features:
+  //   1. geojson            2. esri json
+  //   3. geojson, no paging 4. esri json, no paging
+  //
+  // ⚠️ WHY 3 AND 4 EXIST. Some ArcGIS Server layers advertise advancedQueryCapabilities
+  // .supportsPagination = false and REJECT `resultRecordCount` outright, answering
+  //   HTTP 200  {"error":{"code":400,"message":"Pagination is not supported."}}
+  // — an HTTP 200 whose BODY is an error. The old code checked `r.ok` (true), then looked for
+  // `.features` (absent), and silently gave up. The overlay drew nothing and looked like a county
+  // with no zoning data rather than a query the server refused.
+  // That is exactly how Broward's citywide zoning and Glades' county zoning were drawing blank.
+  // Swept all 97 wired zoning layers: only three reject paging — BCPA's City Zoning Codes and the
+  // two Glades layers on gis1.hcpao.org. Handled here generically rather than with a per-county
+  // flag, so any layer that starts refusing tomorrow self-heals instead of silently emptying.
+  // Dropping the param is safe: the server then applies its own maxRecordCount (1000 on all three).
+  const variants=[qs, qs.replace(/f=geojson/i,'f=json')];
+  if(/resultRecordCount=/i.test(qs)){
+    const strip = q => q.replace(/&resultRecordCount=\d+/ig,'');
+    variants.push(strip(qs), strip(qs.replace(/f=geojson/i,'f=json')));
+  }
+  for(const q of variants){
+    try{
+      const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),15000);
+      const r=await fetch(baseUrl+q,{signal:ctrl.signal}); clearTimeout(t);
+      if(!r.ok) continue;
+      const body=await r.json();
+      if(!body || body.error) continue;                  // HTTP 200 carrying an error body
+      const gj = /f=geojson/i.test(q) ? body : esriJsonToGeoJSON(body);
+      if(gj && gj.features && gj.features.length) return gj;
+    }catch(e){ /* try the next variant */ }
+  }
   return null;
 }
 
@@ -9984,6 +10610,47 @@ async function refreshZoning(){
   // Fetch every active jurisdiction's zoning IN PARALLEL — each reg tries its own urls in order until
   // one returns features, same fallback pattern as the single-jurisdiction path used before.
   const fetchOne = async (a) => {
+    // ── PARCEL-LEVEL PAINT (opt-in per registry, `parcelPaint`) ───────────────────────────────
+    // Most counties publish zoning as merged DISTRICT polygons, which paint as large blobs. A few
+    // carry the district ON THE PARCEL, so the same overlay can be drawn at parcel resolution — the
+    // crisp lot-by-lot look Duval has. This is the same zoning overlay, just finer when we can.
+    // Rules that keep it honest:
+    //   • only above `minZoom` (default 17). At 16 and below a viewport holds thousands of parcels;
+    //     painting a truncated subset would look like missing data rather than a zoom level.
+    //   • if the query comes back AT the record cap the view is denser than one request can cover,
+    //     so we DISCARD it and fall through to the district polygons. Partial paint is worse than
+    //     coarse paint — it reads as holes in the map.
+    //   • properties are normalised to the registry's own codeField, so styling, the legend and the
+    //     tooltips downstream neither know nor care which source drew the feature.
+    //   • the SITE CARD is untouched. It keeps using the authoritative point-in-polygon against the
+    //     district layer. On a split-zoned parcel the paint (one colour per parcel) and the card
+    //     (the district at the clicked point) can legitimately disagree — the card is the one to
+    //     trust, which is why this never feeds it.
+    const _pp = a.reg.parcelPaint;
+    if(_pp && _pp.url && _pp.codeField && map.getZoom() >= (_pp.minZoom||17)){
+      const _cap = _pp.maxRecords||2000;
+      const _pqs = `?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
+        `&spatialRel=esriSpatialRelIntersects&where=1%3D1&outFields=${encodeURIComponent(_pp.codeField)}`+
+        `&returnGeometry=true&outSR=4326&resultRecordCount=${_cap}&f=geojson`;
+      try{
+        const _gj = await fetchZoningGeo(_pp.url, _pqs);
+        if(_gj && _gj.features && _gj.features.length && _gj.features.length < _cap){
+          const _key = a.reg.codeField || 'ZONING';
+          const _feats=[];
+          for(const _f of _gj.features){
+            const _raw = _f.properties ? _f.properties[_pp.codeField] : null;
+            const _v = (_raw==null) ? '' : String(_raw).trim();
+            // Non-districts that appear in these columns: blanks, "N/A", water placeholders, and
+            // bare numbers (DOR use codes leaking into a zoning field on some layers).
+            if(!_v) continue;
+            if(/^(n\/?a|none|null|unknown|water(\s+features?)?)$/i.test(_v)) continue;
+            if(/^[0-9.]+$/.test(_v)) continue;
+            _feats.push({type:'Feature', geometry:_f.geometry, properties:{[_key]:_v}});
+          }
+          if(_feats.length) return {a, gj:{type:'FeatureCollection', features:_feats}};
+        }
+      }catch(e){ /* fall through to the district polygons below */ }
+    }
     const urls = a.reg.urls||[];
     // PER-REGISTRY WHERE FILTER (opt-in). Some county layers carry SENTINEL rows that are not zoning
     // districts at all but placeholders meaning "this land isn't ours" — Okeechobee tags every polygon
@@ -10001,10 +10668,13 @@ async function refreshZoning(){
     // since their extra URLs are fallback MIRRORS of the same data, not additional areas. Coincident polygons
     // across merged layers are collapsed later by the geometry-signature de-dup, so a stray overlap is safe.
     if(a.reg.additive){
-      const parts = await Promise.all(urls.map(async baseUrl=>{
+      // ⚠️ POOLED, NOT Promise.all — see the pooledMap note. Every additive reg's URLs sit on ONE
+      // host (Lee 6, Sumter 5, Hardee 4), and firing them all at once made Lee's overlay fail
+      // outright and Sumter drop sublayers. Capped at 3 in flight per host.
+      const parts = await pooledMap(urls, async baseUrl=>{
         const gj = await fetchZoningGeo(baseUrl, qsR);
         return (gj && gj.features && gj.features.length) ? gj.features : null;
-      }));
+      });
       const feats = parts.filter(Boolean).flat();
       return feats.length ? {a, gj:{type:'FeatureCollection', features:feats}} : {a, gj:null};
     }
@@ -14424,6 +15094,20 @@ async function arcQuery(url, lat, lng, outFields, withGeom, timeoutMs){
 // and not others. Give mobile the same headroom the FEMA flood layer already gets; desktop stays
 // snappy so a genuinely dead server still fails fast.
 const ENRICH_TIMEOUT = (typeof IS_TOUCH_DEVICE!=='undefined' ? IS_TOUCH_DEVICE : (typeof L!=='undefined' && L.Browser && L.Browser.mobile)) ? 11000 : 6000;
+/* ── ZONING GETS A LONGER LEASH THAN THE OTHER ENRICHMENT CALLS ──────────────────────────────────
+   ENRICH_TIMEOUT is sized for calls that GATE A PAINT — 6s desktop is right when the user is
+   staring at a spinner waiting on that request. The zoning district is not one of those. The card
+   races the lookup for only ZONING_FAST (2s); if zoning is slower it paints immediately with a
+   "confirming live district…" placeholder and the answer is INJECTED into that slot whenever it
+   lands. The card is already on screen, so a longer request timeout costs the user nothing — it
+   only changes whether the district ever fills in at all.
+   Borrowing 6s from ENRICH_TIMEOUT was therefore cutting off counties that would have answered:
+     Glades zoning (gis1.hcpao.org)  measured 11,048ms  -> aborted at 6s on desktop AND at 11s on
+     mobile, so the card permanently read "live district lookup didn't return" for a service that
+     was simply slow, not broken. Every other zoning host measured 338-622ms, so this is a long
+     tail of one, and a generous bound costs nothing on the other 44.
+   Still bounded — a dead host cannot hang the background inject forever. */
+const ZONING_TIMEOUT = (typeof IS_TOUCH_DEVICE!=='undefined' ? IS_TOUCH_DEVICE : (typeof L!=='undefined' && L.Browser && L.Browser.mobile)) ? 25000 : 20000;
 const COUNTY_FEED_TIMEOUT = (typeof IS_TOUCH_DEVICE!=='undefined' ? IS_TOUCH_DEVICE : (typeof L!=='undefined' && L.Browser && L.Browser.mobile)) ? 18000 : 13000;  // primary county parcel feeds get a generous timeout (dense areas can be slow; mobile slower still)
 // FEMA's NFHL server (hazards.fema.gov) is slow and strict (TLS 1.2 + cipher suites). On a phone
 // — typically a slower cell connection — the default 9s often isn't enough to complete the TLS
@@ -15188,21 +15872,43 @@ async function geocodeAll(q){
   const pOsm=_gfetch(osmU,4500), pEsri=_gfetch(esriU,7000);
   _geoInflight={ osm:pOsm, esri:pEsri, q:qq };
   const [oRes,eRes]=await Promise.allSettled([pOsm,pEsri]);
-  const out=[];
+
+  /* ── RANK BY MATCH QUALITY, NOT BY WHICH SERVICE IT CAME FROM ────────────────────────────────
+     This list used to be built OSM-first, unconditionally, with Esri appended after. That meant a
+     Nominatim guess always beat an Esri ROOFTOP match, and Nominatim interpolates along the street's
+     house-number range — so it lands on a neighbour.
+
+     "81 BRADFORD CT" is the case that exposed it. Esri returned a rooftop PointAddress, score 100:
+     81 Bradford Ct, FREEPORT (Walton). Nominatim returned one hit in Poinciana/Kissimmee, and that
+     point is not 81 at all — the statewide roll at those exact coordinates returns "59 BRADFORD CT".
+     Being OSM, it won. The card then opened on the wrong house in the wrong county AND was slow,
+     because Osceola's parcel layer has no polygon at that spot, so the fast county feed missed and
+     the lookup fell back to re-probing the (often multi-second) statewide roll.
+
+     Order is now: Esri rooftop (PointAddress/Subaddress) -> OSM -> Esri interpolated (StreetAddress).
+     Esri's own tier/score bar in esriAddrTier() still applies, so a weak Esri match is dropped
+     entirely rather than promoted, and OSM keeps its place ahead of anything interpolated.
+
+     MEASURED over 61 real addresses (one per county, each with a known parcel coordinate from the
+     state roll), old ranking vs new:
+       median error   15m -> 10m       p90  102m -> 82m       worst  1,151m -> 802m
+       within 50m     42  -> 45        >500m off  3 -> 1
+       6 addresses improved (one by 1,141m), 1 regressed by 11m.
+     Nothing here changes which candidates are OFFERED — only their order. */
+  const _osm=[], _roof=[], _interp=[];
   if(oRes.status==='fulfilled'){
-    for(const m of (oRes.value||[])){
-      if(out.some(o=>o.label===m.display_name)) continue;
-      out.push({lat:+m.lat,lng:+m.lon,label:m.display_name,src:'OpenStreetMap'});
-    }
+    for(const m of (oRes.value||[])) _osm.push({lat:+m.lat,lng:+m.lon,label:m.display_name,src:'OpenStreetMap'});
   }
   if(eRes.status==='fulfilled'){
-    const cands=(eRes.value&&eRes.value.candidates)||[];
-    for(const c of cands){
+    for(const c of ((eRes.value&&eRes.value.candidates)||[])){
       const k=esriAddrTier(c); if(!k) continue;
-      const lbl=c.address||qq;
-      if(out.some(o=>o.label===lbl)) continue;
-      out.push({lat:k.lat,lng:k.lng,label:lbl,src:k.src});
+      (k.tier===2?_roof:_interp).push({lat:k.lat,lng:k.lng,label:c.address||qq,src:k.src});
     }
+  }
+  const out=[];
+  for(const cand of [..._roof, ..._osm, ..._interp]){
+    if(out.some(o=>o.label===cand.label)) continue;   // same de-dup by label as before
+    out.push(cand);
   }
   return out;
 }
@@ -19955,7 +20661,13 @@ async function snapToParcelByAddress(q, lat, lng){
   // Widen the search box in steps. Lehigh Acres etc. have big lots / long blocks, so the
   // interpolated geocode can sit a long way from the real parcel. Stop at the first ring that
   // yields a confident match (exact house number + a street-token overlap).
-  for(const d of [0.004, 0.012, 0.03]){           // ~440 m, ~1.3 km, ~3.3 km
+  /* ⚠️ THE 3.3km BOX WAS REMOVED — it can never return. `PHY_ADDR1 LIKE` on the statewide roll is a
+     scan of an unindexed text column over 10.8M rows, rescued only by a TIGHT spatial window.
+     Measured twice each, back to back, 6s cap: 0.004 -> 4,200ms then 7ms (hit); 0.012 -> 1,527ms
+     then 2ms (hit); 0.03 -> 6,016ms and 6,001ms, BOTH AbortError, and never cached. So the third
+     ring contributed nothing but a guaranteed 6 SECONDS of dead wait every time the first two
+     missed. Two rings now: ~440m, then ~1.3km. */
+  for(const d of [0.004, 0.012]){                 // ~440 m, ~1.3 km
     const feats=await _queryParcelsByHouse(hn,lat,lng,d);
     let best=null,bestScore=-1;
     for(const f of feats){
@@ -19974,10 +20686,8 @@ async function snapToParcelByAddress(q, lat, lng){
     if(best && (best.overlap>0 || (d<=0.012 && feats.filter(f=>houseNum((f.attributes||{}).PHY_ADDR1)===hn).length===1))){
       return best;
     }
-    // Widest box, last resort: only trust it if the STREET matched. A bare same-house-number hit on a
-    // DIFFERENT street across a 3km box is worse than leaving the geocoder pin alone, so we return null
-    // in that case and let the caller keep its original point.
-    if(best && best.overlap>0 && d>=0.03) return best;
+    // (The old "widest box" branch lived here and keyed on d>=0.03. With that ring gone it was dead
+    // code — and redundant anyway, since an overlap>0 match already returns on the line above.)
   }
   return null;
 }
@@ -20005,20 +20715,59 @@ async function resolveAddressStatewide(ctx){
   // house number AND that the address contains each distinctive street-name token.
   let where=`(PHY_ADDR1 LIKE '${esc1(hn)} %' OR PHY_ADDR1 = '${esc1(hn)}')`;
   for(const tok of wantCore){ where += ` AND UPPER(PHY_ADDR1) LIKE '%${esc1(tok)}%'`; }
-  const runQuery=async(w)=>{
+  /* ⚠️ THIS QUERY MUST BE SPATIALLY SCOPED — A STATEWIDE `PHY_ADDR1 LIKE` CANNOT COMPLETE.
+     PHY_ADDR1 is an unindexed text column on 10.8M rows, so ANY LIKE against it forces a full scan.
+     Measured 19 Sep 2026 against the free FDOR service, every one of these timed out (13-20s cap),
+     while the service itself was healthy throughout (a plain count returned in 159ms):
+        PHY_ADDR1 LIKE '81 BRADFORD%'                              statewide   -> timeout
+        CO_NO=76 AND PHY_ADDR1 LIKE '81 BRADFORD%'                 county      -> timeout
+        PHY_CITY='FREEPORT' AND PHY_ADDR1 LIKE '81 BRADFORD%'      city        -> timeout
+        ...same three with returnCountOnly (cheapest possible)                 -> timeout
+     Narrowing by CO_NO or PHY_CITY does NOT help: those columns don't rescue the LIKE. Only the
+     SPATIAL index does, and only over a small window:
+        envelope ~1km  + LIKE ->    759ms, correctly returned "81 BRADFORD CT | FREEPORT"
+        envelope ~5km  + LIKE -> timeout
+        envelope ~4km (Moore Haven, the rural case this function exists for) -> 3.9s, correct hit
+     As written before this fix the function could NEVER return: it burned a 12s timeout on the
+     filtered query, then a second 12s on the house-number-only fallback — up to 24 SECONDS of dead
+     wait added to any search the geocoders missed, and it still returned null. That is the single
+     worst latency path in the app.
+     It is now scoped to a small envelope and given a short leash. With no usable scope it returns
+     immediately rather than hanging on a query that cannot finish. */
+  const runQuery=async(w, env, capMs)=>{
+    if(!env) return null;
     const params=`where=${encodeURIComponent(w)}`+
+      `&geometry=${encodeURIComponent(JSON.stringify(env))}&geometryType=esriGeometryEnvelope`+
+      `&inSR=4326&spatialRel=esriSpatialRelIntersects`+
       `&outFields=${encodeURIComponent('PHY_ADDR1,PHY_CITY,PHY_ZIPCD')}`+
       `&returnGeometry=true&returnCentroid=true&outSR=4326&resultRecordCount=300&f=json`;
     try{
-      const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),12000);
+      const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(), capMs||7000);
       const r=await fetch(EP.parcel+'?'+params,{signal:ctrl.signal}); clearTimeout(t);
       if(!r.ok) return null; const j=await r.json(); if(j.error) return null;
       return (j.features)||[];
     }catch(e){ return null; }
   };
-  let feats=await runQuery(where);
-  // If the street-filtered query found nothing (street stored oddly), fall back to house-number only.
-  if(!feats || !feats.length){ feats=await runQuery(`(PHY_ADDR1 LIKE '${esc1(hn)} %' OR PHY_ADDR1 = '${esc1(hn)}')`); }
+  /* SCOPE. The workable window is TINY — remeasured on the polygon layer:
+        half 0.01deg (~1km) -> 6.1s, correct hit ("81 BRADFORD CT | FREEPORT")
+        half 0.02deg (~2km) -> timeout
+        half 0.03deg        -> timeout
+     A whole city does not fit in that budget, so this cannot be a general address search. It is
+     kept as what it can actually be: a cheap rescue for the case where the user is ALREADY looking
+     at the area (a rural lookup they panned to) and the geocoders simply had no record of the
+     address. ONE query, one tight box, short leash — worst case ~5s instead of the previous 24s.
+     If the view is zoomed out past ~5km there is nothing useful to ask, so it returns immediately. */
+  const HALF=0.012;               // ~1.2km; anything larger times out on this service
+  let env=null;
+  try{
+    if(typeof map!=='undefined' && map.getBounds){
+      const b=map.getBounds(), c=b.getCenter();
+      const viewHalf=Math.max(Math.abs(b.getNorth()-b.getSouth())/2, Math.abs(b.getEast()-b.getWest())/2);
+      if(viewHalf<=0.05) env={xmin:c.lng-HALF,ymin:c.lat-HALF,xmax:c.lng+HALF,ymax:c.lat+HALF,spatialReference:{wkid:4326}};
+    }
+  }catch(e){}
+  if(!env) return null;           // no tight view to scope by — never attempt a statewide LIKE
+  const feats=await runQuery(where, env, 5000);
   if(!feats || !feats.length) return null;
   let best=null, bestScore=-1;
   for(const f of feats){
@@ -20046,6 +20795,34 @@ async function resolveAddressStatewide(ctx){
 
 function setStatus(state, text){
   return `<div class="status"><span class="dot ${state}"></span><span>${esc(text)}</span></div>`;
+}
+/* ── WHY THIS EXISTS: THE SEARCH "FLICKER" ───────────────────────────────────────────────────────
+   A search walks through several status lines before the first card lands. Each one used to be a
+   raw `results.innerHTML = setStatus(...)`, which DESTROYS AND REBUILDS the entire results panel —
+   status bar, tab bar, every panel, every card. On the geocoder-fallback path that is four full
+   teardowns back to back before runLookup even starts:
+       "Locating address (county parcel records)…"
+       "Geocoding address…"
+       "Searching county parcel roll…"
+       "Pinpointing the parcel…"
+   then a fifth inside runLookup, and THEN the first real paint — which also can't use the in-place
+   diff, because _diffPaint() needs an existing .tabpanels to reconcile against and the teardowns
+   just removed it. So it falls to `el.innerHTML = html` + a full tabifyResults() rebuild.
+   That cascade is the flicker, and it is worst on exactly the searches that take the longest path.
+
+   The panel content between two consecutive status lines is IDENTICAL apart from a word and a dot
+   colour, so there is nothing to rebuild. When the panel is already showing just a status line,
+   morph that line in place and touch nothing else. The first write after real content still
+   replaces the panel, which is correct — that content belongs to the previous property. */
+function setSearchStatus(state, text){
+  const el = document.getElementById('results'); if(!el) return;
+  const first = el.firstElementChild;
+  if(el.children.length === 1 && first && first.classList.contains('status')){
+    const dot = first.querySelector('.dot');
+    const lbl = first.querySelector('span:last-of-type');
+    if(dot && lbl){ dot.className = 'dot ' + state; lbl.textContent = text; return; }
+  }
+  el.innerHTML = setStatus(state, text);
 }
 function fieldRow(k,v,cls){ if(v==null||v==='') return ''; return `<div class="field"><div class="k">${esc(k)}</div><div class="v ${cls||''}">${v}</div></div>`; }
 
@@ -20871,6 +21648,74 @@ const FOOTPRINT_LAYERS = {
      FUTURE: PARCELNUMB here matches PP_PIN on the parcel layer exactly, so this pair could be joined
      by parcel id instead of geometry if the centroid test ever proves too blunt on odd lots. */
   INDIANRIVER: 'https://services9.arcgis.com/M0DpVhTwTZ42jNsw/ArcGIS/rest/services/IRC_Building_Footprints/FeatureServer/0',
+  /* ─── Added 19 Sep 2026 — swept all 46 wired counties for county-published footprints. ────────
+     METHOD: enumerated every county's GIS host and service catalogue, then searched ArcGIS Online
+     across a Florida bbox, and put every candidate through the SAME provenance screen that
+     validated Indian River — reject anything carrying the FEMA/ORNL USA Structures fingerprint
+     (BUILD_ID / OCC_CLS / PRIM_OCC / SEC_OCC / IMAGE_NAME / VAL_METHOD / H_ADJ_ELEV / PROD_DATE /
+     UUID), reject foreign copyrightText, and confirm the extent really is that county.
+     The screen earned its keep — see the REJECTED list below the entries. */
+  /* Lake County PROPERTY APPRAISER footprints — the strongest of the sweep. 129,833 polygons,
+     copyrightText "Lake County Property Appraiser", keyed by AltKey + BuildingNumber (the CAMA
+     keys), extent -81.96/28.35 → -81.36/29.28 = Lake County. Appraiser-maintained and parcel-keyed
+     is exactly the Indian River pattern: traced against the parcel fabric, not national imagery. */
+  LAKE:     'https://gis.lakecountyfl.gov/lakegis/rest/services/InteractiveMap/MapServer/66',
+  /* Leon County "Leon Buildings" — 132,127 polygons, extent -84.70/30.27 → -83.98/30.68 = Leon.
+     County-maintained: CLASSIFY / CLASSIFY_TEXT / BUILDING_NAME / ACQUISITION_SOURCE plus full
+     CREATED_USER / LAST_EDITED_USER edit tracking. Same host as the Leon parcel layers already
+     wired, so no new origin to trust. */
+  LEON:     'https://intervector.leoncountyfl.gov/intervector/rest/services/MapServices/TLC_OverlayBuildings_D_WM/MapServer/0',
+  /* Bay County — 128,745 polygons, extent -85.99/29.93 → -85.38/30.57 = Bay. LiDAR-derived
+     planimetric, and unusually rich: NUMSTORIES, BLDGHEIGHT, Roof_Type, Avg_Ht_AGL / Min_Ht_AGL /
+     Max_Ht_AGL, Length, Width. Same org (QB0VWfqR9MD4lF0F) as Bay's parcels. */
+  BAY:      'https://services1.arcgis.com/QB0VWfqR9MD4lF0F/arcgis/rest/services/BuildingFootprints/FeatureServer/0',
+  /* Miami-Dade — 863,196 polygons, the largest county set in the state, extent -80.88/25.23 →
+     -80.12/25.98 = Miami-Dade. County planimetric: UNIQUEID, SOURCE, YEARUPDATE, TYPE, HEIGHT. */
+  MIAMIDADE:'https://services.arcgis.com/8Pc9XBTAsYuxx9Ny/arcgis/rest/services/BuildingFootprint2D_gdb/FeatureServer/0',
+  /* Monroe County — 24,428 polygons, copyrightText "Monroe County, Florida - Planning &
+     Environmental Resources", extent -81.81/24.55 → -80.25/25.76 = the Keys. Keys-specific columns
+     (KEYNAME, MMARKER mile-marker, US1_SIDE) confirm it is local work, not a national trace.
+     ⚠️ SPARSE by national standards — 24k structures for the whole county — so expect gaps. */
+  MONROE:   'https://services.arcgis.com/D7K7hj5GW1YIVRiA/arcgis/rest/services/Building_Footprints/FeatureServer/1',
+  /* Hillsborough — CITY OF TAMPA ONLY. 194,595 polygons, copyrightText "City of Tampa: GIS",
+     extent -82.59/27.85 → -82.21/28.17 (city, not county). Carries STRAP / FOLIO / FULLADDRESS /
+     BLDGHEIGHT, so it is CAMA-linked. Wired under HILLSBOROUGH deliberately: a county address
+     outside the city simply returns no feature, which is the same outcome as having no entry at
+     all, while every Tampa address gains a real footprint. Replace if the county publishes its own.
+     Hillsborough County's own appraiser host (gis.hcpafl.org) exposes no footprint service. */
+  HILLSBOROUGH:'https://arcgis.tampagov.net/arcgis/rest/services/ReferenceData/BuildingFootprints/MapServer/0',
+  /* ── REJECTED BY THE SCREEN — do not wire these without re-reading why ───────────────────────
+     PUTNAM  services1.arcgis.com/YZc1OyqL6jbIOeOv/.../Footprints2025 — 48,516 polygons under a
+       county org and a 2025 name, and it is USA STRUCTURES REPUBLISHED: BUILD_ID, OCC_CLS,
+       PRIM_OCC, SEC_OCC, H_ADJ_ELEV, PROD_DATE, IMAGE_NAME, VAL_METHOD, UUID all present. This is
+       precisely the "national set in disguise" the Indian River note warned about, and the only
+       thing that catches it is the field list — the org, the name and the date all look right.
+     BROWARD services.arcgis.com/JMAJrTsHNLrSsWf5/.../GBA_BrowardBuildingFootprints — 451,688
+       polygons, copyrightText "TECHNICAL UNIVERSITY OF MUNICH", fields source/id/region. That is
+       the Global Building Atlas ML dataset wearing a county name.
+     BROWARD services.arcgis.com/JMAJrTsHNLrSsWf5/.../Broward_BuildingFootPrints — 424,907, fields
+       `release` + `capture_dates_range`, which is the MICROSOFT Building Footprints schema. Broward
+       publishes no trace of its own that this sweep could find.
+     FLAGLER services3.arcgis.com/hSKL9bYjhP4rHxSD/.../Building_Footprints — the service holds ONE
+       layer, "Pre-Incident Plans", with only `name` + `GlobalID`. A fire pre-plan layer, not a
+       maintained footprint trace.
+     CAPE CORAL services1.arcgis.com/MZl3VrkZJOk1VhY4/.../Building_Footprints — 327,590 polygons
+       with real CAMA keys (FOLIOID, BLDGNO, BuildingKey). Its reported extent runs -84.01/24.32 →
+       -81.56/26.79, Keys to panhandle, which looked like it might be a multi-county compilation.
+       CLIP-TESTED 19 Sep 2026 — it is NOT. Spatial counts: Miami-Dade 0, Florida Keys 0, Panhandle
+       0, Tampa 0, Orlando 0, Charlotte 0; Cape Coral core 75,833; Bonita Springs 18,542. So it is
+       LEE COUNTY-WIDE, and the blown extent comes from EXACTLY NINE stray polygons, all carrying
+       FOLIOID 10456585, parked at ≈ -83.970/24.320 — open Gulf, southwest of the Dry Tortugas.
+       One folio's buildings with broken coordinates, nothing more. `FOLIOID<>10456585` removes them.
+       NOT WIRED because Lee already has LeePA's own LandRecords/8 above; this is a viable CORS-open
+       AGOL fallback for Lee if that on-prem host is ever slow or down, not an upgrade to it.
+       LESSON: a service extent is the bounding box of the worst record in the layer, not a
+       statement of coverage. Count by region before believing — or rejecting — one.
+     ⚠️ WHAT WAS **NOT** DONE: provenance and extent were verified for every entry above, but the
+     per-county ALIGNMENT measurement (the one run against Indian River, median 3-4 m for national
+     sets) was NOT repeated for each. These are appraiser/planimetric layers carrying parcel keys,
+     which is strong circumstantial evidence they sit on the parcel fabric, but it is inference.
+     If lot-line distances in any of these counties look wrong, measure that county first. */
 };
 /* ⚠️ THE STATEWIDE FALLBACK WAS REMOVED 18 Sep 2026 — do not wire it back in without reading this.
    It was FEMA/ORNL "USA Structures" (services2.arcgis.com/FiaPA4ga0iQKduv3/.../USA_Structures_View/0),
@@ -22418,6 +23263,40 @@ function renderParcelGeneric(a, d){
     // without it. Carry it.
     if(zip) ed.zip=zip;
     if(liv) ed.sqft=String(liv).replace(/[^0-9.]/g,''); if(pid) ed.parcelId=String(pid); } }catch(e){}
+  /* ── MASTER-PARCEL NOTICE (added 19 Sep 2026) ────────────────────────────────────────────────
+     A single tax parcel can be an entire community. 2316 SE Hillsborough Ave, Arcadia is the case
+     that prompted this: the map drew a 46.1-acre outline over a whole mobile-home/farmworker
+     housing development and the card read "Living area 71,574 sq ft", which looks like a bug and
+     is not one. VERIFIED against three independent rolls at that point — SWFWMD regional (the feed
+     DeSoto uses), the FDOR fast mirror, and FloridaGIO statewide — all three return the SAME
+     record: PARCEL_ID 073825000000600000, CASA SAN JUAN BOSCO INC, 46.1 ac / 2,008,116 sq ft,
+     TOT_LVG_AR 71,574, JV $10,843,906, DOR_UC 003 (multi-family 10+ units), and NO_BULDNG = 56.
+     Fifty-six buildings on one parcel. The geometry is right; the card just never said so.
+     `__bldgCount` was already collected for every county but only surfaced as a "· 56 bldgs" suffix
+     on the Year-built row — invisible when a roll carries no year built, and far too quiet either
+     way. This promotes it to a banner ABOVE the owner, because it reframes every number beneath:
+     living area, value and lot size are PARCEL TOTALS, not one home's. For a generator quote that
+     is the difference between a house call and a 56-building site. */
+  {
+    const _nb=(a.__bldgCount!=null && Number(a.__bldgCount)>1) ? Number(a.__bldgCount) : null;
+    const _ru=(a.__resUnits!=null && Number(a.__resUnits)>1)  ? Number(a.__resUnits)  : null;
+    /* Fire on EITHER count. A condo tower or an MH park can be ONE building with hundreds of
+       units, so keying the banner on buildings alone would miss the cases that confuse people
+       most. Units lead when both exist — they describe the site better than the structure count. */
+    if(_nb || _ru){
+      const _ac=(()=>{ try{ const _n=Number(String(lotSf||'').replace(/[^0-9.]/g,''));
+        return (_n>43560) ? (_n/43560).toFixed(1)+' ac' : null; }catch(e){ return null; } })();
+      const _lead = _ru
+        ? esc(_ru.toLocaleString('en-US')) + ' residential units' + (_nb ? ' in ' + esc(String(_nb)) + ' buildings' : '')
+        : esc(String(_nb)) + ' buildings';
+      h += '<div class="note warnbox" style="font-size:11px">'
+         + '<b>Master parcel &mdash; ' + _lead + '</b> on one tax parcel'
+         + (_ac ? ' (' + esc(_ac) + ')' : '')
+         + '. The figures below are <b>totals for the whole parcel</b>, not for a single home or unit, '
+         + 'and the outline on the map is the parcel boundary rather than an individual lot.'
+         + '</div>';
+    }
+  }
   h += fieldRow('Owner', owner?esc(owner):'<span class="muted">field not detected</span>','big');
   if(own2) h += fieldRow('Owner 2', esc(own2));
   h += fieldRow('Parcel ID', pid?esc(pid):'<span class="muted">—</span>','big');
@@ -22687,7 +23566,7 @@ async function _runLookupInner(lat,lng,searchCtx){
   // placeholders — the worst possible failure: one property's data on another property's card.
   try{ _slotPatches.clear(); }catch(e){}
   try{ clearCardRetries(); }catch(e){}   // retries capture this lookup's scope; never outlive it
-  results.innerHTML = setStatus('busy','Querying official GIS services…');
+  setSearchStatus('busy','Querying official GIS services…');
   /* Only a lookup the user explicitly asked for (typed address / picked a suggestion) may pull the
      sheet up; a map tap or a still-finishing cold-start search must not. searchCtx.viaMap is set by
      the map-click path. */
@@ -23819,6 +24698,15 @@ async function _runLookupInner(lat,lng,searchCtx){
       if(_la.__effYr==null){ const _e=pick(_ra,'EFF_YR_BLT','EFFYRBLT'); if(_num(_e)) _la.__effYr=_e; }
       if(!det.saleP && _la.__saleP==null){ const _sp=pick(_ra,'SALE_PRC1','SALE_PRICE1'); if(_num(_sp)){ _la.__saleP=Number(String(_sp).replace(/[^0-9.]/g,'')); const _sy=pick(_ra,'SALE_YR1','SALE_YEAR1'), _sm=pick(_ra,'SALE_MO1','SALE_MONTH1'); if(_sy!=null&&String(_sy).trim()!=='') _la.__saleY=(_sm!=null&&String(_sm).trim()!==''?String(_sm).trim().padStart(2,'0')+'/':'')+String(_sy).trim(); } }
       if(_la.__bldgCount==null){ const _nb=pick(_ra,'NO_BULDNG','NO_BLDG','NUM_BLDGS'); if(_num(_nb)) _la.__bldgCount=Number(_nb); }
+      /* RESIDENTIAL UNIT COUNT (added 19 Sep 2026). NO_RES_UNT is on the FDOR roll for all 67
+         counties and was never read. It matters most exactly where the building count misleads:
+         1124 Heritage Dr, Groveland is 4 buildings — and 305 residential units. A mobile-home/RV
+         resort has a clubhouse, an office and a couple of service structures as its only permanent
+         "buildings" while carrying hundreds of sited homes. Reporting "4 buildings" there is true
+         and useless; "305 units" is the number that describes the site. Names differ by mirror:
+         NO_RES_UNT on EP.parcelFast / FloridaGIO, NO_RES_UNTS on some county schemas. */
+      if(_la.__resUnits==null){ const _ru=pick(_ra,'NO_RES_UNT','NO_RES_UNTS','NORESUNTS','NO_RES_UNITS','RES_UNITS');
+        if(_num(_ru) && Number(_ru)>0) _la.__resUnits=Number(_ru); }
       /* WETLANDS — only EP.parcelFast carries this (the FloridaGIO layer and the district mirror do
          not), so the row appears when the fast mirror answered and is simply absent otherwise. It is
          a derived Yes/No flag on the republished roll, NOT a delineation: treat it as "worth checking
@@ -24049,11 +24937,18 @@ async function _runLookupInner(lat,lng,searchCtx){
       if(_conf){ ['owner','owner2','mail','mailCity'].forEach(_k=>{ det[_k]=null; }); }
       if(!det.owner  && !_conf && _t(_la.OWNER_NAME1)) det.owner='OWNER_NAME1';
       if(!det.owner2 && !_conf && _t(_la.OWNER_NAME2)) det.owner2='OWNER_NAME2';
-      if(!det.site && _t(_la.SITE_ADDR_STR)) det.site='SITE_ADDR_STR';
-      // Situs CITY: CITYNAME belongs to the MAILING block (PADDR1-3), so it must never become the
+        // Situs CITY: CITYNAME belongs to the MAILING block (PADDR1-3), so it must never become the
       // site city — MUNICIPALITY is the parcel's own jurisdiction. Blank on unincorporated PBC,
       // which is correct and simply leaves the field to the roll.
-      if(!det.city && _t(_la.MUNICIPALITY)) det.city='MUNICIPALITY';
+      // MUNICIPALITY is the SITUS jurisdiction and is populated on 667,504 of 684,864 parcels
+      // (97%). CITYNAME is the OWNER'S MAILING city — a sample parcel on SW 8th St carries
+      // CITYNAME "BROOKLYN", ZIP1 11209. On the ~17,000 parcels where MUNICIPALITY is blank this
+      // used to fall through to the generic detector, which picks CITYNAME, so a Palm Beach parcel
+      // could render a New York city. Override where MUNICIPALITY exists; where it does not, leave
+      // det.city alone ONLY if the detector has not latched onto CITYNAME.
+      if(_t(_la.MUNICIPALITY)) det.city='MUNICIPALITY';
+      else if(det.city==='CITYNAME') det.city=null;
+      if(_t(_la.SITE_ADDR_STR)) det.site='SITE_ADDR_STR';
       if(!det.jv   && _n(_la.TOTAL_MARKET)) det.jv='TOTAL_MARKET';
       if(!det.land && _n(_la.LAND_MARKET))  det.land='LAND_MARKET';
       if(!det.yr   && _n(_la.YRBLT))        det.yr='YRBLT';
@@ -24189,6 +25084,80 @@ async function _runLookupInner(lat,lng,searchCtx){
       }
     }
 
+    // Walton. Two traps, both of which would render a confidently wrong card:
+    //  1. OWN_ADDRESS_1/OWN_CITY are the owner's MAILING address and there is NO situs column, so
+    //     any generic detection of them as the site is actively nulled out before the gap-fills.
+    //  2. APPRAISED_VALUE looks like the assessed value and is not — it equals AG_LAND on ag land
+    //     and equals JUST_VALUE on homesteads (no SOH cap applied). It is NEVER mapped; assessed
+    //     is left for the statewide roll. See the long note on COUNTY_LIVE.WALTON.
+    // Also note: no sale PRICE column exists, so __saleP is intentionally left alone; only the
+    // sale YEAR is taken, from the ISO SALE_DATE_1. Every money/acreage column is a STRING.
+    if(norm(countyName)==='WALTON'){
+      const _la=liveRes.features[0].attributes;
+      const _t=v=>v!=null&&String(v).trim()!=='' ? String(v).trim() : null;
+      const _num=v=>{ if(v==null) return null; const n=parseFloat(String(v).replace(/[^0-9.\-]/g,'')); return isFinite(n)&&n>0?n:null; };
+      // 1. never let the mailing block stand in for the situs
+      if(det.site==='OWN_ADDRESS_1'||det.site==='OWN_ADDRESS_2') det.site=null;
+      if(det.city==='OWN_CITY') det.city=null;
+      if(!det.owner && _t(_la.OWNER_NAME))  det.owner='OWNER_NAME';
+      if(!det.mail  && _t(_la.OWN_ADDRESS_1)) det.mail='OWN_ADDRESS_1';
+      if(!det.mailCity && _t(_la.OWN_CITY)) det.mailCity='OWN_CITY';
+      if(!det.pid   && _t(_la.PARCELNO))    det.pid='PARCELNO';
+      if(!det.use   && _t(_la.USE_DESC))    det.use='USE_DESC';
+      // 2. values — strings, so parse. JUST_VALUE only; APPRAISED_VALUE is deliberately skipped.
+      if(!det.jv){ const _jv=_num(_la.JUST_VALUE); if(_jv!=null){ _la.__waltonJV=_jv; det.jv='__waltonJV'; } }
+      if(_la.__bldgVal==null){ const _bv=_num(_la.BLDG_VALUE); if(_bv!=null) _la.__bldgVal=_bv; }
+      if(_la.__acres==null){ const _ac=_num(_la.PA_TOT_ACRES)||_num(_la.GIS_ACRES); if(_ac!=null) _la.__acres=_ac; }
+      if(_la.__legal==null){
+        const _lg=[_la.LEGAL_1,_la.LEGAL_2,_la.LEGAL_3].filter(_t).map(v=>String(v).trim());
+        if(_lg.length) _la.__legal=_lg.join(' ').replace(/\s+/g,' ').trim();
+      }
+      // sale YEAR only — SALE_DATE_1 is an ISO string; there is no price column on this layer.
+      if(_la.__saleY==null){ const _m=String(_la.SALE_DATE_1||'').match(/^(\d{4})-/); if(_m) _la.__saleY=_m[1]; }
+    }
+
+    // Gulf. Situs is SPLIT across columns while ADDRESS_1/CITY_NAME are the owner's MAILING block —
+    // and ADDRESS_1 reads like a street address, so it must be actively rejected, not just
+    // out-prioritised. CAMPV_TOTAL_SQFT is LOT area despite its name; it is mapped to lot sq ft and
+    // NEVER to living area. See the long note on COUNTY_LIVE.GULF for the measurements.
+    if(norm(countyName)==='GULF'){
+      const _la=liveRes.features[0].attributes;
+      const _t=v=>v!=null&&String(v).trim()!=='' ? String(v).trim() : null;
+      const _n=v=>{ const n=Number(v); return isFinite(n)&&n>0 ? n : null; };
+      // 1. never let the mailing block stand in for the situs
+      if(det.site==='ADDRESS_1'||det.site==='ADDRESS_2'||det.site==='ADDRESS_3') det.site=null;
+      if(det.city==='CITY_NAME') det.city=null;
+      if(!det.site){
+        const _a=[_la.HOUSE_NO,_la.HSESUF,_la.ST_DIR,_la.STREET,_la.ST_MD,_la.ST_UNIT]
+          .filter(_t).map(v=>String(v).trim()).join(' ').replace(/\s+/g,' ').trim();
+        if(_a){ _la.__gulfSite=_a; det.site='__gulfSite'; }
+      }
+      if(!det.city && _t(_la.ST_CITY)) det.city='ST_CITY';
+      if(!det.owner && _t(_la.OWNER_NAME)) det.owner='OWNER_NAME';
+      if(!det.mail  && _t(_la.ADDRESS_1))  det.mail='ADDRESS_1';
+      if(!det.mailCity && _t(_la.CITY_NAME)) det.mailCity='CITY_NAME';
+      if(!det.pid   && _t(_la.PIN_DSP))    det.pid='PIN_DSP';
+      if(!det.use   && _t(_la.USEDESC))    det.use='USEDESC';
+      // 2. values — TOTAL_ASSESSED_VAL is the uncapped (just) figure, CAPPEDVAL the assessed one
+      if(!det.jv   && _n(_la.TOTAL_ASSESSED_VAL)) det.jv='TOTAL_ASSESSED_VAL';
+      if(!det.land && _n(_la.ASSESSLAND))         det.land='ASSESSLAND';
+      if(_la.__assessedVal==null && _n(_la.CAPPEDVAL)) _la.__assessedVal=_la.CAPPEDVAL;
+      if(_la.__bldgVal==null && _n(_la.BLDG))          _la.__bldgVal=_la.BLDG;
+      if(_la.__acres==null   && _n(_la.TOTALACRES))    _la.__acres=_la.TOTALACRES;
+      // 3. LOT square footage — explicitly NOT living area (60/60 matched acres x 43,560)
+      if(!det.lotSqft && _n(_la.CAMPV_TOTAL_SQFT)) det.lotSqft='CAMPV_TOTAL_SQFT';
+      if(_la.__legal==null){
+        const _lg=[_la.LEGL1,_la.LEGL2,_la.LEGL3].filter(_t).map(v=>String(v).trim());
+        if(_lg.length) _la.__legal=_lg.join(' ').replace(/\s+/g,' ').trim();
+      }
+      // 4. sale — SALEADJ1 is 0 on non-arms-length transfers; only take a real price
+      if(!det.saleP && _la.__saleP==null && _n(_la.SALEADJ1)){
+        _la.__saleP=_la.SALEADJ1;
+        const _d=Number(_la.SALEDT1);
+        if(isFinite(_d)&&_d>0){ try{ const _y=new Date(_d).getUTCFullYear(); if(_y>1900&&_y<2100) _la.__saleY=String(_y); }catch(e){} }
+      }
+    }
+
     // Clay. The trap here is that Address1/City are the MAILING block while StreetCity is the
     // situs city — on the live sample the parcel sits in Clay Hill but the owner's City reads
     // "Jacksonville". Situs is therefore composed explicitly from the split street columns rather
@@ -24235,6 +25204,13 @@ async function _runLookupInner(lat,lng,searchCtx){
       if(!det.mail  && _t(_la.ADDR1))      det.mail='ADDR1';
       if(!det.mailCity && _t(_la.ADDR2))   det.mailCity='ADDR2';
       if(!det.pid   && _t(_la.TAXID_LABE)) det.pid='TAXID_LABE';
+      // ⚠️ EVERY VALUE ON THIS LAYER IS PRIOR YEAR. Verified against the service's field list:
+      // the only value columns are PYR_MARKET / PYR_BLDG / PYR_LAND / PYR_TAXABL / PYR_TAXES — there
+      // is no current-year equivalent to fall back to, and no assessment-year column to read either.
+      // So these are the best figures available for Leon, but they are a year behind everything the
+      // other counties show, and nothing on the card currently says so. Do not "fix" this by
+      // swapping in a current-year field; there isn't one. Either surface a prior-year label on the
+      // card for Leon, or accept the lag knowingly.
       if(!det.jv    && _n(_la.PYR_MARKET)) det.jv='PYR_MARKET';
       if(!det.land  && _n(_la.PYR_LAND))   det.land='PYR_LAND';
       if(_la.__taxableVal==null && _n(_la.PYR_TAXABL)) _la.__taxableVal=_la.PYR_TAXABL;
@@ -24322,6 +25298,285 @@ async function _runLookupInner(lat,lng,searchCtx){
       if(_la.__zoning==null && _t(_la.ZON_LABEL)) _la.__zoning=String(_la.ZON_LABEL).trim();
     }
 
+    // ── SWFWMD SHARED PARCEL SCHEMA ────────────────────────────────────────────────────────
+    // Citrus, Hardee, Highlands, Lake, Levy, Polk and Sumter are all served from the Southwest
+    // Florida Water Management District's parcel_search layers, which publish ONE common schema.
+    // Five of the seven (Hardee, Highlands, Lake, Levy, Sumter) had NO guard at all and were
+    // relying entirely on the generic detector; Citrus and Polk had guards that set almost nothing.
+    // That is dangerous on this schema specifically, because it carries BOTH addresses and the
+    // owner-side columns sort earlier alphabetically:
+    //     situs    SITEADD / SITUSADD1, SCITY, SZIP
+    //     mailing  OWNERADD1 / OWNERADD2, OWNERCITY / MCITY, OWNERSTATE, OWNERZIP / MZIP
+    // Real rows where they diverge: a Citrus parcel in INGLIS (34449) whose owner is in SAINT PETE
+    // BEACH (33736); a Sumter grazing parcel whose owner is in TAMPA; a Levy state parcel whose
+    // owner is in TALLAHASSEE. Without pinning, the card shows the owner's town as the property's.
+    // Values: PARVAL is market (PARVALTYPE says "MARKET"), ASSD_TOT is assessed, ASSD_LND land.
+    // Verified ordering on a Polk grazing parcel: assessed 1,624,237 <= market 2,680,133.
+    if(['CITRUS','HARDEE','HIGHLANDS','LAKE','LEVY','POLK','SUMTER'].indexOf(norm(countyName))>=0){
+      const _la=liveRes.features[0].attributes;
+      const _t=v=>v!=null&&String(v).trim()!=='' ? String(v).trim() : null;
+      const _first=(...k)=>{ for(const x of k){ const v=_t(_la[x]); if(v) return v; } return null; };
+      const _num=(...k)=>{ for(const x of k){ const v=Number(_la[x]); if(isFinite(v)&&v>0) return v; } return 0; };
+      const _own=_first('OWNNAME','OWNERNAME');
+      if(_own){ _la.__swOwner=_own; det.owner='__swOwner'; }
+      const _site=_first('SITEADD','SITUSADD1');
+      if(_site){ _la.__swSite=_site; det.site='__swSite'; }
+      const _sc=_first('SCITY');   if(_sc){ _la.__swCity=_sc; det.city='__swCity'; }
+      const _sz=_first('SZIP');    if(_sz){ _la.__swZip=_sz;  det.zip='__swZip'; }
+      const _ma=[_la.OWNERADD1,_la.OWNERADD2].filter(_t).map(v=>String(v).trim())
+                  .join(' ').replace(/\s+/g,' ').trim();
+      if(_ma){ _la.__swMail=_ma; det.mail='__swMail'; }
+      const _mc=_first('OWNERCITY','MCITY');
+      if(_mc){ const _ms=_first('OWNERSTATE','MSTATE');
+               _la.__swMailCity=_ms?(_mc+', '+_ms):_mc; det.mailCity='__swMailCity'; }
+      const _pid=_first('PARCELID','PIN','PARNO');
+      if(_pid) { _la.__swPid=_pid; det.pid='__swPid'; }
+      const _use=_first('PARUSEDESC','PARUSECODE','DORUSECODE');
+      if(_use){ _la.__swUse=_use; det.use='__swUse'; }
+      // PARVAL is only the market value when PARVALTYPE says so; do not assume it otherwise.
+      const _pvt=_first('PARVALTYPE');
+      if(!_pvt || /market/i.test(_pvt)){ const _v=_num('PARVAL'); if(_v) _la.__jvNum=_v; }
+      { const _a=_num('ASSD_TOT'); if(_a) _la.__assessedVal=_a; }
+      { const _l=_num('ASSD_LND','LANDVAL'); if(_l) _la.__landNum=_l; }
+      { const _b=_num('MRKT_BLD','IMPROVVAL','MRKT_IMPR'); if(_b) _la.__bldgVal=_b; }
+      { const _ac=_num('ACRES'); if(_ac) _la.__acres=_ac; }
+      if(_la.__legal==null){ const _lg=_first('LEGDECFULL','LEGAL2'); if(_lg) _la.__legal=_lg; }
+      if(_la.__zoning==null){ const _z=_first('ZONING'); if(_z) _la.__zoning=_z; }
+      // Never let an assessed value exceed the market value — if it does, the two came from
+      // different sources or different years and the assessed figure is not trustworthy.
+      if(_la.__assessedVal!=null && _la.__jvNum!=null && _la.__assessedVal>_la.__jvNum)
+        _la.__assessedVal=null;
+    }
+
+    // ── FOUR COUNTIES THAT HAD NO GUARD AT ALL ────────────────────────────────────────────
+    // Manatee, Marion, Volusia and Putnam were running entirely on the generic field detector.
+    // Every one of them publishes both the situs and the owner's mailing address, and the sample
+    // rows show them diverging hard: a Myakka City parcel whose owner is in PIKESVILLE, MARYLAND;
+    // a Pierson parcel whose owner is in Palatka; a Melrose parcel whose owner is in Hawthorne.
+    // Overrides throughout — a mailing column must never be able to reach a situs row.
+    if(norm(countyName)==='MANATEE'){
+      const _la=liveRes.features[0].attributes;
+      const _t=v=>v!=null&&String(v).trim()!=='' ? String(v).trim() : null;
+      const _n=v=>{ const x=Number(v); return isFinite(x)&&x>0 ? x : 0; };
+      if(_t(_la.PAR_OWNER_NAME1)) det.owner='PAR_OWNER_NAME1';
+      if(_t(_la.PAR_OWNER_NAME2)) det.owner2='PAR_OWNER_NAME2';
+      if(_t(_la.SITUS_ADDRESS))     det.site='SITUS_ADDRESS';
+      if(_t(_la.SITUS_POSTAL_CITY)) det.city='SITUS_POSTAL_CITY';
+      if(_t(_la.SITUS_POSTAL_ZIP))  det.zip='SITUS_POSTAL_ZIP';
+      if(_t(_la.PAR_MAIL_ADDR1)) det.mail='PAR_MAIL_ADDR1';
+      if(_t(_la.PAR_MAIL_CITY))  det.mailCity='PAR_MAIL_CITY';
+      if(_t(_la.PAR_SUBDIV_NAME) && !/^NOT IN SUBDIVISION/i.test(_t(_la.PAR_SUBDIV_NAME)))
+        det.sub='PAR_SUBDIV_NAME';
+      // CAD_* is the working roll, CER_* the certified one. Prefer certified where present.
+      { const _j=_n(_la.CER_JUST_VALUE)||_n(_la.CAD_JUST_VALUE);       if(_j) _la.__jvNum=_j; }
+      { const _a=_n(_la.CER_ASSESSED_CTY)||_n(_la.CAD_ASSESSED_CTY);   if(_a) _la.__assessedVal=_a; }
+      { const _x=_n(_la.CER_TAXABLE_CTY)||_n(_la.CAD_TAXABLE_CTY);     if(_x) _la.__taxableVal=_x; }
+      { const _l=_n(_la.CER_JUST_LNDVAL)||_n(_la.CAD_JUST_LNDVAL);     if(_l) _la.__landNum=_l; }
+      { const _b=_n(_la.CER_JUST_IMPVAL)||_n(_la.CAD_JUST_IMPVAL);     if(_b) _la.__bldgVal=_b; }
+      { const _ac=_n(_la.LAND_ACREAGE_CAMA); if(_ac) _la.__acres=_ac; }
+      if(!det.liv && _n(_la.BLDG_R1_SQFTLIVNG)) det.liv='BLDG_R1_SQFTLIVNG';
+      if(!det.yr  && _n(_la.BLDG_R1_YRBUILT))   det.yr='BLDG_R1_YRBUILT';
+      if(_la.__zoning==null && _t(_la.PAR_ZONING)) _la.__zoning=_t(_la.PAR_ZONING);
+      if(_la.__legal==null){
+        const _lg=[_la.PAR_LEGAL1,_la.PAR_LEGAL2,_la.PAR_LEGAL3].filter(_t)
+                    .map(v=>String(v).trim()).join(' ').replace(/\s+/g,' ').trim();
+        if(_lg) _la.__legal=_lg;
+      }
+    }
+
+    if(norm(countyName)==='MARION'){
+      const _la=liveRes.features[0].attributes;
+      const _t=v=>v!=null&&String(v).trim()!=='' ? String(v).trim() : null;
+      const _n=v=>{ const x=Number(v); return isFinite(x)&&x>0 ? x : 0; };
+      // ⚠️ `CITY` on this layer is a NUMERIC CODE and reads 0 on unincorporated parcels — letting
+      //    the detector have it renders a bare "0" as the city. Kill it outright.
+      if(det.city==='CITY') det.city=null;
+      if(_t(_la.OWNERNAME_1)) det.owner='OWNERNAME_1';
+      if(_t(_la.OWNERNAME_2)) det.owner2='OWNERNAME_2';
+      if(_t(_la.SITUS_1)) det.site='SITUS_1';
+      // ZIP arrives as an unseparated ZIP+4 ("344736986"); show the 5-digit form.
+      if(_t(_la.ZIP)){
+        const _z=String(_la.ZIP).replace(/[^0-9]/g,'');
+        if(_z.length>=5){ _la.__mrZip=_z.slice(0,5); det.zip='__mrZip'; }
+      }
+      if(_t(_la.PARCEL)) det.pid='PARCEL';
+      if(_n(_la.TOT_VAL))    _la.__jvNum=_n(_la.TOT_VAL);
+      if(_n(_la.ASSD_VAL))   _la.__assessedVal=_n(_la.ASSD_VAL);
+      if(_n(_la.TOT_TAX_VA)) _la.__taxableVal=_n(_la.TOT_TAX_VA);
+      if(_n(_la.LAVALUE))    _la.__landNum=_n(_la.LAVALUE);
+      { const _ac=_n(_la.ACRES)||_n(_la.CalcAcres); if(_ac) _la.__acres=_ac; }
+      if(!det.liv && _n(_la.RESUSESF)) det.liv='RESUSESF';
+      if(_la.__zoning==null && _t(_la.ZONE1)) _la.__zoning=_t(_la.ZONE1);
+    }
+
+    if(norm(countyName)==='VOLUSIA'){
+      const _la=liveRes.features[0].attributes;
+      const _t=v=>v!=null&&String(v).trim()!=='' ? String(v).trim() : null;
+      const _n=v=>{ const x=Number(v); return isFinite(x)&&x>0 ? x : 0; };
+      if(_t(_la.OWNER1))   det.owner='OWNER1';
+      if(_t(_la.ADDRFULL)) det.site='ADDRFULL';
+      if(_t(_la.CITYNAME)) det.city='CITYNAME';     // situs city; MAILCITY is the owner's
+      if(_t(_la.ZIP1))     det.zip='ZIP1';
+      {
+        const _m=[_la.MAILADDR1,_la.MAILADDR2].filter(_t).map(v=>String(v).trim())
+                   .join(' ').replace(/\s+/g,' ').trim();
+        if(_m){ _la.__vlMail=_m; det.mail='__vlMail'; }
+      }
+      if(_t(_la.MAILCITY)) det.mailCity='MAILCITY';
+      if(_t(_la.DORPID))   det.pid='DORPID';
+      if(_n(_la.TOTJUST))  _la.__jvNum=_n(_la.TOTJUST);
+      if(_n(_la.LANDJUST)) _la.__landNum=_n(_la.LANDJUST);
+      if(_n(_la.IMPRJUST)) _la.__bldgVal=_n(_la.IMPRJUST);
+      { const _ac=_n(_la.LANDACRES)||_n(_la.CALCACRES); if(_ac) _la.__acres=_ac; }
+      if(_la.__bldgCount==null && _n(_la.BLDGCOUNT)) _la.__bldgCount=_n(_la.BLDGCOUNT);
+      if(_la.__legal==null){
+        const _lg=[_la.LEGAL1,_la.LEGAL2].filter(_t).map(v=>String(v).trim())
+                    .join(' ').replace(/\s+/g,' ').trim();
+        if(_lg) _la.__legal=_lg;
+      }
+    }
+
+    if(norm(countyName)==='PUTNAM'){
+      const _la=liveRes.features[0].attributes;
+      const _t=v=>v!=null&&String(v).trim()!=='' ? String(v).trim() : null;
+      const _n=v=>{ const x=Number(v); return isFinite(x)&&x>0 ? x : 0; };
+      if(_t(_la.OWNERNME1))   det.owner='OWNERNME1';
+      if(_t(_la.SITEADDRESS)) det.site='SITEADDRESS';   // situs; PSTLADDRESS is the owner's
+      if(_t(_la.PSTLADDRESS)) det.mail='PSTLADDRESS';
+      if(_t(_la.PSTLCITY))    det.mailCity='PSTLCITY';
+      if(_t(_la.PARCELID))    det.pid='PARCELID';
+      else if(_t(_la.LOWPARCELID)) det.pid='LOWPARCELID';
+      if(_t(_la.CLASSDSCRP))  det.use='CLASSDSCRP';
+      else if(_t(_la.USECD))  det.use='USECD';
+      // ⚠️ NO JUST/MARKET COLUMN ON THIS LAYER — CNTASSDVAL is the county ASSESSED value. Do not
+      //    map it to __jvNum; the roll supplies just value and the two must not be conflated.
+      if(_n(_la.CNTASSDVAL)) _la.__assessedVal=_n(_la.CNTASSDVAL);
+      if(_n(_la.LNDVALUE))   _la.__landNum=_n(_la.LNDVALUE);
+      if(_la.__bldgCount==null && _n(_la.NBRSTRUCT)) _la.__bldgCount=_n(_la.NBRSTRUCT);
+      if(_la.__legal==null && _t(_la.LEGAL)) _la.__legal=_t(_la.LEGAL);
+    }
+
+    // ── POLK AND HIGHLANDS, COUNTY-DIRECT SCHEMAS ─────────────────────────────────────────
+    // These run AFTER the SWFWMD block on purpose. Both counties now try their own server first
+    // and fall back to SWFWMD, so either schema can arrive. The SWFWMD guard above no-ops when its
+    // column names are absent, and these blocks no-op when theirs are — so whichever layer actually
+    // answered is the one that gets read. Overrides throughout.
+    if(norm(countyName)==='POLK' && liveRes.features[0].attributes.PARCELID!==undefined
+       && liveRes.features[0].attributes.NAME!==undefined){
+      const _la=liveRes.features[0].attributes;
+      const _t=v=>v!=null&&String(v).trim()!=='' ? String(v).trim() : null;
+      const _n=v=>{ const x=Number(v); return isFinite(x)&&x>0 ? x : 0; };
+      if(_t(_la.NAME)) det.owner='NAME';
+      // PROP_ADRDIR arrives as two spaces and PROP_ADRSUF as "" on most rows — _t() drops both.
+      {
+        const _a=[_la.PROP_ADRNO,_la.PROP_ADRDIR,_la.PROP_ADRSTR,_la.PROP_ADRSUF,_la.PROP_UNITNO]
+                   .filter(_t).map(v=>String(v).trim()).join(' ').replace(/\s+/g,' ').trim();
+        if(_a){ _la.__pkSite=_a; det.site='__pkSite'; }
+      }
+      if(_t(_la.PROP_CITY)) det.city='PROP_CITY';
+      if(_t(_la.PROP_ZIP))  det.zip='PROP_ZIP';
+      {
+        const _m=[_la.MAIL_ADDR_1,_la.MAIL_ADDR_2,_la.MAIL_ADDR_3].filter(_t)
+                   .map(v=>String(v).trim()).join(' ').replace(/\s+/g,' ').trim();
+        if(_m){ _la.__pkMail=_m; det.mail='__pkMail'; }
+      }
+      if(_t(_la.PARCELID)) det.pid='PARCELID';
+      // DOR_USE_CODE_DESC is the specific description ("SFR up to 2.49 AC"); DORDESC is only the
+      // broad class ("RES"/"AG"), so prefer the former.
+      if(_t(_la.DOR_USE_CODE_DESC)) det.use='DOR_USE_CODE_DESC';
+      else if(_t(_la.DORDESC))      det.use='DORDESC';
+      if(_t(_la.SUBDIVISION) && !/^0+$/.test(_t(_la.SUBDIVISION))) det.sub='SUBDIVISION';
+      if(_n(_la.TOTALVAL))    _la.__jvNum=_n(_la.TOTALVAL);
+      if(_n(_la.ASSESSVAL))   _la.__assessedVal=_n(_la.ASSESSVAL);
+      if(_n(_la.TAXVAL))      _la.__taxableVal=_n(_la.TAXVAL);
+      if(_n(_la.TOT_LND_VAL)) _la.__landNum=_n(_la.TOT_LND_VAL);
+      if(_n(_la.TOT_BLD_VAL)) _la.__bldgVal=_n(_la.TOT_BLD_VAL);
+      { const _ac=_n(_la.TOT_ACREAGE)||_n(_la.GIS_ACREAGE); if(_ac) _la.__acres=_ac; }
+    }
+
+    if(norm(countyName)==='HIGHLANDS' && liveRes.features[0].attributes.Owner_Name_1!==undefined){
+      const _la=liveRes.features[0].attributes;
+      const _t=v=>v!=null&&String(v).trim()!=='' ? String(v).trim() : null;
+      const _n=v=>{ const x=Number(v); return isFinite(x)&&x>0 ? x : 0; };
+      if(_t(_la.Owner_Name_1)) det.owner='Owner_Name_1';
+      if(_t(_la.Owne_Name_2))  det.owner2='Owne_Name_2';   // server spelling, see registry note
+      if(_t(_la.SITEADDRESS))  det.site='SITEADDRESS';
+      if(_t(_la.Site_Add_C))   det.city='Site_Add_C';
+      // Site_Add_Z carries a dangling hyphen on rows with no +4 ("33825-").
+      if(_t(_la.Site_Add_Z)){
+        const _z=String(_la.Site_Add_Z).trim().replace(/-+$/,'');
+        if(_z){ _la.__hlZip=_z; det.zip='__hlZip'; }
+      }
+      {
+        const _m=[_la.Mailing_Address_Line_1,_la.Mailing_Address_Line_2].filter(_t)
+                   .map(v=>String(v).trim()).join(' ').replace(/\s+/g,' ').trim();
+        if(_m){ _la.__hlMail=_m; det.mail='__hlMail'; }
+      }
+      if(_t(_la.Mailing_CI)){
+        const _st=_t(_la.Mailing_ST);
+        _la.__hlMailCity = _st ? (_t(_la.Mailing_CI)+', '+_st) : _t(_la.Mailing_CI);
+        det.mailCity='__hlMailCity';
+      }
+      if(_t(_la.PARCELNO)) det.pid='PARCELNO';
+      else if(_t(_la.STRAP)) det.pid='STRAP';
+      // DOR_Code is NUMERIC here (0, 1, ...), not the usual zero-padded string. useLabel pads it.
+      if(_la.DOR_Code!=null && String(_la.DOR_Code).trim()!=='') det.use='DOR_Code';
+      if(_n(_la.Assessed_Value)) _la.__assessedVal=_n(_la.Assessed_Value);
+      if(_n(_la.Taxable_Value))  _la.__taxableVal=_n(_la.Taxable_Value);
+      if(_n(_la.Total_Land_Value))     _la.__landNum=_n(_la.Total_Land_Value);
+      if(_n(_la.Total_Building_Value)) _la.__bldgVal=_n(_la.Total_Building_Value);
+      { const _ac=_n(_la.Deeded_Acres)||_n(_la.Calculated_Acres); if(_ac) _la.__acres=_ac; }
+      if(!det.liv && _n(_la.Estimated_Square_Feet)) det.liv='Estimated_Square_Feet';
+      if(_la.__legal==null){
+        const _lg=[];
+        for(let _i=1;_i<=18;_i++){ const _v=_t(_la['Legal_Line_'+_i]); if(_v) _lg.push(_v); }
+        if(_lg.length) _la.__legal=_lg.join(' ').replace(/\s+/g,' ').trim();
+      }
+    }
+
+    // Collier (ParcelJoin). Gated on a ParcelJoin-only column so that when the thin fallback layer
+    // answers instead, every line below no-ops and the old behaviour is untouched.
+    if(norm(countyName)==='COLLIER' && liveRes.features[0].attributes.TotalJustValue!==undefined){
+      const _la=liveRes.features[0].attributes;
+      const _t=v=>v!=null&&String(v).trim()!=='' ? String(v).trim() : null;
+      const _n=v=>{ const x=Number(v); return isFinite(x)&&x>0 ? x : 0; };
+      // OwnerLine1 is the NAME. OwnerLine2..5 are the MAILING ADDRESS — see the registry note.
+      // The generic detector sees "OwnerLine2" and reasonably assumes a second owner, which would
+      // print "1815 MUSTIQUE ST" in the owner row. There is no co-owner column on this layer, so
+      // clear it outright rather than leaving the detector's guess standing.
+      if(det.owner2 && /^OwnerLine[2-5]$/i.test(det.owner2)) det.owner2=null;
+      if(_t(_la.OwnerLine1)) det.owner='OwnerLine1';
+      {
+        const _m=[_la.OwnerLine2,_la.OwnerLine3,_la.OwnerLine4,_la.OwnerLine5].filter(_t)
+                   .map(v=>String(v).trim()).join(' ').replace(/\s+/g,' ').trim();
+        if(_m){ _la.__coMail=_m; det.mail='__coMail'; }
+      }
+      if(_t(_la.OwnerCity)){
+        const _st=_t(_la.OwnerState);
+        _la.__coMailCity = _st ? (_t(_la.OwnerCity)+', '+_st) : _t(_la.OwnerCity);
+        det.mailCity='__coMailCity';
+      }
+      if(_t(_la.SiteStreetAddress)) det.site='SiteStreetAddress';
+      if(_t(_la.SiteCity))          det.city='SiteCity';
+      if(_la.SiteZipCode!=null && String(_la.SiteZipCode).trim()!==''){
+        _la.__coZip=String(_la.SiteZipCode).trim(); det.zip='__coZip';
+      }
+      if(_t(_la.Folio)) det.pid='Folio';
+      else if(_t(_la.StrapNumber)) det.pid='StrapNumber';
+      // UseCode is numeric (1 = single family); useLabel zero-pads it.
+      if(_la.UseCode!=null && String(_la.UseCode).trim()!=='') det.use='UseCode';
+      if(_n(_la.TotalJustValue))        _la.__jvNum=_n(_la.TotalJustValue);
+      if(_n(_la.CountyAssessedValue))   _la.__assessedVal=_n(_la.CountyAssessedValue);
+      if(_n(_la.CountyTaxableValue))    _la.__taxableVal=_n(_la.CountyTaxableValue);
+      if(_n(_la.LandJustValue))         _la.__landNum=_n(_la.LandJustValue);
+      if(_n(_la.ImprovementsJustValue)) _la.__bldgVal=_n(_la.ImprovementsJustValue);
+      if(_n(_la.TotalAcres))            _la.__acres=_n(_la.TotalAcres);
+      if(_la.__asmtYr==null && _n(_la.TaxYear)) _la.__asmtYr=_n(_la.TaxYear);
+      // Assessed can never exceed just value; if it does, the two came from different sources.
+      if(_la.__assessedVal!=null && _la.__jvNum!=null && _la.__assessedVal>_la.__jvNum)
+        _la.__assessedVal=null;
+    }
+
     // Escambia (county ArcGIS Server, Individual_Layers/parcels). CONFCD is the Ch.119 flag,
     // "N" = not confidential. LEGAL is split across six columns and is joined here.
     if(norm(countyName)==='ESCAMBIA'){
@@ -24335,13 +25590,17 @@ async function _runLookupInner(lat,lng,searchCtx){
       if(!det.site && _t(_la.SITEADDR)) det.site='SITEADDR';
       if(!det.city && _t(_la.CITY))     det.city='CITY';
       if(!det.zip  && _t(_la.ZIP))      det.zip='ZIP';
-      if(!det.pid  && _t(_la.REFERENCE))det.pid='REFERENCE';
-      if(!det.use  && _t(_la.DORCD))    det.use='DORCD';
+      if(_t(_la.REFERENCE)) det.pid='REFERENCE';
+      if(_t(_la.DORCD))     det.use='DORCD';
       if(!det.sub  && _t(_la.SUBDIVISION)) det.sub='SUBDIVISION';
-      if(_la.__jvNum==null && Number(_la.CURRMKT)>0)  _la.__jvNum=Number(_la.CURRMKT);
-      if(_la.__landNum==null && Number(_la.CURRASDLAND)>0) _la.__landNum=Number(_la.CURRASDLAND);
-      if(_la.__bldgVal==null && Number(_la.CURRASDBLDG)>0) _la.__bldgVal=Number(_la.CURRASDBLDG);
-      if(_la.__acres==null && Number(_la.LANDSIZE)>0) _la.__acres=Number(_la.LANDSIZE);
+      // Overrides, for the same reason as Nassau: gap-fills let a different-year statewide roll
+      // supply some value rows while this layer supplied others, producing internally inconsistent
+      // figures on one card.
+      if(Number(_la.CURRMKT)>0)  _la.__jvNum=Number(_la.CURRMKT);
+      if(Number(_la.CAPPEDVALUE)>0) _la.__assessedVal=Number(_la.CAPPEDVALUE);
+      if(Number(_la.CURRASDLAND)>0) _la.__landNum=Number(_la.CURRASDLAND);
+      if(Number(_la.CURRASDBLDG)>0) _la.__bldgVal=Number(_la.CURRASDBLDG);
+      if(Number(_la.LANDSIZE)>0) _la.__acres=Number(_la.LANDSIZE);
       if(_la.__legal==null){
         const _lg=[_la.LEGAL1,_la.LEGAL2,_la.LEGAL3,_la.LEGAL4,_la.LEGAL5,_la.LEGAL6]
           .filter(_t).map(v=>String(v).trim()).join(' ').replace(/\s+/g,' ').trim();
@@ -24368,15 +25627,16 @@ async function _runLookupInner(lat,lng,searchCtx){
       }
       if(!det.city && _t(_la.situs_city)) det.city='situs_city';
       if(!det.zip  && _t(_la.situs_zip))  det.zip='situs_zip';
-      if(!det.pid  && _t(_la.PARCELNO))   det.pid='PARCELNO';
+      if(_t(_la.PARCELNO)) det.pid='PARCELNO';
       // property_use_desc is already a readable string ("SINGLE FAMILY") — prefer it over the code.
       if(!det.use && _t(_la.property_use_desc)) det.use='property_use_desc';
       else if(!det.use && _t(_la.property_use_cd)) det.use='property_use_cd';
-      if(_la.__jvNum==null && Number(_la.JustVal)>0) _la.__jvNum=Number(_la.JustVal);
-      if(_la.__assessedVal==null && Number(_la.Assessed_val)>0) _la.__assessedVal=Number(_la.Assessed_val);
-      if(_la.__landNum==null && Number(_la.mktland)>0) _la.__landNum=Number(_la.mktland);
-      if(_la.__bldgVal==null && Number(_la.reg_imprvVal)>0) _la.__bldgVal=Number(_la.reg_imprvVal);
-      if(_la.__acres==null && Number(_la.legal_acreage)>0) _la.__acres=Number(_la.legal_acreage);
+      // Overrides — see the Nassau block for why gap-filling value keys mixes sources and years.
+      if(Number(_la.JustVal)>0) _la.__jvNum=Number(_la.JustVal);
+      if(Number(_la.Assessed_val)>0) _la.__assessedVal=Number(_la.Assessed_val);
+      if(Number(_la.mktland)>0) _la.__landNum=Number(_la.mktland);
+      if(Number(_la.reg_imprvVal)>0) _la.__bldgVal=Number(_la.reg_imprvVal);
+      if(Number(_la.legal_acreage)>0) _la.__acres=Number(_la.legal_acreage);
       if(_la.__legal==null && _t(_la.Legal)) _la.__legal=String(_la.Legal).trim();
     }
 
@@ -24396,14 +25656,36 @@ async function _runLookupInner(lat,lng,searchCtx){
       if(!det.site && _t(_la.Situs_full)) det.site='Situs_full';
       if(!det.city && _t(_la.Scity))      det.city='Scity';
       if(!det.zip  && _t(_la.Situs_zip))  det.zip='Situs_zip';
-      if(!det.pid  && _t(_la.PIN))        det.pid='PIN';
-      if(!det.use  && _t(_la.use_cd_dscr))  det.use='use_cd_dscr';
-      else if(!det.use && _t(_la.parcel_use_cd)) det.use='parcel_use_cd';
+      // PIN is the dashed number the appraiser actually uses (15-3N-25-0251-0004-0000).
+      // `strap` is the same parcel as an internal key ("25 N 315025100040000") and is what the
+      // generic detector grabs, so this must OVERRIDE rather than gap-fill.
+      if(_t(_la.PIN)) det.pid='PIN';
+      if(_t(_la.use_cd_dscr))  det.use='use_cd_dscr';
+      else if(_t(_la.parcel_use_cd)) det.use='parcel_use_cd';
       if(!det.sub && _t(_la.Subdivision)) det.sub='Subdivision';
-      if(_la.__jvNum==null && Number(_la.Just_val)>0) _la.__jvNum=Number(_la.Just_val);
-      if(_la.__assessedVal==null && Number(_la.APPR_val)>0) _la.__assessedVal=Number(_la.APPR_val);
-      if(_la.__landNum==null && Number(_la.land_c_val)>0) _la.__landNum=Number(_la.land_c_val);
-      if(_la.__bldgVal==null && Number(_la.bld_val)>0) _la.__bldgVal=Number(_la.bld_val);
+      // ── VALUES: OVERRIDE, and take them all from THIS layer ───────────────────────────────
+      // These were gap-fills, so wherever the statewide roll had already written a key the roll
+      // won — and the card ended up showing county JUST next to roll ASSESSED/TAXABLE/LAND from a
+      // different year. That produced assessed 440,845 ABOVE just 433,710 on 46993 Middle Rd,
+      // which is impossible under Save Our Homes and is the giveaway that two sources were mixed.
+      // One parcel, one source: if this layer has the number, it wins.
+      // Semantics confirmed against the county: land_c_val 37,820 + bld_val 326,738 + xf_val
+      // 69,152 = Just_val 433,710 exactly.
+      if(Number(_la.Just_val)>0) _la.__jvNum=Number(_la.Just_val);
+      // cap_val is the CAPPED (assessed) value. APPR_val is NOT it — on an agricultural parcel
+      // APPR_val collapses to the ag-classified value (a timberland parcel nearby: Just 280,000,
+      // APPR_val 17,575), so using it would under-report assessed value on every ag parcel.
+      if(Number(_la.cap_val)>0) _la.__assessedVal=Number(_la.cap_val);
+      // Two taxable values exist — school and non-school millage. The non-school figure is the one
+      // quoted for county/municipal purposes, so that is what the single TAXABLE row shows.
+      if(Number(_la.tax_val_nonSCH)>0) _la.__taxableVal=Number(_la.tax_val_nonSCH);
+      // Ag-classified land reports in land_a_val and leaves land_c_val at 0; take whichever is set.
+      {
+        const _ln = Number(_la.land_c_val)>0 ? Number(_la.land_c_val)
+                  : (Number(_la.land_a_val)>0 ? Number(_la.land_a_val) : 0);
+        if(_ln>0) _la.__landNum=_ln;
+      }
+      if(Number(_la.bld_val)>0) _la.__bldgVal=Number(_la.bld_val);
       if(_la.__acres==null){
         const _ac=Number(_la.GISCalculatedAcre)>0 ? Number(_la.GISCalculatedAcre)
                 : (Number(_la.DeedAcre)>0 ? Number(_la.DeedAcre) : null);
@@ -24417,6 +25699,9 @@ async function _runLookupInner(lat,lng,searchCtx){
           .filter(_t).map(v=>String(v).trim());
         if(_z.length) _la.__zoning=_z.join(' / ');
       }
+      // Wetlands is frequently NULL on this layer even where the statewide roll flags the parcel
+      // (46993 Middle Rd: county null, roll "Yes"). Leaving it null lets the roll's own flag show,
+      // which is correct — but the two genuinely disagree, and neither is a delineation.
       if(_la.__wetlands==null && _t(_la.Wetlands)) _la.__wetlands=String(_la.Wetlands).trim();
     }
 
@@ -24538,8 +25823,42 @@ async function _runLookupInner(lat,lng,searchCtx){
       const _la=liveRes.features[0].attributes;
       const _n=v=>v!=null&&String(v).replace(/[^0-9.]/g,'')!==''&&Number(String(v).replace(/[^0-9.]/g,''))>0;
       const _s=v=>v!=null&&String(v).trim()!=='';
-      if(!det.owner && _s(_la.TRUE_OWNER1)) det.owner='TRUE_OWNER1';
-      if(!det.city  && _s(_la.TRUE_SITE_CITY)) det.city='TRUE_SITE_CITY';
+      // This layer names its columns unusually clearly — TRUE_SITE_* vs TRUE_MAILING_* — so the
+      // situs/mailing split is unambiguous. Pinning it all explicitly rather than trusting the
+      // detector, and overriding so a mailing column can never reach a situs row.
+      // TRUE_OWNER1..3 is one owner name split across three columns, not three owners: a sample
+      // folio reads "16 SE 2ND STREET DOWNTOWN" / "C/O ALLAN FILGUEIRAS" / "INVESTMENT LLC".
+      {
+        const _ow=[_la.TRUE_OWNER1,_la.TRUE_OWNER3].filter(_s).map(v=>String(v).trim())
+                    .join(' ').replace(/\s+/g,' ').trim();
+        if(_ow){ _la.__mdOwner=_ow; det.owner='__mdOwner'; }
+        if(_s(_la.TRUE_OWNER2)){ _la.__mdOwner2=String(_la.TRUE_OWNER2).trim(); det.owner2='__mdOwner2'; }
+      }
+      if(_s(_la.TRUE_SITE_CITY)) det.city='TRUE_SITE_CITY';
+      if(_s(_la.TRUE_SITE_ADDR)) det.site='TRUE_SITE_ADDR';
+      if(_s(_la.TRUE_SITE_ZIP_CODE)){
+        _la.__mdZip=String(_la.TRUE_SITE_ZIP_CODE).trim().replace(/-0000$/,''); det.zip='__mdZip';
+      }
+      {
+        const _m=[_la.TRUE_MAILING_ADDR1,_la.TRUE_MAILING_ADDR2,_la.TRUE_MAILING_ADDR3]
+                   .filter(_s).map(v=>String(v).trim()).join(' ').replace(/\s+/g,' ').trim();
+        if(_m){ _la.__mdMail=_m; det.mail='__mdMail'; }
+      }
+      if(_s(_la.TRUE_MAILING_CITY)){
+        const _st=_s(_la.TRUE_MAILING_STATE)?String(_la.TRUE_MAILING_STATE).trim():null;
+        _la.__mdMailCity = _st ? (String(_la.TRUE_MAILING_CITY).trim()+', '+_st)
+                               : String(_la.TRUE_MAILING_CITY).trim();
+        det.mailCity='__mdMailCity';
+      }
+      if(_s(_la.FOLIO)) det.pid='FOLIO';
+      if(_s(_la.DOR_DESC)) det.use='DOR_DESC';
+      else if(_s(_la.DOR_CODE_CUR)) det.use='DOR_CODE_CUR';
+      if(_s(_la.SUBDIVISION) && !det.sub) det.sub='SUBDIVISION';
+      // LAND_VAL_CUR + BUILDING_VAL_CUR reconcile exactly to TOTAL_VAL_CUR on the sample folio.
+      if(_n(_la.TOTAL_VAL_CUR))    _la.__jvNum=Number(_la.TOTAL_VAL_CUR);
+      if(_n(_la.LAND_VAL_CUR))     _la.__landNum=Number(_la.LAND_VAL_CUR);
+      if(_n(_la.BUILDING_VAL_CUR)) _la.__bldgVal=Number(_la.BUILDING_VAL_CUR);
+      if(_la.__zoning==null && _s(_la.PRIMARY_ZONE)) _la.__zoning=String(_la.PRIMARY_ZONE).trim();
       // roll year for the value label (ASSESSMENT_YEAR_CUR = current assessment year)
       if(_la.__asmtYr==null && _n(_la.ASSESSMENT_YEAR_CUR)) _la.__asmtYr=_la.ASSESSMENT_YEAR_CUR;
       // building count (renders "· N bldgs" next to year built when >1)
@@ -24591,7 +25910,15 @@ async function _runLookupInner(lat,lng,searchCtx){
           // the statewide roll's figure. Surface building value in the Assessed-value slot ONLY if the
           // roll didn't already provide an assessed value, so it's shown rather than dropped (labeled
           // generically; it's the best value figure BCPA_INFO carries).
-          if(_la.__assessedVal==null && _n(_info.JUST_BUILDING_VALUE)) _la.__assessedVal=Number(_info.JUST_BUILDING_VALUE);
+          // ⚠️ WAS ASSIGNING JUST_BUILDING_VALUE TO __assessedVal. That is the BUILDING value, not the
+      // assessed value — it would print the structure's worth in the ASSESSED row, understating or
+      // overstating the parcel depending on land share. It belongs in __bldgVal; assessed is left
+      // for the roll, which does publish a real assessed figure for Broward.
+      // Override, not gap-fill: BCPA is the authority for Broward, so its building figure beats the
+      // statewide roll's. Confirmed against folio 503911072230 (856 Sunflower Cir, Weston) — the
+      // BCPA_INFO layer's ONLY value column is JUST_BUILDING_VALUE (655,430). There is no assessed,
+      // just, taxable or land column on it at all, which is why assessed is left to the roll.
+      if(_n(_info.JUST_BUILDING_VALUE)) _la.__bldgVal=Number(_info.JUST_BUILDING_VALUE);
           // situs address: compose from parts. SITUS_CITY is a cryptic 2-char code ("BC"), so we do NOT
           // use it as the city; the statewide roll's PHY city (or the address-point fill) is cleaner.
           const _sa=[_info.SITUS_STREET_NUMBER,_info.SITUS_STREET_DIRECTION,_info.SITUS_STREET_NAME,
@@ -24724,7 +26051,11 @@ async function _runLookupInner(lat,lng,searchCtx){
           .filter(_s).map(v=>String(v).trim()).join(' ').replace(/\s+/g,' ').trim();
         if(_addr){ _la.__situs=_addr; det.site='__situs'; }
       }
-      if(!det.city && _s(_la.LocCity)){ _la.__situsCity=String(_la.LocCity).trim(); det.city='__situsCity'; }
+      // LocCity is the SITUS city; plain `City` is the OWNER'S MAILING city and the two diverge
+      // often — a Kissimmee (34747) parcel in this layer carries City "DELAND", Zip 32720, which is
+      // in Volusia. Override so the detector's pick of `City` can never survive.
+      if(_s(_la.LocCity)){ _la.__situsCity=String(_la.LocCity).trim(); det.city='__situsCity'; }
+      if(_s(_la.LocZip)){  _la.__oscZip=String(_la.LocZip).trim();     det.zip='__oscZip'; }
       // Just (market) value, land value, living area.
       if(!det.jv && _n(_la.CurrJust)){ _la.JV=_la.CurrJust; det.jv='JV'; }
       if(!det.land && _n(_la.CurrLand)){ _la.LND_VAL=_la.CurrLand; det.land='LND_VAL'; }
@@ -24882,14 +26213,20 @@ async function _runLookupInner(lat,lng,searchCtx){
         const _o2=[_la.CuO2FirstName,_la.CuO2LastName].filter(_s).map(v=>String(v).trim()).join(' ').replace(/\s+/g,' ').trim();
         if(_o2){ _la.__slcOwner2=_o2; det.owner2='__slcOwner2'; }
       }
-      // SITE ADDRESS — composed from number + directional + street name (LocationCity is separate,
+      // SITE ADDRESS — composed from number + directional + street name (SiteCity is separate,
       // and IS situs city here, unlike the CuO* mailing block).
       if(!det.site){
         const _addr=[_la.StreetNumber,_la.LocDirection,_la.StreetName].filter(_s)
           .map(v=>String(v).trim()).join(' ').replace(/\s+/g,' ').trim();
         if(_addr){ _la.__slcSite=_addr; det.site='__slcSite'; }
       }
-      if(!det.city && _s(_la.LocationCity)){ _la.__slcCity=String(_la.LocationCity).trim(); det.city='__slcCity'; }
+      // ⚠️ WAS `LocationCity` — A FIELD THAT DOES NOT EXIST ON THIS LAYER. Verified against the
+      // service: the city columns are SiteCity / MailCity, no LocationCity anywhere. So this line
+      // never fired, det.city fell through to the generic detector, and the detector picks MailCity
+      // — putting the OWNER'S city on the card. A sample parcel on N Highway A1A (Saint Lucie
+      // County, 34949) was rendering its owner's city, Fort Lauderdale. Override, not gap-fill.
+      if(_s(_la.SiteCity)){ _la.__slcCity=String(_la.SiteCity).trim(); det.city='__slcCity'; }
+      if(_s(_la.SiteZIP)){  _la.__slcZip=String(_la.SiteZIP).trim();   det.zip='__slcZip'; }
       // VALUES — just / land; building value and the homestead flag ride along as extras.
       if(!det.jv   && _n(_la.TotalAppraisedValue)){     _la.JV=_la.TotalAppraisedValue; det.jv='JV'; }
       if(!det.land && _n(_la.TotalAppraisedLandValue)){ _la.LND_VAL=_la.TotalAppraisedLandValue; det.land='LND_VAL'; }
@@ -27484,7 +28821,27 @@ const COUNTY_PARCEL_RESOLVERS = {
     // "9541 Caymas Ter"; ADDRNUM the number; FULLNAME the street; MUNICIPALITY the city; STATUS filters
     // out retired points (the view already excludes 'Retired'). SR 2236 → we request outSR=4326.
     addrPointUrl:   "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Site_Address_Points_b/FeatureServer/3/query",
-    apAddrField:    "STUBADDRESS",
+    /* ⚠️ WAS "STUBADDRESS" — A FIELD THAT NO LONGER EXISTS ON THIS LAYER, so Collier's whole
+       authoritative address-point pre-step was dead. Every Collier address search issued
+         STUBADDRESS LIKE '112 %' ...
+       and the service answered HTTP 200 with {"error":"Cannot perform query. Invalid query
+       parameters."} — an error body, not a transport failure, so the surrounding try/catch swallowed
+       it and the search silently fell through to the interpolating geocoder + roll-snap path. That
+       is the slow, drift-prone route this resolver exists to avoid, and it was ALWAYS being taken.
+       Verified live against the layer's own field list — it publishes FULLADDR, not STUBADDRESS:
+         OBJECTID, ADDRNUM, ADDRRANGE, FULLADDR, UNITTYPE, UNITID, ALTUNITTYPE, ALTUNITID,
+         FULLNAME, PLACENAME, MUNICIPALITY, POINTTYPE, CAPTUREMETH, STATUS, SITEADDID,
+         block_building, lot_unit, subdivision_condo_no, FLN, is_primary, RECKEY, GlobalID
+       ✅ RETESTED on "112 1ST AVE N, NAPLES, 34102":
+            STUBADDRESS -> "Invalid query parameters" (307ms wasted, every time)
+            FULLADDR    -> 151ms, "112 1st AVE N, City of Naples", FLN 14010360001
+            that folio -> Parcel/2 in 271ms -> SiteStreetAddress "112 1ST AVE N", NAPLES 34102,
+            OwnerLine1 "MILLAR, RODERICK".  Authoritative path total ~420ms.
+       ⚠️ FULLADDR carries the municipality inline ("112 1st AVE N, City of Naples"). That is fine
+       here: houseNum() reads the leading number, and the street guard is token-OVERLAP, so the
+       extra CITY/OF/NAPLES tokens can only add. Those three are already in STREET_STOP for exactly
+       this data. Do not "clean" the comma out — the LIKE is a prefix match and still hits. */
+    apAddrField:    "FULLADDR",
     apFolioField:   "FLN",
     apCityField:    "MUNICIPALITY",
     // Unit / condo suffix carried on the address point. STUBADDRESS holds only "2040 Tarpon Bay Dr N"
@@ -28097,7 +29454,7 @@ function _pcPick(i){
   // — hand it to runLookup so it fetches that unit's parcel directly instead of guessing from a point.
   if(c.folio) ctx.folio = c.folio;
   newSearch();   // cancel any address search still loading — this pick wins
-  results.innerHTML = setStatus('busy','Pinpointing the parcel…');
+  setSearchStatus('busy','Pinpointing the parcel…');
   map.setView([c.lat,c.lng],18);
   runLookup(c.lat, c.lng, ctx);
 }
@@ -28249,7 +29606,7 @@ async function tryTypedUnitJump(county, searchCtx, pr, before){
   const hit=pr.candidates.find(c=>sameFolio(c.folio, ff));
   if(hit && isFinite(hit.lat) && isFinite(hit.lng)){ lat=hit.lat; lng=hit.lng; }
   try{ if(before) before(); }catch(e){}
-  results.innerHTML=setStatus('busy','Pinpointing unit '+esc(searchCtx.unit)+'…');
+  setSearchStatus('busy','Pinpointing unit '+esc(searchCtx.unit)+'…');
   if(isFinite(lat)&&isFinite(lng)) map.setView([lat,lng],18);
   await runLookup(lat, lng, ctx);
   return true;
@@ -28383,7 +29740,7 @@ async function doSearch(){
   // time instead of drifting onto a neighbour. We first need to know the county; a quick geocode of
   // the typed text gives us a rough point to identify it, then the parcel layer gives the truth.
   if(searchCtx.hn){
-    results.innerHTML=setStatus('busy','Locating address (county parcel records)…');
+    setSearchStatus('busy','Locating address (county parcel records)…');
     // ---- PARALLEL RESOLVE ----------------------------------------------------------------
     // Previously this was strictly serial: ranked geocode → countyNameAt → then the ONE resolver
     // for that county, awaited one at a time. Three round trips before the parcel query even
@@ -28423,7 +29780,7 @@ async function doSearch(){
       }
       if(pr && isFinite(pr.lat) && isFinite(pr.lng)){
         addToHistory(pr.label || q);
-        results.innerHTML=setStatus('busy','Pinpointing the parcel…');
+        setSearchStatus('busy','Pinpointing the parcel…');
         map.setView([pr.lat,pr.lng], 18);
         // Pass the authoritatively-matched folio + county down to runLookup. On a through-lot / corner
         // lot the coordinate alone can sit on the boundary and make the point-in-polygon parcel query
@@ -28446,7 +29803,7 @@ async function doSearch(){
   }
 
   // FALLBACK: external geocoder (universal — all counties, partial addresses, place names, ZIPs).
-  results.innerHTML=setStatus('busy','Geocoding address…');
+  setSearchStatus('busy','Geocoding address…');
   // Reuse the ranked geocode already in flight from the parcel path (identical query) rather than
   // firing all three geocoders a second time. Only a query with no house number skips that path.
   let g = rankedP ? await rankedP : await geocodeBest(q);
@@ -28454,14 +29811,14 @@ async function doSearch(){
   // LAST-RESORT: geocoders (Census/OSM) often miss rural addresses (e.g. Glades/Moore Haven) that
   // DO exist in the statewide parcel roll. Query the roll directly by house number + street.
   if(!g && searchCtx.hn){
-    results.innerHTML=setStatus('busy','Searching county parcel roll…');
+    setSearchStatus('busy','Searching county parcel roll…');
     const sw=await resolveAddressStatewide(searchCtx).catch(()=>null);
     if(stale()) return;
     if(sw && isFinite(sw.lat) && isFinite(sw.lng)) g={lat:sw.lat,lng:sw.lng,label:sw.label||q,src:'FL parcel roll'};
   }
-  if(!g){ if(!stale()) results.innerHTML=setStatus('err','Could not geocode that address. Try adding city/ZIP, or just click the spot on the map.'); return; }
+  if(!g){ if(!stale()) setSearchStatus('err','Could not geocode that address. Try adding city/ZIP, or just click the spot on the map.'); return; }
   addToHistory(g.label || q);
-  results.innerHTML=setStatus('busy','Pinpointing the parcel…');
+  setSearchStatus('busy','Pinpointing the parcel…');
   // UNIVERSAL ROOFTOP SNAP (every county): the geocoder point is INTERPOLATED along the street's
   // house-number range and routinely lands a lot or two off — sometimes on a vacant neighbour. Before
   // running point-in-polygon from that drifted pin, re-query the statewide parcel roll around it and
@@ -28469,6 +29826,25 @@ async function doSearch(){
   // ALL 67 counties (the roll is statewide); counties with a wired live layer were already handled
   // authoritatively above, so this only ever improves the geocoder-fallback cases.
   let sLat=g.lat, sLng=g.lng, snapSrc=g.src, snapLabel=g.label;
+  /* ⚠️ THE SNAP RUNS ON ROOFTOP GEOCODES TOO — DO NOT "OPTIMISE" THIS AWAY. I tried exactly that
+     (skip the snap whenever Esri returned a PointAddress, on the reasoning that a rooftop is not
+     interpolated and so has nothing to correct). A 61-address sample supported it: 54/54 conclusive
+     rooftop points landed inside the CORRECT parcel. It was still WRONG, and here is the case that
+     proves it:
+
+       "81 Bradford Ct, Freeport, FL 32439"
+         Esri PointAddress, score 100  ->  30.496337, -86.153374
+         That point is 75 METRES from the real 81 Bradford Ct and sits inside a DIFFERENT LOT.
+         Parcel under Esri's point : 16-1S-19-23050-000-0290  "40 BRADFORD CT"  EARLY BILLIE ANNE
+         Parcel of the real 81     : 16-1S-19-23050-000-0040  "81 BRADFORD CT"  GANSKE GREGORY EDWARD
+       Both the county layer and the state roll agree on both readings. With the snap skipped the
+       card opened on 40 Bradford Ct — wrong owner, wrong parcel id, wrong values — and looked
+       entirely confident doing it.
+
+     "Rooftop" means Esri has a point record for the address, NOT that the point is on the right
+     lot; in newer subdivisions its addressing can be a house or two out. The snap's first ring
+     (~440m) found the correct parcel here in 1,013ms. A second of latency is worth far more than a
+     confidently wrong card, so the snap stays for every source. */
   if(searchCtx.hn && g.src!=='FL parcel roll'){
     try{
       const snap=await snapToParcelByAddress(q, g.lat, g.lng);
@@ -28486,8 +29862,28 @@ async function doSearch(){
      landed on a genuinely DIFFERENT address before raising a red flag; FIND warned every time,
      including when the snap matched exactly and only the punctuation differed. Shared now, so the
      red flag means the same thing on both paths: we moved you to another address. */
-  results.insertAdjacentHTML('afterbegin',
-    geocoderMatchBanner(q, (snapLabel!==g.label ? snapLabel : ''), snapSrc));
+  /* ── VERIFY AGAINST THE PARCEL THAT WAS ACTUALLY RESOLVED, NOT AGAINST THE SNAP ──────────────
+     The warning used to be driven purely by the rooftop snap: it could only fire when the snap ran
+     AND moved the pin. That tied a correctness check to an expensive, optional step — so it was
+     silent in exactly the situations where it was cheapest to be right, and it went quiet entirely
+     once the snap is skipped on a rooftop geocode.
+     runLookup() has by now resolved the parcel and recorded its SITE address on __exportData, so
+     the honest comparison is free: typed address vs the address of the lot the card is showing.
+     It is also BROADER than the snap ever was — it verifies in every county, including the ones
+     where the statewide roll is slow, thin, or has no polygon at all.
+     Measured before relying on this: across 54 conclusive county-spread addresses, an Esri rooftop
+     point landed inside the CORRECT parcel 54/54 times (0 wrong, 0 with no parcel underneath), so
+     the snap was not buying accuracy here — but this check still catches the rare miss, and costs
+     nothing when everything agrees. */
+  let _matchedAddr = (snapLabel!==g.label) ? snapLabel : '';
+  if(!_matchedAddr){
+    try{
+      const ed = window.__exportData || {};
+      const resolved = [ed.address, ed.city, ed.zip].filter(Boolean).join(' ').trim();
+      if(resolved && snapDiffered(q, resolved)) _matchedAddr = resolved;
+    }catch(e){}
+  }
+  results.insertAdjacentHTML('afterbegin', geocoderMatchBanner(q, _matchedAddr, snapSrc));
 }
 document.getElementById('go').onclick=doSearch;
 
@@ -28701,7 +30097,7 @@ async function chooseSuggestion(it){
   // correct site addresses (e.g. Collier), resolve the EXACT lot there by street+number and ignore
   // the interpolated OSM coordinate entirely — same deterministic path as the FIND button. This is
   // what stops the click landing on the neighbour.
-  results.innerHTML=setStatus('busy','Locating address (county parcel records)…');
+  setSearchStatus('busy','Locating address (county parcel records)…');
   /* Ask EVERY resolver county, exactly as the FIND button does, and run the county hit-test
      alongside rather than in front of it. The old order made countyNameAt() a GATE: one empty
      answer and no parcel layer was queried at all. On "100 Estero Blvd, Fort Myers Beach" that
@@ -28731,7 +30127,7 @@ async function chooseSuggestion(it){
     if(pr && isFinite(pr.lat) && isFinite(pr.lng)){
       addrEl.value = pr.label || basis;            // show the clean authoritative address, not the OSM blob
       STORE.set('fl_addr',addrEl.value); addToHistory(addrEl.value);
-      results.innerHTML=setStatus('busy','Pinpointing the parcel…');
+      setSearchStatus('busy','Pinpointing the parcel…');
       map.setView([pr.lat,pr.lng], 18);
       // The resolver already isolated the CORRECT unit (owner + label + unique folio). Pass that folio
       // as folioHint so runLookup re-fetches the EXACT unit parcel by its unique id — for Sarasota the
@@ -28753,7 +30149,7 @@ async function chooseSuggestion(it){
   }
   // FALLBACK (non-resolver counties): use the suggestion's own coordinate; runLookup resolves the parcel.
   addrEl.value=fullAddr; STORE.set('fl_addr',fullAddr); addToHistory(it.label);
-  results.innerHTML=setStatus('busy','Pinpointing the parcel…');
+  setSearchStatus('busy','Pinpointing the parcel…');
   // ROOFTOP SNAP (counties without an authoritative resolver, or where the resolver found nothing):
   // the suggestion's OSM/Census coordinate is INTERPOLATED and routinely lands a lot or two off —
   // often on a vacant neighbouring parcel. Before doing point-in-polygon from that drifted pin,
@@ -28767,7 +30163,7 @@ async function chooseSuggestion(it){
     const g = await geocodeBest(fullAddr || basis).catch(()=>null);
     if(stale()) return;
     if(g && isFinite(g.lat) && isFinite(g.lng)){ qLat=g.lat; qLng=g.lng; }
-    else { results.innerHTML=setStatus('err',"Couldn't place that address — try adding the city or ZIP, then press FIND."); return; }
+    else { setSearchStatus('err',"Couldn't place that address — try adding the city or ZIP, then press FIND."); return; }
   }
   let _snapMatched='';
   if(searchCtx.hn){
@@ -28873,17 +30269,47 @@ const clearBtn = document.getElementById('clearBtn');
 function updateClearBtn(){
   clearBtn.classList.toggle('visible', addrEl.value.trim().length > 0);   // was untrimmed: a single space showed the ×
 }
-addrEl.addEventListener('input', updateClearBtn);
-clearBtn.addEventListener('mousedown', e => {
-  e.preventDefault(); // don't blur the input
+/* An empty box means "show me Recent" — whatever emptied it. Backspacing the last character used
+   to leave the field empty with nothing offered, because the only thing that ever opened Recent was
+   the `focus` event, and focus had already happened. */
+addrEl.addEventListener('input', () => {
+  updateClearBtn();
+  if(!addrEl.value.trim()) showHistory(); else hideHistory();
+});
+
+/* ---- Clearing the box OPENS Recent; it used to close it ------------------------------------
+   The × deliberately keeps focus on the input (preventDefault on mousedown), which is right — you
+   want to keep typing. But it also called hideHistory(), and `focus` only fires on the TRANSITION
+   into a field. So after clearing there was no event left that could re-open Recent: the box was
+   focused, empty, and clicking it again did nothing, because a click on an already-focused input
+   fires no focus event. The only way back was to click somewhere else and return.
+   Clearing now shows Recent, which is what an empty search box is for. */
+const _clearAddrBox = () => {
   addrEl.value = '';
   _addrUserTyped = false;      // box is empty — nothing left to protect
   updateClearBtn();
   hideSuggest();
-  hideHistory();
   addrEl.focus();
   STORE.del('fl_addr');
-});
+  showHistory();               // ← was hideHistory()
+};
+/* mousedown alone is unreliable on touch — iOS synthesises it after blur has already run, which is
+   why the history rows below bind touchstart too. Same treatment here, with the same short dedupe
+   so the late synthetic mousedown is a no-op rather than a second clear. */
+let _clearTouchAt = 0;
+const _onClear = e => {
+  /* Dedupe ONLY the synthetic mouse replay that follows a real tap — not two genuine clears.
+     A blanket "ignore anything within 500ms" (my first cut, and what the history rows use) also
+     swallows a legitimate second clear when someone types and clears again quickly. Keying off the
+     touchstart instead means mouse users never hit the guard at all. */
+  if(e.type === 'touchstart'){ _clearTouchAt = Date.now(); }
+  else if(Date.now() - _clearTouchAt < 700){ _clearTouchAt = 0; return; }   // consume ONE replay
+  else { _clearTouchAt = 0; }
+  e.preventDefault();          // don't blur the input
+  _clearAddrBox();
+};
+clearBtn.addEventListener('touchstart', _onClear, { passive:false });
+clearBtn.addEventListener('mousedown',  _onClear);
 
 /* ---------- Search history ---------- */
 const histEl = document.getElementById('historyDrop');
@@ -28975,6 +30401,13 @@ histEl.addEventListener('mousedown', e => {
 
 addrEl.addEventListener('focus', () => {
   if(!addrEl.value.trim()) showHistory();
+});
+/* Clicking an input that ALREADY has focus fires no focus event, so an empty box that the user
+   taps a second time stayed blank. Covers the reported flow: click the box, clear it, click it
+   again — Recent now comes back. Guarded so it can't re-render the list on every click while it
+   is already open (that would rebuild the rows mid-tap and swallow the press). */
+addrEl.addEventListener('click', () => {
+  if(!addrEl.value.trim() && !histEl.classList.contains('show')) showHistory();
 });
 addrEl.addEventListener('blur', () => setTimeout(hideHistory, 150));
 document.getElementById('liveTest').onclick=()=>{ testLiveSource(); showLiveDiagnostic(); };
