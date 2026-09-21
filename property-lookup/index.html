@@ -326,6 +326,28 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .ch:has(.retrybtn){display:flex;align-items:center;gap:8px}
 
   .note{font-size:11px;color:var(--dim);line-height:1.5;padding:8px 0 2px}
+
+  /* Feed health — the quiet line in a card, and the Data Sources panel. Both are diagnostics:
+     footnote weight, and the panel is noprint so it stays out of the site report. */
+  .fhnote{display:flex;gap:7px;align-items:baseline;font-size:10.5px;color:var(--faint);
+    line-height:1.5;padding:7px 0 1px;margin-top:6px;border-top:1px dashed var(--line)}
+  .fhnote .fhd{flex:none;width:10px;text-align:center;font-size:9px}
+  .fhwhy{opacity:.7}
+  .fhwrap{font-size:11.5px}
+  .fhsum{cursor:pointer;list-style:none;padding:9px 12px;display:flex;gap:8px;align-items:baseline;
+    color:var(--dim);user-select:none}
+  .fhsum::-webkit-details-marker{display:none}
+  .fhsum .fhd{flex:none;width:10px;text-align:center;font-size:9px}
+  .fhbody{padding:0 12px 11px}
+  .fhgrp{margin-top:9px}
+  .fhgt{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin-bottom:3px}
+  .fhrow{display:flex;gap:7px;align-items:baseline;padding:2px 0;line-height:1.45}
+  .fhrow .fhd{flex:none;width:10px;text-align:center;font-size:9px}
+  .fhl{flex:1;min-width:0;color:var(--dim)}
+  .fhm{color:var(--faint);font-size:10.5px;white-space:nowrap}
+  .fhrow .fhm{white-space:normal;text-align:right;max-width:46%}
+  .fhfoot{margin-top:11px;padding-top:8px;border-top:1px solid var(--line);
+    font-size:10px;color:var(--faint);line-height:1.5}
   .note.warnbox{background:var(--warnbox-bg);border:1px solid var(--warnbox-line);border-radius:8px;padding:10px 11px;color:var(--warnbox-ink)}
   .note.warnbox b{color:var(--signal)}
   a.link{color:var(--blueprint);text-decoration:none;font-family:var(--mono);font-size:11.5px;word-break:break-all}
@@ -1539,7 +1561,8 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
       <button id="btnBounds" class="active" title="Color-coded incorporated city-limit outlines">◰ City limits</button>
       <button id="btnParcels" title="Statewide parcel / lot lines — zoom in close (FL cadastral)">▦ Parcels</button>
       <button id="btnZoning" title="Zoning districts for the current county — zoom in close. Hover a zone for its district code.">⬡ Zoning</button>
-      <button id="btnSketch" class="active" title="Recorded easements (hatched) and lot-line dimensions for the looked-up parcel — Lee County land records">▨ Easements &amp; lot lines</button>
+      <button id="btnSketch" title="Recorded easements (hatched), lot-line dimensions, septic permits and wells for the looked-up parcel">▨ Easements &amp; lot lines</button>
+      <button id="btnFootprints" class="active" title="Building footprints from the county's own trace, where one is wired">▬ Building footprints</button>
       <button id="zoningRefresh" class="zl-refresh-row" title="Reload zoning for the area you're currently viewing (e.g. after panning out of a city into the county)">⟳ Refresh zoning to this view</button>
     </div>
   </div>
@@ -3379,6 +3402,95 @@ const COUNTY_LIVE = {
    changes which PARCEL is shown, only where the dot sits within it, so a stale/missing footprint is
    cosmetic at worst. Coordinates come back as 4326 via outSR; source layers may be in state-plane. */
 const COUNTY_FOOTPRINTS = {
+  /* ⭐ MANATEE — added 20 Sep 2026, on mymanatee.org/gisits (the county's operational server,
+     folder `commonoperational`). Manatee already had parcels, zoning and imagery wired but no
+     footprints.
+     ✅ 219,494 polygons and every feature carries PARCELID — the county's own cadastral join,
+     which no national trace has. Also YEAR_BUILT, ICAD_AREA and LASTUPDATE. No FEMA/ORNL
+     fingerprint fields, no Microsoft `release` / `capture_dates_range`, no foreign copyrightText.
+     Coverage tested across the county: Lakewood Ranch 77, Palmetto 47, Parrish 16, Myakka City 6,
+     plus Bradenton and Anna Maria (see the note below on why those two needed a second look).
+     ⚠ THE FeatureServer AND MapServer LOOKED LIKE THEY DISAGREED, AND THEY DO NOT. A point +
+       distance query in f=geojson returned 0 at Bradenton and Anna Maria from the FeatureServer
+       while the MapServer returned 50 and 139 at the same points — which reads as a broken view.
+       Re-tested through THIS APP'S OWN query form (_arcEnv: envelope, f=json) the two are
+       identical at every test lot: 3/3, 20/20, 4/4, 5/5. The discrepancy was in my probe, not in
+       the data. Recorded because the wrong conclusion would have been "their FeatureServer is
+       broken", and that would have been repeated forever. Test through the real query path.
+     Layer 1 on the same service is "Building footprints-Longboat Key", kept separate by the
+     county; layer 0 is the countywide set and is what is wired. */
+  MANATEE:   "https://www.mymanatee.org/gisits/rest/services/commonoperational/buildings/MapServer/0/query",
+  /* ⭐⭐ HERNANDO — added 20 Sep 2026, and it is the cleanest footprint source added in a
+     while. Found on the Property Appraiser's Basemap_PublicMapGallery service (org
+     x5zvhhxfUuRDntRe — the SAME org Hernando's parcels and zoning already come from, which is the
+     recurring lesson: list the org, not the layer name. This basemap service holds 27 layers behind
+     one innocuous title.)
+
+     ✅ PASSES EVERY GATE, unlike Broward's:
+       111,144 polygons, and 111,133 of them carry KEYNUMBER — the appraiser's own parcel key.
+       A 99.99% cadastral join is something no national trace has.
+       copyrightText names it outright: "Hernando County Property Appraisers / Hernando County
+       Central GIS". No FEMA/ORNL fingerprint fields, no Microsoft `release` / `capture_dates_range`.
+       LOADDATE runs 21 Feb 2009 to 20 Aug 2026, so it is rolling maintenance, not a one-off capture.
+       Paint-tested: 76 Brooksville, 59 Spring Hill, 27 Weeki Wachee, 22 Hernando Beach.
+     Native SR is 2237 (FL State Plane West ftUS); queries pass inSR/outSR=4326 and the server
+     reprojects, which was verified rather than assumed.
+
+     ⚠ TWO OTHER LAYERS ON THIS SERVICE WERE EXAMINED AND REJECTED, so nobody re-derives them:
+       Layer 4 "Parcel Lines (Easement/Historic)" and layer 34 "Parcel Dimensions" are THE SAME
+       TABLE (525,334 rows, identical OBJECTIDs and geometry, layer 34 just exposes fewer fields).
+       The name promises easements; the data does not deliver them. Its CLASS field is dirty
+       free text — the distinct values include null, " ", "LL", " LL", "R/W", "RW", "RW;", "RWQ",
+       "DP", "TB", "SL", "Z", "t", and stray numbers like "100", "133", "66." and "217" — with
+       15,407 rows classed as a single blank space and NO value that identifies an easement. These
+       are cartographic lot lines carrying platted bearing/distance (DIRECTION, DISTANCE, DELTA,
+       RADIUS, ARCLENGTH) for labelling, not an easement layer. Do not wire either into EASEMENTS.
+       The platted LABEL_TEXT distance could one day sharpen renderLotDimensions' computed "approx"
+       edge labels, but matching 525k polylines to one parcel's edges through that CLASS field is a
+       project, not a wire-up. */
+  HERNANDO:  "https://services2.arcgis.com/x5zvhhxfUuRDntRe/arcgis/rest/services/Basemap_PublicMapGallery/FeatureServer/22/query",
+  /* ⭐ BROWARD + PALM BEACH — added 20 Sep 2026, the last two big southeast counties with no
+     footprints wired. They came out of the sweep very differently and the difference is recorded
+     because it decides how each is labelled.
+
+     BROWARD — EVERY AVAILABLE OPTION IS THE MICROSOFT ML TRACE, INCLUDING THE COUNTY'S OWN.
+       Three candidates exist and all three are the same lineage:
+         Broward_BuildingFootPrints (AGOL)        424,907 — carries `release` and
+                                                  `capture_dates_range`, the Microsoft signature
+         SouthEastFLBuildingFootprints (AGOL)    1,371,048 — the same trace for four counties,
+                                                  spatially joined to Esri's USA Places and USA
+                                                  Counties tables, which is where its POPULATION /
+                                                  POP_SQMI / CAPITAL columns come from. The
+                                                  "population" is the CITY's, not the building's.
+         bcgishub BrowardCountyBuildingFootprints  418,824 — the county's own GeoHub service, and
+                                                  its copyrightText reads "MircoSoft\nBCGIS" (the
+                                                  typo is theirs). Broward adopted the trace and
+                                                  says so.
+       Normally the provenance screen rejects a national trace. It is wired here anyway because
+       Broward publishes no photogrammetric alternative — the trace IS the county's footprint
+       layer — and the county-hosted, credited copy is the honest one of the three. Paint-tested
+       12/12 Fort Lauderdale, 23/23 Hollywood, 16/16 Coral Springs, 8/8 Pembroke Pines.
+       ⚠ Treat positions as traced-from-imagery, roughly 2019-2020 vintage. Good enough to nudge a
+         marker onto a structure; NOT good enough to measure a setback from without checking the
+         aerial underneath it.
+
+     PALM BEACH — genuinely the county's own, and the better source of the two.
+       CWGIS/PLAN_BUILDING on gis.pbcgov.org: 405,220 polygons, NO Microsoft fields, NO FEMA/ORNL
+       fingerprint, and Esri editor tracking (ET_CREATOR / ET_EDITED) — a maintained cadastral
+       layer, not a trace.
+       ⚠ COVERAGE IS PATCHY BY MUNICIPALITY, measured rather than assumed. 8 of 12 test points
+         returned buildings (Greenacres 125, Belle Glade 78, Boca Raton 69, Delray 65, unincorporated
+         west 41, West Palm 23, Boynton 24, Royal Palm Beach 10) and FOUR returned zero: Wellington,
+         Jupiter, Lake Worth and Palm Beach Gardens. Those towns are simply absent. A blank result
+         in Palm Beach means "not mapped here", not "no building".
+       ⚠ TYPE is not all buildings. Distinct values include BUILDING UNDER CONSTRUCTION, RUINS,
+         HOUSE TRAILER and BUILDING INTERIOR COURTYARD — the last being a HOLE in a building, not a
+         building. It sits inside a real footprint so a centroid nudge lands on the structure either
+         way, but do not report a courtyard as a structure if this layer is ever read for area.
+         Values arrive in mixed case ("Building" and "BUILDING"), so compare case-insensitively.
+       REJECTED alongside it: FIRE/FIRE_BUILDING_POLY, 942 features, 0 hits at all four test points. */
+  BROWARD:   "https://bcgishub.broward.org/hosting/rest/services/BrowardCountyBuildingFootprints/MapServer/0/query",
+  PALMBEACH: "https://gis.pbcgov.org/arcgis/rest/services/CWGIS/PLAN_BUILDING/FeatureServer/0/query",
   /* ⭐ NASSAU + CITRUS — added 20 Sep 2026, found by sweeping the 129 ArcGIS roots this file already
      uses rather than by searching for them. Both cleared the same gates every other entry here did.
      NASSAU — 24,807 footprints, 23,898 inside the county envelope (coverage 0.963), 149–332 ms.
@@ -13064,12 +13176,18 @@ async function refreshZoning(){
 }
 const btnSketch=document.getElementById('btnSketch');
 if(btnSketch) btnSketch.addEventListener('click',()=>{ sketchOn=!sketchOn; btnSketch.classList.toggle('active',sketchOn);
-  if(!sketchOn){ clearSiteSketch(); clearFootprints(); clearEasements(); clearSepticPoints(); }
+  // Footprints are NOT cleared here any more - they have their own button below.
+  if(!sketchOn){ clearSiteSketch(); clearEasements(); clearSepticPoints(); clearWellPoints(); }
   else if(parcelLayer && window.__lastParcelGeom){
     drawSiteSketch(window.__lastParcelGeom, window.__parcelCounty||'');
-    /* Footprints are drawn INSIDE checkFootprint() behind the same sketchOn flag, so toggling the
-       layer back on used to redraw the sketch and leave the building outline missing until the next
-       lookup. Re-run it here so the toggle is symmetrical. */
+  } });
+/* Building footprints, on their own toggle. Same symmetry problem the sketch button had: the
+   outline is drawn INSIDE checkFootprint(), so switching this back on has to re-run the query or
+   the outline stays missing until the next lookup. */
+const btnFootprints=document.getElementById('btnFootprints');
+if(btnFootprints) btnFootprints.addEventListener('click',()=>{ fpOn=!fpOn; btnFootprints.classList.toggle('active',fpOn);
+  if(!fpOn){ clearFootprints(); }
+  else if(window.__lastParcelGeom){
     try{ checkFootprint(window.__lastParcelGeom, window.__parcelCounty||'').then(res=>{ if(res!==undefined){ window.__footprint=res; _fillLotNotes(); } }); }catch(e){}
   } });
 const btnZoning=document.getElementById('btnZoning');
@@ -24373,6 +24491,34 @@ async function checkPreserves(g, countyName){
    aerial year (Buildings/FeatureServer, layer 1 = 2025); Lee's land records carry them (LandRecords/8).
    Drawn on the map; distances to the N/E/S/W lot edges reported on the Zoning card as ≈ (GIS, not a survey). */
 const FOOTPRINT_LAYERS = {
+  // Manatee — 219,494 footprints with a PARCELID join; full provenance, the coverage numbers and
+  // the FeatureServer-vs-MapServer false alarm are on COUNTY_FOOTPRINTS above.
+  MANATEE: 'https://www.mymanatee.org/gisits/rest/services/commonoperational/buildings/MapServer/0',
+  /* CHARLOTTE — added 20 Sep 2026. NOT a new source: this exact layer has been in
+     COUNTY_FOOTPRINTS all along, trusted enough to nudge the map marker onto a structure, but it was
+     never added here, so lot-line distances silently skipped Charlotte. No reason for the omission
+     is recorded anywhere in this file — it reads as an oversight, so it is closed rather than
+     re-litigated.
+     Re-verified before wiring: 120,857 polygons, copyrightText "Charlotte County", county fields
+     (BUILDNG_ID, STRUCTNAME, AREAFLOOR, COORD_Z, STATUS, FPKEY) and no FEMA/ORNL or Microsoft
+     fingerprint. Point-tested across the county: Grove City 65, Deep Creek 52, Englewood 50,
+     Rotonda 30, Port Charlotte 25, Punta Gorda 22, Charlotte Harbor 7. Babcock Ranch and Placida
+     returned 0 — the first is very new construction on the county edge, the second is sparse.
+     (An earlier "Englewood 0" was a bad test point sitting in Sarasota, not a coverage hole.)
+     ⚠ STATUS IS MISSPELLED IN THE DATA. Distinct values are Permanent, "Permenent", Temporary,
+       Mobile, Unknown and null. Anything that ever filters on STATUS must match both spellings, or
+       it will silently drop a slice of the county's permanent structures. */
+  CHARLOTTE: 'https://agis3.charlottecountyfl.gov/arcgis/rest/services/Essentials/CCGISLayers/MapServer/5',
+  // Hernando — Property Appraiser's own footprints, 99.99% joined to KEYNUMBER, maintained to
+  // Aug 2026. Full provenance and the two rejected layers on the same service are on
+  // COUNTY_FOOTPRINTS above.
+  HERNANDO: 'https://services2.arcgis.com/x5zvhhxfUuRDntRe/arcgis/rest/services/Basemap_PublicMapGallery/FeatureServer/22',
+  // Broward + Palm Beach — full provenance, coverage measurements and the rejected candidates
+  // are on COUNTY_FOOTPRINTS above. Read that before touching either. Short version: Broward's is
+  // the Microsoft trace the county itself publishes and credits, so lot-line distances off it carry
+  // trace-level accuracy; Palm Beach's is county-maintained but missing several municipalities.
+  BROWARD:   'https://bcgishub.broward.org/hosting/rest/services/BrowardCountyBuildingFootprints/MapServer/0',
+  PALMBEACH: 'https://gis.pbcgov.org/arcgis/rest/services/CWGIS/PLAN_BUILDING/FeatureServer/0',
   // ⭐ added 20 Sep 2026 — see the provenance notes on COUNTY_FOOTPRINTS above.
   NASSAU:  'https://gis11.cama.io/arcgis/rest/services/Nassau/NassauCounty_BuildingFootprints/MapServer/0',
   CITRUS:  'https://maps.citrusbocc.com/server/rest/services/PublicData/BUILDINGS/MapServer/0',
@@ -24554,6 +24700,248 @@ function drawSepticPoints(pts, myRun){
   }
   return n;
 }
+/* ---------- WELLS & WELLFIELD PROTECTION ------------------------------------------------------
+   Added 20 Sep 2026 from a full sweep of Lee's gisserver910 root (17 folders, 117 services) and
+   its AGOL org (930 services). Both layers below are the AGOL copies, deliberately: the on-prem
+   server has dropped twice in one afternoon, and the feed-health panel exists precisely so that
+   flakiness is visible rather than silent - but a source that can be wired to a reliable host
+   should be.
+
+   WHY THESE TWO, FOR A GENERATOR:
+     - A wellfield protection zone is a regulated area around a public supply wellfield. What it
+       restricts varies by the zone's travel time and by the utility, and fuel storage is commonly
+       among the restricted activities - which is the whole question when a standby unit arrives
+       with a diesel or propane tank. This card does NOT assert a rule; it says which zone the lot
+       is in and whose it is, so the call gets made against the right ordinance.
+     - A permitted well on or beside the lot is a physical obstruction, a setback, and a hint that
+       the lot is on septic. WELL_USE distinguishes a real supply well from a test boring.
+
+   REJECTED IN THE SAME PASS, and recorded so they are not re-tried:
+     FIRMFloodway - 484 polygons, paints at every test point including inland Lehigh Acres, and
+       every meaningful field is null (FLD_ZONE, SFHA_TF, STATIC_BFE all null) while FLOODWAY holds
+       "City of Fort Myers" and Shape__Area is 1.37 billion sq ft, about 31,000 acres. These are
+       COMMUNITY polygons, not floodways - the identical trap already documented on Lee's
+       OpenData_FloodHazard, where FLOODZONE held "City of Cape Coral" over the whole city.
+     FIRM_LiMWA - 71 features and esriGeometryPolyline. A limit line, not an area, so an intersect
+       test is meaningless; it needs a which-side-of calculation. 0 hits at 150 m from four points
+       including Fort Myers Beach.
+     FIRMZoneA_BFE - only 121 polygons countywide, 0 hits at all four test points. Real but far too
+       sparse to earn a query on every lookup.
+   All three were recommended before they were tested. Test first. */
+/* Regulated protection zones around a public water source. Two flavours so far and the registry
+   carries the wording for each, because "10-YEARS travel time · Florida Governmental Utility
+   Authorities" and "Primary · Silver Springs" are not the same sentence:
+     heading   the card row's title when this is the only thing the county has
+     noun      what the zone is called in the warning line
+     tie       what decides which of several overlapping zones governs
+   ttField is the tier (travel time, or protection class) and utilField the responsible body. */
+const WELLFIELD = {
+  LEE: { label:'Lee County wellfield protection zones',
+         url:'https://services2.arcgis.com/LvWGAAhHwbCJ2GMP/arcgis/rest/services/WellfieldProtectionZones/FeatureServer/0/query',
+         ttField:'Travel_Time', utilField:'Utility',
+         heading:'Wells / wellfield', noun:'wellfield protection zone',
+         tie:'the tightest travel time governs' },
+  /* MARION — springs protection zones, 20 Sep 2026. Marion is springs country and these zones are
+     the local equivalent of a wellfield overlay: they regulate fuel storage and septic, which is
+     exactly the pair a standby install has to answer for.
+     Only 3 polygons, but they are enormous (the Silver Springs primary zone alone is ~5.9 billion
+     sq ft, about 135,000 acres) and they HIT AT ALL FOUR TEST POINTS — Ocala, Silver Springs
+     Shores, Belleview and Dunnellon. A tiny feature count here means broad coverage, not sparse
+     data; do not judge this layer by its row count.
+     PROTECTIONTYPE is the tier ("Primary"), NAME the spring ("Silver Springs"). */
+  MARION: { label:'Marion County springs protection zones',
+            url:'https://gis.marionfl.org/public/rest/services/General/Boundaries_MarionCounty/MapServer/7/query',
+            ttField:'PROTECTIONTYPE', utilField:'NAME',
+            heading:'Springs protection', noun:'springs protection zone',
+            tie:'the most protective tier governs' }
+};
+const WELLS_PERMITTED = {
+  LEE: { label:'Lee County permitted wells', radiusM:60,
+         url:'https://services2.arcgis.com/LvWGAAhHwbCJ2GMP/arcgis/rest/services/WellsPermittedLeeCounty/FeatureServer/0/query',
+         useField:'WELL_USE', depthField:'TOTAL_DEPTH2', statusField:'Status',
+         dateField:'ISSUE_DATE', permitField:'PERMIT_NUMBER', strapField:'PARCEL_STRAP_NUMBER' }
+};
+/* A test boring is a hole someone drilled to look at the soil, not a water well, and calling one a
+   well on this card would send a tech looking for a wellhead that was grouted shut the same week.
+   Monitoring wells are real but are not supply. Kept, labelled apart, never counted as supply. */
+function _wellClass(use){
+  const t=String(use||'').toLowerCase();
+  if(/test\s*bor|boring/.test(t))                 return { kind:'boring',  label:'test boring',  supply:false };
+  if(/monitor/.test(t))                           return { kind:'monitor', label:'monitoring well', supply:false };
+  if(/irrigat|lawn|sprink/.test(t))               return { kind:'irrig',   label:'irrigation well', supply:true };
+  if(/domestic|potable|drink|residen|supply/.test(t)) return { kind:'supply', label:'supply well', supply:true };
+  return { kind:'other', label: (use? String(use).toLowerCase() : 'well'), supply:true };
+}
+async function wellsAtPoint(countyName, lat, lng){
+  const C=norm(countyName||'');
+  const zreg=WELLFIELD[C], wreg=WELLS_PERMITTED[C];
+  if(!zreg && !wreg) return null;
+  const out={ zones:[], wells:[], points:[] };
+  const M_PER_DEG_LAT=111320, M_PER_DEG_LNG=111320*Math.cos(lat*Math.PI/180);
+  const jf=async(u)=>{ try{
+      const c=new AbortController(); const t=setTimeout(()=>c.abort(),9000);
+      const r=await fetch(u,{signal:c.signal}); clearTimeout(t);
+      const j=await r.json(); return (j && !j.error) ? j : null;
+    }catch(e){ return null; } };
+  const pt=encodeURIComponent(JSON.stringify({x:lng,y:lat,spatialReference:{wkid:4326}}));
+  /* Zones: a plain point-in-polygon. No radius - being NEAR a protection zone is not being in one,
+     and a "nearby" hit would read as a restriction that does not apply to this lot. */
+  if(zreg){
+    const j=await jf(zreg.url+'?geometry='+pt+'&geometryType=esriGeometryPoint&inSR=4326'
+      +'&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=false&f=json');
+    for(const f of (j&&j.features)||[]){
+      const a=f.attributes||{};
+      const tt=String(a[zreg.ttField]||'').trim(), ut=String(a[zreg.utilField]||'').trim();
+      if(!tt && !ut) continue;
+      if(!out.zones.some(z=>z.tt===tt && z.util===ut)) out.zones.push({ tt, util:ut });
+    }
+    // Tightest travel time first - that is the most restrictive zone and the one that governs.
+    out.zones.sort((a,b)=>(parseFloat(a.tt)||999)-(parseFloat(b.tt)||999));
+  }
+  if(wreg){
+    const j=await jf(wreg.url+'?geometry='+pt+'&geometryType=esriGeometryPoint&inSR=4326'
+      +'&spatialRel=esriSpatialRelIntersects&distance='+(wreg.radiusM||60)+'&units=esriSRUnit_Meter'
+      +'&outFields=*&returnGeometry=true&outSR=4326&f=json');
+    const seen=new Set();
+    for(const f of (j&&j.features)||[]){
+      const a=f.attributes||{}, g=f.geometry||{};
+      /* ⚠ Number(null) IS 0, AND 0 IS FINITE. A row with a null coordinate sailed through an
+         isFinite() check as the point 0,0 - in the Gulf of Guinea - and got a dot on the map and a
+         distance in the card. Same shape as the Number(' ')===0 trap already documented on the EC
+         parser. Reject null/blank BEFORE converting, then require the result to land in Florida;
+         a permit point outside the state is bad data whatever produced it. */
+      if(g.x==null || g.y==null || g.x==='' || g.y==='') continue;
+      const x=Number(g.x), y=Number(g.y);
+      if(!isFinite(x)||!isFinite(y)) continue;
+      if(y<24 || y>31.2 || x<-88 || x>-79.8) continue;
+      /* One physical well can hold several permits over its life (construction, then repair, then
+         abandonment). Collapse on permit number where present, else on rounded position, or the
+         card reports four wells standing in one spot. */
+      const key=String(a[wreg.permitField]||'') || (x.toFixed(6)+','+y.toFixed(6));
+      if(seen.has(key)) continue; seen.add(key);
+      const dx=(x-lng)*M_PER_DEG_LNG, dy=(y-lat)*M_PER_DEG_LAT;
+      const ft=Math.round(Math.hypot(dx,dy)/0.3048);
+      const cls=_wellClass(a[wreg.useField]);
+      const depth=(()=>{ const v=a[wreg.depthField]; if(v==null) return null;
+                         const n=Number(String(v).replace(/[^0-9.]/g,''));
+                         return (isFinite(n)&&n>0&&n<3000)?Math.round(n):null; })();
+      const st=String(a[wreg.statusField]||'').trim();
+      let yr=null; const d=a[wreg.dateField];
+      if(d!=null && isFinite(Number(d))) { const dt=new Date(Number(d)); if(!isNaN(dt)) yr=dt.getUTCFullYear(); }
+      out.wells.push({ ft, cls, depth, status:st||null, yr,
+                       permit:String(a[wreg.permitField]||'')||null });
+      out.points.push({ x, y, kind:cls.kind, label:cls.label, ft, depth });
+    }
+    out.wells.sort((a,b)=>a.ft-b.ft);
+    out.points.sort((a,b)=>a.ft-b.ft);
+  }
+  if(!out.zones.length && !out.wells.length) return null;
+  // Carry the registry's wording through so the card does not have to know which county it is in.
+  out.heading = (zreg && zreg.heading) || 'Wells / wellfield';
+  out.noun    = (zreg && zreg.noun)    || 'protection zone';
+  out.tie     = (zreg && zreg.tie)     || 'the most restrictive zone governs';
+  return out;
+}
+let _wlLayers=[], _wlRun=0;
+function clearWellPoints(){ _wlRun++; for(const l of _wlLayers){ try{ map.removeLayer(l); }catch(e){} } _wlLayers=[]; }
+function drawWellPoints(pts, myRun){
+  // Same guard order as drawSepticPoints and drawEasements: staleness BEFORE touching the map, and
+  // when stale return WITHOUT clearing, so a slow response cannot wipe the current parcel's dots.
+  if(myRun!=null && myRun!==_wlRun) return 0;
+  for(const l of _wlLayers){ try{ map.removeLayer(l); }catch(e){} }
+  _wlLayers=[];
+  if(!sketchOn || !pts || !pts.length) return 0;
+  let n=0;
+  for(const p of pts){
+    try{
+      const solid = (p.kind==='supply'||p.kind==='irrig'||p.kind==='other');
+      const col = solid ? '#39d3ff' : '#8899a6';
+      const m=L.circleMarker([p.y,p.x],{ renderer:canvasRenderer, radius:5,
+        color:col, weight:2, fillColor:col, fillOpacity: solid?.30:.08,
+        opacity: solid?.95:.5, dashArray: solid?null:'2 3' }).addTo(map);
+      m.bindTooltip('<b>'+esc(p.label.replace(/^./,c=>c.toUpperCase()))+'</b>'
+        + (p.depth?('<br>'+p.depth+' ft deep'):'')
+        + '<br>' + p.ft + ' ft from the searched point'
+        + '<br><i>permit location — approximate, locate before digging</i>',
+        {sticky:true,direction:'top',className:'parcel-tip',opacity:1});
+      _wlLayers.push(m); n++;
+    }catch(e){}
+  }
+  return n;
+}
+/* Where the Parcel & Owner stack rows go, and in what order.
+   They used to anchor on the card's .ch header and insert after it, which put easements, wells
+   and septic ABOVE the owner, address and values — the parcel's own facts pushed off the top of
+   its own card. These rows are context about the lot, so they belong after it.
+   They also arrive in whatever order their network calls finish, so a fixed rank is carried on
+   the element and used to place it; otherwise the same parcel looked different on every lookup
+   depending on which county server was quickest. Lower rank sits higher. */
+const PARCEL_STACK_ORDER = { easements:1, wells:2, septicsewer:3 };
+function _appendToParcelCard(el, container, key){
+  try{
+    el.setAttribute('data-stackrank', String(PARCEL_STACK_ORDER[key] || 9));
+    const h2=[...container.querySelectorAll('h2')].find(x=>/parcel\s*&\s*owner/i.test(x.textContent||''));
+    const card=h2 ? (h2.closest('.card')||null) : null;
+    const host=card ? (card.querySelector('.cb') || card) : null;
+    if(!host){ container.insertAdjacentElement('beforeend', el); return; }
+    const mine=Number(el.getAttribute('data-stackrank'));
+    const after=[...host.querySelectorAll('[data-stackrank]')]
+      .find(x=>Number(x.getAttribute('data-stackrank')) > mine);
+    // insert through the host we already resolved, not through after.parentNode - the reference
+    // node is a child of host by construction, and reaching back up for a parent is one more thing
+    // that can be missing.
+    if(after) host.insertBefore(el, after);
+    else host.appendChild(el);
+  }catch(e){ try{ container.insertAdjacentElement('beforeend', el); }catch(_){} }
+}
+/* Card row. Zones first (they govern what may be stored), wells second (they are an obstruction and
+   a septic hint). Deliberately states no setback figure and quotes no ordinance - the zone name and
+   the utility are what let someone look up the right rule. */
+function injectWells(res){
+  try{
+    if(!res || (!res.zones.length && !res.wells.length)) return;
+    const container=document.getElementById('results'); if(!container) return;
+    if(container.querySelector('[data-wells]')) return;
+    const body=[];
+    if(res.zones.length){
+      const z=res.zones[0];
+      body.push('<div class="ln"><span class="ic" style="color:var(--warn)">⚠</span><span class="tx">'
+        + 'Inside a <b>'+esc(res.noun||'protection zone')+'</b>'
+        + (z.tt?(' — '+esc(z.tt.toLowerCase())+' travel time'):'')
+        + (z.util?(' · '+esc(z.util)):'')
+        + '. Fuel storage is commonly restricted in these zones; check the governing ordinance '
+        + 'before siting a diesel or propane tank.</span></div>');
+      if(res.zones.length>1)
+        body.push('<div class="ln"><span class="ic" style="opacity:.45">·</span><span class="tx">'
+          + esc(String(res.zones.length-1)) + ' further overlapping zone'
+          + (res.zones.length>2?'s':'') + ' — '+esc(res.tie||'')+'.</span></div>');
+    }
+    const supply=res.wells.filter(w=>w.cls.supply), other=res.wells.filter(w=>!w.cls.supply);
+    for(const w of supply.slice(0,4)){
+      body.push('<div class="ln"><span class="ic" style="color:var(--blueprint)">○</span><span class="tx">'
+        + esc(w.cls.label.replace(/^./,c=>c.toUpperCase())) + ' <b>' + w.ft + ' ft</b> away'
+        + (w.depth?(' · '+w.depth+' ft deep'):'')
+        + (w.yr?(' · permitted '+w.yr):'') + '</span></div>');
+    }
+    if(supply.length>4)
+      body.push('<div class="ln"><span class="ic" style="opacity:.45">·</span><span class="tx">'
+        + (supply.length-4) + ' more permitted well' + (supply.length-4>1?'s':'') + ' within range.</span></div>');
+    if(other.length)
+      body.push('<div class="ln"><span class="ic" style="color:var(--dim)">◌</span><span class="tx">'
+        + other.length + ' ' + esc(other[0].cls.label) + (other.length>1?'s':'')
+        + ' nearby — not a supply well.</span></div>');
+    if(supply.length)
+      body.push('<div class="muted" style="font-size:11px;margin-top:4px">'
+        + 'A well on the lot usually means septic too. Permit locations are approximate — '
+        + 'locate the casing and the lateral on site before digging.</div>');
+    if(!body.length) return;
+    const html='<div class="field stack" data-wells="1">'
+      +'<div class="k">'+esc(res.heading||'Wells / wellfield')+'<span class="cap">county GIS · verify on site</span></div>'
+      +'<div class="v">'+body.join('')+'</div></div>';
+    const node=document.createElement('div'); node.innerHTML=html; const el=node.firstChild;
+    _appendToParcelCard(el, container, 'wells');
+  }catch(e){}
+}
 function clearEasements(){ _eaRun++; for(const l of _eaLayers){ try{ map.removeLayer(l); }catch(e){} } _eaLayers=[]; }
 /* Colour by what the easement DOES, because that is what decides whether a pad can go near it.
    Drainage/flowage strips flood and are the hardest no; utility strips carry buried line; access and
@@ -24618,7 +25006,12 @@ async function checkFootprint(g, countyName){
   clearFootprints();
   const myRun=_fpRun;                       // taken AFTER the clear above, which bumps the counter
   if(!g || !g.rings) return null;
-  const countyUrl=FOOTPRINT_LAYERS[norm(countyName||'')];
+  /* ⚠ norm() DOES NOT STRIP THE WORD "COUNTY", so norm('Charlotte County') is 'CHARLOTTECOUNTY'
+     and misses the CHARLOTTE key entirely. Whether a given feed returns "Charlotte" or "Charlotte
+     County" is not something this function can control, and the failure is silent: no key, no
+     query, no outline, no error. Try the bare name, then the name with a trailing COUNTY removed. */
+  const _ck=norm(countyName||'');
+  const countyUrl=FOOTPRINT_LAYERS[_ck] || FOOTPRINT_LAYERS[_ck.replace(/COUNTY$/,'')];
   // County-only. No wired layer → no footprint, and no national fallback (see the note above).
   if(!countyUrl) return { found:false };
   const rings=g.rings; const env=_ringsEnvelope(rings);
@@ -24646,7 +25039,7 @@ async function checkFootprint(g, countyName){
   const areaOf=(fr)=>{ let a=0; for(let i=0,j=fr.length-1;i<fr.length;j=i++) a+=(fr[j][0]+fr[i][0])*(fr[j][1]-fr[i][1]); return Math.abs(a/2); };
   inside.sort((a,b)=>areaOf(b.geometry.rings[0])-areaOf(a.geometry.rings[0]));
   const house=inside[0].geometry.rings; const others=inside.slice(1);
-  if(sketchOn && myRun===_fpRun){
+  if(fpOn && myRun===_fpRun){
     // Only county traces reach this point now, so the old faint/dashed "approximate" styling is gone.
     const poly=L.polygon(house.map(rg=>rg.map(p=>[p[1],p[0]])),{renderer:canvasRenderer,color:'#ffffff',weight:1.5,fillColor:'#ffffff',fillOpacity:.08,dashArray:'2 3',opacity:1}).addTo(map); poly.bindTooltip('<b>Building footprint</b><br>county aerial trace',{sticky:true,direction:'top',className:'parcel-tip',opacity:1}); _fpLayers.push(poly);
     for(const o of others){ const p2=L.polygon(o.geometry.rings.map(rg=>rg.map(p=>[p[1],p[0]])),{renderer:canvasRenderer,color:'#ffffff',weight:1,fillOpacity:.04,dashArray:'2 3',opacity:.6}).addTo(map); _fpLayers.push(p2); }
@@ -24670,7 +25063,10 @@ async function checkFootprint(g, countyName){
            traced: imgDate&&!isNaN(imgDate)?imgDate.getFullYear():null, occ: a0.PRIM_OCC||null,
            sqft: a0.SQFEET?Math.round(a0.SQFEET):null };
 }
-let sketchOn = true; let _sketchLayers = []; let _sketchRun = 0;
+/* fpOn is SEPARATE from sketchOn, deliberately. Both used to ride the one "Easements & lot lines"
+   button, so switching the easement hatching off also took the building outline with it — and a
+   footprint is not an easement. Different question, different control. */
+let sketchOn = false; let fpOn = true; let _sketchLayers = []; let _sketchRun = 0;
 function clearSiteSketch(){ for(const l of _sketchLayers){ try{ map.removeLayer(l); }catch(e){} } _sketchLayers=[]; }
 function _ringsEnvelope(rings){ let xmin=1e9,ymin=1e9,xmax=-1e9,ymax=-1e9; for(const r of rings) for(const p of r){ if(p[0]<xmin)xmin=p[0]; if(p[0]>xmax)xmax=p[0]; if(p[1]<ymin)ymin=p[1]; if(p[1]>ymax)ymax=p[1]; } return {xmin,ymin,xmax,ymax}; }
 function _ptToRingsM(lng,lat,rings){ let best=1e9; for(const r of rings) for(let i=1;i<r.length;i++){ const d=_distPtSegM(lng,lat,r[i-1][0],r[i-1][1],r[i][0],r[i][1]); if(d<best) best=d; } return best; }
@@ -26087,17 +26483,378 @@ function injectEasements(res){
     const html='<div class="field stack" data-easements="1">'
       +'<div class="k">Easements<span class="cap">'+esc(srcName)+' · verify against the plat</span></div>'
       +'<div class="v">'+head+body+'</div></div>';
-    let anchor=null;
-    const h2=[...container.querySelectorAll('h2')].find(el=>/parcel\s*&\s*owner/i.test(el.textContent||''));
-    if(h2){ anchor=h2.closest('.ch')||h2; }
     const node=document.createElement('div'); node.innerHTML=html; const el=node.firstChild;
-    if(anchor && anchor.parentNode){ anchor.parentNode.insertBefore(el, anchor.nextSibling); }
-    else container.insertAdjacentElement('afterbegin', el);
+    _appendToParcelCard(el, container, 'easements');
   }catch(e){}
 }
 /* Inject the septic-vs-sewer block into the parcel card (async result from septicSewerAtPoint).
    Sits directly under the "Parcel & Owner" header, same anchoring as the setback block. No-op on an
    empty list, so counties with nothing wired look exactly as they did before. Dupe-guarded. */
+/* ---------- FEED HEALTH — active probe, quiet reporting ---------------------------------------
+   Added 20 Sep 2026. The problem it solves: when a county source goes down, this app rendered
+   EXACTLY what it renders for a county that was never wired — nothing at all. Lee County's
+   footprint server threw HTTP 500 for an unknown stretch and the only symptom was a missing
+   outline. Standing on a driveway there is no way to tell "no easements on this lot" from "that
+   feed is broken", and those two call for completely different next moves.
+
+   Two outputs, both deliberately quiet:
+     1. A muted line inside the card where the data WOULD have gone, saying the source did not
+        answer. Blank-because-broken now reads differently from blank-because-empty.
+     2. A collapsed "Data Sources" panel at the bottom listing every source wired for this county,
+        what it answered and how fast — plus the ones NOT wired here, which answers the coverage
+        question ("does this county even have footprints?") in the same place.
+
+   The probe is ACTIVE: it asks every source wired for the county, not only the ones this parcel
+   happened to trigger. A dead easement layer in a county where this particular lot has no
+   easements is still worth knowing about before the next lookup. Cost is bounded — one
+   lightweight call per source, four at a time, cached ten minutes per county+city so panning
+   around one town does not re-probe on every parcel.
+
+   CLASSIFICATION MATTERS MORE THAN IT LOOKS. Three states, not two:
+     ok    HTTP 200, parseable JSON, no error member   -> the source is serving
+     err   HTTP 200 but the JSON carries an error      -> host is UP, this LAYER is broken
+     down  network failure, abort, or HTTP >= 400      -> unreachable
+   'err' is the Pasco case already documented on COUNTY_FOOTPRINTS (service answers metadata
+   happily, refuses every query) and it is a different repair from 'down', so they are not
+   collapsed into one red dot.
+
+   ⚠️ The probe deliberately does NOT change what the app draws. It never suppresses a card, never
+      retries a failed source, never swaps in a fallback. Draw logic already has its own fallbacks;
+      this only reports. Keep it that way — a health check that mutates behaviour becomes a second,
+      untested code path through every lookup. */
+const FH_TIMEOUT_MS = 7000;
+const FH_TTL_MS     = 10*60*1000;
+const FH_POOL       = 4;      // the skill notes a host already measured as failing 8-way concurrency
+const _fhCache = new Map();
+let _fhRun = 0;
+const FH_GROUPS = [
+  { key:'parcel',   title:'Parcels',        card:/parcel\s*&\s*owner/i },
+  { key:'zoning',   title:'Zoning',         card:/zoning\s*&\s*setbacks/i },
+  { key:'aerial',   title:'Imagery',        card:/aerial\s*&\s*street/i },
+  { key:'footprint',title:'Footprints',     card:/parcel\s*&\s*owner/i },
+  { key:'easement', title:'Easements',      card:/parcel\s*&\s*owner/i },
+  { key:'septic',   title:'Septic / sewer', card:/parcel\s*&\s*owner/i }
+];
+/* What a failure MEANS in each card, in the installer's terms. The second clause is the whole
+   point of the feature: it names the wrong conclusion the blank space would otherwise invite. */
+const FH_BLANK_MEANS = {
+  parcel:    'County parcel feed did not answer — these figures are the state roll, which lags the county.',
+  zoning:    'Zoning layer did not answer — no district shown does not mean unzoned.',
+  aerial:    'Local HD imagery did not answer — the map is on statewide imagery, which is older.',
+  footprint: 'Building footprints did not answer — no outline does not mean no buildings.',
+  easement:  'Easement layer did not answer — nothing drawn does not mean no easements.',
+  septic:    'Septic / sewer source did not answer — no result does not mean no data.'
+};
+/* Known behaviour of specific hosts, so a recurring outage reads as a schedule rather than a
+   fault. A probe cannot learn this — it is operator knowledge, and with nowhere to put it the
+   same red row gets re-investigated every time it shows up. Keyed by hostname, appended to the
+   failure detail on any row that fails. Add to it whenever a pattern is confirmed. */
+const FH_HOST_NOTES = {
+  /* 20 Sep 2026: these zoning layers went dark and the older diagnostic called it CORS-BLOCKED.
+     It was NOT CORS — the same layers answered again a few hours later, from the same origin,
+     with no change at either end. A stopped ArcGIS service is indistinguishable from a CORS
+     policy when seen from inside a fetch, which is why _fhPing names both and picks neither.
+     ⚠️ CORRECTED SAME DAY: the first version of this note said "down at weekends, back Monday".
+        That was one observation generalised into a schedule, and the host disproved it by
+        returning the same day. Do not restate it as a schedule without a run of observations —
+        an app that says "back Monday" on a Sunday afternoon is worse than one that says nothing. */
+  'gismapserver.leegov.com': 'This Lee County host drops out intermittently and returns on its own — often within hours. Not a CORS block.',
+  'gisserver910.leegov.com': 'This Lee County host drops out intermittently and returns on its own — often within hours. Not a CORS block.'
+};
+function _fhHostNote(url){
+  try{ const h=(url||'').split('/')[2]||''; return FH_HOST_NOTES[h.toLowerCase()]||null; }catch(e){ return null; }
+}
+/* Enumerate every source wired for this county (and its city, for city zoning). Rows carry
+   group/label/url/probe; a row with url:null is a registry that has no entry for this county —
+   kept, not dropped, because "not wired here" is exactly the thing the panel exists to say. */
+function _fhSources(countyName, cityName){
+  const C = norm(countyName||''), CITY = norm(cityName||'');
+  const rows = [];
+  const add = (group,label,url,probe)=>rows.push({group,label,url:url||null,probe:probe||'query',
+                                                  status: url?'pending':'nowire'});
+  /* ⚠️ urls[] IS A FALLBACK CHAIN, NOT A LIST OF PEERS. Every consumer in this file reads it
+     that way — `const cands = reg.urls || (reg.url?[reg.url]:[])`, then loops and stops at the first
+     one that answers. The first cut of this panel enumerated one row per url and reported a Lee
+     lookup as "10 serving · 7 not answering" while the app was working perfectly: six rows all
+     labelled "Lee County DCD Zoning", five of them red, because five BACKUPS were down behind a
+     primary that answered in 316 ms. That is precisely the false alarm this feature exists to
+     prevent. One registry entry = one row, walked in the app's own order. */
+  const chain = (group,label,list,probe)=>rows.push({ group, label, url:list[0], probe,
+                                                      status:'pending', chain:list.slice(0,6) });
+  const cands = r => r ? (r.urls || (r.url ? [r.url] : [])) : [];
+
+  const cl = COUNTY_LIVE[C], clu = cands(cl);
+  if(clu.length) chain('parcel', cl.label||(countyName+' parcels'), clu, 'query');
+  else add('parcel', 'No live county parcel feed — using the statewide FDOR roll', null);
+
+  /* ZONING IS NOT A FLAT LIST EITHER, AND IT IS NOT UNIFORM. Three different shapes live in
+     ZONING_LIVE and collapsing them all to one chain is how the Lee panel got it wrong twice:
+       byCity      Lee's DCD_Zoning is split into per-municipality sublayers. urls[] is the
+                   OVERLAY list (all six jurisdictions at once); the point lookup fires only the
+                   sublayer that can contain this parcel, then the county sublayer behind it.
+                   So the health row mirrors lookupUrls() — this parcel's jurisdiction, in the
+                   app's own priority order, labelled with which jurisdiction that is.
+       additive    Sumter / Hardee / Miami-Dade: urls[] are DIFFERENT AREAS, not mirrors. A
+                   chain would call the whole county healthy the moment area 1 answered, so
+                   these stay peers — one row each, tagged with the layer they point at.
+       plain       a genuine fallback chain. Collapse it.
+     Reading urls[] without checking which shape it is was the original bug. Check the shape. */
+  const _tail = u => { const q=String(u||'').split('?')[0].replace(/\/query$/i,'').split('/');
+                       return q.slice(-2).join('/'); };
+  const zoneUrls = (r)=>{
+    if(!r) return {list:[]};
+    if(r.byCity){
+      // Same resolution queryZoning uses, including the longest-key prefix scan and the
+      // county sublayer appended behind a sparse city one.
+      const cn = (typeof window!=='undefined' && window.__cityIsPostal) ? '' : CITY;
+      let u = r.byCity[cn], key = (u!=null) ? cn : null;
+      if(!u && cn){
+        const ks = Object.keys(r.byCity).filter(k=>k).sort((a,b)=>b.length-a.length);
+        for(const k of ks){ if(cn.indexOf(k)===0){ u=r.byCity[k]; key=k; break; } }
+      }
+      const out = u ? (Array.isArray(u)?u.slice():[u]) : [];
+      const cty = r.byCity[''];
+      if(cty) (Array.isArray(cty)?cty:[cty]).forEach(c=>{ if(out.indexOf(c)===-1) out.push(c); });
+      if(out.length) return { list:out, juris: key ? (cityName||key) : 'unincorporated' };
+    }
+    return { list: cands(r), additive: !!r.additive, overlayOnly: !!r.overlayOnly };
+  };
+  const zoneRows = (r, fallbackLabel)=>{
+    const z = zoneUrls(r); if(!z.list.length) return false;
+    const base = (r.label||fallbackLabel) + (z.overlayOnly ? ' (map overlay only)' : '');
+    if(z.additive && z.list.length>1){
+      z.list.forEach(u=>add('zoning', base+' · '+_tail(u), u, 'query'));
+    } else {
+      chain('zoning', base + (z.juris ? (' · '+z.juris) : ''), z.list, 'query');
+    }
+    return true;
+  };
+  if(!zoneRows(ZONING_LIVE[C], countyName+' zoning')) add('zoning', 'No county zoning layer wired', null);
+  if(CITY) zoneRows(ZONING_LIVE_CITY[CITY], cityName+' zoning');
+
+  const la = LOCAL_AERIAL[C];
+  if(la && la.candidates && la.candidates.length)
+    chain('aerial', la.label||(countyName+' imagery'), la.candidates, 'service');
+  else add('aerial', 'No local HD imagery wired — statewide imagery only', null);
+
+  const fp = COUNTY_FOOTPRINTS[C];
+  if(fp) add('footprint', countyName+' building footprints', fp, 'query');
+  else add('footprint', 'No building footprints wired', null);
+
+  const ea = EASEMENTS[C];
+  if(ea && ea.length) ea.forEach(s=>add('easement', s.label||(countyName+' easements'), s.url, 'query'));
+  else add('easement', 'No recorded-easement layer wired', null);
+
+  const ss = SEPTIC_SEWER[C];
+  if(ss && ss.length) ss.forEach(s=>add('septic', s.label||(countyName+' septic/sewer'), s.url, 'query'));
+  else add('septic', 'No septic / sewer layer wired', null);
+  return rows;
+}
+function _fhProbeUrl(url, probe){
+  const sep = url.indexOf('?')>=0 ? '&' : '?';
+  // returnCountOnly is the cheapest thing a /query endpoint will answer. resultRecordCount is NOT
+  // used anywhere here — it 400s on the statewide layers (see the skill's network notes).
+  return url + sep + (probe==='query' ? 'where=1%3D1&returnCountOnly=true&f=json' : 'f=json');
+}
+const _fhNow = () => (typeof performance!=='undefined' && performance.now) ? performance.now() : Date.now();
+async function _fhPing(row, url){
+  const t0 = _fhNow();
+  let ctl=null, timer=null;
+  try{ ctl = (typeof AbortController!=='undefined') ? new AbortController() : null; }catch(e){}
+  if(ctl) timer = setTimeout(()=>{ try{ ctl.abort(); }catch(e){} }, FH_TIMEOUT_MS);
+  try{
+    const r = await fetch(_fhProbeUrl(url, row.probe), ctl ? {signal:ctl.signal} : {});
+    row.ms = Math.round(_fhNow()-t0);
+    if(!r.ok){ row.status='down'; row.detail='HTTP '+r.status; return row; }
+    let j=null;
+    try{ j = await r.json(); }
+    catch(e){ row.status='err'; row.detail='response was not JSON'; return row; }
+    if(j && j.error){
+      row.status='err';
+      row.detail = (j.error.message || j.error.description || ('error '+(j.error.code!=null?j.error.code:'')))
+                     .toString().slice(0,90);
+      return row;
+    }
+    row.status='ok';
+    if(typeof j.count==='number') row.count=j.count;
+    return row;
+  }catch(e){
+    row.ms = Math.round(_fhNow()-t0);
+    row.status='down';
+    if(e && e.name==='AbortError'){ row.detail='no answer in '+Math.round(FH_TIMEOUT_MS/1000)+'s'; return row; }
+    /* "Failed to fetch" is opaque, and the first cut of this guessed at it — printing
+       "unreachable (network, DNS or CORS)", three different problems with three different fixes,
+       asserted as one. It can also be flatly WRONG: a county whose SERVICE is stopped (Lee takes
+       theirs down at weekends) is indistinguishable from a CORS policy when seen from inside a
+       fetch. probeEndpoint() already solved half of this for the diagnostic panel — a no-cors
+       probe resolves opaque if the HOST answered anything and rejects if nothing did. Reuse that,
+       and where it still cannot separate service-stopped from CORS-blocked, SAY BOTH rather than
+       pick one and put a wrong diagnosis in front of someone standing in a driveway. */
+    row.reach = await _fhReach(url);
+    row.detail = row.reach
+      ? 'host answered but the browser request did not — service stopped, or cross-origin blocked'
+      : 'host did not respond at all';
+    return row;
+  } finally { if(timer) clearTimeout(timer); }
+}
+/* Did the HOST answer anything at all? Opaque-mode fetch: resolves on any reply, rejects on none. */
+async function _fhReach(url){
+  const root = url.split('?')[0].replace(/\/query$/i,'');
+  let ctl=null, timer=null;
+  try{ ctl = (typeof AbortController!=='undefined') ? new AbortController() : null; }catch(e){}
+  if(ctl) timer = setTimeout(()=>{ try{ ctl.abort(); }catch(e){} }, FH_TIMEOUT_MS);
+  try{ await fetch(root, ctl ? {mode:'no-cors', signal:ctl.signal} : {mode:'no-cors'}); return true; }
+  catch(e){ return false; }
+  finally { if(timer) clearTimeout(timer); }
+}
+/* Imagery is a CHAIN, not a single source — LOCAL_AERIAL lists fallbacks and the draw path walks
+   them. Probing only candidate[0] would cry wolf every time a primary rotated out while the
+   fallback quietly kept serving. So walk the chain the same way the map does and report where it
+   actually landed. Extra requests happen only when something is already broken. */
+async function _fhChain(row){
+  const list = row.chain || [row.url];
+  for(let i=0;i<list.length;i++){
+    await _fhPing(row, list[i]);
+    if(row.status==='ok'){
+      row.url = list[i];
+      if(i>0){ row.fallback = i; row.detail = 'primary source down — serving from fallback #'+i; }
+      return row;
+    }
+    if(i<list.length-1){ row.status='pending'; row.detail=null; }
+  }
+  row.url = list[0];
+  if(list.length>1) row.detail = (row.detail||'') + ' — all '+list.length+' wired sources failed';
+  return row;
+}
+async function _fhPool(tasks, n){
+  const q = tasks.slice(), workers = [];
+  for(let i=0;i<n;i++) workers.push((async()=>{ while(q.length){ const t=q.shift(); try{ await t(); }catch(e){} } })());
+  await Promise.all(workers);
+}
+async function checkFeedHealth(countyName, cityName){
+  const ck = norm(countyName||'')+'|'+norm(cityName||'');
+  const hit = _fhCache.get(ck);
+  if(hit && (Date.now()-hit.t) < FH_TTL_MS) return hit.rows;
+  const rows = _fhSources(countyName, cityName);
+  const tasks = rows.filter(r=>r.url).map(r => (r.chain ? (()=>_fhChain(r)) : (()=>_fhPing(r, r.url))));
+  await _fhPool(tasks, FH_POOL);
+  _fhCache.set(ck, {t:Date.now(), rows});
+  return rows;
+}
+const _fhDot = s => s==='ok' ? '●' : s==='err' ? '▲' : s==='down' ? '✕' : '·';
+const _fhCol = s => s==='ok' ? 'var(--good)' : (s==='err'||s==='down') ? 'var(--warn)' : 'var(--faint)';
+/* The quiet line. Appended INSIDE the card the missing data belongs to, styled down to the same
+   weight as a footnote — visible if you look for it, ignorable if you are not troubleshooting. */
+function injectFeedNotices(rows, myRun){
+  try{
+    if(myRun!=null && myRun!==_fhRun) return;
+    const container=document.getElementById('results'); if(!container) return;
+    for(const g of FH_GROUPS){
+      // 'down' ONLY, deliberately. An 'err' is a 200 with an error member, and the cheapest way
+      // to know that is to send a probe query the layer may simply not accept — so a strict layer
+      // could report 'err' while the app's own real query works fine. A false "did not answer"
+      // under a perfectly good zoning district would poison trust in every other note here, and a
+      // missed note still shows up in the panel. Cheap miss, expensive false alarm. If a real
+      // query-refusing layer turns up in the field, promote it then.
+      const bad = rows.filter(r=>r.group===g.key && r.status==='down');
+      if(!bad.length) continue;
+      const h2=[...container.querySelectorAll('h2')].find(el=>g.card.test(el.textContent||''));
+      if(!h2) continue;
+      const card = h2.closest('.card'); if(!card) continue;
+      if(card.querySelector('[data-fhnote="'+g.key+'"]')) continue;
+      const el=document.createElement('div');
+      el.setAttribute('data-fhnote', g.key);
+      el.className='fhnote';
+      el.innerHTML = '<span class="fhd" style="color:var(--warn)">'+_fhDot(bad[0].status)+'</span>'
+        + '<span>'+esc(FH_BLANK_MEANS[g.key]||'Source did not answer.')
+        + ' <span class="fhwhy">'+esc(bad.map(b=>{
+              const hn=_fhHostNote(b.url);
+              return (b.detail||b.status)+(hn ? (' — '+hn) : '');
+            }).join(' · '))+'</span></span>';
+      (card.querySelector('.cb') || card).appendChild(el);
+    }
+  }catch(e){}
+}
+/* The panel. Collapsed by default and printed nowhere — it is a diagnostic, not part of the site
+   report. Lists the not-wired registries too, which is the coverage question answered in place. */
+function injectFeedHealth(rows, countyName, myRun){
+  try{
+    if(myRun!=null && myRun!==_fhRun) return;
+    const container=document.getElementById('results'); if(!container) return;
+    const old=container.querySelector('[data-feedhealth]'); if(old) old.remove();
+    const wired = rows.filter(r=>r.url);
+    const okN   = wired.filter(r=>r.status==='ok').length;
+    const badN  = wired.filter(r=>r.status==='down'||r.status==='err').length;
+    const noneN = rows.length - wired.length;
+    let body='';
+    for(const g of FH_GROUPS){
+      const set = rows.filter(r=>r.group===g.key);
+      if(!set.length) continue;
+      body += '<div class="fhgrp"><div class="fhgt">'+esc(g.title)+'</div>';
+      for(const r of set){
+        const bits=[];
+        if(r.status==='ok'){
+          if(r.ms!=null) bits.push(r.ms+' ms');
+          if(r.count!=null) bits.push(fmtNum(r.count)+' features');
+          if(r.fallback) bits.push('fallback #'+r.fallback);
+        } else if(r.status==='nowire'){ bits.push('not wired for this county'); }
+        else {
+          if(r.detail) bits.push(r.detail);
+          const hn=_fhHostNote(r.url); if(hn) bits.push(hn);
+        }
+        body += '<div class="fhrow"><span class="fhd" style="color:'+_fhCol(r.status)+'">'+_fhDot(r.status)+'</span>'
+              + '<span class="fhl">'+esc(r.label)+'</span>'
+              + (bits.length ? '<span class="fhm">'+esc(bits.join(' · '))+'</span>' : '')
+              + '</div>';
+      }
+      body += '</div>';
+    }
+    const sum = okN+' serving'
+      + (badN ? ' · <b style="color:var(--warn)">'+badN+' not answering</b>' : '')
+      + (noneN ? ' · '+noneN+' not wired here' : '');
+    const html = '<div class="card noprint" data-feedhealth="1"><details class="fhwrap"'+(badN?' open':'')+'>'
+      + '<summary class="fhsum"><span class="fhd" style="color:'+(badN?'var(--warn)':'var(--good)')+'">'
+      + (badN?'✕':'●')+'</span> Data sources <span class="fhm">'+sum+'</span></summary>'
+      + '<div class="fhbody">'+body
+      + '<div class="fhfoot">Probed live just now against every source wired for '
+      + esc(countyName||'this county')+'. Cached for 10 minutes. This panel reports only — it does'
+      + ' not change what the map draws.</div></div></details></div>';
+    const node=document.createElement('div'); node.innerHTML=html;
+    container.insertAdjacentElement('beforeend', node.firstChild);
+  }catch(e){}
+}
+/* One entry point for both render paths. Fire-and-forget: never awaited by the caller, never
+   allowed to reject, and guarded so a slow probe from the previous parcel cannot paint onto this
+   one — the same discipline the easement and septic draws use. */
+/* ⚠️ THE PAINT IS RETRIED, AND IT HAS TO BE. The probe is cached for ten minutes, so the SECOND
+   lookup in a county resolves in a microtask — before the render has finished assigning the cards
+   into #results. A single-shot inject would find no h2 to anchor to and silently paint nothing,
+   which is the exact failure mode this whole feature exists to eliminate. The same retry also
+   survives a later card repaint wiping the panel mid-lookup. Every attempt is run-guarded and
+   both injects are dupe-guarded, so repainting is free. */
+const FH_PAINT_AT = [0, 300, 900, 1800];
+function _fhPaint(rows, countyName, mine){
+  for(const d of FH_PAINT_AT){
+    setTimeout(()=>{
+      if(mine!==_fhRun) return;
+      try{ injectFeedNotices(rows, mine); }catch(e){}
+      try{
+        const c=document.getElementById('results');
+        if(c && !c.querySelector('[data-feedhealth]')) injectFeedHealth(rows, countyName, mine);
+      }catch(e){}
+    }, d);
+  }
+}
+function runFeedHealth(countyName, cityName, myId, runIdRef){
+  try{
+    _fhRun++; const mine=_fhRun;
+    checkFeedHealth(countyName, cityName).then(rows=>{
+      if(mine!==_fhRun) return;
+      if(typeof runIdRef==='function' && myId!==runIdRef()) return;
+      _fhPaint(rows, countyName, mine);
+    }).catch(()=>{});
+  }catch(e){}
+}
 function injectSepticSewer(lines){
   try{
     if(!lines || !lines.length) return;
@@ -26111,12 +26868,8 @@ function injectSepticSewer(lines){
     const html='<div class="field stack" data-septicsewer="1">'
       +'<div class="k">Septic / sewer<span class="cap">county GIS · verify on site</span></div>'
       +'<div class="v">'+body+'</div></div>';
-    let anchor=null;
-    const h2=[...container.querySelectorAll('h2')].find(el=>/parcel\s*&\s*owner/i.test(el.textContent||''));
-    if(h2){ anchor=h2.closest('.ch')||h2; }
     const node=document.createElement('div'); node.innerHTML=html; const el=node.firstChild;
-    if(anchor && anchor.parentNode){ anchor.parentNode.insertBefore(el, anchor.nextSibling); }
-    else container.insertAdjacentElement('afterbegin', el);
+    _appendToParcelCard(el, container, 'septicsewer');
   }catch(e){}
 }
 function injectCitrusSetbacks(a){
@@ -26588,7 +27341,7 @@ async function _runLookupInner(lat,lng,searchCtx){
   if(marker) map.removeLayer(marker);
   marker=L.circleMarker([lat,lng],{renderer:canvasRenderer,radius:6,color:'#F46800',weight:2,fillColor:'#F46800',fillOpacity:.9}).addTo(map);
   if(parcelLayer){ map.removeLayer(parcelLayer); parcelLayer=null; }
-  try{ clearSiteSketch(); window.__siteSketch=null; clearPreserves(); window.__preserveCheck=null; clearFootprints(); window.__footprint=null; clearEasements(); clearSepticPoints(); window.__zoningExceptions=null; }catch(e){}
+  try{ clearSiteSketch(); window.__siteSketch=null; clearPreserves(); window.__preserveCheck=null; clearFootprints(); window.__footprint=null; clearEasements(); clearSepticPoints(); clearWellPoints(); window.__zoningExceptions=null; }catch(e){}
   try{ resetElevationGrid(); }catch(e){}   // grid follows the parcel — stale points must not linger
   if(homeParcelLayer){ map.removeLayer(homeParcelLayer); homeParcelLayer=null; }
   clearNeighborNumbers(); _nbrCtx=null;
@@ -30003,6 +30756,16 @@ async function _runLookupInner(lat,lng,searchCtx){
           try{ drawSepticPoints(ss && ss.points, _spMine); }catch(e){}
         }).catch(()=>{});
       }
+      /* WELLS + WELLFIELD PROTECTION: a point query for the zone the lot sits in and any permitted
+         wells within 60 m. Same lifecycle as the septic block — async, dupe-guarded, silent on a
+         miss — because it answers the same class of question: what is already in the ground here. */
+      if(WELLFIELD[norm(countyName)] || WELLS_PERMITTED[norm(countyName)]){
+        const _myIdWL=myId; clearWellPoints(); const _wlMine=_wlRun;
+        wellsAtPoint(countyName, lat, lng).then(wl=>{ if(_myIdWL!==runId) return;
+          injectWells(wl);
+          try{ drawWellPoints(wl && wl.points, _wlMine); }catch(e){}
+        }).catch(()=>{});
+      }
       // RECORDED EASEMENTS (informational): polygon-intersect the subject parcel against the county's
       // easement layer. Needs _subjRings, since the question is about the LOT, not the pin. Async,
       // dupe-guarded, silent on any miss.
@@ -30016,6 +30779,9 @@ async function _runLookupInner(lat,lng,searchCtx){
           try{ if(ea) drawEasements((ea.live||[]).concat(ea.dead||[]), _eaMine); }catch(e){}
         }).catch(()=>{});
       }
+      // FEED HEALTH: probe every source wired for this county and report, quietly, which ones
+      // answered. Fire-and-forget, cached 10 min per county, and it never alters what is drawn.
+      try{ runFeedHealth(countyName, cityName, myId, ()=>runId); }catch(e){}
       // Neighbor house-number labels: anchor on the subject's number (from its address) + the
       // matched point so the right lot is highlighted. Runs after fitBounds so the view is settled.
       try{
@@ -30218,6 +30984,14 @@ async function _runLookupInner(lat,lng,searchCtx){
         try{ drawSepticPoints(ss && ss.points, _spMine2); }catch(e){}
       }).catch(()=>{});
     }
+    // Wells on the roll path too — a point query, independent of which parcel source answered.
+    if(WELLFIELD[norm(countyName)] || WELLS_PERMITTED[norm(countyName)]){
+      const _myIdWL2=myId; clearWellPoints(); const _wlMine2=_wlRun;
+      wellsAtPoint(countyName, lat, lng).then(wl=>{ if(_myIdWL2!==runId) return;
+        injectWells(wl);
+        try{ drawWellPoints(wl && wl.points, _wlMine2); }catch(e){}
+      }).catch(()=>{});
+    }
     // Easements on the roll path too — the query only needs the parcel rings, whichever source drew them.
     if(_subjRings && EASEMENTS[norm(countyName)]){
       const _myIdEA2=myId; clearEasements(); const _eaMine2=_eaRun;
@@ -30227,6 +31001,8 @@ async function _runLookupInner(lat,lng,searchCtx){
         try{ if(ea) drawEasements((ea.live||[]).concat(ea.dead||[]), _eaMine2); }catch(e){}
       }).catch(()=>{});
     }
+    // Feed health on the roll path too — the probe is per-county, not per-parcel-source.
+    try{ runFeedHealth(countyName, cityName, myId, ()=>runId); }catch(e){}
     try{
       const _sHN = houseNum(site||'') || (searchCtx&&searchCtx.hn) || null;
       _nbrCtx={ hn:_sHN, lat:lat, lng:lng, pid:(pid!=null?String(pid):null) };
