@@ -1695,17 +1695,19 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
    ============================================================ */
 const EP = {
   parcel : "https://services9.arcgis.com/Gh9awoU677aKree0/arcgis/rest/services/Florida_Statewide_Cadastral/FeatureServer/0/query",
-  /* ⚡ DISTRICT MIRROR OF THE SAME FDOR ROLL (found + validated 2026-09-02).
-     Florida DEP republishes the FDOR cadastral split by district. Identical field set —
-     PARCEL_ID, OWN_NAME, PHY_ADDR1, JV, LND_VAL, LND_SQFOOT, DOR_UC, ACT_YR_BLT, EFF_YR_BLT,
-     TOT_LVG_AR, SALE_PRC1/2 — but a fraction of the statewide layer's feature count, so the
-     point query has far less to scan.
-     Verified by querying folio 14010360001 (112 1st Ave N, Naples) and getting the same record
-     the statewide layer returns: OWN_NAME MILLAR, TOT_LVG_AR 9808, JV 9288968.
-     Used as a FIRST ATTEMPT only, never a replacement: it covers the south district, and this app
-     serves all 67 counties. A miss here simply falls through to the statewide layer, which needs no
-     district table to be maintained — "no feature" and "not covered" both take the same path. */
-  parcelSouth : "https://services1.arcgis.com/nRHtyn3uE1kyzoYc/arcgis/rest/services/FDORCadastral_SouthDistrict/FeatureServer/0/query",
+  /* ⚠ REMOVED 21 Sep 2026 — the DEP south-district mirror (FDORCadastral_SouthDistrict on
+     services1.arcgis.com/nRHtyn3uE1kyzoYc, Florida Dept of Environmental Protection).
+     It was wired 2 Sep 2026 as a fast second attempt and was genuinely fast — re-measured 21 Sep
+     at a 238 ms median (122—337) against FloridaGIO's 3,184 ms. Speed was never the problem.
+     WHAT KILLED IT: lastEditDate 1 Apr 2026. Five and a half months stale, while FloridaGIO's copy
+     showed 16 Sep 2026 and the digitalRE mirror 24 Aug 2026. It sat at tier 2, AHEAD of the
+     authoritative layer, so every lookup that fell through parcelFast was silently answered from a
+     roll nearly half a year old — and nothing in the card could have told you.
+     A stale mirror is worse than a slow source: slow is visible, stale is not. The chain is now
+     parcelFast -> parcel (FloridaGIO), which costs one extra fallback hop in exchange for never
+     serving a knowingly outdated roll.
+     If it is ever reinstated, check lastEditDate FIRST and gate it on being no older than the
+     FloridaGIO layer. Do not re-add it on speed alone. */
   /* ⚡ FASTEST MIRROR OF THE SAME FDOR ROLL (added + measured 18 Sep 2026).
      A third-party republish of the identical statewide cadastral — 10,834,415 parcels, layer "Final",
      ASMNT_YR 2025, copyrightText crediting "Florida's county property appraisers, Florida Department
@@ -4893,7 +4895,14 @@ function _finderHtml(d, it, base){
    section inline beneath the reference. Needs the Municode clientId of the code being read. */
 /* Wide Municode tables scroll inside the card instead of widening it. */
 function wrapTables(root){ if(!root) return; for(const t of root.querySelectorAll('table')){ if(t.parentElement && t.parentElement.classList.contains('tbl-scroll')) continue; const w=document.createElement('div'); w.className='tbl-scroll'; t.parentNode.insertBefore(w,t); w.appendChild(t); } }
-const XREF_RE = /(?<![\w])((?:LDC\s+|UDC\s+)?(?:sections?|secs?\.|§+|table|chapter|article|division)\s*)(\d+(?:[.\-]\d+)*[A-Za-z]?)/gi;
+/* ⚠ NO LOOKBEHIND HERE, EVER. This used a negative-lookbehind assertion until 21 Sep 2026. Safari did not
+   support lookbehind assertions until 16.4, and a regex LITERAL is an EARLY error: the engine
+   rejects the whole <script> at parse time. This one lives in the 2.4 MB main block, so on
+   iOS 16.0-16.3 not one line of this app ran — a blank, silent, dead page with nothing in the UI
+   to explain it. Rewritten as a capturing group the callers skip, which every engine accepts.
+   Group 1 is the character before the match (or start of string), group 2 the keyword, group 3
+   the number. Callers must emit group 1 verbatim when rebuilding the string. */
+const XREF_RE = /(^|[^\w])((?:LDC\s+|UDC\s+)?(?:sections?|secs?\.|§+|table|chapter|article|division)\s*)(\d+(?:[.\-]\d+)*[A-Za-z]?)/gi;
 function linkifyXrefs(root, base, clientId, productId, selfNodeId){
   if(!root || !clientId) return;
   const walker=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
@@ -7708,6 +7717,7 @@ async function queryZoning(lat,lng, cityName, countyName){
      the truthful outcome: the county does not zone that parcel. Compared with normZoneKey(), so
      case/spacing/punctuation don't matter ("Mary Esther" == "MARY ESTHER"). */
   const _badByUrl = new Map();
+  const _badAny = new Set();   // union of every sentinel in play - see the note where it is filled
   if(zoningSource.url){ cands = [zoningSource.url]; isOverride=true; }   // manual paste wins
   else {
     const cityReg = cityName ? ZONING_LIVE_CITY[norm(cityName)] : null;   // city is its own zoning authority
@@ -7769,6 +7779,16 @@ async function queryZoning(lat,lng, cityName, countyName){
       if(!_r || !Array.isArray(_r.badCodes) || !_r.badCodes.length) continue;
       const _set = new Set(_r.badCodes.map(v=>normZoneKey(v)));
       for(const _u of lookupUrls(_r)) _badByUrl.set(_u, _set);
+      /* ⚠ ALSO COLLECT THEM INTO ONE UNION SET. The per-URL map is the precise guard, but it
+         only fires when the queried url is byte-identical to the one lookupUrls() produced. Any
+         mismatch — a url reached by another path, a registry whose entry changed shape, an
+         Advanced-panel override — makes _badByUrl.get(cu) undefined, and undefined means NO
+         FILTERING AT ALL: the sentinel prints as the district with nothing logged. That is the
+         failure Brandon saw on iOS, where every Collier lookup read "CITY OF NAPLES".
+         These values are enumerated and verified per county; none of them is a real district
+         anywhere. So they are also checked unconditionally. Precision where the key matches,
+         safety net where it does not. */
+      for(const _v of _set) _badAny.add(_v);
     }
   }
   const multi = cands.length>1;                    // probing several layers → be stricter about what we trust
@@ -7810,8 +7830,8 @@ async function queryZoning(lat,lng, cityName, countyName){
     if(folio(desc)||urlish(desc)) desc=null;
     // Registry sentinel guard — see `badCodes` note at the top of this function. Skip the WHOLE
     // result (not just the code) so a lower-priority candidate can still answer.
-    const _bad = _badByUrl.get(cu);
-    if(_bad){
+    const _bad = _badByUrl.get(cu) || _badAny;   // exact match if we have it, union otherwise
+    if(_bad && _bad.size){
       const _c = (code!=null && String(code).trim()!=='') ? normZoneKey(code) : null;
       const _d = (desc!=null && String(desc).trim()!=='') ? normZoneKey(desc) : null;
       if((_c && _bad.has(_c)) || (!_c && _d && _bad.has(_d))) continue;
@@ -27406,9 +27426,11 @@ async function _runLookupInner(lat,lng,searchCtx){
          behind the breaker.
      So a slow roll costs nothing and still fills the card; a dead roll costs one non-blocking
      attempt and the card says which fields are missing and why. */
-  /* Try the smaller district mirror first, then the statewide layer. Two independent hosts, so a
-     stall on one no longer costs the whole roll — which was the actual failure mode (four 4-second
-     timeouts in one measured session), not the data being unavailable. See EP.parcelSouth. */
+  /* Two hosts, tried in order: the fast third-party mirror, then FloridaGIO's authoritative
+     statewide layer. A stall on the first costs one short leash, not the whole roll — which was the
+     original failure mode (four 4-second timeouts in one measured session), not the data being
+     unavailable. A third host (DEP's south-district mirror) sat between them until 21 Sep 2026;
+     see the removal note on EP for why it went. */
   const startParcelRoll = (wired) => {
     const label = wired ? 'parcel (state roll · footnote)' : 'parcel (state roll)';
     const ok = v => !!(v && !v.__err && v.features && v.features[0]);
@@ -27423,11 +27445,6 @@ async function _runLookupInner(lat,lng,searchCtx){
       if(EP.parcelFast){
         const quick = await attempt(EP.parcelFast, wired ? 2000 : 3000, 1);
         if(ok(quick)){ _timings.push({label:'  ↳ via fast statewide mirror', ms:0}); return quick; }
-      }
-      // Then the smaller district layer — small, so a slow answer here means a stall.
-      if(EP.parcelSouth){
-        const fast = await attempt(EP.parcelSouth, wired ? 2500 : 3500, wired ? 1 : 2);
-        if(ok(fast)){ _timings.push({label:'  ↳ via DEP district mirror', ms:0}); return fast; }
       }
       // Last: FloridaGIO's own statewide layer — slowest, but the authoritative publisher.
       return attempt(EP.parcel, wired ? 4000 : PARCEL_TIMEOUT, wired ? 1 : 3);
