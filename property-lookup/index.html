@@ -1250,6 +1250,12 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     #map,.search,header .kick,header h1,header p,header .brandbar,
     .layerswitch,.crosshair,.sheet-grip,.sheet-tab,footer,.status,
     #themeToggle,#printBtn,.brand-back,.suggest,.history,.empty,
+    /* The panel's own hide/show handles. #panelEdge is the "‹" tab on the panel's edge and it was
+       printing as a stray glyph in the margin of every PDF; #panelShow is its counterpart, normally
+       display:none but visible whenever the user printed with the panel collapsed. Neither is
+       content. Swept for with a print-media audit of every still-painted control outside the print
+       flow — these two were the only leaks. */
+    #panelEdge,#panelShow,
     .action-bar,.scoutcard,.aerial-wrap,.noprint,.pcol-stash,
     .leaflet-control-container{ display:none !important; }
 
@@ -1454,6 +1460,56 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     /* links: hidden on paper */
     .palink, a.link{ display:none !important; }
     a[href]:after{ content:"" !important; }
+
+    /* ── THE PROPERTY PDF CARRIES NUMBERS, NOT THE CODE LIBRARY ─────────────────────────────
+       Everything below is LIVE-PULLED code text or an on-screen affordance, and none of it belongs
+       in a document that goes to a homeowner or a plans reviewer:
+         .codefinder    the whole LIVE CODE card — section lists, excerpts, Read/Hide buttons, and
+                        any section a user happened to expand before hitting PDF. On the Adkins Ave
+                        report this was most of the right-hand column: 3.06.10, 2.03.01, 5.03.07 and
+                        two collapsed groups, none of it a setback figure.
+         #floodLiveCode / #permitLiveCode   the same thing on the Flood and Permits cards.
+         .live-panel / .cv-badge            the "SECTIONS MATCH MUNICODE · SUPPLEMENT 34" chip and
+                        its panel. Dropping the CHIP and not the line it sits on is the whole reason
+                        cv-badge exists — "REQUIRED setbacks · A (Collier LDC Table 2.1)" stays.
+         .fdemnb        "Check 5 more neighbours at FDEM" — a button. A button on paper is noise.
+         feed health    "Data sources 6 serving · 1 not wired here" is a diagnostic about THIS APP.
+                        It already carries .noprint, but it is injected outside the .tabpanel tree
+                        that preparePrint() filters, so it needs naming here as well.
+       What SURVIVES is the point: the resolved setback figures, zoning district, flood zone, BFE,
+       wind speed and parcel facts — the report's own conclusions, not the source library.
+       The code reader's OWN print path is unaffected: that runs under html.cm-print, which hides
+       this whole document and prints the section on its own (see the block after this one). */
+    /* ── SCREEN GUIDANCE, NOT REPORT CONTENT ───────────────────────────────────────────────
+       .sunbiz-note   explains what Sunbiz IS — orientation for someone using the app. The
+                      SUBDIVISION line above it stays; that is the finding.
+       .src-note      "Not from the property appraiser…" — provenance the print header already
+                      covers with its own verify line.
+       .est-note      "Computed estimate — not a permit figure." Hidden on request. ⚠️ NOTE THE
+                      TRADE-OFF: it sits directly under COMPUTED buildable-area totals, so the PDF
+                      now shows those figures with no estimate caveat beside them. The masthead's
+                      "Verify all figures … before relying on them" is the only remaining hedge.
+       #fdemHits      the neighbour-certificate result list — screen-only, and its rows are PDF
+                      links, which are inert on paper.
+       .hand-ref > summary   a disclosure header ("▼ VERIFIED QUICK REFERENCE …"). The tables it
+                      wraps carry their own "≈ QUICK REF …" heading, so dropping the summary loses
+                      no label — it only removes the twisty and its now-meaningless prompt. */
+    .sunbiz-note, .src-note, .est-note, #fdemHits,
+    .hand-ref > summary,
+    .codefinder, #floodLiveCode, #permitLiveCode,
+    .live-panel,
+    .lc-read, .lc-expand, .lc-more, .lc-also, .lc-rhead, .lc-zonebar, .lc-xbox,
+    .fdemnb,
+    [data-feedhealth], .fhwrap{ display:none !important; }
+    /* The verification chip needs its own line at MATCHING specificity. `.freshline .badge` above
+       is (0,2,0) and !important, so a bare `.cv-badge` (0,1,0) loses the cascade even though it is
+       declared later and also !important — the chip printed anyway, as "SECTIONS MATCH MUNICODE ·
+       SUPPLEMENT 34 —" hanging off the end of the setback line. Both forms below are (0,2,0) and
+       come after, so they win. Hiding the element takes its :after " — " with it. */
+    .freshline .cv-badge, .badge.cv-badge{ display:none !important; }
+    /* .note.warnbox is re-shown at (0,2,0) further up, so the exclusion has to match that weight —
+       the same specificity trap the cv-badge chip hit. */
+    .note.warnbox.sunbiz-note, .note.warnbox.src-note, .note.warnbox.est-note{ display:none !important; }
 
     *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   }
@@ -4769,7 +4825,9 @@ function renderCodeFinder(cityName, countyName, jurName, zoneCode, inCity){
   const id = 'cf_'+Math.random().toString(36).slice(2,8);
   _finderPending.push({id, cityName, countyName, jurName, zoneCode, inCity}); window.__finderCtx = {cityName, countyName, inCity};
   setTimeout(_runFinder, 0);
-  return `<div id="${id}" style="margin-top:14px"><div class="freshline snap"><span class="badge unk">▤ LIVE CODE</span> loading ${esc(jurName||'the local')} code… <span class="zone-spin" aria-hidden="true"></span></div></div>`;
+  /* .codefinder is the print hook. The id is random per render, so without a stable class the
+     whole LIVE CODE card could not be excluded from the property PDF — see @media print. */
+  return `<div id="${id}" class="codefinder" style="margin-top:14px"><div class="freshline snap"><span class="badge unk">▤ LIVE CODE</span> loading ${esc(jurName||'the local')} code… <span class="zone-spin" aria-hidden="true"></span></div></div>`;
 }
 /* ---- statewide registry (static files beside index.html: codes/index.json, codes/<slug>.json) ---- */
 // One compressed pack beside index.html, same format as the parcel packs: { built, index, clients:{slug:{...}} }.
@@ -5567,7 +5625,7 @@ function codeVerifyBadge(jur, sec){
   const id = 'cv_'+jur+'_'+sec.replace(/[^A-Za-z0-9]/g,'_')+'_'+Math.random().toString(36).slice(2,7);
   _codeVerifyPending.push({id, jur, sec});
   setTimeout(_runCodeVerify, 0);
-  return `<span id="${id}" class="badge unk" style="margin-left:6px" title="Checking live text on Municode…">… checking Municode</span>`;
+  return `<span id="${id}" class="badge unk cv-badge" style="margin-left:6px" title="Checking live text on Municode…">… checking Municode</span>`;
 }
 /* Aggregate badge: one per card. Asks /api/code-status for every registered section of the jurisdiction
    (one Municode call per chapter, cached 6 h server-side) and shows "✓ 23/23 match" or "! 2 of 23 changed".
@@ -5578,7 +5636,9 @@ function codeVerifyBadgeAll(jur){
   const id = 'cva_'+jur+'_'+Math.random().toString(36).slice(2,7);
   _codeVerifyPending.push({id, jur, all:true});
   setTimeout(_runCodeVerify, 0);
-  return `<span id="${id}" class="badge unk" style="margin-left:6px" title="Checking every cited section against Municode…">… checking Municode</span><div id="${id}_panel" class="live-panel" style="display:none"></div>`;
+  /* .cv-badge so the Municode verification chip can be dropped from print WITHOUT dropping the
+     setback line it is attached to — that line is exactly what the PDF is for. */
+  return `<span id="${id}" class="badge unk cv-badge" style="margin-left:6px" title="Checking every cited section against Municode…">… checking Municode</span><div id="${id}_panel" class="live-panel" style="display:none"></div>`;
 }
 /* Live Code panel: every section a card relies on, with status, verified date and live text on demand.
    Opened by clicking the card's badge. Changed sections sort first. */
@@ -24509,7 +24569,7 @@ function renderCapacityCard(table, districtCode, lotSqft, jurLabel, codeRef){
   if(cap.maxUnits!=null) h+=fieldRow('Max dwelling units', esc(cap.maxUnits+(cap.densityPerAcre?(' (@ '+cap.densityPerAcre+' du/ac)'):(cap.maxUnits===1?' (single-family)':''))));
   if(cap.openSpaceSqft!=null) h+=fieldRow('Min open space', esc('≈ '+cap.openSpaceSqft.toLocaleString('en-US')+' ft²'));
   if(cap.note) h+=`<div class="note" style="padding-top:2px">${esc(cap.note)}</div>`;
-  h+=`<div class="note warnbox" style="margin-top:4px"><b>Computed estimate — not a permit figure.</b> These totals are the district's code ratios applied to this lot's area${haveLot?' (≈ '+Math.round(lotSqft).toLocaleString('en-US')+' ft²)':''}. Overlays, the flood zone, PUD terms, corner/waterfront conditions, non-conforming status and the setback envelope can all lower what's actually buildable. Verify with ${esc(jurLabel||'the jurisdiction')}'s planning/building department before relying on any number.</div>`;
+  h+=`<div class="note warnbox est-note" style="margin-top:4px"><b>Computed estimate — not a permit figure.</b> These totals are the district's code ratios applied to this lot's area${haveLot?' (≈ '+Math.round(lotSqft).toLocaleString('en-US')+' ft²)':''}. Overlays, the flood zone, PUD terms, corner/waterfront conditions, non-conforming status and the setback envelope can all lower what's actually buildable. Verify with ${esc(jurLabel||'the jurisdiction')}'s planning/building department before relying on any number.</div>`;
   if(codeRef) h+=`<a class="palink" href="${esc(codeRef)}" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify dimensional standards in the adopted code</a>`;
   return h;
 }
@@ -31812,7 +31872,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
       html += `<a class="palink" href="${esc(_sunbizBase)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Open Sunbiz entity search</a>`;
     }
 
-    html += `<div class="note warnbox">Sunbiz is Florida&rsquo;s official Division of Corporations registry. HOAs and community associations must register here as Florida not-for-profit corporations — search the subdivision name to find the registered agent, officers, and annual report filings. Not all communities have an HOA; some use a master deed or deed restrictions without a corporation.</div>`;
+    html += `<div class="note warnbox sunbiz-note">Sunbiz is Florida&rsquo;s official Division of Corporations registry. HOAs and community associations must register here as Florida not-for-profit corporations — search the subdivision name to find the registered agent, officers, and annual report filings. Not all communities have an HOA; some use a master deed or deed restrictions without a corporation.</div>`;
     html += `</div></div>`;
   }
 
@@ -32560,13 +32620,13 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
     if(norm(countyName)==='MANATEE' && zhit.code){ html += renderManateeSetbacks(zhit.code); }
     if(zhit.sheetUrl) html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Official zoning map sheet (PDF)</a>`;
     html += `<div class="note" style="padding-top:6px">District read live from <b>${esc(zhit.layerName||jurName)}</b>${zhit.lastEdit?' (layer updated '+esc(zhit.lastEdit.toLocaleDateString())+')':''}. Verify overlays, any PUD/planned-development terms, and the exact front/side/rear setbacks in the adopted code below — those are not a queryable number.</div>`;
-    html += `<div class="note warnbox"><b>Not from the property appraiser.</b> The district above comes from <b>${esc(jurName)}</b>'s zoning GIS; setbacks and use standards live in its adopted land development code (Municode) and permitting portal.</div>`;
+    html += `<div class="note warnbox src-note"><b>Not from the property appraiser.</b> The district above comes from <b>${esc(jurName)}</b>'s zoning GIS; setbacks and use standards live in its adopted land development code (Municode) and permitting portal.</div>`;
   } else if(zhit && zhit.sheetUrl){
     html += `<div class="freshline snap" style="margin-top:10px"><span class="badge live">● LIVE</span> zoning map sheet located for this point</div>`;
     html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener">↗ Official zoning map sheet (PDF)</a>`;
-    html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Read the district off the map sheet above; setbacks &amp; use standards come from <b>${esc(jurName)}</b>'s adopted land development code (Municode) and permitting portal.</div>`;
+    html += `<div class="note warnbox src-note"><b>Not from the property appraiser.</b> Read the district off the map sheet above; setbacks &amp; use standards come from <b>${esc(jurName)}</b>'s adopted land development code (Municode) and permitting portal.</div>`;
   } else {
-    html += `<div class="note warnbox"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code. No GIS feed returns a reliable setback number${(ZONING_LIVE[norm(countyName||'')]||ZONING_LIVE_CITY[norm(cityName||'')])?'':' (no live zoning layer is wired for this jurisdiction yet — you can paste one in the Advanced panel)'}.</div>`;
+    html += `<div class="note warnbox src-note"><b>Not from the property appraiser.</b> Zoning district &amp; setbacks come from <b>${esc(jurName)}</b>'s permitting/planning portal and its adopted land development code (Municode). Look up the parcel's zoning district in the portal, then read that district's front/side/rear setback standards in the code. No GIS feed returns a reliable setback number${(ZONING_LIVE[norm(countyName||'')]||ZONING_LIVE_CITY[norm(cityName||'')])?'':' (no live zoning layer is wired for this jurisdiction yet — you can paste one in the Advanced panel)'}.</div>`;
   }
   // Collier County generator siting (LDC 5.03.07) — UNINCORPORATED Collier only. The incorporated
   // cities (Naples has its own § 56-41 rendered above; Marco Island has its own LDC) are excluded.
@@ -36000,6 +36060,7 @@ window.Sheet=Sheet;
   const btn=document.getElementById('printBtn');
   let _flatten = null;
   let _origTitle = null;
+  let _openedDetails = [];      // <details> this print opened; closed again by restorePrint()
 
   // Build the two-column flowing print layout. Runs on the tool's print button AND on the browser's
   // own beforeprint event (Cmd-P / Ctrl-P / browser menu), so the layout + note-hiding always apply.
@@ -36047,6 +36108,16 @@ window.Sheet=Sheet;
     document.title = fileName;
 
     // Tag tall cards so they may split internally rather than forcing a page break.
+    /* ⚠️ OPEN EVERY <details> FOR THE DURATION OF THE PRINT.
+       A closed <details> prints its <summary> and nothing else, so the report carried the heading
+       "VERIFIED QUICK REFERENCE — HAND-CHECKED TABLES & NOTES FOR COLLIER COUNTY" with empty space
+       under it — and the hand-checked SETBACK TABLES inside it never reached the paper at all. On a
+       generator-siting report those tables are the point. Same for the folded PUD and encroachment
+       groups. Recorded so restorePrint() can close again exactly the ones that were closed; a
+       details the user had already opened stays open. */
+    _openedDetails = [...document.querySelectorAll('#results details:not([open])')];
+    _openedDetails.forEach(d=>{ d.open = true; });
+
     const allcards=[...document.querySelectorAll('#results .card')];
     allcards.forEach(c=>c.classList.remove('tall'));
     allcards.filter(c=>c.offsetHeight>300).forEach(c=>c.classList.add('tall'));
@@ -36102,6 +36173,9 @@ window.Sheet=Sheet;
   function restorePrint(){
     document.documentElement.style.removeProperty('--print-fit');
     if(_origTitle!=null){ document.title=_origTitle; _origTitle=null; }
+    /* Before the _flatten guard: preparePrint can open details and then bail out early (no results),
+       so these must be closed again whether or not a flatten happened. */
+    if(_openedDetails.length){ _openedDetails.forEach(d=>{ try{ d.open = false; }catch(e){} }); _openedDetails = []; }
     if(!_flatten) return;
     if(_flatten.glyphEdits){ _flatten.glyphEdits.forEach(e=>{ e.node.textContent = e.orig; }); }
     _flatten.panels.forEach(panel=>{ panel.style.display=''; });
