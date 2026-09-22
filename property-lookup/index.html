@@ -4989,23 +4989,81 @@ function _fldSectionsFromRegistry(reg){
     (/^(chapter|division|article|part)\b/i.test(a.title)?1:0) - (/^(chapter|division|article|part)\b/i.test(b.title)?1:0)
   ).slice(0,4);
 }
-function _fldRegistryHtml(reg){
-  const base = CODE_PROXY_URL.replace(/code-section$/,'');
-  const hits = _fldSectionsFromRegistry(reg);
-  const d = reg.data;
-  if(!hits.length){
-    return `<div class="lc-meta">No flood or floodplain-management section captured in ${esc(d.name)}'s stored code. `
-         + `The Florida Building Code and ASCE 24 elevation rules still apply, and the local ordinance may `
-         + `sit in a book this crawl didn't cover — open the code and search &ldquo;flood&rdquo;.</div>`
-         + `<a class="palink" href="${esc(d.libraryUrl)}" target="_blank" rel="noopener" style="margin-top:6px">↗ ${esc(d.name)} on Municode</a>`;
-  }
-  return hits.map(x=>{
-    const tid='cft_'+Math.random().toString(36).slice(2,8);
-    const t = x.title.replace(/^\s*(Sec(tion)?s?\.?|§)\s*/i,'');
-    return `<div class="lc-hit"><div class="lc-hit-t"><b>${esc(t)}</b><span class="lc-meta"> · ${esc(x.book||'')}${x.path&&x.path.length?' › '+esc(x.path[x.path.length-1]):''}</span>`
-         + `${x.excerpt?`<div class="lc-excerpt">${esc(String(x.excerpt).slice(0,220))}…</div>`:''}</div>`
-         + `<button type="button" class="lc-read" id="${tid}_btn" onclick="codeFinderRead(this,'${esc(base)}','${esc(x.productId)}','${esc(x.nodeId)}','${tid}','${esc(String(d.clientId))}','')">Read</button></div><div id="${tid}" class="lc-body"></div>`;
-  }).join('') + `<div class="lc-meta" style="margin-top:6px">Stored ${esc(d.crawled||'')} from Municode. Read opens the live text.</div>`;
+/* One hit row. Shared by the live and stored renderers so the two sources look identical in the
+   card and differ only in the badge above them — the user should be able to read the section either
+   way, and be told plainly which one they are looking at. */
+function _fldRow(x, clientId, base){
+  const tid='cft_'+Math.random().toString(36).slice(2,8);
+  const t = String(x.title).replace(/^\s*(Sec(tion)?s?\.?|§)\s*/i,'');
+  const where = x.book || x.productName || '';
+  const crumb = (x.path && x.path.length) ? x.path[x.path.length-1]
+              : (x.breadcrumb && x.breadcrumb.length ? x.breadcrumb[x.breadcrumb.length-1] : '');
+  const snip = x.excerpt || x.snippet || '';
+  return `<div class="lc-hit"><div class="lc-hit-t"><b>${esc(t)}</b><span class="lc-meta"> · ${esc(where)}${crumb?' › '+esc(crumb):''}</span>`
+       + `${snip?`<div class="lc-excerpt">${esc(String(snip).slice(0,220))}…</div>`:''}</div>`
+       + `<button type="button" class="lc-read" id="${tid}_btn" onclick="codeFinderRead(this,'${esc(base)}','${esc(x.productId)}','${esc(x.nodeId)}','${tid}','${esc(String(clientId))}','')">Read</button></div><div id="${tid}" class="lc-body"></div>`;
+}
+/* Rank flood hits: a real section beats a chapter/article heading, which is just a container. */
+function _fldRank(list){
+  const isHeading = t => /^\s*(chapter|division|article|part|title)\b/i.test(String(t||''));
+  return list.slice().sort((a,b)=>(isHeading(a.title)?1:0)-(isHeading(b.title)?1:0)).slice(0,4);
+}
+/* ── LIVE MUNICODE SEARCH FOR THE FLOOD ORDINANCE ───────────────────────────────────────────────
+   ⚠️ THIS IS THE POINT OF THE CARD, AND THE FIRST VERSION OF THE REGISTRY FIX MISSED IT.
+   The header says "Flood — local ordinance, LIVE". That fix filled the slot from the stored pack
+   instead and printed "No flood or floodplain-management section captured in Naples's stored code"
+   — a statement about THIS APP'S CRAWL, worded as though it were a statement about Naples's
+   ordinance. Brandon caught it: "i thought this was supposed to search the municode not my stored
+   code?" He is right. The pack is a cache of whatever a crawl captured under a handful of topic
+   keys (setbacks, generator, supplemental, planned, encroach, fuel) and it has NO flood bucket at
+   all, so leaning on it answers a question nobody asked and sounds authoritative doing it.
+   So ask Municode, now, the same way the hybrid setback lookup already does. The stored sections
+   remain a FALLBACK for when the search cannot run — never the headline, and never phrased as if
+   they settled whether the ordinance exists. */
+async function _fldLiveSearch(clientId){
+  const r = await codeApi(`code-search?clientId=${encodeURIComponent(clientId)}&q=${encodeURIComponent('flood')}&titlesOnly=1`);
+  if(!r || !r.ok) throw new Error((r && r.error) || 'search failed');
+  return _fldRank((r.hits||[]).filter(h=>h && h.title && _FLD_RE.test(h.title)));
+}
+/* Registry path: paint "searching", run the live search, then report — live hits, the stored
+   fallback, or an honest nothing. Guarded on the __codeReg OBJECT IDENTITY rather than a counter:
+   a new parcel replaces or nulls it, so a search that resolves late cannot write into the next
+   parcel's card. */
+function _fldRunRegistry(reg){
+  const d = reg.data, base = CODE_PROXY_URL.replace(/code-section$/,'');
+  _fldSet(`<div class="lc-meta">… searching ${esc(d.name)} on Municode for the flood ordinance <span class="zone-spin" aria-hidden="true"></span></div>`, esc(d.name));
+  const stored = _fldRank(_fldSectionsFromRegistry(reg));
+  const storedHtml = (lead) =>
+      `<div class="lc-meta">${lead}</div>`
+    + stored.map(x=>_fldRow(x, d.clientId, base)).join('')
+    + `<div class="lc-meta" style="margin-top:6px">From this app's stored copy of ${esc(d.name)}'s code (${esc(d.crawled||'date unknown')}). Read opens the live text.</div>`;
+  const nothing = (lead) =>
+      `<div class="lc-meta">${lead} The Florida Building Code and ASCE 24 elevation rules still apply, `
+    + `and the flood zone and BFE above are unaffected.</div>`
+    + `<a class="palink" href="${esc(d.libraryUrl)}" target="_blank" rel="noopener" style="margin-top:6px">↗ Open ${esc(d.name)} on Municode and search &ldquo;flood&rdquo;</a>`;
+  (async()=>{
+    let hits = null, err = null;
+    try{ hits = await _fldLiveSearch(d.clientId); }catch(e){ err = e.message || String(e); }
+    if(window.__codeReg !== reg) return;                    // a newer parcel owns the card now
+    if(hits && hits.length){
+      _fldSet(`<div class="lc-meta"><span class="badge live">● LIVE</span> searched ${esc(d.name)}'s code on Municode just now</div>`
+            + hits.map(x=>_fldRow(x, d.clientId, base)).join(''), esc(d.name));
+      return;
+    }
+    if(hits && !hits.length){
+      /* The search RAN, and Municode has no flood-titled section in this jurisdiction's books. That
+         is a real answer about the code, so say it as one — while still offering the stored sections
+         if the crawl caught something a title search wouldn't. */
+      _fldSet(stored.length
+        ? storedHtml(`<span class="badge unk">△ NOT IN TITLES</span> No section of ${esc(d.name)}'s code has &ldquo;flood&rdquo; in its title on Municode today. These came from a deeper crawl:`)
+        : nothing(`Searched ${esc(d.name)}'s code on Municode: no section has &ldquo;flood&rdquo; in its title. Small municipalities often adopt the county's floodplain ordinance by reference rather than writing their own.`), esc(d.name));
+      return;
+    }
+    // The search could not run. Never let that masquerade as a finding about the ordinance.
+    _fldSet(stored.length
+      ? storedHtml(`<span class="badge unk">▤ STORED</span> The live Municode search didn't answer (${esc(err||'no response')}). Showing this app's stored copy instead:`)
+      : nothing(`The live Municode search didn't answer (${esc(err||'no response')}), and this app has no stored flood section for ${esc(d.name)} — so this says nothing about whether the ordinance exists.`), esc(d.name));
+  })();
 }
 /* Replace the slot, keeping its id so a later resolution can still find and refine it. */
 function _fldSet(inner, headSuffix){
@@ -5027,8 +5085,14 @@ function fillFloodLiveCode(){
                     .replace('<div class="lc-topic">','<div class="lc-topic" id="floodLiveCode" data-done="1">');
     return;
   }
-  // 2. Registry hit — the path that used to end in `continue` and leave this slot spinning.
-  if(reg && reg.data){ _fldSet(_fldRegistryHtml(reg), esc(reg.data.name)); return; }
+  /* 2. Registry hit — the path that used to end in `continue` and leave this slot spinning.
+        Runs a LIVE Municode search; the stored pack is only its fallback. See _fldRunRegistry(). */
+  if(reg && reg.data){
+    if(el.dataset.searching === String(reg.data.clientId||'')) return;   // already running for this one
+    el.dataset.searching = String(reg.data.clientId||'');
+    _fldRunRegistry(reg);
+    return;
+  }
   // 3. The lookup ran and failed. Say which, rather than implying there is no ordinance.
   if(d && !d.ok){
     const why = (d.reason==='not_on_municode')
