@@ -12035,6 +12035,8 @@ async function queryRecordedPlat(lat, lng, cityName, countyName, timeoutMs){
 /* ---------- COMMUNITY / HOA LOOKUP (county GIS) ----------
    There is no statewide HOA registry, but the counties map the pieces:
      Lee       Subdivisions (name, Gated Y/N, type, unit counts) + Planned Developments (PUD name)
+               + Neighborhoods and Areas (plat name, the county's own JURISDICTION string, gated,
+                 parcel and unit counts) — all three from the county's ArcGIS Online org
      Sarasota  MasterAssociation + NeighborhoodAssociation — an actual association directory
                (name, type, phone, email, website, master association)
      Charlotte SubDivisions (plat name, book/page) + Planned/Proposed Developments (name)
@@ -12042,11 +12044,51 @@ async function queryRecordedPlat(lat, lng, cityName, countyName, timeoutMs){
    Discovered 9 Sep 2026 by walking each county's ArcGIS directory; field names verified live.
    All queries run in parallel with short caps; anything that fails just contributes nothing. */
 const COMMUNITY_LAYERS = {
+  /* ── LEE MOVED TO THE COUNTY'S ARCGIS ONLINE ORG (21 Sep 2026) ────────────────────────────────
+     Was gismapserver.leegov.com (Layers/Cadastre/1 and DataExplorer/Zoning/3). Brandon reported
+     that Quail West shows on the Collier side of the community and NOT on the Lee side. It is not a
+     data gap: Quail West straddles the Collier/Lee line, Collier's PUD layer covers its half, and
+     Lee's half was simply returning nothing because the on-prem host was down again — the same host
+     FH_HOST_NOTES already describes as dropping out intermittently and coming back on its own. A
+     community card that works or not depending on the hour is worse than one that is plainly absent,
+     because it reads as "no HOA here" on a permit tool.
+
+     Lee publishes the SAME layers to its official ArcGIS Online org (LeeCountyFLGIS, 930 services),
+     which is Esri-hosted: trusted certificate, no weekend outages, and no CORS surprises. Field
+     names are identical, so the pick() functions are unchanged — SubdivisionsGeneral carries
+     SUBDIVNAME/Gated/SDType/Total*, PlannedDevelopments carries CASE_NAME/ZONING_CATEGORY/
+     INITIALAPPROVAL. Verified live at the Lee-side Quail West point (26.320, -81.735):
+       SubdivisionsGeneral  "QUAIL WEST"  (Gated Y, SDType SF)
+       PlannedDevelopments  "Quail West PH II RPD"  (RPD, initial approval 1992)
+     and the on-prem host was refusing every query at the same moment.
+
+     ⚠️ NOT FabricSubdivisions (the layer inside Subdivisions_and_Condominiums). Its Name field holds
+     a folio-style code — "054826B401100000A" at the Quail West point — not a subdivision name. It
+     looks like the right layer by title and is the wrong one. */
   LEE: [
-    { key:'sub', url:'https://gismapserver.leegov.com/gisserver910/rest/services/Layers/Cadastre/MapServer/1',
+    { key:'sub', url:'https://services2.arcgis.com/LvWGAAhHwbCJ2GMP/arcgis/rest/services/SubdivisionsGeneral/FeatureServer/0',
       pick:a=>({ name:a.SUBDIVNAME, gated:a.Gated, type:a.SDType, units:(a.TotalSF||0)+(a.TotalMF||0)+(a.TotalCondo||0)+(a.TotalMH||0) }) },
-    { key:'pd',  url:'https://gismapserver.leegov.com/gisserver910/rest/services/DataExplorer/Zoning/MapServer/3',
+    { key:'pd',  url:'https://services2.arcgis.com/LvWGAAhHwbCJ2GMP/arcgis/rest/services/PlannedDevelopments/FeatureServer/0',
       pick:a=>({ name:a.CASE_NAME, category:a.ZONING_CATEGORY, approved:a.INITIALAPPROVAL }) },
+    /* Neighborhoods and Areas — a layer the on-prem host never exposed, and the richest community
+       source in any county wired here. Beyond the name it carries the JURISDICTION as Lee County
+       itself records it, the gated flag, and parcel/unit counts. It is also the widest coverage of
+       the three: it answers at Cape Coral, Lehigh Acres and San Carlos Park where SubdivisionsGeneral
+       returns nothing.
+       The jurisdiction field is worth the wiring on its own. At Quail West's Lee half it reads
+       "City of Bonita Springs" while postal_city reads "Naples" — the county's own data making the
+       same postal-is-not-jurisdiction point this file fights elsewhere, and it agrees exactly with
+       what the Census boundary query returns for that point (Bonita Springs). Two independent
+       sources, same answer.
+       Its `name` is the PLAT unit ("San Carlos Park Unit 7", "Cape Coral Unit 6"), which is more
+       granular than the marketed community name in SubdivisionsGeneral ("SAN CARLOS PARK"). Both are
+       useful and they are rendered separately; renderCommunityBlock drops this row when the two
+       names agree, so a single-plat community shows one line, not two. */
+    { key:'nbhd', url:'https://services2.arcgis.com/LvWGAAhHwbCJ2GMP/arcgis/rest/services/Neighborhoods_and_Areas/FeatureServer/0',
+      pick:a=>({ name:a.descriptive_name || a.name, plat:a.name, jurisdiction:a.jurisdiction,
+                 gated:a.gated, type:a.type, postalCity:a.postal_city,
+                 units:Number(a.total_residential_units)>0 ? Number(a.total_residential_units) : null,
+                 parcels:Number(a.parcels)>0 ? Number(a.parcels) : null }) },
   ],
   SARASOTA: [
     { key:'assoc',  url:'https://ags3.scgov.net/server/rest/services/Hosted/NeighborhoodAssociation/FeatureServer/0',
@@ -12167,6 +12209,35 @@ function renderCommunityBlock(c, countyName){
     // Plat book/page and the recorded-plat link live on the Permits card now (one place, every county).
     if(gated && !a && !c.pd) h += `<div class="note">Gated subdivisions have an association by necessity (someone owns the gate and the private roads). Search Sunbiz for the subdivision name.</div>`;
     if(!a && !c.pd) h += `<a class="palink" href="${esc(_sunbizQ(sb.name))}" target="_blank" rel="noopener" style="margin-top:8px">↗ Sunbiz: &ldquo;${esc(sb.name)}&rdquo;</a>`;
+  }
+  /* Neighborhood / plat record (Lee's Neighborhoods_and_Areas). Rendered LAST and deliberately thin,
+     because most of what it knows is already above: the association, the PD and the subdivision rows
+     all name the community. What only this layer has is the JURISDICTION the county itself records,
+     which is the line that matters on a permit tool — Quail West's Lee half is "City of Bonita
+     Springs" even though its mail says Naples.
+     The whole block is skipped when it would only repeat the subdivision row: same name, nothing
+     extra to say. norm() rather than a raw compare, so "QUAIL WEST" and "Quail West" count as one. */
+  if(c.nbhd){
+    const nb = c.nbhd;
+    const nbName = String(nb.name || nb.plat || '').trim();
+    const dupOfSub = !!(c.sub && c.sub.name && nbName && norm(nbName) === norm(String(c.sub.name)));
+    const adds = !!(nb.jurisdiction || nb.units || nb.parcels) || !dupOfSub;
+    if(nbName && adds){
+      const gatedN = String(nb.gated||'').toUpperCase()==='Y';
+      h += `<div class="freshline" style="margin-top:${(a||c.pd||c.cdd||c.sub)?8:0}px"><span class="badge ${gatedN?'live':'unk'}">${gatedN?'● GATED':'neighborhood'}</span> ${esc(cn)} County neighborhood &amp; plat record</div>`;
+      if(!dupOfSub) h += fieldRow(nb.type==='Subdivision'?'Plat':'Area', esc(nbName), (a||c.pd||c.sub)?'':'big');
+      /* The county's own jurisdiction string. Shown verbatim — it is a record, not a derivation, and
+         it is the one field here that can contradict the mailing address on the card above. */
+      if(nb.jurisdiction) h += fieldRow('Jurisdiction', esc(nb.jurisdiction));
+      const nbits=[];
+      if(nb.units)   nbits.push(nb.units+' residential units');
+      if(nb.parcels) nbits.push(nb.parcels+' parcels');
+      if(nb.gated!=null && dupOfSub===false) nbits.push(gatedN?'gated':'not gated');
+      if(nbits.length) h += fieldRow('Counts', nbits.join(' · '));
+      /* Only offer Sunbiz here if nothing above already did — three identical search links on one
+         card is noise, and the association/PD/subdivision names are the better queries anyway. */
+      if(!a && !c.pd && !c.sub) h += `<a class="palink" href="${esc(_sunbizQ(nbName))}" target="_blank" rel="noopener" style="margin-top:8px">↗ Sunbiz: &ldquo;${esc(nbName)}&rdquo;</a>`;
+    }
   }
   return h;
 }
