@@ -4697,12 +4697,26 @@ async function _runFinder(){
   while(_finderPending.length){
     const it = _finderPending.shift();
     let el = document.getElementById(it.id);
-    if(!el){ it.tries=(it.tries||0)+1; if(it.tries<40){ _finderPending.push(it); setTimeout(_runFinder,250); } break; }
+    if(!el){ it.tries=(it.tries||0)+1;
+      if(it.tries<40){ _finderPending.push(it); setTimeout(_runFinder,250); }
+      /* Gave up finding our own element. The zoning card is gone, but the FLOOD card's slot may
+         still be on screen waiting on us — tell it, or it waits forever. See fillFloodLiveCode(). */
+      else { window.__codeErr = 'the code panel never mounted'; setTimeout(fillFloodLiveCode, 0); }
+      break; }
     try{
       const client = await codesClientFor(it.cityName, it.countyName, it.inCity);
       if(client){
         const data = await codesFor(client.slug);
-        if(data){ el.innerHTML = _registryCardHtml(data, client, it); continue; }
+        if(data){
+          el.innerHTML = _registryCardHtml(data, client, it);
+          /* ⚠️ THE STALL. This `continue` used to end the iteration here, and the Flood card's
+             "local ordinance, live" slot — which had already painted "… waiting for the code
+             lookup" and has no other source — sat on that ellipsis for good. Every jurisdiction
+             curated into fl_codes_v1 takes this path, so in Lee and Collier it stalled every time.
+             The registry carries flood sections too; hand them over before leaving. */
+          window.__codeReg = { data, client, it }; setTimeout(fillFloodLiveCode, 0);
+          continue;
+        }
       }
       // Not in the registry (or file missing) → fall back to the live search card.
       const base = CODE_PROXY_URL.replace(/code-section$/,'');
@@ -4713,6 +4727,8 @@ async function _runFinder(){
       el.innerHTML = _finderHtml(d, it, base);
     }catch(e){
       el.innerHTML = `<div class="freshline snap"><span class="badge unk">▤ LIVE CODE</span> code lookup unavailable right now</div><div class="note">${esc(e.message||String(e))}. The tables below (where present) still apply.</div>`;
+      // The flood slot is waiting on the same lookup and would otherwise never hear that it failed.
+      window.__codeErr = e.message || String(e); setTimeout(fillFloodLiveCode, 0);
     }
   }
 }
@@ -4926,15 +4942,122 @@ document.addEventListener('aog:sketch', (ev)=>{
   h+=`<div class="lc-meta" style="margin-top:3px">Nothing goes in a utility or drainage easement — pad, LP tank or gas line. Hover a hatched strip on the map for its details.</div>`;
   slot.innerHTML=h;
 });
-/* Flood card ↔ code lookup handshake. Whichever finishes second fills the slot. */
-window.__codeFind = null;
+/* ── FLOOD CARD ↔ CODE LOOKUP HANDSHAKE ─────────────────────────────────────────────────────────
+   ⚠️ FIXED 22 Sep 2026 — THIS SLOT USED TO STALL ON "… waiting for the code lookup" FOREVER.
+   Reported from the live card: "Flood — local ordinance, live … waiting for the code lookup, this
+   stalls here." It was never a slow request. The Flood card renders the placeholder and then depends
+   entirely on _runFinder() to come back and fill it, and _runFinder has FOUR terminal paths while
+   only ONE of them ever did:
+     1. REGISTRY HIT — the jurisdiction is in fl_codes_v1, _registryCardHtml() renders the zoning
+        card and the loop hits `continue`. __codeFind is never set, this function is never called.
+        THIS IS THE COMMON CASE, and it is why the stall looked permanent rather than intermittent:
+        every county curated into the registry — which is the whole SWFL service area — took it.
+     2. LIVE SEARCH, ok — the one path that worked.
+     3. LIVE SEARCH, not ok (not on Municode, proxy down) — the old `if(!d.ok) return` bailed out
+        silently and left the placeholder on screen.
+     4. catch(e) — wrote the error to the ZONING card only; the flood slot kept waiting.
+   Plus a fifth: _runFinder gives up after 40 tries at finding its own element and breaks out.
+   So the slot resolved only when the jurisdiction was NOT curated AND Municode answered.
+
+   The rule now: THE SLOT ALWAYS REACHES A TERMINAL STATE. Every path reports, a registry hit is a
+   first-class source rather than a dead end, and _fldArmBackstop() guarantees that even a path
+   nobody has thought of yet ends in a sentence instead of an ellipsis. On a permit tool "still
+   loading" and "no local flood ordinance" must never look the same. */
+window.__codeFind = null;      // live Municode search result  (path 2/3)
+window.__codeReg  = null;      // registry client + sections   (path 1)
+window.__codeErr  = null;      // message from a failed lookup (path 4/5)
+
+/* Flood-ordinance sections out of a registry client, found by TITLE rather than by a section key.
+   The registry pack's own keys (setbacks, generator, supplemental, planned, encroach, fuel) have no
+   flood bucket, and the crawler's naming is not visible from here, so scanning every stored section
+   works whatever the pack calls them — and finds nothing, honestly, when it captured none. */
+const _FLD_RE = /flood|freeboard|coastal high[- ]hazard/i;
+function _fldSectionsFromRegistry(reg){
+  if(!reg || !reg.data || !reg.data.sections) return [];
+  const seen=new Set(), out=[];
+  for(const k of Object.keys(reg.data.sections)){
+    for(const x of (reg.data.sections[k]||[])){
+      if(!x || !x.title || !_FLD_RE.test(x.title)) continue;
+      const id=String(x.productId)+'/'+String(x.nodeId);
+      if(seen.has(id)) continue;
+      seen.add(id); out.push(x);
+    }
+  }
+  /* A section whose title names flood outranks one that merely mentions freeboard inside a wider
+     chapter heading, and a chapter/article heading is the least useful hit of all. */
+  return out.sort((a,b)=>
+    (/^(chapter|division|article|part)\b/i.test(a.title)?1:0) - (/^(chapter|division|article|part)\b/i.test(b.title)?1:0)
+  ).slice(0,4);
+}
+function _fldRegistryHtml(reg){
+  const base = CODE_PROXY_URL.replace(/code-section$/,'');
+  const hits = _fldSectionsFromRegistry(reg);
+  const d = reg.data;
+  if(!hits.length){
+    return `<div class="lc-meta">No flood or floodplain-management section captured in ${esc(d.name)}'s stored code. `
+         + `The Florida Building Code and ASCE 24 elevation rules still apply, and the local ordinance may `
+         + `sit in a book this crawl didn't cover — open the code and search &ldquo;flood&rdquo;.</div>`
+         + `<a class="palink" href="${esc(d.libraryUrl)}" target="_blank" rel="noopener" style="margin-top:6px">↗ ${esc(d.name)} on Municode</a>`;
+  }
+  return hits.map(x=>{
+    const tid='cft_'+Math.random().toString(36).slice(2,8);
+    const t = x.title.replace(/^\s*(Sec(tion)?s?\.?|§)\s*/i,'');
+    return `<div class="lc-hit"><div class="lc-hit-t"><b>${esc(t)}</b><span class="lc-meta"> · ${esc(x.book||'')}${x.path&&x.path.length?' › '+esc(x.path[x.path.length-1]):''}</span>`
+         + `${x.excerpt?`<div class="lc-excerpt">${esc(String(x.excerpt).slice(0,220))}…</div>`:''}</div>`
+         + `<button type="button" class="lc-read" id="${tid}_btn" onclick="codeFinderRead(this,'${esc(base)}','${esc(x.productId)}','${esc(x.nodeId)}','${tid}','${esc(String(d.clientId))}','')">Read</button></div><div id="${tid}" class="lc-body"></div>`;
+  }).join('') + `<div class="lc-meta" style="margin-top:6px">Stored ${esc(d.crawled||'')} from Municode. Read opens the live text.</div>`;
+}
+/* Replace the slot, keeping its id so a later resolution can still find and refine it. */
+function _fldSet(inner, headSuffix){
+  const el=document.getElementById('floodLiveCode'); if(!el) return;
+  const zoneLbl = window.__parcelFloodZone ? ' · zone '+esc(window.__parcelFloodZone) : '';
+  el.innerHTML = `<div class="lc-topic-h">Flood — local ordinance, live${zoneLbl}${headSuffix?(' · '+headSuffix):''}</div>` + inner;
+  el.dataset.done = '1';
+}
 function fillFloodLiveCode(){
-  const el=document.getElementById('floodLiveCode'); const d=window.__codeFind;
-  if(!el || !d || !d.ok) return;
+  const el=document.getElementById('floodLiveCode'); if(!el) return;
+  const d=window.__codeFind, reg=window.__codeReg, err=window.__codeErr;
   const base = CODE_PROXY_URL.replace(/code-section$/,'');
   const zoneLbl = window.__parcelFloodZone ? ' · zone '+esc(window.__parcelFloodZone) : '';
-  const g = _lcGroup(d.flood, d, base, d.zone||'', false, 'No local flood-ordinance section found on Municode; FBC / ASCE 24 elevation rules still apply.', null);
-  el.outerHTML = g.replace('<div class="lc-topic-h">', `<div class="lc-topic-h">Flood — local ordinance, live${zoneLbl} · `).replace('<div class="lc-topic">','<div class="lc-topic" id="floodLiveCode">');
+  /* 1. Live Municode search succeeded — richest answer, and the original behaviour. Kept as an
+        outerHTML swap because _lcGroup emits its own .lc-topic wrapper with the label inside it. */
+  if(d && d.ok){
+    const g = _lcGroup(d.flood, d, base, d.zone||'', false, 'No local flood-ordinance section found on Municode; FBC / ASCE 24 elevation rules still apply.', null);
+    el.outerHTML = g.replace('<div class="lc-topic-h">', `<div class="lc-topic-h">Flood — local ordinance, live${zoneLbl} · `)
+                    .replace('<div class="lc-topic">','<div class="lc-topic" id="floodLiveCode" data-done="1">');
+    return;
+  }
+  // 2. Registry hit — the path that used to end in `continue` and leave this slot spinning.
+  if(reg && reg.data){ _fldSet(_fldRegistryHtml(reg), esc(reg.data.name)); return; }
+  // 3. The lookup ran and failed. Say which, rather than implying there is no ordinance.
+  if(d && !d.ok){
+    const why = (d.reason==='not_on_municode')
+      ? `${esc(d.message||'This jurisdiction is not on Municode')} — its flood ordinance is published elsewhere.`
+      : `Municode lookup unavailable${d.error?(' — '+esc(d.error)):''}.`;
+    _fldSet(`<div class="lc-meta">${why} FBC / ASCE 24 elevation rules still apply, and the flood zone and BFE above are unaffected.</div>`, null);
+    return;
+  }
+  if(err){ _fldSet(`<div class="lc-meta">Code lookup didn't return — ${esc(err)}. FBC / ASCE 24 elevation rules still apply, and the flood zone and BFE above are unaffected.</div>`, null); return; }
+  // 4. Nothing yet: leave the waiting line up. _fldArmBackstop() owns the deadline.
+}
+/* Last resort. If no path has resolved the slot within the window, replace the ellipsis with a
+   sentence. Re-armed on every parcel so a stale timer can't overwrite a fresh lookup: _fldRun is
+   bumped by the same reset that clears __codeFind. */
+let _fldRun = 0;
+const FLD_BACKSTOP_MS = (typeof IS_TOUCH_DEVICE!=='undefined' ? IS_TOUCH_DEVICE : (typeof L!=='undefined' && L.Browser && L.Browser.mobile)) ? 30000 : 20000;
+function _fldArmBackstop(){
+  const mine = ++_fldRun;
+  setTimeout(()=>{
+    if(mine!==_fldRun) return;                                  // a newer lookup owns the slot
+    const el=document.getElementById('floodLiveCode');
+    if(!el || el.dataset.done==='1') return;                    // already resolved
+    fillFloodLiveCode();                                        // data may have landed without a nudge
+    const el2=document.getElementById('floodLiveCode');
+    if(!el2 || el2.dataset.done==='1') return;
+    _fldSet(`<div class="lc-meta">The code lookup didn't return in ${Math.round(FLD_BACKSTOP_MS/1000)}s. `
+          + `This says nothing about the flood ordinance — the flood zone and BFE above come from FEMA and are unaffected. `
+          + `FBC / ASCE 24 elevation rules apply regardless.</div>`, null);
+  }, FLD_BACKSTOP_MS);
 }
 function _finderHtml(d, it, base){
   if(!d || !d.ok){
@@ -27526,7 +27649,11 @@ async function runLookup(lat,lng,searchCtx){
 async function _runLookupInner(lat,lng,searchCtx){
   const myId=++runId;
   // Every lookup (address search OR map click) starts here: clear per-parcel state so nothing carries over.
-  window.__parcelSFHA = undefined; window.__parcelFloodZone = undefined; window.__codeFind = null; window.__parcelPlatName = ''; window.__parcelSubdivName = ''; window.__platNameFn = null;
+  window.__parcelSFHA = undefined; window.__parcelFloodZone = undefined; window.__parcelPlatName = ''; window.__parcelSubdivName = ''; window.__platNameFn = null;
+  /* All three code-lookup outcomes reset together. Leaving __codeReg or __codeErr behind would let
+     the PREVIOUS parcel's registry hit or error fill this parcel's flood slot — a wrong ordinance
+     shown confidently, which is worse than the stall this replaced. */
+  window.__codeFind = null; window.__codeReg = null; window.__codeErr = null;
   try{ if(window.Measure){ Measure.stop(); Measure.clear(); } }catch(e){}   // measurements belong to the previous site
   // ── LOOKUP TIMING (debug) ─────────────────────────────────────────────────────────────────────
   // Each source is timed individually (they run in parallel, so these are latencies, not additive).
@@ -31529,7 +31656,13 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
     html += fieldRow('Base Flood Elev.', bfe!=null?esc(bfe)+' ft (NAVD88)':'<span class="muted">none published for this zone</span>');
     if(depth!=null) html += fieldRow('Base flood depth', esc(depth)+' ft');
     if(zones.length>1) html += fieldRow('Note','Point sits on a zone boundary — '+zones.length+' zones overlap here.');
-    if(sfha && typeof CODE_PROXY_URL!=='undefined' && CODE_PROXY_URL){ html += `<div id="floodLiveCode" class="lc-topic"><div class="lc-topic-h">Flood — local ordinance, live</div><div class="lc-meta">… waiting for the code lookup</div></div>`; setTimeout(fillFloodLiveCode, 0); }
+    if(sfha && typeof CODE_PROXY_URL!=='undefined' && CODE_PROXY_URL){
+      html += `<div id="floodLiveCode" class="lc-topic"><div class="lc-topic-h">Flood — local ordinance, live</div><div class="lc-meta">… waiting for the code lookup</div></div>`;
+      /* fillFloodLiveCode handles the case where the lookup already finished (it usually has, since
+         the zoning card starts earlier); _fldArmBackstop guarantees the ellipsis is replaced by a
+         sentence even if no path ever reports. */
+      setTimeout(fillFloodLiveCode, 0); _fldArmBackstop();
+    }
     // --- Whole-parcel check: does the LOT cross flood-zone lines? (pin query above is point-only) ---
     /* Parcel polygon for the whole-lot flood queries below. Order: statewide roll → pre-wired
        county live feed (liveRes) → manually pasted feed (live).
