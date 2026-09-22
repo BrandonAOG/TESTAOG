@@ -329,6 +329,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .cm-b .cm-hosted > .lc-rhead{display:none}
   .cm-f{flex:0 0 auto;border-top:1px solid var(--line);background:rgba(0,0,0,.18);padding:7px 14px;font-family:var(--mono);font-size:10.5px;opacity:.55;display:flex;justify-content:space-between;gap:10px}
   @media(max-width:640px){ .cm{width:96vw;height:92vh} .cm-b{padding:13px 14px 24px;font-size:15.5px} .cm-h .t1{white-space:normal} }
+
   .lc-topic{margin-top:10px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08)} .lc-topic-h{font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;opacity:.8;margin-bottom:4px}
   .lc-hit{display:flex;align-items:center;gap:8px;padding:4px 0} .lc-hit.dim{opacity:.7} .lc-hit-t{flex:1;min-width:0;font-size:12px}
   .lc-also{display:block;text-decoration:none;color:inherit;cursor:pointer;opacity:.8} .lc-also:hover{opacity:1}
@@ -1415,6 +1416,51 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     a[href]:after{ content:"" !important; }
 
     *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  }
+
+  /* Placed AFTER the app's own @media print block on purpose: both target the same elements,
+     and the later rule wins at equal specificity. Moving this earlier will silently bring back
+     the property-report masthead on a code print. */
+  /* ── PRINTING FROM THE CODE READER ──────────────────────────────────────────────────────────
+     window.print() prints the DOCUMENT, so the first version printed the whole parcel page with
+     the overlay floating over it — and the section itself came out BLANK, because .cm-b is a
+     fixed-height scroll region and a print renderer clips it to the visible box rather than
+     paging through it. Both are fixed here rather than in JS: the class is applied on beforeprint
+     whenever the reader is open, so Ctrl+P and the iOS share sheet behave the same as the ⌈⌉
+     button, and every rule below lives inside @media print so a stale class can never affect the
+     screen. Reversed out of the dark theme too — a permit packet wants black on white, and
+     printing the navy panel wastes a cartridge. */
+  @media print{
+    @page{ margin:14mm; }
+    html.cm-print, html.cm-print body{ position:static!important;top:auto!important;left:auto!important;width:auto!important;height:auto!important;max-height:none!important;overflow:visible!important;background:#fff!important;color:#000!important }
+    html.cm-print body > *{ display:none!important }                 /* everything except the reader */
+    /* The app's own print stylesheet forces the masthead and meta block visible with ID selectors,
+       which outrank `body > *`. Name them directly so the code reader prints as ONE section and not
+       as a section stapled to a property report. */
+    html.cm-print #printHead, html.cm-print #printMeta, html.cm-print #panel,
+    html.cm-print #results, html.cm-print header, html.cm-print footer{ display:none!important }
+    html.cm-print #codeModal{ display:block!important;position:static!important;inset:auto!important;opacity:1!important;background:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;padding:0!important;transition:none!important }
+    html.cm-print .cm{ width:auto!important;height:auto!important;max-width:none!important;display:block!important;overflow:visible!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:#fff!important;color:#000!important;transform:none!important;transition:none!important }
+    /* ⚠️ THE SECTION BODY IS A .note, AND THE APP'S PRINT SHEET HIDES EVERY .note.
+       That rule is deliberate and correct for the property report — .note there is screen-only
+       guidance prose, and only .note.warnbox is meant to reach paper. But codeFinderRead wraps the
+       ordinance text in `<div class="note lc-note-read">`, so the reader printed its title and
+       nothing else: a page with a section heading and blank space under it. Re-show it, scoped to
+       the reader so the property report's own notes stay hidden. */
+    html.cm-print .cm-b .note, html.cm-print .cm-b .cm-hosted{ display:block!important;visibility:visible!important }
+    html.cm-print .cm-h{ display:block!important;background:none!important;border-bottom:1px solid #999!important;padding:0 0 7pt!important }
+    html.cm-print .cm-h .t1{ font-size:14pt!important;color:#000!important;white-space:normal!important;overflow:visible!important }
+    html.cm-print .cm-h .t2{ font-size:8.5pt!important;color:#444!important;opacity:1!important;white-space:normal!important;overflow:visible!important }
+    html.cm-print .cm-tools, html.cm-print .cm-f, html.cm-print .lc-rhead{ display:none!important }
+    /* the clip that produced a blank page */
+    html.cm-print .cm-b{ overflow:visible!important;height:auto!important;max-height:none!important;min-height:0!important;padding:11pt 0 0!important;font-size:10.5pt!important;line-height:1.5!important;color:#000!important }
+    html.cm-print .cm-b .live-code, html.cm-print .cm-hosted{ max-width:none!important;color:#000!important;background:none!important;border:0!important;padding:0!important;max-height:none!important;overflow:visible!important }
+    html.cm-print .live-code img{ box-shadow:none!important;max-width:100%!important;page-break-inside:avoid;break-inside:avoid }
+    html.cm-print .tbl-scroll{ overflow:visible!important }
+    html.cm-print .live-code table{ font-size:8.5pt!important;width:100%!important;max-width:100%!important }
+    html.cm-print .live-code td, html.cm-print .live-code th{ border:1px solid #999!important;color:#000!important }
+    html.cm-print .live-code p{ orphans:2;widows:2 }
+    html.cm-print a{ color:#000!important;text-decoration:none!important }
   }
 
   /* ---------- SAFARI-ONLY print overrides ----------
@@ -5307,7 +5353,27 @@ function _cmBuild(){
   back.querySelector('#cmClose').addEventListener('click', codeModalClose);
   back.querySelector('#cmWide').addEventListener('click', codeModalWide);
   back.querySelector('#cmPrint').addEventListener('click', function(){ try{ window.print(); }catch(e){} });
+  /* Scoping is done by the .cm-print class on <html>, set from beforeprint rather than from this
+     button, so Ctrl+P / Cmd+P and the iOS share-sheet print produce the same single-section output
+     as the button does. Safari has historically not fired beforeprint, so matchMedia('print') is
+     wired as a second trigger; both are idempotent. */
+  _cmPrintHooks();
   return back;
+}
+var _cmPrintWired = false;
+function _cmPrintHooks(){
+  if(_cmPrintWired) return; _cmPrintWired = true;
+  var on  = function(){ if(_cmState) document.documentElement.classList.add('cm-print'); };
+  var off = function(){ document.documentElement.classList.remove('cm-print'); };
+  try{ window.addEventListener('beforeprint', on); window.addEventListener('afterprint', off); }catch(e){}
+  try{
+    var mq = window.matchMedia && window.matchMedia('print');
+    if(mq){
+      var h = function(e){ (e.matches ? on : off)(); };
+      if(mq.addEventListener) mq.addEventListener('change', h);
+      else if(mq.addListener) mq.addListener(h);
+    }
+  }catch(e){}
 }
 function codeModalWide(){
   var b=document.getElementById('cmBody'), w=document.getElementById('cmWide');
@@ -5339,6 +5405,11 @@ function codeModalClose(){
   var b=document.getElementById('cmBody'), w=document.getElementById('cmWide');
   if(b) b.classList.remove('wide');
   if(w) w.classList.remove('on');
+  /* If afterprint never fired (it is unreliable on iOS), the class would linger. It is inert on
+     screen — every rule under it is inside @media print — but a later Ctrl+P with the reader shut
+     would then print a blank page, because body > * is hidden and #codeModal is not displayed.
+     Clearing it here closes that window. */
+  document.documentElement.classList.remove('cm-print');
   if(_cmState){
     var st=_cmState; _cmState=null;
     st.panel.classList.remove('cm-hosted');
@@ -35886,6 +35957,17 @@ window.Sheet=Sheet;
   // own beforeprint event (Cmd-P / Ctrl-P / browser menu), so the layout + note-hiding always apply.
   function preparePrint(){
     if(_flatten) return;                 // already prepared (avoid double-run if both paths fire)
+    /* ⚠️ THE CODE READER OWNS THE PAGE WHEN IT IS OPEN.
+       Printing with the full-page code reader up used to run BOTH print systems at once: this one
+       rebuilt the masthead, renamed the file after the property, and flattened #results into the
+       two-column newspaper layout, while the reader's own @media print block tried to render a
+       single ordinance section. The result was the worst of both — the property masthead on page 1
+       and the section body missing entirely, because flattenForPrint() re-parents the cards this
+       panel was moved out of.
+       Detected from the DOM rather than from _cmState so there is no ordering coupling between the
+       two modules: if #codeModal is open, this function does nothing at all and the reader's block
+       is the only print stylesheet in play. */
+    if(document.querySelector('#codeModal.on')) return;
     const m=window.__printMeta||{};
     const el=document.getElementById('printMeta');
     if(el){
