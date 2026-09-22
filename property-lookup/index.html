@@ -5044,9 +5044,26 @@ function fillFloodLiveCode(){
    sentence. Re-armed on every parcel so a stale timer can't overwrite a fresh lookup: _fldRun is
    bumped by the same reset that clears __codeFind. */
 let _fldRun = 0;
-const FLD_BACKSTOP_MS = (typeof IS_TOUCH_DEVICE!=='undefined' ? IS_TOUCH_DEVICE : (typeof L!=='undefined' && L.Browser && L.Browser.mobile)) ? 30000 : 20000;
+/* ⚠️ COMPUTED AT CALL TIME, NOT AT LOAD TIME, AND THAT IS NOT A STYLE CHOICE.
+   This started life as a top-level `const FLD_BACKSTOP_MS = (typeof IS_TOUCH_DEVICE!=='undefined' …)`,
+   copied from the timeout constants further down the file. Those are declared AFTER line 8179, where
+   IS_TOUCH_DEVICE itself is declared. This one sits at ~5047, which is BEFORE it — and `typeof` is
+   only safe on an UNDECLARED name. On a `const` that is declared later in the same scope the name is
+   in its temporal dead zone, so `typeof` THROWS ReferenceError rather than returning "undefined".
+   That threw while the script was still loading, which killed the entire 2.7 MB script: no search,
+   no map, no cards. Nothing at all.
+   `node --check` cannot catch this — it parses perfectly. Only executing the page catches it, which
+   is why smoke.js now loads the real file in a browser and fails on a console error.
+   Reading it inside the function defers it until long after line 8179 has run, so the ordering
+   question disappears rather than being answered carefully and then broken by the next move. */
+function _fldBackstopMs(){
+  const touch = (typeof IS_TOUCH_DEVICE!=='undefined') ? IS_TOUCH_DEVICE
+              : !!(typeof L!=='undefined' && L.Browser && L.Browser.mobile);
+  return touch ? 30000 : 20000;
+}
 function _fldArmBackstop(){
   const mine = ++_fldRun;
+  const FLD_BACKSTOP_MS = _fldBackstopMs();
   setTimeout(()=>{
     if(mine!==_fldRun) return;                                  // a newer lookup owns the slot
     const el=document.getElementById('floodLiveCode');
