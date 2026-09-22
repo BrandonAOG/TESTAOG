@@ -303,13 +303,26 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .lc-expand:hover{border-color:var(--signal);color:var(--signal2)}
   .lc-rhead{display:flex;align-items:flex-start;gap:8px;margin-bottom:4px}
   .lc-rhead .lc-rt{flex:1;min-width:0;opacity:.6;font-size:11px}
-  .cm-back{position:fixed;inset:0;background:rgba(0,10,18,.72);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:2600;padding:2vh 2vw;opacity:0;pointer-events:none;transition:opacity .16s ease}
+  /* ⚠️ z-index 6500 IS DELIBERATE. At 2600 the app's own .action-bar (fixed, top:0, z-index 5000)
+     painted straight over this overlay's header — on a phone the HOME / PDF / MAP PNG / EXCEL row
+     covered the ✕ and the reader could not be closed by touch at all. The tiers in this file are
+     .action-bar 5000 and .umodal 6000, so the reader sits above both; only the 99999+ debug
+     overlays outrank it. The bar is also hidden outright while the reader is open (see
+     body.cm-open below) — it is the wrong chrome for reading an ordinance and it steals the top
+     of the screen. */
+  .cm-back{position:fixed;inset:0;background:rgba(0,10,18,.72);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:6500;padding:2vh 2vw;opacity:0;pointer-events:none;transition:opacity .16s ease}
+  body.cm-open .action-bar{display:none!important}
   .cm-back.on{opacity:1;pointer-events:auto}
   .cm{width:92vw;height:90vh;max-width:1280px;background:var(--panel);border:1px solid var(--line);border-radius:11px;box-shadow:0 24px 70px var(--shadow-strong);display:flex;flex-direction:column;overflow:hidden;transform:translateY(8px) scale(.99);transition:transform .16s ease}
   .cm-back.on .cm{transform:none}
-  .cm-h{flex:0 0 auto;background:var(--card-head-bg);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;align-items:flex-start;gap:12px}
-  .cm-h .ttl{flex:1;min-width:0}
-  .cm-h .t1{font-family:var(--disp);font-size:14.5px;font-weight:600;letter-spacing:.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cm-h{flex:0 0 auto;background:var(--card-head-bg);border-bottom:1px solid var(--line);padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top,10px));display:flex;align-items:flex-start;gap:12px}
+  .cm-h .ttl{flex:1;min-width:0;overflow:hidden}
+  /* ONE LINE, ELLIPSIS — at every width that can hold it. A three-line title pushed the meta
+     line and the whole section down and looked broken. When the title does not fit, the answer is
+     to take space away from the TOOLBAR (the "Wide" word collapses to its glyph below), not to let
+     the heading grow downward. Only a genuinely tiny viewport falls back to wrapping, capped at two
+     lines — see the <=360px rule. The full text is always in the title attribute. */
+  .cm-h .t1{font-family:var(--disp);font-size:14.5px;font-weight:600;letter-spacing:.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
   .cm-h .t2{font-family:var(--mono);font-size:10.5px;opacity:.6;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .cm-tools{display:flex;align-items:center;gap:6px;flex:0 0 auto}
   .cm-btn{font-family:var(--mono);font-size:11px;padding:4px 9px;border-radius:5px;border:1px solid rgba(255,255,255,.2);background:transparent;color:inherit;cursor:pointer}
@@ -327,8 +340,35 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
      it is hosted in the modal, and restore on close by dropping the class. */
   .cm-b .cm-hosted{max-height:none!important;overflow:visible!important;border:0!important;padding:0!important;background:none!important;font-size:inherit!important;line-height:inherit!important;margin-top:0!important}
   .cm-b .cm-hosted > .lc-rhead{display:none}
-  .cm-f{flex:0 0 auto;border-top:1px solid var(--line);background:rgba(0,0,0,.18);padding:7px 14px;font-family:var(--mono);font-size:10.5px;opacity:.55;display:flex;justify-content:space-between;gap:10px}
-  @media(max-width:640px){ .cm{width:96vw;height:92vh} .cm-b{padding:13px 14px 24px;font-size:15.5px} .cm-h .t1{white-space:normal} }
+  .cm-f{flex:0 0 auto;border-top:1px solid var(--line);background:rgba(0,0,0,.18);padding:7px 14px;padding-bottom:max(7px,env(safe-area-inset-bottom,7px));font-family:var(--mono);font-size:10.5px;opacity:.55;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  /* Thumb-reachable close. On a tall phone the ✕ in the top-right corner is a genuine stretch, so
+     the footer doubles as a full-width Done button at phone widths. Hidden on desktop, where the
+     corner ✕ and Esc are both easy. */
+  .cm-done{display:none;font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.06em;padding:0 18px;min-height:48px;border-radius:7px;border:1px solid var(--signal);background:rgba(244,104,0,.14);color:var(--signal2);cursor:pointer;flex:1;align-items:center;justify-content:center}
+  .cm-done:active{background:rgba(244,104,0,.26)}
+  @media(max-width:640px){
+    .cm{width:96vw;height:92vh}
+    .cm-b{padding:13px 14px 24px;font-size:15.5px}
+    /* The title keeps its single line here. What gives way instead is the "Wide" word: the glyph
+       alone still reads, and dropping the label returns ~46px to the heading — enough for roughly
+       six more characters before the ellipsis. */
+    .cm-lbl{display:none}
+    /* 44px is the iOS minimum touch target; the 11px/26px desktop buttons are well under it, which
+       is the other half of why closing was a fight on the phone. */
+    .cm-btn{font-size:13px;padding:0 11px;min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}
+    .cm-x{font-size:19px;padding:0 13px}
+    .cm-h{gap:8px;padding:8px 10px;padding-top:max(8px,env(safe-area-inset-top,8px))}
+    .cm-tools{gap:4px}
+    .cm-f{padding:8px 10px;padding-bottom:max(8px,env(safe-area-inset-bottom,8px))}
+    .cm-f span{display:none}
+    .cm-done{display:flex}
+  }
+  /* The escape hatch. Below this the heading genuinely cannot hold a useful amount on one line, so
+     let it wrap — but cap it at two lines so it can never run away the way it did at three. */
+  @media(max-width:360px){
+    .cm-h .t1{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.25}
+    .cm-h .t2{display:none}                 /* the supplement line is the first thing to go */
+  }
 
   .lc-topic{margin-top:10px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08)} .lc-topic-h{font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;opacity:.8;margin-bottom:4px}
   .lc-hit{display:flex;align-items:center;gap:8px;padding:4px 0} .lc-hit.dim{opacity:.7} .lc-hit-t{flex:1;min-width:0;font-size:12px}
@@ -5341,16 +5381,19 @@ function _cmBuild(){
     '<div class="cm" role="dialog" aria-modal="true" aria-labelledby="cmTitle">'
   +   '<div class="cm-h"><div class="ttl"><div class="t1" id="cmTitle"></div><div class="t2" id="cmMeta"></div></div>'
   +     '<div class="cm-tools">'
-  +       '<button type="button" class="cm-btn" id="cmWide" title="Full width — for wide district tables">⇔ Wide</button>'
-  +       '<button type="button" class="cm-btn" id="cmPrint" title="Print / save as PDF">⌈⌉</button>'
+  +       '<button type="button" class="cm-btn" id="cmWide" title="Full width — for wide district tables">⇔<span class="cm-lbl">&nbsp;Wide</span></button>'
+  +       '<button type="button" class="cm-btn" id="cmPrint" title="Print / save as PDF">🖨️</button>'
   +       '<button type="button" class="cm-btn cm-x" id="cmClose" aria-label="Close">✕</button>'
   +     '</div></div>'
   +   '<div class="cm-b" id="cmBody"></div>'
-  +   '<div class="cm-f"><span id="cmFoot">Live text from Municode</span><span>Esc close · W wide</span></div>'
+  +   '<div class="cm-f"><span id="cmFoot">Live text from Municode</span>'
+  +     '<button type="button" class="cm-done" id="cmDone">✕ &nbsp;CLOSE</button>'
+  +     '<span>Esc close · W wide</span></div>'
   + '</div>';
   document.body.appendChild(back);
   back.addEventListener('click', function(e){ if(e.target === back) codeModalClose(); });
   back.querySelector('#cmClose').addEventListener('click', codeModalClose);
+  back.querySelector('#cmDone').addEventListener('click', codeModalClose);
   back.querySelector('#cmWide').addEventListener('click', codeModalWide);
   back.querySelector('#cmPrint').addEventListener('click', function(){ try{ window.print(); }catch(e){} });
   /* Scoping is done by the .cm-print class on <html>, set from beforeprint rather than from this
@@ -5386,8 +5429,11 @@ function codeModalOpen(btn){
   if(!panel) return;
   if(_cmState) codeModalClose();
   var back = _cmBuild(), body = document.getElementById('cmBody');
-  document.getElementById('cmTitle').textContent = panel.getAttribute('data-title') || 'Code section';
-  document.getElementById('cmMeta').textContent  = panel.getAttribute('data-meta')  || '';
+  var _t = panel.getAttribute('data-title') || 'Code section';
+  var _m = panel.getAttribute('data-meta')  || '';
+  var _tEl = document.getElementById('cmTitle'), _mEl = document.getElementById('cmMeta');
+  _tEl.textContent = _t; _mEl.textContent = _m;
+  _tEl.title = _t; _mEl.title = _m;              // the heading is ellipsed by design; keep the full text reachable
   _cmState = { panel: panel, parent: panel.parentNode, next: panel.nextSibling, scrollY: window.scrollY || 0 };
   panel.classList.add('cm-hosted');
   body.appendChild(panel);                       // MOVE, not copy
@@ -5397,6 +5443,7 @@ function codeModalOpen(btn){
      section you came from. position:fixed + restoring scrollY is the only reliable way there. */
   document.body.style.position='fixed'; document.body.style.top=(-_cmState.scrollY)+'px';
   document.body.style.width='100%';
+  document.body.classList.add('cm-open');        // hides the app's fixed .action-bar while reading
   back.classList.add('on');
 }
 function codeModalClose(){
@@ -5423,6 +5470,7 @@ function codeModalClose(){
       }
     }catch(e){}
     document.body.style.position=''; document.body.style.top=''; document.body.style.width='';
+    document.body.classList.remove('cm-open');
     try{ window.scrollTo(0, st.scrollY); }catch(e){}
   }
 }
