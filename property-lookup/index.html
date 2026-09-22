@@ -4191,7 +4191,7 @@ function detectFloodZoneField(fields){
 }
 async function queryCountyFlood(lat,lng,countyName,cityName){
   // City layer first where one exists — the county carves cities out, so it has nothing to say.
-  const reg = (cityName && CITY_FLOOD_LIVE[norm(cityName)])
+  const reg = (jurCity(cityName) && CITY_FLOOD_LIVE[norm(jurCity(cityName))])
            || (countyName ? COUNTY_FLOOD_LIVE[norm(countyName)] : null);
   if(!reg) return null;
   const cands = reg.urls || (reg.url?[reg.url]:[]);
@@ -4472,9 +4472,30 @@ const EC_STATEWIDE = "https://services8.arcgis.com/4L6VuYsPSGSEJ0qe/arcgis/rest/
    when there is a certificate to enrich. */
 const EC_STATEWIDE_RICH = "https://services8.arcgis.com/4L6VuYsPSGSEJ0qe/arcgis/rest/services/PUBLIC_FL_Elevation_Certificates_and_Warnings_WFL1/FeatureServer/1/query";
 
+/* A city name that is safe to KEY A JURISDICTION LOOKUP with — i.e. null unless a boundary
+   service actually placed the point inside that municipality.
+   ⚠ WHY THIS EXISTS. cityName has two very different provenances. When FDOT answers it is a
+   spatial hit and naming a city layer from it is correct. When FDOT does NOT answer, the code falls
+   back to the MAILING city from the parcel record or the typed address, and sets __cityIsPostal.
+   A mailing city is not a jurisdiction: nearly all of unincorporated Collier has a Naples mailing
+   address, most of unincorporated Lee says Fort Myers, and 4618 San Antonio Ln is posted Bonita
+   Springs while physically in Estero.
+   The flag was added for exactly this and byCity honoured it — but the TOP-LEVEL registry lookups
+   did not. The result, reported from an iPhone 21 Sep 2026 where FDOT was timing out: every Collier
+   parcel resolved to a postal "Naples", selected ZONING_LIVE_CITY.NAPLES, and the card showed City
+   of Naples zoning for unincorporated county land — while the Jurisdiction card simultaneously
+   claimed "no city zoning layer was used". Confidently wrong, on a permit tool, and invisible on
+   desktop because FDOT answers there.
+   Use this for ANY registry keyed by municipality. Use raw cityName only for DISPLAY. */
+function jurCity(cityName){
+  try{ if(typeof window!=='undefined' && window.__cityIsPostal) return null; }catch(e){}
+  return cityName || null;
+}
 /* Resolve documents config: city first (by municipality), else county. */
 function resolveDocs(cityName, countyName){
-  if(cityName && DOCS_CITY[norm(cityName)]) return { cfg:DOCS_CITY[norm(cityName)], inCity:true };
+  // A mailing city must not pick a city's permit portal either - see jurCity().
+  const _c = jurCity(cityName);
+  if(_c && DOCS_CITY[norm(_c)]) return { cfg:DOCS_CITY[norm(_c)], inCity:true };
   if(countyName && DOCS_COUNTY[norm(countyName)]) return { cfg:DOCS_COUNTY[norm(countyName)], inCity:false };
   return { cfg:null, inCity:false };
 }
@@ -7720,7 +7741,8 @@ async function queryZoning(lat,lng, cityName, countyName){
   const _badAny = new Set();   // union of every sentinel in play - see the note where it is filled
   if(zoningSource.url){ cands = [zoningSource.url]; isOverride=true; }   // manual paste wins
   else {
-    const cityReg = cityName ? ZONING_LIVE_CITY[norm(cityName)] : null;   // city is its own zoning authority
+    const _jc = jurCity(cityName);   // postal-only city must not select a municipal layer - see jurCity()
+    const cityReg = _jc ? ZONING_LIVE_CITY[norm(_jc)] : null;   // city is its own zoning authority
     let   cntyReg = countyName ? ZONING_LIVE[norm(countyName)] : null;
     // overlayOnly entries (e.g. Orange County — slow host that gates the site-card paint) are wired ONLY for
     // the map zoning OVERLAY, not the per-parcel point lookup. Drop it here so the site card doesn't call that
@@ -24252,7 +24274,7 @@ const WIND_ADOPTED_COUNTY = {
    Returns null where the jurisdiction publishes nothing, and the card then shows the ASCE 7-22
    value alone, which is what it did before any of this and is defensible on its own. */
 function pickAdoptedWind(cityName, countyName){
-  return (cityName && WIND_ADOPTED[norm(cityName)])
+  return (jurCity(cityName) && WIND_ADOPTED[norm(jurCity(cityName))])
       || (countyName ? WIND_ADOPTED_COUNTY[norm(countyName)] : null)
       || null;
 }
@@ -27649,7 +27671,7 @@ async function _runLookupInner(lat,lng,searchCtx){
   // stacking serially. Each is awaited later where it's rendered; all fail-fast (short timeout).
   const pZoning      = _timed('zoning', queryZoning(lat, lng, cityName, countyName)).catch(()=>null);
   const pWind        = _timed('wind (ASCE 7-22)', queryWindSpeed(lat, lng)).catch(()=>null);   // live ASCE 7-22 Risk Cat II; null → county fallback
-  const pCountyFlood = ((cityName && CITY_FLOOD_LIVE[norm(cityName)]) || (countyName && COUNTY_FLOOD_LIVE[norm(countyName)]))
+  const pCountyFlood = ((jurCity(cityName) && CITY_FLOOD_LIVE[norm(jurCity(cityName))]) || (countyName && COUNTY_FLOOD_LIVE[norm(countyName)]))
                          ? _timed('county/city flood', queryCountyFlood(lat, lng, countyName, cityName)).catch(()=>null) : Promise.resolve(null);
   /* The authoritative parcel source in a wired county — and one of the slower calls in the
      lookup — so it belongs in the timing panel like every other feed. _timedTail() wraps a
@@ -31659,7 +31681,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
     html += `<div class="note">No effective NFHL polygon at this point. This usually means the area is unmapped or outside digital flood-map coverage — check the FEMA Map Service Center directly.</div>`;
   }
   // --- LIVE county DFIRM cross-check (e.g. Collier's adopted 2024 map) vs the effective NFHL above ---
-  const cfReg = (cityName && CITY_FLOOD_LIVE[norm(cityName)])
+  const cfReg = (jurCity(cityName) && CITY_FLOOD_LIVE[norm(jurCity(cityName))])
              || (countyName ? COUNTY_FLOOD_LIVE[norm(countyName)] : null);
   if(cfReg){
     /* This is a CROSS-CHECK, not a primary source — the effective NFHL zone is already rendered
