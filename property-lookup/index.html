@@ -293,6 +293,42 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .lc-read{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:5px;border:1px solid rgba(255,255,255,.2);background:transparent;color:inherit;cursor:pointer}
   .lc-read:hover{border-color:var(--signal)} .lc-body{padding-left:0}
   .badge.open{outline:1px solid var(--signal)}
+  /* ── FULL-PAGE CODE READER ──────────────────────────────────────────────────────────────────
+     The Read panel is capped at 560px and renders at card width, which on a phone is ~300px
+     across — fine for prose, too small for a setback figure whose dimension callouts are the
+     point. This opens the SAME nodes at 92vw x 90vh. Note "same nodes": codeModalOpen() MOVES the
+     panel into the overlay rather than cloning it, so ids stay unique, the district-table toggle
+     links keep working, and a table fetched a second later still lands in the open modal. */
+  .lc-expand{flex:0 0 auto;font-family:var(--mono);font-size:11px;padding:2px 7px;border-radius:5px;border:1px solid rgba(255,255,255,.2);background:transparent;color:inherit;cursor:pointer;white-space:nowrap;line-height:1.5}
+  .lc-expand:hover{border-color:var(--signal);color:var(--signal2)}
+  .lc-rhead{display:flex;align-items:flex-start;gap:8px;margin-bottom:4px}
+  .lc-rhead .lc-rt{flex:1;min-width:0;opacity:.6;font-size:11px}
+  .cm-back{position:fixed;inset:0;background:rgba(0,10,18,.72);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:2600;padding:2vh 2vw;opacity:0;pointer-events:none;transition:opacity .16s ease}
+  .cm-back.on{opacity:1;pointer-events:auto}
+  .cm{width:92vw;height:90vh;max-width:1280px;background:var(--panel);border:1px solid var(--line);border-radius:11px;box-shadow:0 24px 70px var(--shadow-strong);display:flex;flex-direction:column;overflow:hidden;transform:translateY(8px) scale(.99);transition:transform .16s ease}
+  .cm-back.on .cm{transform:none}
+  .cm-h{flex:0 0 auto;background:var(--card-head-bg);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;align-items:flex-start;gap:12px}
+  .cm-h .ttl{flex:1;min-width:0}
+  .cm-h .t1{font-family:var(--disp);font-size:14.5px;font-weight:600;letter-spacing:.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cm-h .t2{font-family:var(--mono);font-size:10.5px;opacity:.6;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cm-tools{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+  .cm-btn{font-family:var(--mono);font-size:11px;padding:4px 9px;border-radius:5px;border:1px solid rgba(255,255,255,.2);background:transparent;color:inherit;cursor:pointer}
+  .cm-btn:hover{border-color:var(--signal);color:var(--signal2)}
+  .cm-btn.on{border-color:var(--signal);color:var(--signal2)}
+  .cm-x{font-size:15px;line-height:1;padding:3px 9px 5px}
+  .cm-b{flex:1;min-height:0;overflow:auto;padding:16px 20px 28px;font-size:15px;line-height:1.62;-webkit-overflow-scrolling:touch}
+  .cm-b .live-code{max-width:74ch;margin:0 auto}
+  .cm-b.wide .live-code{max-width:none}
+  .cm-b .live-code p{margin:9px 0}
+  .cm-b .live-code img{margin:16px auto;border-radius:6px;box-shadow:0 3px 14px var(--shadow-soft)}
+  .cm-b .live-code table{font-size:13px}
+  .cm-b .live-code td,.cm-b .live-code th{padding:5px 10px}
+  /* The panel keeps its own inline max-height/padding from codeFinderRead; neutralise them while
+     it is hosted in the modal, and restore on close by dropping the class. */
+  .cm-b .cm-hosted{max-height:none!important;overflow:visible!important;border:0!important;padding:0!important;background:none!important;font-size:inherit!important;line-height:inherit!important;margin-top:0!important}
+  .cm-b .cm-hosted > .lc-rhead{display:none}
+  .cm-f{flex:0 0 auto;border-top:1px solid var(--line);background:rgba(0,0,0,.18);padding:7px 14px;font-family:var(--mono);font-size:10.5px;opacity:.55;display:flex;justify-content:space-between;gap:10px}
+  @media(max-width:640px){ .cm{width:96vw;height:92vh} .cm-b{padding:13px 14px 24px;font-size:15.5px} .cm-h .t1{white-space:normal} }
   .lc-topic{margin-top:10px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08)} .lc-topic-h{font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;opacity:.8;margin-bottom:4px}
   .lc-hit{display:flex;align-items:center;gap:8px;padding:4px 0} .lc-hit.dim{opacity:.7} .lc-hit-t{flex:1;min-width:0;font-size:12px}
   .lc-also{display:block;text-decoration:none;color:inherit;cursor:pointer;opacity:.8} .lc-also:hover{opacity:1}
@@ -5237,6 +5273,93 @@ async function codeSectionRead(btn, jur, sec, tid){
   }catch(e){ box.innerHTML=`<div class="note">Couldn't fetch: ${esc(e.message||String(e))}</div>`; btn.textContent=`▸ Read § ${sec} live`; }
   btn.disabled=false;
 }
+/* ── FULL-PAGE CODE READER ────────────────────────────────────────────────────────────────────
+   Opens the Read panel at 92vw x 90vh. Everything here is lazy and self-contained: the overlay is
+   built on first use, and nothing is evaluated at load time, so there is no ordering dependency on
+   anything declared later in this file. (A top-level `const` reading a later-declared binding is
+   what killed the whole script on 22 Sep — see _fldBackstopMs.)
+
+   IT MOVES THE PANEL, IT DOES NOT CLONE IT. Cloning would duplicate every id in the section —
+   breaking the "all districts" toggle, which resolves its two halves by getElementById — and would
+   freeze the content, so a district table fetched a second later (codeFinderRead's tableRefs pass)
+   would land in the hidden original while the user stares at the copy. Moving keeps one live node:
+   handlers, ids and late arrivals all follow it in and back out again. */
+var _cmState = null;     // { panel, parent, next, btn, scrollY } while open
+function _cmBuild(){
+  var back = document.getElementById('codeModal');
+  if(back) return back;
+  back = document.createElement('div');
+  back.id = 'codeModal';
+  back.className = 'cm-back';
+  back.innerHTML =
+    '<div class="cm" role="dialog" aria-modal="true" aria-labelledby="cmTitle">'
+  +   '<div class="cm-h"><div class="ttl"><div class="t1" id="cmTitle"></div><div class="t2" id="cmMeta"></div></div>'
+  +     '<div class="cm-tools">'
+  +       '<button type="button" class="cm-btn" id="cmWide" title="Full width — for wide district tables">⇔ Wide</button>'
+  +       '<button type="button" class="cm-btn" id="cmPrint" title="Print / save as PDF">⌈⌉</button>'
+  +       '<button type="button" class="cm-btn cm-x" id="cmClose" aria-label="Close">✕</button>'
+  +     '</div></div>'
+  +   '<div class="cm-b" id="cmBody"></div>'
+  +   '<div class="cm-f"><span id="cmFoot">Live text from Municode</span><span>Esc close · W wide</span></div>'
+  + '</div>';
+  document.body.appendChild(back);
+  back.addEventListener('click', function(e){ if(e.target === back) codeModalClose(); });
+  back.querySelector('#cmClose').addEventListener('click', codeModalClose);
+  back.querySelector('#cmWide').addEventListener('click', codeModalWide);
+  back.querySelector('#cmPrint').addEventListener('click', function(){ try{ window.print(); }catch(e){} });
+  return back;
+}
+function codeModalWide(){
+  var b=document.getElementById('cmBody'), w=document.getElementById('cmWide');
+  if(!b||!w) return;
+  w.classList.toggle('on', b.classList.toggle('wide'));
+}
+/* btn is the ⤴ button inside the panel's header row. */
+function codeModalOpen(btn){
+  var panel = btn && btn.closest ? btn.closest('.lc-note-read') : null;
+  if(!panel) return;
+  if(_cmState) codeModalClose();
+  var back = _cmBuild(), body = document.getElementById('cmBody');
+  document.getElementById('cmTitle').textContent = panel.getAttribute('data-title') || 'Code section';
+  document.getElementById('cmMeta').textContent  = panel.getAttribute('data-meta')  || '';
+  _cmState = { panel: panel, parent: panel.parentNode, next: panel.nextSibling, scrollY: window.scrollY || 0 };
+  panel.classList.add('cm-hosted');
+  body.appendChild(panel);                       // MOVE, not copy
+  body.scrollTop = 0;
+  /* Lock the page behind the overlay. Without this iOS Safari scrolls the parcel card underneath
+     while you read, and closing drops you at the top of a very long card instead of back at the
+     section you came from. position:fixed + restoring scrollY is the only reliable way there. */
+  document.body.style.position='fixed'; document.body.style.top=(-_cmState.scrollY)+'px';
+  document.body.style.width='100%';
+  back.classList.add('on');
+}
+function codeModalClose(){
+  var back = document.getElementById('codeModal');
+  if(back) back.classList.remove('on');
+  var b=document.getElementById('cmBody'), w=document.getElementById('cmWide');
+  if(b) b.classList.remove('wide');
+  if(w) w.classList.remove('on');
+  if(_cmState){
+    var st=_cmState; _cmState=null;
+    st.panel.classList.remove('cm-hosted');
+    /* Put it back exactly where it was. The anchor sibling can have been removed while the modal
+       was open (a re-render of the card), so fall back to appending, and if even the parent is
+       gone the node is simply dropped — the card it belonged to no longer exists. */
+    try{
+      if(st.parent && st.parent.isConnected){
+        if(st.next && st.next.parentNode === st.parent) st.parent.insertBefore(st.panel, st.next);
+        else st.parent.appendChild(st.panel);
+      }
+    }catch(e){}
+    document.body.style.position=''; document.body.style.top=''; document.body.style.width='';
+    try{ window.scrollTo(0, st.scrollY); }catch(e){}
+  }
+}
+document.addEventListener('keydown', function(e){
+  if(!_cmState) return;
+  if(e.key === 'Escape'){ e.preventDefault(); codeModalClose(); }
+  else if((e.key === 'w' || e.key === 'W') && !e.metaKey && !e.ctrlKey && !e.altKey){ e.preventDefault(); codeModalWide(); }
+});
 async function codeFinderRead(btn, base, productId, nodeId, tid, clientId, zone){
   const box = document.getElementById(tid); if(!box) return;
   if(box.dataset.open){ box.style.display = box.style.display==='none'?'':'none'; btn.textContent = box.style.display==='none'?'Read':'Hide'; return; }
@@ -5247,8 +5370,11 @@ async function codeFinderRead(btn, base, productId, nodeId, tid, clientId, zone)
     box.dataset.open='1';
     const zid='cfz_'+Math.random().toString(36).slice(2,8);
     const zoneBar = d.htmlZone ? `<div class="lc-zonebar">Showing <b>${esc(d.zone)}</b> only · <a href="#" onclick="var a=document.getElementById('${zid}_all'),z=document.getElementById('${zid}_zone');var on=a.style.display==='none';a.style.display=on?'':'none';z.style.display=on?'none':'';this.textContent=on?'this district only':'all districts';return false">all districts</a></div>` : '';
-    box.innerHTML = `<div class="note" style="margin-top:6px;padding:8px;border:1px solid rgba(255,255,255,.1);border-radius:6px;max-height:560px;overflow:auto;font-size:12px;line-height:1.45">
-      <div style="opacity:.6;font-size:11px;margin-bottom:4px">${esc(d.title||'')} · ${esc(d.job||'')}${d.published?' · published '+esc(String(d.published).slice(0,10)):''}</div>
+    /* data-title / data-meta feed the modal's pinned header; .lc-note-read is what codeModalOpen
+       walks up to find. The ⤴ button opens the same nodes full-page — see codeModalOpen(). */
+    const _cmMeta = `${esc(d.job||'')}${d.published?' · published '+esc(String(d.published).slice(0,10)):''}`;
+    box.innerHTML = `<div class="note lc-note-read" data-title="${esc(d.title||'')}" data-meta="${_cmMeta}" style="margin-top:6px;padding:8px;border:1px solid rgba(255,255,255,.1);border-radius:6px;max-height:560px;overflow:auto;font-size:12px;line-height:1.45">
+      <div class="lc-rhead"><div class="lc-rt">${esc(d.title||'')} · ${_cmMeta}</div><button type="button" class="lc-expand" onclick="codeModalOpen(this)" title="Open full page">⤴ Expand</button></div>
       ${zoneBar}
       ${d.htmlZone?`<div class="live-code" id="${zid}_zone">${d.htmlZone}</div><div class="live-code" id="${zid}_all" style="display:none">${d.html||''}</div>`:`<div class="live-code">${d.html || esc(d.text||'')}</div>`}
       <div class="live-code-tables"></div></div>`;
