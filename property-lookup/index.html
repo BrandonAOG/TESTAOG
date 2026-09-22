@@ -40,7 +40,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <link rel="preconnect" href="https://hazards.fema.gov" crossorigin>          <!-- NFHL export: slowest handshake in the app (strict TLS 1.2) — pre-open it -->
 <link rel="preconnect" href="https://basemap.nationalmap.gov" crossorigin>   <!-- USGS Topo basemap tiles -->
 <link rel="preconnect" href="https://elevation.nationalmap.gov" crossorigin> <!-- USGS 3DEP ground elevation: stalls on a cold/dead socket, so hold one open -->
-<link rel="preconnect" href="https://gis.fdot.gov" crossorigin>              <!-- FDOT city/county boundaries: only 2 calls but they gate zoning + the appraiser link -->
+<link rel="preconnect" href="https://tigerweb.geo.census.gov" crossorigin>   <!-- Census TIGERweb city/county/CDP boundaries: 3 calls but they gate zoning + the appraiser link -->
 <link rel="preconnect" href="https://services1.arcgis.com" crossorigin>      <!-- FDEP district mirror of the FDOR parcel roll: now the FIRST roll attempt, so warm the socket -->
 <link rel="preconnect" href="https://mapservices.weather.noaa.gov" crossorigin> <!-- NWS warnings / NOAA overlays -->
 <link rel="preconnect" href="https://tiledimageservices2.arcgis.com" crossorigin> <!-- Collier 2026 LERC tiles -->
@@ -1674,7 +1674,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     </button>
     <div id="footBody">
       <div style="color:var(--signal);font-family:var(--disp);font-weight:600;letter-spacing:.08em;margin-bottom:6px">ALWAYS ON GENERATORS · PROPERTY LOOKUP</div>
-      Sources: FL Dept. of Revenue statewide cadastral (county appraiser rolls) · FEMA National Flood Hazard Layer · FDOT administrative boundaries · HIFLD Electric Retail Service Territories · Esri / OSM geocoding. Data reflects the most recent official rolls and <i>effective</i> FEMA maps — always verify with the county property appraiser before any legal, financial, or permitting decision.
+      Sources: FL Dept. of Revenue statewide cadastral (county appraiser rolls) · FEMA National Flood Hazard Layer · US Census TIGERweb city/county boundaries · HIFLD Electric Retail Service Territories · Esri / OSM geocoding. Data reflects the most recent official rolls and <i>effective</i> FEMA maps — always verify with the county property appraiser before any legal, financial, or permitting decision.
       <div id="swStatus" style="margin-top:7px;color:var(--faint)"></div>
       <div id="lookupTiming"></div>
     </div>
@@ -1737,8 +1737,57 @@ const EP = {
      point query per lookup, which is the pattern it handles well. */
   parcelFast  : "https://services5.arcgis.com/GcvM6vDlR2gM4x31/arcgis/rest/services/FL_Parcels/FeatureServer/0/query",
   flood  : "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query",
-  city   : "https://gis.fdot.gov/arcgis/rest/services/Admin_Boundaries/FeatureServer/7/query",
-  county : "https://gis.fdot.gov/arcgis/rest/services/Admin_Boundaries/FeatureServer/5/query",
+  /* ── JURISDICTION BOUNDARIES: CENSUS TIGERweb, NOT FDOT (moved 21 Sep 2026) ────────────────────
+     These two queries decide the county and the municipality, and everything downstream keys off
+     them: which zoning registry is consulted, which appraiser link is built, which flood and wind
+     tables apply. They used to come from gis.fdot.gov.
+
+     WHY THEY MOVED. gis.fdot.gov serves a certificate chain that older iOS does not trust. On an
+     iPhone on iOS 16 both calls died at the TLS handshake — measured on Brandon's phone at 135 ms
+     (city) and 329 ms (county), i.e. a hard reject, not a timeout, so no timeout budget could have
+     rescued them. Safari showed "this connection is not private". With both boundary calls dead the
+     card fell back to the county decoded from the state roll (right) and the MAILING city parsed out
+     of the typed address (wrong), and because every unincorporated Collier parcel carries a Naples
+     mailing address, the Zoning card served City of Naples districts across the whole county. Naples
+     proper and Marco Island looked correct only because there the mailing city happens to equal the
+     municipality. The fix had to be a host older iOS trusts; tigerweb.geo.census.gov was confirmed
+     to load on the same phone before this was wired.
+
+     WHY THIS IS ALSO THE BETTER SOURCE, independent of the certificate:
+       • It is UPSTREAM. The CLASSFP/LSAD fields this file used to ask FDOT for are Census TIGER
+         fields — FDOT was re-serving Census data. This is the same lineage, one hop shorter.
+       • CDPs CANNOT LEAK IN. Census splits Incorporated Places (layer 4) from Census Designated
+         Places (layer 5) into SEPARATE LAYERS. FDOT served one combined layer, so this file had to
+         screen CDPs out by inspecting CLASSFP/LSAD — and a blank class field meant a CDP could be
+         mistaken for a municipality. Layer 4 cannot return a CDP at all. That removes the entire
+         class of bug that put Orangetree and Golden Gate on the card as jurisdictions.
+       • IT IS CURRENT. This is the BAS 2026 group — this year's Boundary and Annexation Survey.
+         FDOT served an older snapshot. Measured consequence: FDOT still classed the Village of
+         Estero (incorporated 31 Dec 2014) as a CDP, which is the only reason BOUNDS_FORCE_INCLUDE
+         exists. TIGERweb returns Estero with LSADC 47 (village), correctly.
+       • IT IS FASTER. Point queries measured 62-97 ms against FDOT's 261-714 ms from the same
+         machine on the same day.
+
+     FIELD NAMES ARE DIFFERENT AND THAT MATTERS. TIGERweb NAME carries the legal suffix
+     ("Naples city", "Collier County", "Estero village"); BASENAME is the bare name ("Naples",
+     "Collier", "Estero"), which is the form FDOT returned and the form every registry key in this
+     file is written in. So ALWAYS ASK FOR BASENAME AND PREFER IT. norm("Collier County") is
+     "COLLIERCOUNTY" and matches no COUNTY_LIVE / PA / ZONING_LIVE key — reading NAME alone would
+     silently unwire every county. The class field is LSADC here, not CLASSFP/LSAD.
+
+     TWO SHAPE DIFFERENCES THAT BIT DURING WIRING, both handled at their call sites:
+       • The counties layer is NATIONWIDE (3,235 features), where FDOT's was Florida-only. Any
+         where=1=1 pull MUST carry STATE='12' — see the county label layer.
+       • returnCentroid is NOT supported on this MapServer (verified: 0 of 67 features came back
+         with one). The county label layer's ctr() already falls back to the ring bounding box, so
+         labels still place; the parameter is simply not sent. */
+  city   : "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/4/query",
+  county : "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1/query",
+  /* Census Designated Places. Its own layer now, because EP.city can no longer return one and the
+     Jurisdiction card's "Community" row (Golden Gate Estates, Lehigh Acres, Orangetree...) would
+     otherwise have gone blank on every unincorporated lookup. Queried in parallel with the other
+     two; it names the place, it never sets cityName, and nothing keys a zoning lookup off it. */
+  cdp    : "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/5/query",
 };
 
 /* County property appraiser sites (authoritative source for owner/parcel/zoning links).
@@ -1771,7 +1820,7 @@ WASHINGTON:"https://www.qpublic.net/fl/washington/"
 const norm = s => (s||"").toUpperCase().replace(/[^A-Z]/g,"");
 /* FL DOR county numbers (CO_NO on every FDOR cadastral record): 11..77, the 67 counties in
    alphabetical order. Lets a MAP CLICK recover the county from the state-roll record itself when
-   gis.fdot.gov doesn't answer (older iOS rejects its TLS chain) — without a county name the
+   the boundary service doesn't answer — without a county name the
    pre-wired live feed never fires and the card sits on the roll. Names are FDOT-style so the
    norm() keys match COUNTY_LIVE / PA / COUNTY_FLOOD_LIVE. */
 const DOR_COUNTY_BY_NO = {11:"Alachua",12:"Baker",13:"Bay",14:"Bradford",15:"Brevard",16:"Broward",
@@ -4100,8 +4149,10 @@ const CITY_FLOOD_LIVE = {
   NAPLES: { label:"City of Naples 2019 FIRM (city GIS)",
     viewer:"https://www.arcgis.com/apps/webappviewer/index.html?id=8c659a4e1f0843889b2da105048557a8",
     urls:["https://g.naplesgov.com/arcgis/rest/services/Building/FEMA_2019_Zones/MapServer/2/query"] },
-  // FDOT returns this as "City of Naples"; the LSAD strip only removes a TRAILING "city", so both
-  // spellings are registered rather than relying on one normalisation surviving.
+  // Kept from the FDOT era, which returned this as "City of Naples" — the LSAD strip only removes a
+  // TRAILING "city", so both spellings stay registered. Census TIGERweb BASENAME is plain "Naples",
+  // so the NAPLES key above is what matches today; this one costs nothing and covers a cached or
+  // hand-entered "City of Naples" still reaching norm().
   CITYOFNAPLES: { label:"City of Naples 2019 FIRM (city GIS)",
     viewer:"https://www.arcgis.com/apps/webappviewer/index.html?id=8c659a4e1f0843889b2da105048557a8",
     urls:["https://g.naplesgov.com/arcgis/rest/services/Building/FEMA_2019_Zones/MapServer/2/query"] },
@@ -9017,7 +9068,7 @@ function updateLocalAerial(force){
   const seq = ++_localSeq;                       // guard against out-of-order responses while panning
   const c = map.getCenter();
   try{
-    arcQuery(EP.county, c.lat, c.lng, 'NAME', false, 5000).then(a=>{
+    arcQuery(EP.county, c.lat, c.lng, 'BASENAME,NAME', false, 5000).then(a=>{
       if(seq!==_localSeq) return;                // a newer pan superseded this
       /* ⚠️ FIXED 20 Sep 2026 — THIS LINE IS WHY LEE FLASHED 3-INCH AND THEN FELL BACK TO ESRI.
          arcQuery() resolves with the RAW ArcGIS response ({fields, features, ...}), but
@@ -9032,7 +9083,7 @@ function updateLocalAerial(force){
          with a wrong one. Every OTHER countyNameOf() call site in this file already unwraps
          .features[0].attributes; this one did not. */
       const _at = (a && a.features && a.features[0]) ? a.features[0].attributes : null;
-      const nm = _at && (countyNameOf(_at) || _at.NAME || _at.name);
+      const nm = _at && (countyNameOf(_at) || _at.BASENAME || _at.NAME || _at.name);
       if(!nm) return;                            // query failed / no feature → keep the box guess
       const key = localKeyFromCountyName(nm);    // null if that county isn't wired/live → Esri fallback
       if(key!==_localActiveKey) _applyLocalKey(key);
@@ -9167,7 +9218,9 @@ document.addEventListener('click', closeBasemapMenu);
   const group=L.layerGroup(); const MINZ=8, MAXZ=14;
   let _built=false, _shown=false;
   function nameOf(a){
-    for(const k of ['NAME','COUNTY','COUNTYNAME','CONAME','COUNTY_NAM','DESCRIPT','COUNTYNM']) if(a[k]) return a[k];
+    // BASENAME first — TIGERweb's NAME is "Collier County", which would render the label as
+    // "COLLIER COUNTY". BASENAME is "Collier". (Unlike countyNameOf there is no suffix strip here.)
+    for(const k of ['BASENAME','NAME','COUNTY','COUNTYNAME','CONAME','COUNTY_NAM','DESCRIPT','COUNTYNM']) if(a[k]) return a[k];
     for(const k in a){ if(/name|county/i.test(k) && typeof a[k]==='string' && a[k].length<40) return a[k]; }
     return null;
   }
@@ -9187,7 +9240,14 @@ document.addEventListener('click', closeBasemapMenu);
   (async function build(){
     try{
       const base=EP.county.replace(/\/query\s*$/i,'')+'/query';
-      const u=base+'?where=1%3D1&outFields=*&returnGeometry=true&returnCentroid=true&maxAllowableOffset=0.02&outSR=4326&f=json';
+      /* ⚠️ STATE='12' IS LOAD-BEARING. EP.county is Census TIGERweb, whose counties layer is
+         NATIONWIDE — 3,235 features. FDOT's was Florida-only, so this pull was written as
+         where=1=1 and was correct then; left that way against TIGERweb it would download and label
+         every county in the United States. Filtered: 67 features, 22 KB, 313 ms — measured.
+         returnCentroid was also dropped: this MapServer does not support it (verified — 0 of 67
+         features came back with one), and ctr() already falls back to the ring bounding box.
+         outFields narrowed from * to the two name fields, since nothing here reads anything else. */
+      const u=base+"?where="+encodeURIComponent("STATE='12'")+"&outFields=BASENAME,NAME&returnGeometry=true&maxAllowableOffset=0.02&outSR=4326&f=json";
       const r=await fetch(u).then(x=>x.json());
       (r.features||[]).forEach(f=>{
         const nm=nameOf(f.attributes||{}), c=ctr(f);
@@ -9627,26 +9687,30 @@ map.on('click', e => {
 });
 
 /* ---------- City/county separation: color-coded INCORPORATED city outlines ----------
-   The FDOT "Florida Cities Bndy" layer is built from US Census place data, which mixes
-   incorporated municipalities WITH unincorporated communities (CDPs). We filter to
-   incorporated places only (Census CLASSFP starts with 'C'; CDPs are 'U1'/'U2'), so
-   communities are no longer outlined. Each city gets its own stable color derived from
-   its name, so adjacent cities are easy to tell apart. Outside any outline = unincorporated. */
+   EP.city is Census TIGERweb "Incorporated Places" (layer 4), which by definition contains no
+   CDPs — so unincorporated communities cannot be outlined as cities at all. This used to be FDOT's
+   "Florida Cities Bndy", one layer mixing municipalities and CDPs together, and the separation had
+   to be done here by filtering on CLASSFP/LSAD. That filter survives below as a defensive net, not
+   as the mechanism. Each city gets its own stable color derived from its name, so adjacent cities
+   are easy to tell apart. Outside any outline = unincorporated. */
 const CITY_PALETTE = ['#ff8c1a','#3fd0ff','#7cff5c','#ff5ca8','#c08bff','#ffe14d','#5cffd4','#ff6b5c','#9cff2e','#5c9bff','#ff9ed6','#4dffa0'];
 /* Pinned colors for specific municipalities so they stand out from their immediate neighbors,
    instead of relying on the name hash (which can collide — e.g. an "Estero"/"Fort Myers Beach"
    clash on the same palette index). Keyed on the normalized name (letters only, uppercase), so
-   it matches whether FDOT returns "Estero", "Estero village", etc. */
+   it matches whether the source returns "Estero", "Estero village", etc. */
 const CITY_COLOR_PIN = { 'ESTERO':'#ff2e9c' };   // hot magenta — distinct from neighboring greens/blues
-/* Municipalities to force into the city-limits layer by NAME, for cases where the CLASSFP/LSAD
-   incorporated-place filter drops them (some FDOT vintages leave Census-class fields blank for
-   newer incorporations like Estero). `like` is the SQL LIKE fragment; `norm` is the letters-only
-   uppercase form used to dedupe against features already returned. */
+/* Municipalities to force into the city-limits layer by NAME, for cases where the class-code
+   incorporated-place filter drops them. This exists because FDOT's vintage still classed the
+   Village of Estero as a CDP eleven years after it incorporated. Census TIGERweb BAS 2026 returns
+   Estero correctly (LSADC 47), so on the current source this list is inert — verified against the
+   SW Lee envelope. Kept as a cheap net against a future source regressing the same way.
+   `like` is the SQL LIKE fragment; `norm` is the letters-only uppercase form used to dedupe. */
 const BOUNDS_FORCE_INCLUDE = [ { like:'ESTERO', norm:'ESTERO' } ];
 /* ── IS THIS PLACE ACTUALLY A MUNICIPALITY? ───────────────────────────────────────────────────
-   The map OUTLINE layer above has always filtered CDPs out (CLASSFP LIKE 'C%'). The POINT lookup
-   that fills the Jurisdiction card's MUNICIPALITY row did not — it queried the same Census-derived
-   layer with no where clause and took feature[0]. So a lookup at 26.282319, -81.570414 hit the
+   HISTORY, AND WHY THIS FUNCTION STILL EXISTS. When EP.city was FDOT's combined layer, the map
+   OUTLINE layer filtered CDPs out (CLASSFP LIKE 'C%') but the POINT lookup that fills the
+   Jurisdiction card's MUNICIPALITY row did not — it queried the same layer with no where clause
+   and took feature[0]. So a lookup at 26.282319, -81.570414 hit the
    Orangetree CDP polygon and the card read "MUNICIPALITY Orangetree", while the map drew no
    outline there at all. Orangetree is an unincorporated community: Collier County has exactly
    three municipalities (Naples, Marco Island, Everglades City), and everything east of Naples is
@@ -9655,11 +9719,19 @@ const BOUNDS_FORCE_INCLUDE = [ { like:'ESTERO', norm:'ESTERO' } ];
    does not exist — and it's not one address, it's most of the county's population (Golden Gate,
    Immokalee, Lely, Naples Park, Verona Walk, Ave Maria…), plus Lehigh Acres, San Carlos Park,
    Fort Myers Shores and the rest of Lee's CDPs.
-   Census classification: CLASSFP C* = incorporated place, U1/U2 = CDP. Some FDOT vintages leave
-   the class fields blank, so fall back to LSAD's city/town/village codes, then to the
-   force-include list (newer incorporations like Estero) and an explicit name pattern. If nothing
-   identifies it as incorporated, treat it as NOT — on this tool "unincorporated county" is the
-   safe default, because the county is always a real permitting authority and a CDP never is. */
+   EP.city is now Census TIGERweb "Incorporated Places" (layer 4), which holds no CDPs at all, so
+   the failure above is structurally impossible on the live path and this function passes everything
+   it is handed. It is kept as the net under that guarantee, and it is not theoretical: the same bug
+   came back a second time by a different route on 21 Sep 2026, when FDOT's certificate stopped
+   being trusted on older iOS, both boundary calls died, and the card fell back to the MAILING city
+   — putting "Naples" on every unincorporated Collier parcel and serving City of Naples zoning
+   across the county. The layer split removes one route in; jurCity() closes the other.
+   Census classification, for the shapes that can still reach here (a cached FDOT-era response, or
+   a future source): CLASSFP C* = incorporated place, U1/U2 = CDP; LSADC/LSAD carries the
+   city/town/village code. Fall back to those, then to the force-include list and an explicit name
+   pattern. If nothing identifies it as incorporated, treat it as NOT — on this tool "unincorporated
+   county" is the safe default, because the county is always a real permitting authority and a CDP
+   never is. */
 /* County name off an FDOT county-boundary feature, whatever the field is called. NAME is what the layer uses
    today; the fallbacks protect every county read on this page from a schema rename. */
 function countyNameOf(a){ if(!a) return '';
@@ -9669,13 +9741,25 @@ function countyNameOf(a){ if(!a) return '';
      selects the wrong imagery or none at all — so the shape is normalised here as well as at the
      call site. Harmless for correct callers: a plain attributes object has no `features` array. */
   if(a.features && Array.isArray(a.features)) a = (a.features[0] && a.features[0].attributes) || {};
-  for(const k of ['NAME','COUNTY','COUNTYNAME','COUNTY_NAME','NAME_1','CNTYNAME','DESCRIPT','NAMELSAD']){ if(a[k]) return String(a[k]).replace(/\s+county\s*$/i,'').trim(); }
+  /* BASENAME first: Census TIGERweb (EP.county) returns NAME "Collier County" and BASENAME
+     "Collier". The suffix strip below would handle NAME too, but BASENAME is the bare name by
+     definition, so preferring it is exact rather than merely usually-right. */
+  for(const k of ['BASENAME','NAME','COUNTY','COUNTYNAME','COUNTY_NAME','NAME_1','CNTYNAME','DESCRIPT','NAMELSAD']){ if(a[k]) return String(a[k]).replace(/\s+county\s*$/i,'').trim(); }
   const k=Object.keys(a).find(k=>/name|county/i.test(k) && typeof a[k]==='string' && a[k].trim()); return k?String(a[k]).replace(/\s+county\s*$/i,'').trim():''; }
 function isIncorporatedPlace(p){
   if(!p) return false;
-  const nm = String(p.NAME || p.name || '');
+  /* BASENAME is Census TIGERweb's bare name ("Naples"); NAME carries the legal suffix
+     ("Naples city"). Prefer BASENAME so the norm()-form sets below get the form they store.
+     LSADC is TIGERweb's legal-status code and takes the same values as FDOT's LSAD, so the
+     existing 25/43/47 test works on it unchanged. CLASSFP does not exist on TIGERweb at all;
+     it is still read because the fallbacks below must survive an older cached response.
+     NOTE: since EP.city is now Incorporated Places ONLY, a CDP can no longer reach this
+     function from the live path. Everything here is a net under a layer that already cannot
+     produce one — kept deliberately, so a future source change cannot silently reopen the
+     Orangetree/Golden Gate class of bug. */
+  const nm = String(p.BASENAME || p.basename || p.NAME || p.name || '');
   const c  = String(p.CLASSFP || p.classfp || '').toUpperCase();
-  const l  = String(p.LSAD    || p.lsad    || '').trim();
+  const l  = String(p.LSADC || p.lsadc || p.LSAD || p.lsad || '').trim();
   const n = nm.toUpperCase().replace(/[^A-Z]/g,'');
   // Newer incorporations first. FDOT's layer is Census-derived and lags: it still classes the Village of
   // Estero (incorporated 31 Dec 2014) as a CDP, so CLASSFP is wrong there and must not get the last word.
@@ -9736,12 +9820,16 @@ async function refreshBoundaries(){
   boundsBusy=true;
   const pb=_padEnvelope(b,0.6);
   const env=`${pb.getWest()},${pb.getSouth()},${pb.getEast()},${pb.getNorth()}`;
-  // CLASSFP LIKE 'C%' = incorporated places only (excludes CDP communities U1/U2)
-  // Incorporated places (C*) plus force-included newer incorporations FDOT still classes as CDPs (Estero).
-  const where=encodeURIComponent("CLASSFP LIKE 'C%'" + BOUNDS_FORCE_INCLUDE.map(w=>` OR UPPER(NAME) LIKE '%${w.like}%'`).join(''));
+  /* where=1=1. This used to be "CLASSFP LIKE 'C%'" plus an OR clause per BOUNDS_FORCE_INCLUDE
+     entry, because FDOT served incorporated places and CDPs in ONE layer and the CDPs had to be
+     filtered out server-side. EP.city is now Census TIGERweb Incorporated Places (layer 4), which
+     contains no CDPs to filter — and CLASSFP does not exist on it, so the old clause would fail the
+     whole query outright. Verified against the SW Lee envelope: 6 features, all incorporated, all
+     carrying geometry, including Estero (LSADC 47) which FDOT still classed as a CDP. */
+  const where='1%3D1';
   const url=EP.city+
     `?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
-    `&spatialRel=esriSpatialRelIntersects&where=${where}&outFields=NAME,CLASSFP,LSAD`+
+    `&spatialRel=esriSpatialRelIntersects&where=${where}&outFields=BASENAME,NAME,LSADC`+
     `&returnGeometry=true&outSR=4326&f=geojson`;
   try{
     const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),15000);
@@ -9750,27 +9838,34 @@ async function refreshBoundaries(){
     // fallback: if the where-clause filter isn't supported, fetch all and filter client-side by name
     if(!gj || !gj.features){
       const url2=EP.city+`?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
-        `&spatialRel=esriSpatialRelIntersects&where=1%3D1&outFields=NAME,CLASSFP,LSAD&returnGeometry=true&outSR=4326&f=geojson`;
+        `&spatialRel=esriSpatialRelIntersects&where=1%3D1&outFields=BASENAME,NAME,LSADC&returnGeometry=true&outSR=4326&f=geojson`;
       const r2=await fetch(url2); if(r2.ok) gj=await r2.json();
     }
     if(gj && gj.features){
-      // keep only incorporated places (defensive client-side filter too)
+      /* Defensive client-side filter. On TIGERweb layer 4 this passes everything, because the layer
+         holds incorporated places only — LSADC comes back 25/43/47 (city/town/village) and the test
+         below accepts all three. It is kept so that a source that DOES mix CDPs in cannot draw one
+         as a city outline. A feature with no class field at all is kept: on an incorporated-only
+         layer that is the right default, and dropping it would blank real outlines on a schema change. */
       gj.features = gj.features.filter(f=>{
         const c=(f.properties&&(f.properties.CLASSFP||f.properties.classfp)||'').toString().toUpperCase();
-        const l=(f.properties&&(f.properties.LSAD||f.properties.lsad)||'').toString();
-        if(c) return c.startsWith('C');           // C* = incorporated
-        return l==='25'||l==='43'||l==='47'||l==='21'||l==='53'||l==='62'; // city/town/village LSAD codes
+        const l=(f.properties&&(f.properties.LSADC||f.properties.lsadc||f.properties.LSAD||f.properties.lsad)||'').toString();
+        if(c) return c.charAt(0)==='C';           // C* = incorporated (FDOT-era responses only)
+        if(l) return l==='25'||l==='43'||l==='47'||l==='21'||l==='53'||l==='62'; // city/town/village LSAD(C) codes
+        return true;                              // no class field on an incorporated-only layer
       });
-      // Guaranteed inclusion for municipalities the CLASSFP/LSAD filter can miss (e.g. Estero,
-      // whose Census-class fields are blank in some FDOT vintages). Fetch by NAME, no class filter,
-      // and merge any that aren't already present. Only runs when the view actually covers them.
+      /* Guaranteed inclusion for municipalities a class filter can miss. This existed for Estero,
+         which FDOT classed as a CDP eleven years after it incorporated. TIGERweb BAS 2026 returns
+         Estero correctly (LSADC 47), so on the current source this loop finds it already present and
+         does nothing — verified. Kept as a cheap net: it only fires when a named municipality is
+         genuinely absent from the drawn set, and only for views that cover it. */
       try{
-        const haveNames=gj.features.map(f=>String((f.properties&&(f.properties.NAME||f.properties.name))||'').toUpperCase().replace(/[^A-Z]/g,''));
+        const haveNames=gj.features.map(f=>String((f.properties&&(f.properties.BASENAME||f.properties.NAME||f.properties.name))||'').toUpperCase().replace(/[^A-Z]/g,''));
         for(const want of BOUNDS_FORCE_INCLUDE){
           if(haveNames.some(n=>n.indexOf(want.norm)!==-1)) continue;   // substring: "ESTEROVILLAGE" already covers "ESTERO"
           const wq=encodeURIComponent(`UPPER(NAME) LIKE '%${want.like}%'`);
           const fu=EP.city+`?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
-            `&spatialRel=esriSpatialRelIntersects&where=${wq}&outFields=NAME,CLASSFP,LSAD&returnGeometry=true&outSR=4326&f=geojson`;
+            `&spatialRel=esriSpatialRelIntersects&where=${wq}&outFields=BASENAME,NAME,LSADC&returnGeometry=true&outSR=4326&f=geojson`;
           const fr=await fetch(fu); if(!fr.ok) continue;
           const fgj=await fr.json();
           if(fgj && fgj.features && fgj.features.length){ gj.features = gj.features.concat(fgj.features); }
@@ -12957,12 +13052,15 @@ async function jurisdictionsInView(){
   const pts=[[b.getWest(),b.getSouth()],[b.getEast(),b.getSouth()],[b.getWest(),b.getNorth()],
     [b.getEast(),b.getNorth()],[map.getCenter().lng,map.getCenter().lat]];
   const geom=encodeURIComponent(JSON.stringify({points:pts,spatialReference:{wkid:4326}}));
-  // Class fields come along so CDPs can be dropped client-side (the where clause stays 1=1 — this
-  // call has no fallback path, so it must not depend on the server supporting a filter).
+  /* BASENAME is the bare name every ZONING_LIVE_CITY key is written in; LSADC rides along so the
+     client-side screen below still has something authoritative to test. The where clause stays 1=1 —
+     this call has no fallback path, so it must not depend on the server supporting a filter.
+     EP.city is incorporated-only now, so the screen passes everything; see isIncorporatedPlace(). */
   const q=`?geometry=${geom}&geometryType=esriGeometryMultipoint&inSR=4326&spatialRel=esriSpatialRelIntersects`+
-    `&where=1%3D1&outFields=NAME,CLASSFP,LSAD&returnGeometry=false&f=json`;
-  // County layer: it has no CLASSFP/LSAD, and ArcGIS rejects a query naming fields the layer lacks — that error is
-  // why the overlay never saw a county. Ask for everything and take the county-looking field.
+    `&where=1%3D1&outFields=BASENAME,NAME,LSADC&returnGeometry=false&f=json`;
+  // County layer: it has no class fields, and ArcGIS rejects a query naming fields the layer lacks — that error is
+  // why the overlay never saw a county. Ask for everything and let countyNameOf() take the county-looking field
+  // (which now prefers BASENAME, so TIGERweb's "Collier County" does not reach norm() as COLLIERCOUNTY).
   const qCounty=`?geometry=${geom}&geometryType=esriGeometryMultipoint&inSR=4326&spatialRel=esriSpatialRelIntersects`+
     `&where=1%3D1&outFields=*&returnGeometry=false&f=json`;
   const get=u=>fetch(u).then(r=>r.ok?r.json():null).catch(()=>null);
@@ -12972,7 +13070,7 @@ async function jurisdictionsInView(){
     // Incorporated places only. A CDP matches no ZONING_LIVE_CITY key so it drew nothing, but it
     // did reach the "Zoning set to …" toast, which named Orangetree as a jurisdiction.
     cities  = [...new Set((cy&&cy.features||[]).filter(f=>isIncorporatedPlace(f&&f.attributes))
-                .map(f=>(f.attributes&&f.attributes.NAME||'').trim()).filter(Boolean))];
+                .map(f=>(f.attributes&&(f.attributes.BASENAME||f.attributes.NAME)||'').trim()).filter(Boolean))];
     counties= [...new Set((co&&co.features||[]).map(f=>countyNameOf(f&&f.attributes)).filter(Boolean))];
     if(!counties.length && co && co.features && co.features.length) console.warn('[zoning overlay] county layer returned features but no recognisable name field:', Object.keys(co.features[0].attributes||{}));
   }catch(e){}
@@ -27489,10 +27587,16 @@ async function _runLookupInner(lat,lng,searchCtx){
      miss rate from ~40% to ~3% while the typical lookup still costs ~85 ms. growOnAbort:false
      because widening the window would only make each dead attempt more expensive. */
   const pFlood   = _timed('flood (FEMA)', arcQueryRetry(EP.flood, lat, lng, 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF', false, 2500, 4, true, false)).catch(e=>({__err:e.message}));
-  // NAME alone can't tell a municipality from a CDP — pull the Census class fields too, so
-  // isIncorporatedPlace() can reject unincorporated communities (see below).
-  const pCity    = _timed('city boundary', arcQuery(EP.city,    lat, lng, 'NAME,CLASSFP,LSAD', false)).catch(e=>({__err:e.message}));
-  const pCounty  = _timed('county boundary', arcQuery(EP.county,  lat, lng, 'NAME', false)).catch(e=>({__err:e.message}));
+  /* BASENAME is the bare name ("Naples") that every registry in this file is keyed on; NAME carries
+     the legal suffix ("Naples city") and is kept only as a fallback. LSADC rides along for
+     isIncorporatedPlace()'s defensive screen — EP.city is Incorporated Places only, so a CDP cannot
+     come back here at all, which is the whole reason this stopped misreading unincorporated Collier. */
+  const pCity    = _timed('city boundary', arcQuery(EP.city,    lat, lng, 'BASENAME,NAME,LSADC', false)).catch(e=>({__err:e.message}));
+  const pCounty  = _timed('county boundary', arcQuery(EP.county,  lat, lng, 'BASENAME,NAME', false)).catch(e=>({__err:e.message}));
+  /* CDPs live in their own layer now, so the Jurisdiction card's "Community" row needs its own query
+     — without it every unincorporated lookup would lose the place name (Golden Gate Estates, Lehigh
+     Acres, Orangetree). Runs in parallel with the two above and never sets cityName. */
+  const pCdp     = _timed('community (CDP)', arcQuery(EP.cdp,   lat, lng, 'BASENAME,NAME', false)).catch(e=>({__err:e.message}));
   const pLive    = liveSource.url ? _timed('live parcel feed', arcQuery(liveSource.url, lat, lng, '*', true)).catch(e=>({__err:e.message})) : Promise.resolve(null);
   const _utilUrl = await resolveUtilQueryUrl();
   const pUtil    = _utilUrl
@@ -27512,9 +27616,9 @@ async function _runLookupInner(lat,lng,searchCtx){
   // slot before proceeding — pCountyLive renders the card regardless. Normal roll responses (<1s)
   // are unaffected (they win the race instantly); only a genuine hang trips the grace. Unwired
   // counties still wait on the roll as before, since it's their only parcel source.
-  let parcel, city, county, live, pParcel;
-  { const _r = await Promise.all([pCity, pCounty, pLive]);
-    city=_r[0]; county=_r[1]; live=_r[2];
+  let parcel, city, county, live, cdp, pParcel;
+  { const _r = await Promise.all([pCity, pCounty, pLive, pCdp]);
+    city=_r[0]; county=_r[1]; live=_r[2]; cdp=_r[3];
     if(myId!==runId) return;
     const _cn0 = (!county.__err && county.features && county.features[0]) ? (countyNameOf(county.features[0].attributes)||county.features[0].attributes.NAME) : null;
     const _wiredClick = !liveSource.url && _cn0 && !!COUNTY_LIVE[norm(_cn0)];
@@ -27555,11 +27659,15 @@ async function _runLookupInner(lat,lng,searchCtx){
   if(!city.__err && city.features && city.features.length){
     const _places = city.features.map(f=>f && f.attributes).filter(Boolean);
     const _muni   = _places.find(isIncorporatedPlace);
-    if(_muni){ cityName = _muni.NAME; }
-    else {
-      const _cdp = _places.find(a=>a.NAME);
-      if(_cdp) window.__communityName = String(_cdp.NAME).replace(/\s+CDP$/i,'').trim();
-    }
+    if(_muni){ cityName = _muni.BASENAME || _muni.NAME; }
+  }
+  /* Community name, from the CDP layer's own query. Deliberately AFTER and INDEPENDENT of the
+     municipality block: a point can sit inside both an incorporated place and a CDP is not a case
+     Census produces, but if it ever did, the municipality must still win the jurisdiction and the
+     CDP must never reach cityName. Only fills the display row. */
+  if(cdp && !cdp.__err && cdp.features && cdp.features.length){
+    const _c = cdp.features.map(f=>f && f.attributes).filter(Boolean).find(a=>a.BASENAME||a.NAME);
+    if(_c && !cityName) window.__communityName = String(_c.BASENAME || _c.NAME).replace(/\s+CDP$/i,'').trim();
   }
   /* ── STRIP THE LSAD SUFFIX OFF FDOT'S PLACE NAME ────────────────────────────────────────────
      FDOT returns incorporated places with their legal-status suffix attached for some entities and
@@ -27578,7 +27686,7 @@ async function _runLookupInner(lat,lng,searchCtx){
     if(_c) cityName = _c;
   }
   /* ── FDOT BOUNDARY FALLBACK ─────────────────────────────────────────────────────────────────
-     Both of the above come from gis.fdot.gov — the only two calls in this file that touch that
+     Both of the above come from tigerweb.geo.census.gov — the only calls in this file that touch that
      host, and the only one with no preconnect. Observed on an older iPhone: the parcel feed
      answered fine and returned SCHAFFT EDWARD T at 201 SW 32nd Ter, while these two failed, so the
      card read "COUNTY — see appraiser link —" and "MUNICIPALITY Unincorporated (no city)" for a
@@ -27604,7 +27712,7 @@ async function _runLookupInner(lat,lng,searchCtx){
     /* MAP CLICK (no searchCtx, so no countyHint): FDOT didn't answer and nothing else names the
        county yet. The state roll has already resolved at this point (parcel is awaited above) and
        every FDOR record carries CO_NO — decode it. This is what lets pCountyLive below fire on a
-       click in a wired county (Lee, Collier, …) on devices where gis.fdot.gov fails; without it
+       click in a wired county (Lee, Collier, …) on devices where the boundary service fails; without it
        the card stayed on the roll with no way to tell why. */
     try{
       const _a = (parcel && !parcel.__err && parcel.features && parcel.features[0] && parcel.features[0].attributes) || null;
@@ -27616,7 +27724,7 @@ async function _runLookupInner(lat,lng,searchCtx){
      correct while a null city could only mean FDOT was down. It stopped being correct the moment
      the place lookup started rejecting CDPs: an unincorporated parcel now returns null legitimately,
      and this block would fire on every one of them — overwriting a right answer ("no municipality")
-     with a mailing city, flagging the card DERIVED, and claiming "FDOT boundary service didn't
+     with a mailing city, flagging the card DERIVED, and claiming the boundary service didn't
      respond" when it had responded perfectly. On an Orangetree lookup that means the card reads
      "Municipality: Naples", which is the exact false-jurisdiction problem the CDP filter was added
      to remove — arrived at by a different route, and carrying a red warning box on most of
@@ -27963,13 +28071,13 @@ async function _runLookupInner(lat,lng,searchCtx){
   html += renderAerialScout(lat, lng);
 
   html += `<div class="card"><div class="ch"><span class="icn">[ JUR ]</span><h2>Jurisdiction</h2>
-    <div class="src">${window.__jurDerived ? 'derived —<br>FDOT unavailable' : 'FDOT Admin<br>Boundaries'}</div></div><div class="cb">`;
+    <div class="src">${window.__jurDerived ? 'derived —<br>boundary svc down' : 'Census TIGERweb<br>BAS 2026'}</div></div><div class="cb">`;
   /* Don't claim "● LIVE queried in real time" when the boundary host failed and these values came
      from the parcel record and the typed address instead. Same information, different provenance —
      and "Unincorporated" on a house in Cape Coral is exactly the kind of wrong answer that needs to
      announce itself rather than look authoritative. */
   html += window.__jurDerived
-    ? `<div class="freshline"><span class="badge unk">▣ DERIVED</span> FDOT boundary service didn’t respond — ${esc(window.__jurDerived)}</div>`
+    ? `<div class="freshline"><span class="badge unk">▣ DERIVED</span> Boundary service didn’t respond — ${esc(window.__jurDerived)}</div>`
       /* One line, not four. This only appears now when the boundary service is genuinely down (see
          the gate on the fallback), so it's rare rather than routine — but it still has to say the
          one thing that matters: the name is postal, so no city layer was used. The Estero example
@@ -33410,12 +33518,13 @@ async function geocodeBest(rawQuery){
   }
   return cands[0];
 }
-/* Which county is a lat/lng in? Light wrapper over the FDOT county boundary layer, used to decide
-   whether an address-point anchor (Collier etc.) applies. Returns the county NAME or null. */
+/* Which county is a lat/lng in? Light wrapper over the county boundary layer (Census TIGERweb),
+   used to decide whether an address-point anchor (Collier etc.) applies. Returns the bare county
+   name or null — BASENAME, because TIGERweb's NAME is "Collier County" and callers norm() this. */
 async function countyNameAt(lat,lng){
   try{
-    const c=await arcQuery(EP.county, lat, lng, 'NAME', false, 6000);
-    if(c && !c.__err && c.features && c.features[0]) return countyNameOf(c.features[0].attributes)||c.features[0].attributes.NAME;
+    const c=await arcQuery(EP.county, lat, lng, 'BASENAME,NAME', false, 6000);
+    if(c && !c.__err && c.features && c.features[0]) return countyNameOf(c.features[0].attributes)||c.features[0].attributes.BASENAME||c.features[0].attributes.NAME;
   }catch(e){}
   return null;
 }
