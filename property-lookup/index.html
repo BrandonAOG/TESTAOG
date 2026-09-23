@@ -32849,12 +32849,37 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
         const _isNAVD88 = /NAVD/i.test(_dRaw) || /\b(19)?88\b/.test(_dRaw);
         const _flagDatum = isNGVD29 && !_isNAVD88;
         const _unstated = !sv.datumStated;
-        const tag = (isConv) => isConv
-          ? ' <span class="muted">NAVD 88</span>'
-          : (sv.datum
-              ? (_flagDatum ? ' <span style="color:var(--warn);font-weight:600">'+esc(_dRaw)+'</span>'
-                            : ' <span class="muted">'+esc(_dRaw)+'</span>')
-              : ' <span style="color:var(--warn);font-weight:600">datum not stated</span>');
+        /* ── THE ROW LABEL FOLLOWS THE CERTIFICATE, NOT THE COLUMN ─────────────────────────────
+           ⚠️ FIXED 23 Sep 2026. This used to key ONLY off `isConv` — which column the number came
+           out of — so a record whose stated datum is NGVD 29 rendered its rows as plain muted
+           "NAVD 88" while the warnbox directly underneath said "This certificate is on NGVD 29."
+           The card contradicted itself, and it did so in the direction that gets someone hurt:
+           24330 Matias Ln shows finished floor 10.6 ft against a BFE of 10 ft, which reads as
+           +0.6 ft of freeboard. If that 10.6 is NGVD 29 the NAVD 88 equivalent is nearer 9.6 —
+           BELOW the BFE. The warnbox exists to stop exactly that subtraction, and a muted
+           "NAVD 88" on the row above cancelled it out.
+           So when the record states NGVD 29, EVERY row says so, in warn colour, whichever column
+           supplied the figure — and where the figure did come from a publisher-converted _88
+           column, the label says that too rather than hiding the conversion. Both branches are
+           true statements; neither lets the reader assume the sealed survey and the FIRM share a
+           reference. Which branch a given record takes is itself diagnostic: a bare red "NGVD 29"
+           means the as-certified column, "converted from NGVD 29" means the _88 column. */
+        /* Uppercased: the source field is free text and arrives as "NGVD 29", "ngvd 29", "NGVD29"
+           depending on who keyed it. A datum label is a conventionally uppercase term, and a permit
+           card that sometimes prints "ngvd 29" reads as a typo rather than a warning. Uppercase
+           BEFORE escaping, so an entity could never be mangled into an invalid one. */
+        const _ngvdLabel = /NGVD/i.test(_dRaw) ? esc(String(_dRaw).toUpperCase()) : 'NGVD 29';
+        const tag = (isConv) => {
+          if(_flagDatum){
+            return isConv
+              ? ' <span style="color:var(--warn);font-weight:600">NAVD 88 \u00b7 converted from ' + _ngvdLabel + '</span>'
+              : ' <span style="color:var(--warn);font-weight:600">' + _ngvdLabel + '</span>';
+          }
+          if(isConv) return ' <span class="muted">NAVD 88</span>';
+          return sv.datum
+            ? ' <span class="muted">'+esc(_dRaw)+'</span>'
+            : ' <span style="color:var(--warn);font-weight:600">datum not stated</span>';
+        };
         /* A value the cross-check rejected must not be presented as a certified figure. Show it —
            hiding it would be worse, since the reader needs to know the record says this — but
            strip the plain-number authority off it and say what it's inconsistent with. */
