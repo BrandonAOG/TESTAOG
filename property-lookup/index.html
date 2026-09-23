@@ -18663,11 +18663,23 @@ async function queryEC(ecLayerUrl, lat, lng){
        records) is treated as UNSTATED, not as a datum. */
     const rawDatum = det.datum ? String(pick(f0.attributes,det.datum)||'').trim() : '';
     const datumKnown = /NGVD|NAVD|\b(19)?(29|88|1929|1988)\b/i.test(rawDatum);
-    const pickPair = (conv,raw)=>{ const c=num(conv); if(c!=null) return {v:c, navd88:true};
-                                   const r=num(raw);  return r!=null ? {v:r, navd88:false} : null; };
+    /* Keep the as-certified figure alongside the _88 one. Without it the card cannot tell a REAL
+       conversion from a _88 column that was simply populated with the certificate value unchanged —
+       and it was claiming "converted from NGVD 1929" on records whose numbers match the certificate
+       exactly. A conversion that did not happen is a worse lie than no label at all, because the
+       reader then assumes the figure is safe to compare against the FIRM. */
+    const pickPair = (conv,raw)=>{ const c=num(conv); const r=num(raw);
+                                   if(c!=null) return {v:c, navd88:true, raw:r};
+                                   return r!=null ? {v:r, navd88:false, raw:r} : null; };
+    /* A conversion is only asserted when the two columns actually DIFFER. NGVD 29 -> NAVD 88 in
+       Florida moves a figure by roughly a foot; identical values mean the publisher copied rather
+       than converted. 0.05 ft of slack absorbs rounding, nothing more. No raw column to compare
+       against -> unprovable -> not claimed. */
+    const _convReal = p => !!(p && p.navd88 && p.raw!=null && Math.abs(p.v - p.raw) > 0.05);
     const _lag=pickPair(det.lag,det.lagRaw), _mach=pickPair(det.mach,det.machRaw), _ffe=pickPair(det.ffe,det.ffeRaw);
     const surveyed = { lag:_lag&&_lag.v, mach:_mach&&_mach.v, ffe:_ffe&&_ffe.v,
                        conv:{ lag:!!(_lag&&_lag.navd88), mach:!!(_mach&&_mach.navd88), ffe:!!(_ffe&&_ffe.navd88) },
+                       convReal:{ lag:_convReal(_lag), mach:_convReal(_mach), ffe:_convReal(_ffe) },
                        datum: datumKnown ? rawDatum : null,
                        datumStated: datumKnown,
                        panel:det.panel?pick(f0.attributes,det.panel):null };
@@ -32869,9 +32881,18 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
            card that sometimes prints "ngvd 29" reads as a typo rather than a warning. Uppercase
            BEFORE escaping, so an entity could never be mangled into an invalid one. */
         const _ngvdLabel = /NGVD/i.test(_dRaw) ? esc(String(_dRaw).toUpperCase()) : 'NGVD 29';
-        const tag = (isConv) => {
+        const tag = (key) => {
+          const isConv   = !!cv[key];
+          const realConv = !!(sv.convReal && sv.convReal[key]);
           if(_flagDatum){
-            return isConv
+            /* The certificate says NGVD 29. Two honest outcomes, and the difference is load-bearing:
+                 - the _88 column genuinely differs from the as-certified value → a conversion was
+                   performed, say so;
+                 - the _88 column holds the SAME figure → nothing was converted, so the number on
+                   screen is the NGVD 29 one and must be labelled that way.
+               The second case is the common one in this data and the first version of this fix got
+               it wrong, printing "converted from NGVD 1929" over figures identical to the EC. */
+            return realConv
               ? ' <span style="color:var(--warn);font-weight:600">NAVD 88 \u00b7 converted from ' + _ngvdLabel + '</span>'
               : ' <span style="color:var(--warn);font-weight:600">' + _ngvdLabel + '</span>';
           }
@@ -32891,9 +32912,19 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
             '<b style="color:var(--warn)">'+esc(String(val))+' ft</b>'
             + ' <span style="color:var(--warn);font-weight:600">⚠ doesn\'t add up</span>');
         };
-        if(sv.ffe!=null)  html += _row('Finished floor (EC item a)', 'ffe', sv.ffe, tag(cv.ffe));
-        if(sv.mach!=null) html += _row('Lowest machinery (EC item e)', 'mach', sv.mach, tag(cv.mach));
-        if(sv.lag!=null)  html += _row('Lowest adjacent grade (EC item f)', 'lag', sv.lag, tag(cv.lag));
+        /* ⚠️ IN EC ITEM ORDER, AND ALL OF THEM. This used to render a/e/f only, while the record
+           already carried item b (lowest horizontal member, V zones), item d (attached garage slab)
+           and item g (highest adjacent grade) — ecPlausibility() has cross-checked those three by
+           name since it was written, and the suspect-value note can still name a garage figure the
+           card never showed. The attached garage slab is not a footnote on a generator job: it is
+           frequently the lowest enclosed floor on the lot and the elevation a reviewer measures a
+           pad against. */
+        if(sv.ffe!=null)      html += _row('Finished floor (EC item a)', 'ffe', sv.ffe, tag('ffe'));
+        if(sv.lowHoriz!=null) html += _row('Lowest horizontal member (EC item b)', 'lowHoriz', sv.lowHoriz, tag('lowHoriz'));
+        if(sv.garage!=null)   html += _row('Attached garage slab (EC item d)', 'garage', sv.garage, tag('garage'));
+        if(sv.mach!=null)     html += _row('Lowest machinery (EC item e)', 'mach', sv.mach, tag('mach'));
+        if(sv.lag!=null)      html += _row('Lowest adjacent grade (EC item f)', 'lag', sv.lag, tag('lag'));
+        if(sv.hag!=null)      html += _row('Highest adjacent grade (EC item g)', 'hag', sv.hag, tag('hag'));
         if(sv.panel)      html += fieldRow('FIRM panel (per EC)', esc(String(sv.panel)));
         /* One note covering everything flagged, rather than one per row. */
         { const _keys=Object.keys(_susp);
@@ -32923,7 +32954,11 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
            converted column, or the record states NAVD 88 outright — AND it passed the
            cross-check. Subtracting a figure the card has just called inconsistent would hand the
            reader a confident clearance in feet built on a number we don't believe. */
-        const comparable = (isConv, key) => (isConv || (sv.datumStated && _isNAVD88)) && !_susp[key];
+        /* `isConv` alone is not enough: a _88 column that merely copies the as-certified figure
+           proves nothing about its datum. Either the conversion is demonstrable, or the record
+           states NAVD 88 outright — otherwise the subtraction is not justified. */
+        const comparable = (key) => ((!!cv[key] && !!(sv.convReal && sv.convReal[key]))
+                                     || (sv.datumStated && _isNAVD88)) && !_susp[key];
 
         if(anyVal && _flagDatum){
           html += `<div class="note warnbox"><b>This certificate is on NGVD 29.</b> The effective FIRM and the base flood elevation above are <b>NAVD 88</b> — the two are not interchangeable, and an NGVD 29 reading runs roughly a foot higher than the same ground on NAVD 88. Convert before comparing, and have a surveyor restate the figures if they're going on a permit. The comparison this card would normally show has been left out rather than subtracting values on two different references.</div>`;
@@ -32933,10 +32968,10 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
 
         if(anyVal && !_flagDatum && !_unstated && (sv.mach!=null || sv.lag!=null)){
           const bits=[];
-          if(sv.mach!=null && sv.lag!=null && comparable(cv.mach,'mach') && comparable(cv.lag,'lag'))
+          if(sv.mach!=null && sv.lag!=null && comparable('mach') && comparable('lag'))
             bits.push(`existing equipment sits <b>${esc((Math.round((sv.mach-sv.lag)*10)/10))} ft</b> above lowest grade`);
           const refB = (ec.bfe!=null?ec.bfe:null);
-          if(refB!=null && sv.mach!=null && comparable(cv.mach,'mach')){
+          if(refB!=null && sv.mach!=null && comparable('mach')){
             const d=Math.round((sv.mach-refB)*10)/10;
             bits.push(d>=0 ? `and <b>${esc(d)} ft above</b> the ${esc(refB)} ft BFE`
                            : `and <b>${esc(Math.abs(d))} ft below</b> the ${esc(refB)} ft BFE`);
