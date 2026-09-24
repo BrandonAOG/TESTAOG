@@ -8568,8 +8568,23 @@ const IS_TOUCH_DEVICE = /iP(hone|ad|od)/.test(navigator.userAgent)
 /* iOS WebKit caps a <canvas> at ~16.7M px (4096x4096) and SILENTLY draws nothing above it. Leaflet
    sizes the vector canvas at (1+2*padding) x the map, doubled on retina, so padding:2 = 5x map size
    = 20-80M px on every iPad/iPhone -> parcel outlines, lot lines, zoning, flood, bounds all invisible
-   while markers/tiles (DOM) still show. Keep the big pan-reuse padding on desktop only. */
-const canvasRenderer = L.canvas({ padding: IS_TOUCH_DEVICE ? 0.25 : 2, tolerance:4 });   // shared canvas for all vector layers
+   while markers/tiles (DOM) still show. Hence the small touch-device value.
+
+   ── DESKTOP CUT FROM 2 TO 0.5, 24 Sep 2026 — SLOW ZOOM ON MAC SAFARI ───────────────────────────
+   The same arithmetic that blanks an iPad was quietly taxing every desktop redraw. Leaflet's canvas
+   is (1 + 2*padding) in EACH dimension and doubles again on retina, so on a 1512x900 window:
+       padding 2.0  ->  5x5 =  25x viewport area  ->  15120 x 9000 = 136 Mpx  -> ~545 MB backing store
+       padding 0.5  ->  2x2 =   4x viewport area  ->   6048 x 3600 =  22 Mpx  ->  ~87 MB
+   A sixth of the fill, and 32 vector layers share this one canvas. Chrome absorbs 545 MB; Safari is
+   far stricter about canvas memory and starts throttling or dropping backing stores, which is why
+   the lag showed up there first.
+   The 2.0 was chosen for PAN REUSE — draw well beyond the viewport so short pans reuse the bitmap.
+   That reasoning is sound for panning and IRRELEVANT TO ZOOM: a zoom changes the projection, so the
+   canvas is fully repainted whatever the padding. On the exact gesture being complained about, 2.0
+   bought nothing and cost 25x. 0.5 still gives 2x the viewport in every direction — real pan
+   headroom, and still 5x Leaflet's own default of 0.1.
+   ⚠️ Do not raise this back toward 2 without measuring a zoom in Safari's Timelines first. */
+const canvasRenderer = L.canvas({ padding: IS_TOUCH_DEVICE ? 0.25 : 0.5, tolerance:4 });   // shared canvas for all vector layers
 // crossOrigin:true on every basemap: loads tiles as CORS images (these servers all send
 // Access-Control-Allow-Origin:*), which is what lets the MAP PNG capture (html2canvas useCORS)
 // actually draw the basemap instead of leaving it blank. No effect on normal display speed.
