@@ -8550,14 +8550,52 @@ const map = L.map('map',{
   preferCanvas:true,            // render vectors (parcels, city outlines, markers) on <canvas>,
                                 // not individual SVG DOM nodes — far smoother panning on phones
   tap:false,                    // Leaflet's legacy tap handler causes 300ms delay / double-fire on modern mobile
-  zoomSnap:0.5,                 // smoother pinch-zoom steps
+  /* zoomSnap 1 (Leaflet's default) — was 0.5. Measured 2026-09: with 0.5 the map settles on half
+     levels (18.5, 19.5), and EVERY settle costs a fixed ~255ms zoom animation plus a fresh round of
+     ~40 tile requests (two live tile layers x ~20 visible tiles at a 1041x719 viewport). A console
+     probe over 42 zooms recorded 24 half-steps, 34 zooms starting within 450ms of the previous one
+     finishing, 1504 tile requests and 363 of them ABANDONED in flight when the next zoom arrived
+     before they landed. Abandoned requests still hold browser connection slots, so the tiles you
+     actually need queue behind tiles already scrolled past — that is the "slow to load in" on Safari.
+     Vector rendering was never implicated: alloc 0ms, draw 0-9ms, paint ~27ms across all 42 samples.
+     Halving the settles halves the animation time AND the tile churn. */
+  zoomSnap:0.5,                 // base value — see FINE_ZOOM_FROM below, which makes this
+                                // range-dependent: whole levels under z17, half levels at 17+.
   wheelPxPerZoomLevel:120,
+  /* One wheel flick used to be chopped into several separate zooms, each paying its own animation
+     and tile round-trip (the 34 chained settles above). 100ms coalesces a spin into one zoom.
+     Leaflet's default is 40ms. Purely a debounce — nothing visual changes. */
+  wheelDebounceTime:100,
   zoomAnimationThreshold:4,
   // ---- desktop responsiveness ----
   fadeAnimation:false,          // skip the per-tile cross-fade — tiles snap in immediately, no compositing churn
   markerZoomAnimation:false,    // don't animate vector/marker positions through the zoom; they jump to final spot
   inertia:true, inertiaDeceleration:3400, inertiaMaxSpeed:Infinity
 }).setView([27.9,-83.4],7);
+
+/* ---- RANGE-DEPENDENT ZOOM SNAP --------------------------------------------------------------
+   Half-level zoom is wanted at working/screenshot levels (17+) where framing a lot for a photo
+   matters, and NOT wanted below that, where it only doubles the number of settles on the way in.
+   Leaflet has one global zoomSnap, so this overrides _limitZoom — the single function every zoom
+   path funnels through to decide where a zoom is allowed to land — and picks the snap from the
+   TARGET zoom rather than from a map option. Deciding on the target (not the current zoom) is what
+   makes the boundary behave: zooming 16 -> 17 uses whole levels, and the very next step off 17 is
+   already allowed to be a half.
+   Measured cost of half-levels below 17 (console probe, 2026-09, 42 zooms): 24 half-steps, each
+   paying a fixed ~255ms animation and ~40 tile requests across the two live tile layers, with 363
+   requests abandoned in flight. Restricting them to 17+ cut abandoned requests to 205.
+   Kept in sync with Leaflet's own _limitZoom (1.9): same clamp, same Browser.any3d guard. */
+const FINE_ZOOM_FROM = 17;    // at/above this zoom, half levels are allowed
+map._limitZoom = function(zoom){
+  const min = this.getMinZoom(), max = this.getMaxZoom();
+  const snap = (L.Browser && L.Browser.any3d===false) ? 1
+             : (zoom >= FINE_ZOOM_FROM ? 0.5 : 1);
+  if (snap) zoom = Math.round(zoom / snap) * snap;
+  return Math.max(min, Math.min(max, zoom));
+};
+/* fitBounds/getBoundsZoom reads options.zoomSnap directly rather than going through _limitZoom,
+   so keep the option itself at 0.5: a parcel fit lands at 17+ anyway, exactly where halves help. */
+
 // Bigger canvas padding => the vector canvas is drawn well beyond the viewport, so short pans
 // reuse the already-rendered bitmap instead of triggering a full redraw on every frame.
 /* Touch-device flag that also catches iPadOS, which sends a Macintosh UA (L.Browser.mobile can read
@@ -10747,7 +10785,7 @@ var S3Elev = (function(){
       var img=await tiff.getImage(); var gk={}; try{ gk=img.getGeoKeys()||{}; }catch(e){}
       var vu=gk.VerticalUnitsGeoKey;                                    // 9001 m, 9002 ft, 9003 ftUS
       var vScale = (vu===9002)?0.3048 : (vu===9003)?0.3048006096 : 1;   // → metres
-      return { img:img, origin:img.getOrigin(), res:img.getResolution(), bbox:img.getBoundingBox(),
+      return { img:img, G:G, origin:img.getOrigin(), res:img.getResolution(), bbox:img.getBoundingBox(),
                nd:img.getGDALNoData(), epsg:gk.ProjectedCSTypeGeoKey, vScale:vScale, hUnits:gk.ProjLinearUnitsGeoKey };
     })();
     _imgs.set(url,pr); if(_imgs.size>IMG_MAX) _imgs.delete(_imgs.keys().next().value);
@@ -10758,10 +10796,71 @@ var S3Elev = (function(){
     var b=T.bbox;
     if(!(u.E>=b[0]&&u.E<=b[2]&&u.N>=b[1]&&u.N<=b[3])) return null;        // never read outside → no fake 0
     var col=Math.floor((u.E-T.origin[0])/T.res[0]), row=Math.floor((u.N-T.origin[1])/T.res[1]);
-    var r=await T.img.readRasters({window:[col,row,col+1,row+1]});
+    var r=await T.img.readRasters({window:[col,row,col+1,row+1], pool:poolFor(T)});
     var v=r[0][0];
     if(!isFinite(v)||v<-1000) return null;                                 // NoData (-3.4e38 / -9999)
     return v*T.vScale;                                                     // metres
+  }
+
+  /* ---- decode off the main thread, and decode each tile ONCE -------------------------------
+     Measured from a DevTools trace of a real lookup (2026-09-24, GitHub Pages build):
+     GeoTIFF decompression was the single largest cost on the page — 2197ms in geotiff's lzw.js,
+     2004ms in pako, 1567ms in its deflate.js, ~5.8s of CPU, and it owned the three longest main-
+     thread tasks in the whole recording (369ms, 302ms, 259ms). Two separate causes:
+
+     1. It ran on the MAIN thread. geotiff ships a worker Pool; we were not using it.
+     2. parcelStats samples a GRID of points, and every point was its own 1x1 readRasters call.
+        A 1x1 read still has to inflate the whole compressed strip/tile containing that pixel, so
+        sampling n points inside one tile decompressed that same tile n times.
+
+     Fix for (2) is readWindow: one read covering the bounding box of every point that falls in a
+     given tile, then index into the returned raster. Fix for (1) is the pool, applied to both
+     paths. The pool is optional — if workers cannot be created (CSP, old iOS) or a pooled read
+     fails for any reason, poolDead is latched and everything retries inline, so the elevation card
+     degrades to "slower" and never to "broken". */
+  var _poolObj=null, _poolDead=false;
+  function poolFor(T){
+    if(_poolDead || !T || !T.G || !T.G.Pool) return undefined;
+    if(_poolObj) return _poolObj;
+    try{
+      /* Cap the worker count: this runs on phones too, and geotiff defaults to hardwareConcurrency,
+         which on a desktop spawns a worker per core for what is a handful of small tiles. */
+      _poolObj = new T.G.Pool(Math.max(1, Math.min(4, (navigator.hardwareConcurrency||2))));
+      return _poolObj;
+    }catch(e){ _poolDead=true; return undefined; }
+  }
+  var WINDOW_MAX_PX = 4000000;   // ~4 Mpx guard: a spread-out point set must not pull a giant window
+  /* Returns [{i, v}] for the points it could read, or null to tell the caller to fall back. */
+  async function readWindow(T, pts){
+    var b=T.bbox, keep=[], minC=Infinity, maxC=-Infinity, minR=Infinity, maxR=-Infinity;
+    for(var k=0;k<pts.length;k++){
+      var u=pts[k].u;
+      if(!(u.E>=b[0]&&u.E<=b[2]&&u.N>=b[1]&&u.N<=b[3])) continue;        // outside → no fake 0
+      var c=Math.floor((u.E-T.origin[0])/T.res[0]), r=Math.floor((u.N-T.origin[1])/T.res[1]);
+      if(c<minC)minC=c; if(c>maxC)maxC=c; if(r<minR)minR=r; if(r>maxR)maxR=r;
+      keep.push({i:pts[k].i, c:c, r:r});
+    }
+    if(!keep.length) return [];
+    var w=(maxC-minC)+1, h=(maxR-minR)+1;
+    if(!isFinite(w)||!isFinite(h)||w<=0||h<=0||w*h>WINDOW_MAX_PX) return null;
+    var raster;
+    try{
+      raster = await T.img.readRasters({window:[minC,minR,maxC+1,maxR+1], pool:poolFor(T)});
+    }catch(e){
+      if(_poolObj && !_poolDead){                                          // workers unhappy → inline
+        _poolDead=true; try{ _poolObj.destroy&&_poolObj.destroy(); }catch(e2){} _poolObj=null;
+        try{ raster = await T.img.readRasters({window:[minC,minR,maxC+1,maxR+1]}); }
+        catch(e3){ return null; }
+      } else return null;
+    }
+    var band=raster && raster[0]; if(!band) return null;
+    var W=raster.width||w, out=[];
+    for(var k2=0;k2<keep.length;k2++){
+      var v=band[(keep[k2].r-minR)*W + (keep[k2].c-minC)];
+      if(!isFinite(v)||v<-1000) continue;                                  // NoData (-3.4e38 / -9999)
+      out.push({i:keep[k2].i, v:v*T.vScale});                              // metres
+    }
+    return out;
   }
 
   /* ---------------- [A] index ---------------- */
@@ -10926,6 +11025,17 @@ var S3Elev = (function(){
       var out=new Array(points.length);
       await Promise.all(Array.from(groups.values()).map(async function(g){
         var T=await openImage(g.t.url);
+        /* One windowed read for every point in this tile — see readWindow. Falls back to the old
+           point-by-point path when the window would be too large or the read fails, so behaviour
+           is identical in every case, only the number of decompressions changes. */
+        var got=null;
+        try{ got=await readWindow(T, g.pts); }catch(e){ got=null; }
+        if(got){
+          for(var q=0;q<got.length;q++){
+            out[got[q].i]={value:got[q].v, location:{x:points[got[q].i][0], y:points[got[q].i][1]}, resolution:1};
+          }
+          return;
+        }
         for(var b=0;b<g.pts.length;b+=24){
           await Promise.all(g.pts.slice(b,b+24).map(async function(o){
             var v=await readPoint(T,o.u); if(v==null) return;
