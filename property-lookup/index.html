@@ -1738,6 +1738,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     <div id="layersMenu" class="basemap-menu" hidden>
       <button id="btnBounds" class="active" title="Color-coded incorporated city-limit outlines">◰ City limits</button>
       <button id="btnParcels" title="Statewide parcel / lot lines — zoom in close (FL cadastral)">▦ Parcels</button>
+      <button id="btnNbrNums" class="active" title="House / unit numbers on the surrounding parcels — click one to look it up. Switch off to show only the house you looked up: panning and zooming get noticeably smoother, because the neighbour labels are rebuilt on every map move and the subject's is not.">#⃣ Parcel numbers</button>
       <button id="btnZoning" title="Zoning districts for the current county — zoom in close. Hover a zone for its district code.">⬡ Zoning</button>
       <button id="btnSketch" title="Recorded easements (hatched), lot-line dimensions, septic permits and wells for the looked-up parcel">▨ Easements &amp; lot lines</button>
       <button id="btnFootprints" class="active" title="Building footprints from the county's own trace, where one is wired">▬ Building footprints</button>
@@ -26391,7 +26392,42 @@ async function autoArmEcLayer(){
   finally{ _ecAutoBusy=false; }
 }
 map.on('moveend zoomend', ()=>{ clearTimeout(_ecAreaTimer); _ecAreaTimer=setTimeout(()=>{ autoArmEcLayer(); refreshEcAreaNotes(); }, 800); });
-let nbrNumOn = true;   // labels follow the parcel view by default; tied to the parcel result
+/* Labels follow the parcel view by default; tied to the parcel result. User-switchable from
+   Layers ▸ Parcel numbers (btnNbrNums) and remembered across sessions. OFF does NOT mean no
+   labels — the looked-up house keeps its number (see _nbrSubjOnly); only the neighbours go.
+   WHY THE SWITCH EXISTS — from a DevTools trace of a real session (2026-09-24): every moveend and
+   zoomend calls clearNeighborNumbers() and then rebuilds EVERY label marker from scratch, so
+   Leaflet's createIcon cost 1283ms across six main-thread tasks of 180-242ms — one per map move,
+   and six of the ten longest tasks in the whole recording. Off, that entire path is skipped.
+   This is an escape hatch, not a fix: with it on, the cost is unchanged. The real fixes are to
+   chunk the rebuild across frames, or to move existing markers instead of destroying them. */
+let nbrNumOn = STORE.get('fl_nbrnum') !== '0';
+
+/* Layers ▸ Parcel numbers. nbrNumOn already gates every path — the draw, the zoomstart clear and
+   the moveend/zoomend rebuild — so switching it off needs nothing but the flag and a clear.
+   This wiring lives HERE, immediately after the declaration, and not up with the other Layers
+   buttons: nbrNumOn is a `let`, so reading it from the earlier block would hit the temporal dead
+   zone and throw at load — the same mistake that once killed this entire script. The functions it
+   calls are hoisted function declarations, and _nbrCtx is only read on click, long after load. */
+const btnNbrNums=document.getElementById('btnNbrNums');
+if(btnNbrNums){
+  btnNbrNums.classList.toggle('active', nbrNumOn);
+  btnNbrNums.onclick=function(){
+    nbrNumOn=!nbrNumOn;
+    this.classList.toggle('active',nbrNumOn);
+    STORE.set('fl_nbrnum', nbrNumOn?'1':'0');
+    /* Both directions redraw: OFF still leaves the looked-up house labelled, ON brings the
+       neighbours back. Repaint from the cached result set when it still covers the view — it
+       serves both modes — and only re-query when it cannot. Nothing to draw before a lookup has
+       happened; that is not a failure, the labels are a property of a result, so say so. */
+    try{
+      clearNeighborNumbers();
+      if(_nbrRepaintFromCache()) return;
+      if(_nbrCtx) showNeighborNumbers(_nbrCtx.hn, _nbrCtx.lat, _nbrCtx.lng, _nbrCtx.pid, true);
+      else if(nbrNumOn) mapToast('Search an address first — parcel numbers draw around the result.',2400);
+    }catch(e){}
+  };
+}
 // Rings ([[ [lng,lat], ... ]]) of the SUBJECT parcel currently highlighted, in WGS84. Set when a
 // parcel is drawn and used to suppress gap-fill address points that fall on the SAME lot — a deep
 // through-lot / corner lot can carry a second street address (e.g. 22519 Aster Ave also addressed
@@ -26415,7 +26451,11 @@ function setSubjectRings(geometry){
     _subjRings = (rings && rings.length) ? rings : null;
   }catch(e){ _subjRings = null; }
 }
-function clearNeighborNumbers(){ try{ nbrNumLayer.clearLayers(); if(map.hasLayer(nbrNumLayer)) map.removeLayer(nbrNumLayer); }catch(e){} }
+/* Did the looked-up house get a label in the current draw? Reset here because clearNeighborNumbers
+   is the single choke point every teardown goes through — the toggle, a new lookup, a zoomstart and
+   every repaint all call it, so the flag can never drift out of step with what is on the map. */
+let _nbrSubjDrawn=false;
+function clearNeighborNumbers(){ _nbrSubjDrawn=false; try{ nbrNumLayer.clearLayers(); if(map.hasLayer(nbrNumLayer)) map.removeLayer(nbrNumLayer); }catch(e){} }
 /* Clicking a neighbour label runs a FULL lookup of that address — identical to typing
    it in the search box. We drop any "#unit" suffix and a trailing ", City" so the
    geocoder/NG911 resolver gets a clean street address. */
@@ -26509,8 +26549,59 @@ function _nbrFillMissingStreets(labels){
   return labels;
 }
 
+/* OFF means "subject only", not "nothing". The looked-up house keeps its number — that label is
+   the answer to the search, not clutter — and only the NEIGHBOURS are suppressed. That is also
+   where all the cost was: the neighbour set changes with the view, which is why every map move
+   tore down and rebuilt hundreds of markers. One marker at a fixed position needs no rebuilding at
+   all; Leaflet repositions it through pans and zooms for free. */
+function _nbrSubjOnly(){ return !nbrNumOn; }
+
+/* Draw JUST the looked-up house's number, straight from the lookup's own coordinates — no parcel
+   query, no subject matching. The full path finds the subject by scanning the neighbour result set
+   for a matching PID, then for the nearest same-numbered parcel; when neither hits it leaves
+   subjIdx at -1, which is invisible while the neighbours are drawn but means NOTHING appears once
+   they are suppressed. That is the bug this replaces: the label the user asked to keep must not
+   depend on a match that is allowed to fail. lat/lng/hn all come from the lookup itself, so this
+   draws whenever a result exists. Non-interactive on purpose — it sits on top of the parcel you
+   are already looking at, and a clickable label there would swallow clicks meant for the map. */
+function _nbrDrawSubject(hn, lat, lng){
+  try{
+    if(!isFinite(lat) || !isFinite(lng)) return false;
+    let txt='';
+    try{ txt=String((addrEl&&addrEl.value)||'').trim(); }catch(e){}
+    const num=(hn!=null && String(hn).trim()!=='') ? String(hn).trim() : null;
+    if(!txt && !num) return false;                       // nothing honest to put in the label
+    const icon=L.divIcon({ className:'nbr-hit',
+      html:`<div class="nbr-num subject">${numStreetLabelHTML(txt||num, num)}</div>`, iconSize:null });
+    L.marker([lat,lng],{icon, interactive:false, keyboard:false, zIndexOffset:1000}).addTo(nbrNumLayer);
+    if(!map.hasLayer(nbrNumLayer)) nbrNumLayer.addTo(map);
+    _nbrSubjDrawn=true;
+    return true;
+  }catch(e){ return false; }
+}
+
+/* Safety net for BOTH modes: the looked-up house always ends up labelled.
+   The neighbour path finds the subject by scanning its own results — parcel ID first, then nearest
+   same-numbered parcel, then the address-point gap-fill — and every one of those is allowed to miss,
+   leaving subjIdx and ptSubjIdx both at -1. With the neighbours drawn that reads as "the one house
+   I searched for is the only one without a number", which is the bug this closes. Called after
+   every draw path; does nothing when a subject label was already placed. */
+function _nbrEnsureSubject(hn, lat, lng){
+  if(_nbrSubjDrawn) return false;
+  return _nbrDrawSubject(hn, lat, lng);
+}
+
 function _nbrRenderParcelLabels(labels, subjIdx){
   if(!labels || !labels.length) return;
+    if(_nbrSubjOnly()){
+      const S = (subjIdx>=0) ? labels[subjIdx] : null;
+      if(S && isFinite(S.lat) && isFinite(S.lng)){
+        _nbrFillMissingStreets(labels);            // the subject can be a bare "3" too
+        makeUnitMarker(S, true, S.lat, S.lng);
+        nbrNumLayer.addTo(map);
+      }
+      return;                                      // neighbours suppressed, stacks not built
+    }
     _nbrFillMissingStreets(labels);   // repair bare "3"/"0"/"1" fragments before drawing
     // GROUP labels by coordinate. Condo/tower units all share ONE coordinate, so a group with
     // 2+ members is a stack. Singletons render as normal labels. Stacks render as a single
@@ -26528,6 +26619,7 @@ function _nbrRenderParcelLabels(labels, subjIdx){
       const labelHTML = numStreetLabelHTML(L0.txt, L0.hn);
       const icon=L.divIcon({ className:'nbr-hit', html:`<div class="nbr-num${isSubj?' subject':''}">${labelHTML}</div>`, iconSize:null });
       const mk=L.marker([dlat,dlng],{icon, interactive:true, keyboard:false, zIndexOffset:isSubj?1000:5}).addTo(nbrNumLayer);
+      if(isSubj) _nbrSubjDrawn=true;
       mk.on('click', (ev)=>{ try{ L.DomEvent.stop(ev); }catch(e){}
         suppressUiClick(900);   // block the replayed tap landing on the map underneath
         // Use the parcel's REAL coordinates (exact) rather than re-geocoding the bare street, which
@@ -26633,13 +26725,18 @@ function _nbrRenderPoints(ptLabels, ptSubjIdx){
     }
   }catch(e){}
           // PASS B: render the gap-fill points; only ptSubjIdx (if any) gets the subject highlight.
+          // With the layer switched off we draw the subject point and nothing else — same rule as
+          // the parcel labels above. If this set has no subject, nothing is drawn here at all.
           let added=0;
+          const _only = _nbrSubjOnly();
           for(let i=0;i<ptLabels.length;i++){
+            if(_only && i!==ptSubjIdx) continue;
             const P=ptLabels[i]; const isSubj=(i===ptSubjIdx);
             const _addr=P.__fixedAddr || formatAddrPoint(P.a);
             const labelHTML = numStreetLabelHTML(_addr, P.hn);
             const icon=L.divIcon({ className:'nbr-hit', html:`<div class="nbr-num${isSubj?' subject':''}">${labelHTML}</div>`, iconSize:null });
             const mk=L.marker([P.lat,P.lng],{icon, interactive:true, keyboard:false, zIndexOffset:isSubj?1000:0}).addTo(nbrNumLayer);
+            if(isSubj) _nbrSubjDrawn=true;
             mk.on('click', (ev)=>{ try{ L.DomEvent.stop(ev); }catch(e){}
               suppressUiClick(900);
               _nbrSetAddrBox(_addr);
@@ -26672,13 +26769,22 @@ function _nbrRepaintFromCache(){
     clearNeighborNumbers();
     _nbrRenderParcelLabels(_nbrCache.labels, _nbrCache.subjIdx);
     if(_nbrCache.ptLabels && _nbrCache.ptLabels.length) _nbrRenderPoints(_nbrCache.ptLabels, _nbrCache.ptSubjIdx);
+    /* Same safety net as the full draw. A cached set carries the same subjIdx that may be -1, so
+       repainting it after a zoom or a toggle would otherwise drop the looked-up house's own number
+       while every neighbour kept theirs. _nbrCtx holds the lookup that produced this set. */
+    try{ if(_nbrCtx) _nbrEnsureSubject(_nbrCtx.hn, _nbrCtx.lat, _nbrCtx.lng); }catch(e){}
     if(!map.hasLayer(nbrNumLayer)) nbrNumLayer.addTo(map);
     return true;
   }catch(e){ return false; }
 }
 
 async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAnchorBox){
-  if(!nbrNumOn) return;
+  /* With the layer off we still draw the subject's own number, but ONLY on a new lookup or an
+     explicit toggle (both pass forceAnchorBox). A pan or zoom must never re-enter here in that
+     mode: the single subject marker sits at a fixed lat/lng and Leaflet moves it for us, so
+     re-querying and re-rendering on every map move would pay the whole cost the switch exists to
+     avoid. The zoomstart teardown is likewise gated on nbrNumOn, so the label survives a zoom. */
+  if(!nbrNumOn && !forceAnchorBox) return;
   try{
     // FAST PATH: a pan/zoom that stays inside the box we already fetched repaints from memory in
     // one frame — no fetch, no await, no blank gap. Only a brand-new lookup (forceAnchorBox) or a
@@ -26692,6 +26798,10 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
     // after a search/click (forceAnchorBox=true) the map may still be mid-fly-to a shared tract, so
     // getZoom() would read the stale pre-animation zoom and wrongly bail — proceed anyway.
     if(!(forceAnchorBox && _haveAnchor) && map.getZoom() < 16) return;
+    /* Layer off → draw the subject's number and stop. Everything below this line is the neighbour
+       query and its render, which is the whole cost the switch exists to avoid; there is no reason
+       to pay it to end up drawing one marker we already have the coordinates for. */
+    if(_nbrSubjOnly()){ _nbrDrawSubject(subjectHN, subjLat, subjLng); return; }
     // Query box: normally the visible map bounds (so panning shows what's in view). On the initial
     // draw we UNION the view with a fixed ~450 m box around the anchor — so inside a big dotted-orange
     // SHARED TRACT (condo/mobile park), where the map is still animating to the unit, the surrounding
@@ -27101,6 +27211,10 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
         }
       }
     }catch(e){ /* tract fill is best-effort; never block the result */ }
+    /* LAST: if none of the passes above claimed a subject, label the looked-up house from the
+       lookup's own coordinates. Runs after gap-fill and tract-fill so it only fires when they
+       genuinely produced nothing for it. */
+    _nbrEnsureSubject(subjectHN, subjLat, subjLng);
   }catch(e){ /* best-effort; never block the result */ }
 }
 /* Containment test for a TRACT outline, which is routinely multi-ring: this community's outline is
