@@ -9675,6 +9675,128 @@ map.on('zoomend', function(){
 map.on('moveend', function(){ if(_gateOn && !_gateRelT) _gateRelease(); });
 map.on('baselayerchange', _gateRelease);
 /* ================= END ZOOM-CHAIN TILE GATE ================= */
+
+/* =================== SHARPNESS TOGGLES (added 2026-09-25, default OFF) ===================
+   Two independent levers on how crisp the imagery looks. Both default OFF — nothing about the
+   app changes until they are switched on from the console, so they can be measured before any
+   decision is made about what ships.
+
+     sharp({ hd21:true })              raise the county aerial cap to z21
+     sharp({ retina:true })            true device-pixel tiles on a dpr-2 screen (imagery only)
+     sharp({ retina:true, labels:true }) ...and sharpen the place-name overlay too
+     sharp({ hd21:true, retina:true }) both
+     sharp({})                         back to stock
+     sharpInfo()                       what each layer is actually requesting right now
+
+   NOTE on labels. The place-name overlay is left out of retina by default: it is roughly half of
+   all tile requests, so including it costs about as much again as the imagery does. Its text is
+   the thing that looks fuzziest on a retina screen though, so it is offered as an explicit opt-in
+   rather than silently excluded. Turn it on only if the labels bother you more than the traffic.
+
+   WHY hd21. Ground resolution at latitude 27 is 156543 * cos(27) / 2^z metres per pixel:
+   z20 = 0.133 m (13 cm), z21 = 0.067 m (6.7 cm). County "3-inch" imagery is 7.6 cm, so its
+   NATIVE zoom is 21, not 20. Capping localAerial at maxNativeZoom 20 therefore displays 3-inch
+   aerials downsampled to 13 cm — half the linear resolution the county already flew. The cap was
+   set deliberately as a speed trade when every zoom step fetched a full tile set; the zoom-chain
+   gate above removed ~80% of those requests, so the budget exists to give some back.
+   These are exportImage calls against a DYNAMIC service, not a fixed tile cache, so the server
+   renders whatever bbox is asked for — there is no published cache level to exceed.
+
+   WHY retina, and its catch. A dpr-2 screen paints each 256px tile across 512 device pixels, so
+   the imagery is shown at half resolution no matter how good the source is. Leaflet's fix (which
+   this reproduces at runtime, since detectRetina is constructor-only) is to halve tileSize and add
+   1 to zoomOffset: the same view is then covered by 4x as many tiles, each carrying one zoom level
+   MORE detail, displayed at 1:1 device pixels. The catch is that the requested URL zoom becomes
+   tileZoom+1, which would run past a cached service's deepest level — so maxNativeZoom is lowered
+   by 1 whenever retina is on. Net effect: genuinely sharper up to the service's real limit, 4x the
+   tiles, and one less level of reach before upscaling begins. Measure both before choosing.        */
+const _SHARP_ESRI  = [sat, aerialClean, localEsriBase, collier2026EsriBase];
+const _SHARP_LOCAL = [localAerial];
+function _sharpSnapshot(l){
+  if(l && !l.__sharpOrig) l.__sharpOrig = {
+    tileSize     : (l.options.tileSize || 256),
+    zoomOffset   : (l.options.zoomOffset || 0),
+    maxNativeZoom: l.options.maxNativeZoom
+  };
+}
+/* A tileSize change invalidates the grid, so a plain redraw() is not enough — _setView rebuilds
+   levels and grid and then re-requests, which is what makes the toggle reversible mid-session. */
+function _sharpRefresh(l){
+  try{
+    if(l && l._map){
+      if(typeof l._removeAllTiles==='function') l._removeAllTiles();
+      l._setView(l._map.getCenter(), l._map.getZoom(), false, false);
+    }
+  }catch(e){}
+}
+const _SHARP_LABELS = [labels];
+window.sharp = function(opts){
+  opts = opts || {};
+  const retina = !!opts.retina, hd21 = !!opts.hd21, doLabels = !!opts.labels;
+  window.SHARP_STATE = { retina:retina, hd21:hd21, labels:doLabels };
+  const targets = _SHARP_ESRI.concat(_SHARP_LOCAL, doLabels ? _SHARP_LABELS : []);
+  /* Labels must be actively restored when the opt-in is turned back off, otherwise they would be
+     stranded at 128px after a sharp({retina:true,labels:true}) -> sharp({retina:true}). */
+  if(!doLabels) _SHARP_LABELS.forEach(function(l){
+    if(!l || !l.__sharpOrig) return;
+    l.options.tileSize = l.__sharpOrig.tileSize;
+    l.options.zoomOffset = l.__sharpOrig.zoomOffset;
+    if(l.__sharpOrig.maxNativeZoom != null) l.options.maxNativeZoom = l.__sharpOrig.maxNativeZoom;
+    _sharpRefresh(l);
+  });
+  targets.forEach(function(l){
+    if(!l) return;
+    _sharpSnapshot(l);
+    const o = l.__sharpOrig;
+    let mnz = o.maxNativeZoom;
+    if(hd21 && _SHARP_LOCAL.indexOf(l) >= 0 && mnz != null) mnz = Math.max(mnz, 21);
+    if(retina){
+      l.options.tileSize   = Math.floor(o.tileSize / 2);
+      l.options.zoomOffset = o.zoomOffset + 1;
+      if(mnz != null) mnz = Math.max(0, mnz - 1);
+    } else {
+      l.options.tileSize   = o.tileSize;
+      l.options.zoomOffset = o.zoomOffset;
+    }
+    if(o.maxNativeZoom != null) l.options.maxNativeZoom = mnz;
+    _sharpRefresh(l);
+  });
+  return window.sharpInfo();
+};
+/* The verification that matters: what zoom is actually going out in the URL, and is it still
+   inside what the service publishes. A silently out-of-range request returns blank, not an error. */
+window.sharpInfo = function(){
+  const rows = [];
+  _SHARP_ESRI.concat(_SHARP_LOCAL, _SHARP_LABELS).forEach(function(l){
+    if(!l) return;
+    let urlZoom = null, sample = null;
+    try{ urlZoom = (typeof l._getZoomForUrl==='function' && l._tileZoom!=null) ? l._getZoomForUrl() : null; }catch(e){}
+    try{
+      const tz = l._tileZoom;
+      if(tz != null && typeof l.getTileUrl==='function')
+        sample = String(l.getTileUrl({x:1,y:1,z:tz})).slice(0,110);
+    }catch(e){}
+    rows.push({
+      layer        : String(l._url||'(dynamic)').replace(/^https?:\/\//,'').slice(0,46),
+      onMap        : !!l._map,
+      tileSize     : l.options.tileSize || 256,
+      zoomOffset   : l.options.zoomOffset || 0,
+      maxNativeZoom: l.options.maxNativeZoom,
+      tileZoom     : l._tileZoom,
+      urlZoom      : urlZoom,
+      sample       : sample
+    });
+  });
+  try{
+    console.table(rows);
+    const z = map.getZoom(), mpp = 156543.03392 * Math.cos(map.getCenter().lat*Math.PI/180) / Math.pow(2, Math.round(z));
+    console.log('map zoom '+z+'   ground resolution at this latitude: '+mpp.toFixed(3)+' m/px'+
+                '   state: '+JSON.stringify(window.SHARP_STATE||{retina:false,hd21:false}));
+  }catch(e){}
+  return rows;
+};
+window.SHARP_STATE = { retina:false, hd21:false, labels:false };
+/* ================= END SHARPNESS TOGGLES ================= */
 // Switch the local layer to the county under the current map center; returns the active key (or null).
 let _localActiveKey = "__init__";
 // Single, dynamic county-aerial credit — replaces the per-layer attributions that used to STACK and go
