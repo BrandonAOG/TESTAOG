@@ -9666,14 +9666,46 @@ function _gateArmWatchdog(){
 map.on('zoomstart', function(){
   if(!window.TILEGATE) return;
   _gateOn = true;
+  _lastZoomStartAt = performance.now();
   if(_gateRelT){ clearTimeout(_gateRelT); _gateRelT = null; }
   _gateArmWatchdog();
 });
+/* Signals that more zooming may still be coming. Wheel covers trackpad and mouse; the zoom
+   timestamps cover everything else — a PINCH on an iPad arrives as touch events and fires no
+   wheel at all, and so do repeated +/- presses. Keying the release on wheel alone would hand
+   those the ungated path, which is exactly the fleet this gate matters most for. */
+let _lastWheelAt = 0, _lastZoomEndAt = 0, _lastZoomStartAt = 0;
+try{
+  map.getContainer().addEventListener('wheel', function(){ _lastWheelAt = performance.now(); },
+                                      { capture:true, passive:true });
+}catch(e){}
 map.on('zoomend', function(){
   if(!_gateOn) return;
   _gateArmWatchdog();
   if(_gateRelT) clearTimeout(_gateRelT);
-  _gateRelT = setTimeout(_gateRelease, 200);
+  /* WAS: a flat 200ms wait after every zoomend (added 2026-09-25, corrected the same day).
+     That is right for a trackpad chain, where more zooms are about to arrive — and it is pure
+     added lag everywhere else. A +/- button press, a search jump or a parcel fit has no more
+     input coming, so the level you land on sat idle for 200ms before its tiles were even
+     REQUESTED. On a zoom you make deliberately, that is 200ms of extra blur for no saving at all.
+     Now: if no wheel event has arrived recently this was not a scroll, so release immediately;
+     otherwise poll until the wheel has actually gone quiet, which also beats the old fixed wait
+     at the end of a chain because the wheel stops before the final zoom finishes settling. */
+  const now = performance.now();
+  /* "Chaining" = another zoom finished moments ago, so more are probably coming. This is the
+     input-agnostic half of the test and it is what catches pinch and repeated button presses,
+     neither of which produces a wheel event. */
+  const chaining  = (now - _lastZoomEndAt) < 400;
+  _lastZoomEndAt  = now;
+  const wheelIdle = (now - _lastWheelAt) > 150;
+  if(wheelIdle && !chaining){ _gateRelease(); return; }   // isolated zoom — fetch right now
+  (function waitForInputToStop(){
+    _gateRelT = setTimeout(function(){
+      const t = performance.now();
+      if(t - _lastWheelAt < 140 || t - _lastZoomStartAt < 200){ waitForInputToStop(); return; }
+      _gateRelease();
+    }, 60);
+  })();
 });
 /* Anything that is not a wheel chain — a search jump, a parcel fit, a basemap switch — must never
    sit behind the gate, so release immediately when the map settles by other means. */
@@ -9801,6 +9833,34 @@ window.sharpInfo = function(){
   return rows;
 };
 window.SHARP_STATE = { retina:false, hd21:false, labels:false };
+
+/* =================== ZOOM CROSS-FADE TOGGLE (added 2026-09-25) ===================
+     smooth(true)   tiles cross-fade in as they arrive
+     smooth(false)  tiles snap in (the current default)
+
+   The map is built with fadeAnimation:false, which is why a new zoom level appears as a hard
+   POP rather than a blend. That was chosen to avoid per-tile compositing work, and it is the
+   single biggest reason a WebGL map (the ArcGIS SDK, MapLibre) looks smoother than this one
+   even when it is doing six times the CPU work — measured, not guessed: a county Experience
+   Builder viewer ran at 552 ms/s of main-thread time against this app's 92 ms/s, fetched three
+   times the tiles, and still felt better, because it cross-fades on the GPU instead of swapping
+   DOM images.
+   Leaflet reads map._fadeAnimated per tile as tiles are created, so this can be flipped live
+   and judged by eye. It is NOT enabled by default: the reason it was turned off was real, and
+   on an older iPad the fade may cost more than it gives. Try it on the machine you care about. */
+window.smooth = function(on){
+  try{
+    map._fadeAnimated = !!on;
+    _SHARP_ESRI.concat(_SHARP_LOCAL, _SHARP_LABELS).forEach(function(l){
+      if(l && l._map){
+        if(typeof l._removeAllTiles==='function') l._removeAllTiles();
+        l._setView(l._map.getCenter(), l._map.getZoom(), false, false);
+      }
+    });
+  }catch(e){}
+  console.log('tile cross-fade: ' + (map._fadeAnimated ? 'ON' : 'OFF'));
+  return { fadeAnimated: !!map._fadeAnimated };
+};
 /* ================= END SHARPNESS TOGGLES ================= */
 // Switch the local layer to the county under the current map center; returns the active key (or null).
 let _localActiveKey = "__init__";
