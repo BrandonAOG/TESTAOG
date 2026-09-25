@@ -91,6 +91,16 @@
   ].join('\n');
   document.head.appendChild(style);
 
+  /* Set the moment the user taps Update Now. This is the ONLY unambiguous signal
+     that a reload is wanted, and it is what the controllerchange handler below keys
+     off. See the long note there for why the old check was not enough. */
+  var aogUserAskedToUpdate = false;
+
+  /* True if an app is already installed at this scope — even when THIS page load is
+     not being controlled by it. Those two things are not the same, which is the bug
+     fixed below. */
+  var aogHadActiveWorker = false;
+
   // ── Ask the waiting SW for its changelog, then show banner ─
   function askAndShow(waitingWorker) {
     var channel = new MessageChannel();
@@ -131,22 +141,39 @@
     }, 100);
 
     document.getElementById('aog-update-btn').addEventListener('click', function () {
+      aogUserAskedToUpdate = true;               // ← the reload is now wanted, unconditionally
+      this.disabled = true;
+      this.textContent = 'Updating…';
       waitingWorker.postMessage({ action: 'SKIP_WAITING' });
+      /* Belt and braces: controllerchange is the normal trigger, but if the worker is
+         already controlling this page (or the event is missed), nothing would happen and
+         the button would look broken — which is exactly the symptom this fixes. Reload
+         anyway after 3s if the event never arrives. */
+      setTimeout(function () {
+        if (!window.__aogRefreshing) { window.__aogRefreshing = true; window.location.reload(); }
+      }, 3000);
     });
   }
 
   // ── Reload once the new SW takes control ───────────────────
-  // Guard against reload loops: controllerchange can fire in multiple tabs / more than once.
-  // Also guard against the FIRST-EVER install: on a brand-new visit there is no
-  // controller yet, so when the fresh SW finishes precaching and calls clients.claim(),
-  // controllerchange fires — reloading the page out from under the user (possibly
-  // mid-form). Only reload when we're swapping an OLD controller for a new one.
+  /* WHY THIS IS NOT JUST `if (controller) reload()`  — fixed 2026-09-25.
+     The old guard was:   var aogHadController = !!navigator.serviceWorker.controller;
+     ...and it skipped the reload whenever that was false, to avoid yanking the page out
+     from under someone on a brand-new install (possibly mid-form). Right intent, wrong
+     test: it asks whether THIS PAGE LOAD is controlled, and a HARD RELOAD
+     (Cmd/Ctrl+Shift+R) deliberately bypasses the service worker — so the page comes up
+     uncontrolled even though the app has been installed for months. Tap Update Now on
+     such a page and the worker activates correctly but the guard swallows the reload, so
+     the button appears to do nothing and the old version stays on screen until the user
+     refreshes by hand. That is the bug.
+     Two signals now allow the reload, and neither fires on a silent first install:
+       1. the user explicitly tapped Update Now  — intent is not ambiguous
+       2. an old controller is genuinely being swapped for a new one */
   var aogHadController = !!navigator.serviceWorker.controller;
-  var aogRefreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', function () {
-    if (!aogHadController) { aogHadController = true; return; } // first install — no reload
-    if (aogRefreshing) return;
-    aogRefreshing = true;
+    if (!aogUserAskedToUpdate && !aogHadController) { aogHadController = true; return; }
+    if (window.__aogRefreshing) return;
+    window.__aogRefreshing = true;
     window.location.reload();
   });
 
@@ -157,9 +184,14 @@
   navigator.serviceWorker.register(_swUrl, { scope: new URL('./', _swUrl).href })
     .then(function (reg) {
 
+      /* reg.active is set whenever an app is installed at this scope, INCLUDING on a
+         hard-reloaded page where navigator.serviceWorker.controller is null. That makes
+         it the right test for "is this an update, or a first install" below. */
+      aogHadActiveWorker = !!reg.active;
+
       // Actively check for a new sw.js NOW and every few minutes. Without this, the browser
       // only re-checks on its own schedule (often only on navigation, or ~once a day), so a
-      // freshly pushed update (bumped CACHE_NAME) may not surface the banner for a long time.
+      // freshly pushed update (bumped CACHE_VERSION) may not surface the banner for a long time.
       try { reg.update(); } catch (e) {}
       setInterval(function () { try { reg.update(); } catch (e) {} }, 5 * 60 * 1000);
       // Also re-check whenever the user returns to the tab/app.
@@ -176,8 +208,14 @@
       // New worker found while user has the page open
       reg.addEventListener('updatefound', function () {
         var newWorker = reg.installing;
+        if (!newWorker) return;                 // can be null if the state already moved on
         newWorker.addEventListener('statechange', function () {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          /* Same hard-reload trap as above: the old test was `&& navigator.serviceWorker
+             .controller`, so on an uncontrolled page load a newly installed worker never
+             surfaced the banner at all. aogHadActiveWorker covers that case while still
+             staying silent on a genuine first install. */
+          if (newWorker.state === 'installed' &&
+              (navigator.serviceWorker.controller || aogHadActiveWorker)) {
             askAndShow(newWorker);
           }
         });
