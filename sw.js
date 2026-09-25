@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v2.5.1';
+var CACHE_VERSION = 'v2.5.2';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -400,7 +400,16 @@ function networkRace(request, timeoutMs) {
     }).then(function(cached) {
       var networkFetch = fetch(request).then(function(res) {
         if (_cacheable(res)) {
-          caches.open(CACHE_NAME).then(function(c) { c.put(request, res.clone()); });
+          /* CLONE FIRST, SYNCHRONOUSLY — fixed 2026-09-25.
+             This used to read:  caches.open(CACHE_NAME).then(c => c.put(request, res.clone()))
+             caches.open() is async, so by the time its callback ran, `res` had already been
+             returned below and its body consumed by the page — and cloning a used Response
+             throws "Response body is already used". Two files route through networkRace
+             (sounds.js and update-banner.js), which is exactly the two errors seen per load.
+             The consequence was that neither ever got refreshed in the cache by this path.
+             `cache` from the enclosing caches.open() is already in scope, so there is no need
+             to open it a second time and no async gap in which the body can be consumed. */
+          cache.put(request, res.clone());
         }
         return res;
       });
