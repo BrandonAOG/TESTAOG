@@ -26534,7 +26534,14 @@ map.on('moveend zoomend', ()=>{ clearTimeout(_ecAreaTimer); _ecAreaTimer=setTime
    and six of the ten longest tasks in the whole recording. Off, that entire path is skipped.
    This is an escape hatch, not a fix: with it on, the cost is unchanged. The real fixes are to
    chunk the rebuild across frames, or to move existing markers instead of destroying them. */
-let nbrNumOn = STORE.get('fl_nbrnum') !== '0';
+/* ALWAYS ON AT PAGE LOAD. This briefly persisted the user's choice, which sounds helpful and is
+   not: switch the numbers off once to look at something and every future session opens without
+   them, with no hint as to why. The labels are the normal state of the map, so the switch is a
+   per-session escape hatch and the page always starts with them on.
+   The stale key is deleted rather than merely ignored, so a browser that stored '0' from the
+   persisted version does not carry a setting nothing reads. */
+try{ STORE.del('fl_nbrnum'); }catch(e){}
+let nbrNumOn = true;
 
 /* Layers ▸ Parcel numbers. nbrNumOn already gates every path — the draw, the zoomstart clear and
    the moveend/zoomend rebuild — so switching it off needs nothing but the flag and a clear.
@@ -26548,7 +26555,6 @@ if(btnNbrNums){
   btnNbrNums.onclick=function(){
     nbrNumOn=!nbrNumOn;
     this.classList.toggle('active',nbrNumOn);
-    STORE.set('fl_nbrnum', nbrNumOn?'1':'0');
     /* Both directions redraw: OFF still leaves the looked-up house labelled, ON brings the
        neighbours back. Repaint from the cached result set when it still covers the view — it
        serves both modes — and only re-query when it cannot. Nothing to draw before a lookup has
