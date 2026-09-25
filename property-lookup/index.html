@@ -27,6 +27,11 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Property Lookup · Always On Generators</title>
+<!-- Every browser asks for /favicon.ico on its own; with no such file in the repo that 404s and
+     leaves a permanent red error in the console on every single load. An empty data: URI satisfies
+     the request without a network round trip. Replace with a real .ico/.png whenever you want an
+     actual tab icon — this only silences the 404, it does not give the tab a picture. -->
+<link rel="icon" href="data:,">
 <script src="../sounds.js" defer></script>
 <!-- SPEED: pre-open connections (DNS + TLS) to every origin the first paint depends on, so the
      Leaflet CSS/JS, fonts, and the first map tiles don't each pay a fresh ~100-300ms handshake.
