@@ -50,9 +50,8 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-'🧱 NEW: CONCRETE CALCULATOR — slab, column & footing volume, bags & yardage',
-'🗺️ SITE PLAN ANNOTATOR — complete refresh, now with Adobe Acrobat support',
-'📝 ELECTRICAL INSTALL FORM footer bumped to V1.1 — check whether anyone is still on a stale copy',
+'📖 PROPERTY LOOKUP — live municipal code lookups, pulled from each city or county’s own code',
+'🗺️ PROPERTY LOOKUP — now live in 60 Florida counties',
 ];
 //
 // ============================================================
