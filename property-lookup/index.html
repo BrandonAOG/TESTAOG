@@ -8587,13 +8587,39 @@ const map = L.map('map',{
    requests abandoned in flight. Restricting them to 17+ cut abandoned requests to 205.
    Kept in sync with Leaflet's own _limitZoom (1.9): same clamp, same Browser.any3d guard. */
 const FINE_ZOOM_FROM = 17;    // at/above this zoom, half levels are allowed
+
+/* ⚠️ THE TWO SNAPS MUST AGREE — this is what broke zoom-out on trackpads (fixed 2026-09-25).
+   Leaflet's ScrollWheelZoom._performZoom computes its TARGET using map.options.zoomSnap, then
+   passes it to _limitZoom, and bails with `if (!delta) return;` when the result equals the zoom it
+   started from. The first version of this override read options.zoomSnap = 0.5 for the target but
+   snapped by 1 below z17, so zooming OUT from a whole level asked for 16.5 and got Math.round(16.5)
+   = 17 back — the level it was already on. delta 0, no zoom, every time. It stuck at EVERY whole
+   level below 17, not just the boundary, and only on OUT (rounding .5 up moves you when zooming in).
+   A mouse wheel hid it: one notch produces a delta big enough for a full-level step, which clears
+   the snap. A trackpad pinch sends small deltas that always land on the .5 — so it looked like
+   "some Macs can only zoom out so far then stop". Reported by Brandon with zoomNow 17.
+
+   Two rules keep the snaps consistent:
+     1. _syncZoomSnap keeps options.zoomSnap equal to the granularity _limitZoom will accept at the
+        CURRENT zoom, so the target Leaflet computes is one this function will honour.
+     2. The fine range is entered half a level early (FINE_ZOOM_FROM - 0.5) so the half-step landing
+        at the boundary is itself a legal stop instead of rounding back up into the level above. */
+function _syncZoomSnap(){
+  try{
+    const want = (map.getZoom() >= FINE_ZOOM_FROM) ? 0.5 : 1;
+    if (map.options.zoomSnap !== want) map.options.zoomSnap = want;
+  }catch(e){}
+}
+map.on('zoomend', _syncZoomSnap);
+
 map._limitZoom = function(zoom){
   const min = this.getMinZoom(), max = this.getMaxZoom();
   const snap = (L.Browser && L.Browser.any3d===false) ? 1
-             : (zoom >= FINE_ZOOM_FROM ? 0.5 : 1);
+             : (zoom >= FINE_ZOOM_FROM - 0.5 ? 0.5 : 1);
   if (snap) zoom = Math.round(zoom / snap) * snap;
   return Math.max(min, Math.min(max, zoom));
 };
+_syncZoomSnap();
 /* fitBounds/getBoundsZoom reads options.zoomSnap directly rather than going through _limitZoom,
    so keep the option itself at 0.5: a parcel fit lands at 17+ anyway, exactly where halves help. */
 
