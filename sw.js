@@ -1,24 +1,51 @@
 // ============================================================
 //  Always On Generators – Field Hub
-//  Service Worker  |  sw.js  |  Version: aog-forms-v2.5.0
-//  Scope: root (../)
+//  Service Worker  |  sw.js  |  Version: v2.5.1
 //
 //  ⚠ WHEN YOU UPDATE ANY TOOL:
-//    1. Bump CACHE_NAME
+//    1. Bump CACHE_VERSION
 //    2. Update CHANGELOG below with what changed
+//
+//  ⚠ THIS SAME FILE GOES ON BOTH THE PUBLIC SITE AND THE TEST SITE.
+//    Do not give them different version strings any more — the cache name
+//    now includes the scope, so /TESTAOG/ and the public root get separate
+//    caches automatically. See the note on CACHE_PREFIX below.
 // ============================================================
 
-var CACHE_NAME = 'aog-forms-vTEST2.5.0';
-var DEV_MODE   = false;
+// The cache name now carries this build's SCOPE, not just a version string.
+// WHY: CacheStorage is per-ORIGIN, not per-scope. Both service workers live on
+// https://brandonaog.github.io, so caches.keys() in activate() returned the OTHER
+// build's cache too — and the old `if (cacheName !== CACHE_NAME) delete` line
+// therefore DELETED THE PUBLIC SITE'S ENTIRE OFFLINE CACHE every time the test
+// site activated, and vice versa. Every switch between the two forced a full
+// 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
+// is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
+// The scope is different by construction, so this cannot collide.
+var CACHE_VERSION = 'v2.5.1';
+var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
+var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
+
+// What the UPDATE BANNER / FOOTER shows the user. CACHE_NAME is now a long
+// internal string with the site address inside it, which must never reach the
+// screen — so the display version is rebuilt in the old familiar format, with
+// the TEST marker derived from the scope. Test site shows aog-forms-vTEST2.5.1,
+// public shows aog-forms-v2.5.1, from this one identical file.
+// NOTE: this keys off the word "test" appearing in the folder name (TESTAOG).
+// If the test site ever moves to a folder without "test" in it, set this by hand.
+var IS_TEST_BUILD   = /test/i.test(self.registration.scope);
+var DISPLAY_VERSION = 'aog-forms-v' + (IS_TEST_BUILD ? 'TEST' : '') +
+                      CACHE_VERSION.replace(/^v/, '');
+
+var DEV_MODE   = false;   // ← SET TRUE during development/testing
 
 // Tracks whether this SW instance has already run a precache repair pass
 var _repairRan = false;
 
 // Stores last known cache progress so late-loading pages can request it
-var cacheProgress = { percent: 0, label: '', done: false }; // ← SET TRUE during development/testing
+var cacheProgress = { percent: 0, label: '', done: false };
 
 // ============================================================
-//  CHANGELOG — Update this every time you bump CACHE_NAME.
+//  CHANGELOG — Update this every time you bump CACHE_VERSION.
 //  This is what shows up in the update banner on their device.
 //  Keep each line short — one change per item.
 // ============================================================
@@ -27,7 +54,7 @@ var CHANGELOG = [
 '🗺️ SITE PLAN ANNOTATOR — complete refresh, now with Adobe Acrobat support',
 '📝 ELECTRICAL INSTALL FORM footer bumped to V1.1 — check whether anyone is still on a stale copy',
 ];
-// 
+//
 // ============================================================
 
 var PRECACHE_URLS = [
@@ -127,7 +154,7 @@ self.addEventListener('install', function(event) {
         console.log('[SW] Pre-caching core files');
         var total = PRECACHE_URLS.length;
         var completed = 0;
-        var scope = self.registration.scope; // e.g. https://brandonaog.github.io/AOGTEST/
+        var scope = self.registration.scope; // e.g. https://brandonaog.github.io/TESTAOG/
 
         // Combine all URLs to cache: app pages + CDN assets + fonts
         var allUrls = PRECACHE_URLS.concat(PRECACHE_CDN).concat(PRECACHE_FONTS);
@@ -181,7 +208,10 @@ self.addEventListener('activate', function(event) {
       .then(function(cacheNames) {
         return Promise.all(
           cacheNames.map(function(cacheName) {
-            if (cacheName !== CACHE_NAME) {
+            // ONLY delete caches belonging to THIS build (same scope prefix).
+            // Without the prefix test, this deleted the other site's cache —
+            // see the CACHE_PREFIX note at the top of this file.
+            if (cacheName.indexOf(CACHE_PREFIX) === 0 && cacheName !== CACHE_NAME) {
               console.log('[SW] Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
@@ -240,7 +270,10 @@ self.addEventListener('fetch', function(event) {
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
 
   // Safari fix: skip cross-origin requests that aren't in our CDN list —
-  // Safari throws on certain cross-origin fetches inside the SW
+  // Safari throws on certain cross-origin fetches inside the SW.
+  // NOTE: arcgisonline.com is deliberately NOT here, so every basemap tile and
+  // every parcel query bypasses this worker entirely and goes straight to the
+  // network. The map's tile behaviour is not affected by anything in this file.
   var isSameOrigin = url.origin === self.location.origin;
   var isAllowedCDN = url.hostname.includes('fonts.googleapis.com') ||
                      url.hostname.includes('fonts.gstatic.com')    ||
@@ -275,12 +308,21 @@ self.addEventListener('fetch', function(event) {
   var accept = request.headers.get('Accept') || '';
 
   if (accept.includes('text/html')) {
-    // Once per SW startup (the browser kills and restarts SWs constantly),
-    // piggyback a background repair pass on the first page navigation so any
-    // precache entry that failed earlier gets retried whenever there's network.
+    // Once per SW startup (the browser kills and restarts SWs constantly), run a
+    // background repair pass so any precache entry that failed earlier gets
+    // retried whenever there's network.
+    // DELAYED BY 5s: this checks 52 entries and refetches any that are missing.
+    // Firing it the instant a page navigates put that burst in direct competition
+    // with the page's own loading — and on the property-lookup page, concurrent
+    // requests are exactly what starves the map tiles. Still inside waitUntil so
+    // the browser will not kill the worker mid-repair.
     if (!_repairRan) {
       _repairRan = true;
-      event.waitUntil(ensurePrecached().catch(function(){}));
+      event.waitUntil(new Promise(function(resolve) {
+        setTimeout(function() {
+          ensurePrecached().catch(function(){}).then(resolve, resolve);
+        }, 5000);
+      }));
     }
     event.respondWith(staleWhileRevalidate(request));
     return;
@@ -494,8 +536,12 @@ self.addEventListener('message', function(event) {
   }
 
   if (event.data && event.data.action === 'CLEAR_CACHE') {
+    // Same origin-wide hazard as activate(): without the prefix test this wiped
+    // the OTHER site's offline cache as well as this one's.
     caches.keys().then(function(keys) {
-      keys.forEach(function(key) { caches.delete(key); });
+      keys.forEach(function(key) {
+        if (key.indexOf(CACHE_PREFIX) === 0) caches.delete(key);
+      });
     });
     event.ports[0].postMessage({ result: 'Cache cleared' });
   }
@@ -503,7 +549,7 @@ self.addEventListener('message', function(event) {
   // Page asks new waiting SW what changed — reply with fresh changelog
   if (event.data && event.data.action === 'GET_CHANGELOG') {
     event.ports[0].postMessage({
-      version:   CACHE_NAME,
+      version:   DISPLAY_VERSION,   // NOT CACHE_NAME — that is internal now
       changelog: CHANGELOG
     });
   }
