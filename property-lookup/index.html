@@ -9589,6 +9589,92 @@ const localEsriBase = L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest
 // Confirmed a pixel match with the source and promoted into Local HD; the standalone basemap was retired.
 const localCollier2026 = new Collier2026Layer();
 const sarcoGroup = L.layerGroup([localEsriBase, localAerial, localCollier2026, labels]);   // the "Local HD" basemap
+
+/* =================== ZOOM-CHAIN TILE GATE (added 2026-09-25) ===================
+   A trackpad zoom is not one zoom. Leaflet's ScrollWheelZoom debounces the wheel stream and fires
+   a SEPARATE zoom per burst, so one flick of the fingers becomes a chain: 21 -> 20.5 -> 20 -> ...
+   -> 13, each step a completed zoom animation. Measured on this app, a minute of normal zooming
+   produced 2,330 tile requests of which only 624 were for a level actually stopped on — 73% were
+   for levels passed through, and 46% of ALL requests were aborted mid-download.
+
+   Every basemap layer already sets updateWhenZooming:false, which is why this was not obvious:
+   that option defers tiles to the END of each animation, but a chain has fourteen ends, so it
+   still fetches fourteen tile sets. The waste lives ABOVE the animation, at the gesture.
+
+   The cost is not only bandwidth. A burst of 48 concurrent tile requests measured ~5x the
+   per-tile latency of a gentle trickle (median 159ms -> 783ms, p90 219ms -> 1340ms), because the
+   browser allows six connections per host and everything else queues. So the doomed tiles for
+   levels you already left actively delay the tiles for the level you stopped on. In 2 of 6
+   measured gestures the resting level never finished loading at all.
+
+   THE GATE: while a zoom chain is in flight, suppress _update on the basemap layers so no tiles
+   are requested for pass-through levels. 200ms after the last zoomend, release and run one update
+   at the resting level. Panning is untouched (a pan fires no zoomstart). Vector overlays, radar
+   and parcels are untouched — this gates raster basemaps only.
+
+   WHAT YOU SEE while scrolling: the previous level's tiles stretched, instead of intermediate
+   levels popping in and being replaced. Leaflet's keepBuffer:4 keeps enough retained tiles for
+   that fallback to look reasonable.
+
+   FAILURE MODE, deliberately chosen: a watchdog force-releases the gate 2s after the last zoom
+   event of any kind. If anything ever went wrong with the release logic, the worst outcome is
+   "tiles load the way they did before", never "tiles stop loading".
+
+   Toggle live in the console to A/B it:   TILEGATE = false   /   TILEGATE = true
+   Check it is doing something:            TILEGATE_STATS                                        */
+window.TILEGATE = true;                  // master switch, flip from the console
+window.TILEGATE_STATS = { suppressed:0, releases:0, watchdogFires:0 };
+const _GATED_LAYERS = [sat, labels, street, topo, aerialClean, gray, usatopo, natgeo,
+                       collier2026EsriBase, collier2026, localEsriBase, localAerial, localCollier2026];
+let _gateOn = false, _gateRelT = null, _gateDogT = null;
+
+_GATED_LAYERS.forEach(function(l){
+  if(!l || l.__gated || typeof l._update !== 'function') return;
+  l.__gated = true;
+  const _origUpdate = l._update;
+  l._update = function(center){
+    /* Leaflet has already run _abortLoading/_updateLevels/_resetGrid by now; skipping only the
+       request pass is what makes this safe to resume with a plain _update() on release. */
+    if(_gateOn && window.TILEGATE){ this.__gateWanted = true; window.TILEGATE_STATS.suppressed++; return; }
+    return _origUpdate.call(this, center);
+  };
+});
+
+function _gateRelease(){
+  if(_gateRelT){ clearTimeout(_gateRelT); _gateRelT = null; }
+  if(_gateDogT){ clearTimeout(_gateDogT); _gateDogT = null; }
+  if(!_gateOn) return;
+  _gateOn = false;
+  window.TILEGATE_STATS.releases++;
+  _GATED_LAYERS.forEach(function(l){
+    try{
+      if(l && l._map && l.__gateWanted){ l.__gateWanted = false; l._update(); }
+    }catch(e){}
+  });
+}
+/* The watchdog is reset by every zoom event, so it only ever fires if zoomend stops arriving
+   entirely — the one failure that could otherwise strand the gate closed. */
+function _gateArmWatchdog(){
+  if(_gateDogT) clearTimeout(_gateDogT);
+  _gateDogT = setTimeout(function(){ window.TILEGATE_STATS.watchdogFires++; _gateRelease(); }, 2000);
+}
+map.on('zoomstart', function(){
+  if(!window.TILEGATE) return;
+  _gateOn = true;
+  if(_gateRelT){ clearTimeout(_gateRelT); _gateRelT = null; }
+  _gateArmWatchdog();
+});
+map.on('zoomend', function(){
+  if(!_gateOn) return;
+  _gateArmWatchdog();
+  if(_gateRelT) clearTimeout(_gateRelT);
+  _gateRelT = setTimeout(_gateRelease, 200);
+});
+/* Anything that is not a wheel chain — a search jump, a parcel fit, a basemap switch — must never
+   sit behind the gate, so release immediately when the map settles by other means. */
+map.on('moveend', function(){ if(_gateOn && !_gateRelT) _gateRelease(); });
+map.on('baselayerchange', _gateRelease);
+/* ================= END ZOOM-CHAIN TILE GATE ================= */
 // Switch the local layer to the county under the current map center; returns the active key (or null).
 let _localActiveKey = "__init__";
 // Single, dynamic county-aerial credit — replaces the per-layer attributions that used to STACK and go
