@@ -24294,7 +24294,26 @@ async function loadHostedFileIndex(url){
      fields that only this file can supply (Collier living area, per-unit condo data) fill in on
      their own. This replaces the old behaviour where the user had to hit FIND two or three more
      times until the ~4.6MB download happened to be finished. */
-  p.then(v=>{ if(v && v.grid){ _fileReady.add(url); try{ rerunLastLookup(); }catch(e){} } });
+  /* ⚠️ RELEVANCE GUARD (added 2026-09-25) — the "card refreshes twice on every restore" bug.
+     restore() kicks off the Collier AND Lee files fire-and-forget at startup, then runs the saved
+     lookup. Each file called rerunLastLookup() unconditionally when it landed, so a restored LEE
+     parcel was re-looked-up because the COLLIER file finished — a full second round trip to the
+     county for data that could not possibly change the card, and a visible repaint. With both files
+     warm in the service worker they land just after the restore lookup paints, which is why it
+     always happened coming from the home page and rarely on a cold load.
+     A re-render is only worth doing when the file that just landed serves the county actually on
+     screen. Also fires only on the transition to ready, so a re-resolved cached promise is silent. */
+  p.then(v=>{
+    if(!(v && v.grid)) return;
+    if(_fileReady.has(url)) return;                 // already ready — nothing newly available
+    _fileReady.add(url);
+    let servesCurrentParcel = false;
+    try{
+      const cty = window.__lastCounty ? norm(window.__lastCounty) : null;
+      servesCurrentParcel = !!(cty && ADDRPOINT_FILES[cty] === url);
+    }catch(e){}
+    if(servesCurrentParcel){ try{ rerunLastLookup(); }catch(e){} }
+  });
   return p;
 }
 // Find a condo unit's FOLIO from the compact file by (house number + street + unit). Used when the
@@ -37127,10 +37146,11 @@ window.Sheet=Sheet;
   // startup (fire-and-forget, non-blocking) means the file is parsed and cached before the first
   // search, so the first card is complete. Harmless if the user never touches Collier — one cached
   // fetch. Also warms Lee's file for the same reason.
+  let _warmFiles=[];
   try{
-    [ADDRPOINT_FILES.COLLIER, ADDRPOINT_FILES.LEE].forEach(u=>{
-      if(u && u.indexOf('REPLACE-ME')<0) loadHostedFileIndex(u).catch(()=>{});
-    });
+    _warmFiles = [ADDRPOINT_FILES.COLLIER, ADDRPOINT_FILES.LEE]
+      .filter(u => u && u.indexOf('REPLACE-ME')<0)
+      .map(u => loadHostedFileIndex(u).catch(()=>{}));
   }catch(e){}
   // Load the territory polygon files that ship beside this page, in parallel, and WAIT for
   // them before any initial lookup — so the Utilities + Gas cards have data on first render.
@@ -37147,6 +37167,14 @@ window.Sheet=Sheet;
     /* Restore the MAP view always — that's cheap and unobtrusive. But skip the lookup once the user
        has started typing: they're on their way somewhere else, and this would fire a full card
        render for the old parcel that their own search then has to supersede. */
+    /* Give the warm address-point files a SHORT bounded head start before the restore lookup.
+       Coming from the home page these are already in the service worker cache and resolve in
+       milliseconds, so the very first card paints complete and never re-renders. On a genuinely
+       cold load we refuse to wait more than 1.2s — the lookup goes ahead without them and the
+       relevance guard in loadHostedFileIndex() fills the gap with at most ONE re-render, and only
+       for the county actually on screen. */
+    try{ await Promise.race([ Promise.all(_warmFiles),
+                              new Promise(r=>setTimeout(r,1200)) ]); }catch(e){}
     if(!_addrUserTyped) await runLookup(o.lat,o.lng);
   } }catch(e){} }
 })();
