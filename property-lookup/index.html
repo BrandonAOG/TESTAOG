@@ -12629,7 +12629,18 @@ const PLAT_LAYERS_COUNTY = {
                pick:a=>({ label:(a.Description && !/^\d+$/.test(a.Description)) ? String(a.Description)+(a.ConveyanceType?` (${a.ConveyanceType})`:'') : null,
                           link:(a.RecordDoclink && /^https?:/i.test(a.RecordDoclink)) ? a.RecordDoclink : null, linkLabel:'search Lee Clerk official records' }) },
   SARASOTA:  { url:'https://ags3.scgov.net/server/rest/services/Hosted/PlatBoundary/FeatureServer/0', pick:_platSniff },
-  MANATEE:   { url:'https://www.mymanatee.org/gisits/rest/services/commonoperational/parcels_pl_only/MapServer/0', pick:_platSniff },
+  /* MANATEE — moved off parcels_pl_only + _platSniff on 2026-09-24. That layer needed the sniffer
+     to guess at column names; the recorded-subdivisions layer publishes BOOK, PAGE, RECORDDATE and
+     INSTRUNUMBER as explicit columns, so the reference is read rather than inferred. Verified:
+     MILLBROOK AT GREENFIELD PLANTATION 3A&3C -> Book 0033, Page 0188, recorded 04-22-99.
+     Leading zeros are stripped for display ("0033" -> "33") because that is how a plat book is
+     cited; the stored value keeps them. */
+  MANATEE:   { url:'https://www.mymanatee.org/gisbads/rest/services/landdevelopment/subdivisions/MapServer/0',
+               pick:a=>{ const nm=(a.NAME && !/^\d+$/.test(String(a.NAME))) ? String(a.NAME).trim() : null;
+                         if(!nm) return null;
+                         const bk=a.BOOK!=null && String(a.BOOK).trim()!=='' ? String(a.BOOK).trim().replace(/^0+(?=\d)/,'') : null;
+                         const pg=a.PAGE!=null && String(a.PAGE).trim()!=='' ? String(a.PAGE).trim().replace(/^0+(?=\d)/,'') : null;
+                         return { label: nm + (bk ? ' \u00b7 Plat Book '+bk+(pg?', Page '+pg:'') : ''), link:null }; } },
   /* Collier: no county layer publishes plat book/page. The PA-joined parcel layer gives subdivision number,
      block, lot and map number; the subdivision NAME comes from the legal description the HOA card already
      parsed (window.__parcelSubdivName). Link → the PA property card for this folio (legal line shows the plat
@@ -12741,6 +12752,31 @@ const COMMUNITY_LAYERS = {
   MANATEE: [
     { key:'cdd', url:'https://www.mymanatee.org/gisits/rest/services/opendata/Planning/FeatureServer/8',
       pick:a=>({ name:a.CDD_NAME }) },
+    /* Recorded subdivisions, wired 2026-09-24. 3,061 polygons county-wide, verified by name search:
+       "MILLBROOK AT GREENFIELD PLANTATION 3A&3C" · CONVEYANCEDESIGNATOR 0566802 · Plat Book 0033,
+       Page 0188, recorded 04-22-99. That designator is the SAME value the parcel roll carries as
+       SUBDNUM, so the two agree without a fuzzy name match.
+       NAME is preferred over DESCRIPTION: DESCRIPTION is the abbreviated roll spelling
+       ("MILLBROOK AT GRNFLD P IIIA&IIIC") while NAME is written out, which is what a Sunbiz search
+       for the association needs.
+       No gated flag and no unit counts are published — Lee's subdivision layer has both, Manatee's
+       does not, so those bits of the Details row are simply absent rather than guessed. */
+    { key:'sub', url:'https://www.mymanatee.org/gisbads/rest/services/landdevelopment/subdivisions/MapServer/0',
+      pick:a=>({ name:a.NAME || a.DESCRIPTION,
+                 type:(a.CONVEYANCETYPE && String(a.CONVEYANCETYPE).trim()!=='Subdivision') ? a.CONVEYANCETYPE : null,
+                 plat:(a.BOOK && a.PAGE) ? ('Plat Book '+String(a.BOOK).replace(/^0+(?=\d)/,'')+', Page '+String(a.PAGE).replace(/^0+(?=\d)/,'')) : null,
+                 /* RECORDDATE is NOT a reliable date in this layer. Sampled rows: "03-19-91"
+                    (MM-DD-YY, fine), "04-22-99" (fine), "11-1-95" (fine), and "14-12-20" — which
+                    cannot be MM-DD-YY at all. The column is free text with mixed conventions, so it
+                    is shown ONLY when it parses as a sane MM-DD-YY; otherwise the plat book and page
+                    stand alone rather than printing a date nobody can interpret. */
+                 recorded:(function(){
+                   const v=a.RECORDDATE!=null ? String(a.RECORDDATE).trim() : '';
+                   const m=v.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})$/);
+                   if(!m) return null;
+                   const mo=+m[1], dy=+m[2];
+                   return (mo>=1 && mo<=12 && dy>=1 && dy<=31) ? v : null;
+                 })() }) },
   ],
   /* Hillsborough: the county's Subdivision Names layer (Development Services viewer + the CORPORATE
      display service carry the same layer). Verified 10 Sep 2026 at a Lutz parcel: LEGAL_NAME
@@ -12787,13 +12823,41 @@ async function queryCommunity(lat, lng, countyName, timeoutMs){
   return Object.keys(out).length ? out : {};
 }
 const _sunbizQ = q => 'https://search.sunbiz.org/Inquiry/CorporationSearch/ByName?inquirytype=EntityName&inquiryDirectionType=ForwardList&searchNameOrder=&corporationNameSearchString=' + encodeURIComponent(q);
-function renderCommunityBlock(c, countyName){
-  if(c===null) return '';                               // county not wired → nothing to add
+function renderCommunityBlock(c, countyName, pa){
   const cn = titleCase(countyName||'county');
+  /* SPECIAL DISTRICTS FROM THE PARCEL ROLL (pa = the live parcel's attributes, may be absent).
+     These are separate from the mapped community polygons above: they come from the tax roll, not
+     from a GIS layer, so they are available even where no association is mapped — which is exactly
+     when they are most useful. Any county can fill these channels; Manatee is the first that does. */
+  const _m=v=>{ try{ return (typeof fmtNum==='function') ? fmtNum(Math.round(Number(v))) : String(Math.round(Number(v))); }catch(e){ return String(v); } };
+  /* The annual CDD assessment off the tax roll. Rendered on the county CDD LAYER's row when that
+     layer answered (below), otherwise on its own row in `dist`. Never both. */
+  const _cddTaxNote = (pa && pa.__cddTax)
+    ? ' <span class="muted" style="font-size:11px">$'+esc(_m(pa.__cddTax))+'/yr on the tax bill</span>' : '';
+  let dist='';
+  if(pa){
+    if(pa.__commonArea)
+      dist += fieldRow('Common area', '<b>This parcel is association common ground</b>'
+        + (pa.__commonArea!=='Yes' ? ' <span class="muted" style="font-size:11px">id '+esc(String(pa.__commonArea))+'</span>' : '')
+        + ' <span class="muted" style="font-size:11px">not a buildable homesite</span>');
+    /* Manatee (and any county with a CDD layer wired) reports the district from its own GIS below.
+       That row is authoritative and renders with the county's badge, so printing a second CDD row
+       here would duplicate it — the roll's annual amount is appended to that row instead. This row
+       is the fallback for a county whose CDD shows on the tax roll but has no mapped layer. */
+    if(pa.__cdd && !(c && c.cdd))
+      dist += fieldRow('CDD', esc(String(pa.__cdd)) + _cddTaxNote
+        + ' <span class="muted" style="font-size:11px">community development district — a unit of local government, separate from any HOA</span>');
+    if(pa.__steward)
+      dist += fieldRow('Stewardship district', esc(String(pa.__steward))
+        + (pa.__stewardTax ? ' <span class="muted" style="font-size:11px">$'+esc(_m(pa.__stewardTax))+'/yr</span>' : ''));
+    if(pa.__cra) dist += fieldRow('Redevelopment area', esc(String(pa.__cra)));
+    if(pa.__subLotBlock) dist += fieldRow('Plat position', esc(String(pa.__subLotBlock)));
+  }
+  if(c===null) return dist;            // county has no community layer — roll districts still count
   let h='';
   if(!Object.keys(c).length){
     h += `<div class="freshline snap"><span class="badge unk">county GIS</span> no community, association or planned development mapped at this point</div>`;
-    return h;
+    return h + dist;
   }
   const a = c.assoc || c.master;
   if(a){
@@ -12832,7 +12896,7 @@ function renderCommunityBlock(c, countyName){
   }
   if(c.cdd){
     h += `<div class="freshline" style="margin-top:8px"><span class="badge live">● CDD</span> Community Development District</div>`;
-    h += fieldRow('District', esc(c.cdd.name), (a||c.pd)?'':'big');
+    h += fieldRow('District', esc(c.cdd.name) + _cddTaxNote, (a||c.pd)?'':'big');
     if(!a && !c.pd) h += `<div class="note">A CDD is a special taxing district that funds the community&rsquo;s infrastructure; it is paired with a master association. Assessments show on the tax bill, not the mortgage.</div>`;
   }
   if(c.sub){
@@ -12841,6 +12905,11 @@ function renderCommunityBlock(c, countyName){
     h += fieldRow('Subdivision', esc(sb.name), (a||c.pd)?'':'big');
     const bits=[]; if(sb.type) bits.push(esc(sb.type)); if(sb.units) bits.push(sb.units+' units'); if(sb.gated!=null) bits.push(gated?'gated':'not gated');
     if(bits.length) h += fieldRow('Details', bits.join(' · '));
+    /* Plat reference, when the subdivision layer itself carries book/page (Manatee does; Lee's does
+       not). The Permits card still owns the recorded-plat LINK for every county — this is the
+       citation, shown next to the subdivision it belongs to. */
+    if(sb.plat) h += fieldRow('Plat', esc(String(sb.plat))
+      + (sb.recorded ? ' <span class="muted" style="font-size:11px">recorded '+esc(String(sb.recorded))+'</span>' : ''));
     // Plat book/page and the recorded-plat link live on the Permits card now (one place, every county).
     if(gated && !a && !c.pd) h += `<div class="note">Gated subdivisions have an association by necessity (someone owns the gate and the private roads). Search Sunbiz for the subdivision name.</div>`;
     if(!a && !c.pd) h += `<a class="palink" href="${esc(_sunbizQ(sb.name))}" target="_blank" rel="noopener" style="margin-top:8px">↗ Sunbiz: &ldquo;${esc(sb.name)}&rdquo;</a>`;
@@ -12874,7 +12943,7 @@ function renderCommunityBlock(c, countyName){
       if(!a && !c.pd && !c.sub) h += `<a class="palink" href="${esc(_sunbizQ(nbName))}" target="_blank" rel="noopener" style="margin-top:8px">↗ Sunbiz: &ldquo;${esc(nbName)}&rdquo;</a>`;
     }
   }
-  return h;
+  return h + dist;
 }
 
 /* ---------- GROUND ELEV. SOURCE CYCLING ----------
@@ -18120,22 +18189,37 @@ async function showLiveDiagnostic(rawUrl){
   el.innerHTML=head+body;
 }
 
+/* MANATEE aliases added 2026-09-24 from the verified field list of
+   giscomm/.../commonoperational/parcellines/MapServer/0 (the layer the MANATEE resolver uses):
+     site PRIMARY_ADDRESS · city PROP_CITYNAME · owner2 SECONDARY_OWNER · liv SFLA ·
+     saleY SALEDATE · use LUC_DESCRIPTION
+   Already covered with no change needed: OWNER (owner), PARCEL_ID (pid), PROP_ZIP (zip, via
+   /^PROP.*ZIP/), JUSTVAL (jv, via /^JUST_?VAL/), LANDVAL (land), YRBLT_RES (yr, via /YRBLT/ —
+   it precedes YRBLT_COM in the layer's field order, which is what find() keys on), SALEPRICE
+   (saleP), OWN_ADDR / OWN_CITY / OWN_ZIP (mail, mailCity, mailZip).
+   Every alias below is FULLY ANCHORED and appended LAST in its list, so it cannot outrank the
+   field an existing county already matches on. */
 function detectFields(fields){
   const F=fields.map(f=>({raw:f,U:String(f).toUpperCase()}));
   const find=(res)=>{ for(const re of res){ const m=F.find(f=>re.test(f.U)); if(m) return m.raw; } return null; };
   return {
     // /^NAME$/ (last) is Marion County's Ocala-hosted parcel layer; fully anchored so it can't false-match.
     owner: find([/^OWN_?NAME$/,/^OWNER$/,/^OWNER1$/,/^OWNER_?NAME$/,/^OWNERNAME$/,/^OWNER1$/,/^OWN1$/,/^NAME1$/,/^ONAME$/,/^O_NAME/,/^OWNERLINE1$/,/OWN.*NAME/,/OWNER_?LINE_?1/,/^GRANTEE/,/^OWNERNAME_1$/,/^NAME$/,/^PAR_OWNER_NAME1$/]),
-    owner2:find([/^OWNERNAME_2$/,/^OWN_?NAME2$/,/^OWNER2$/,/^OWNER_?NAME2$/,/^OWN2$/,/^NAME2$/,/^OWNERLINE2$/,/OWNER_?LINE_?2/,/OWN.*NAME2/,/^OWNER_NAME_2$/,/^PAR_OWNER_NAME2$/]),
+    owner2:find([/^OWNERNAME_2$/,/^OWN_?NAME2$/,/^OWNER2$/,/^OWNER_?NAME2$/,/^OWN2$/,/^NAME2$/,/^OWNERLINE2$/,/OWNER_?LINE_?2/,/OWN.*NAME2/,/^OWNER_NAME_2$/,/^PAR_OWNER_NAME2$/,/^SECONDARY_OWNER$/]),
     pid:   find([/^PARCELNO$/,/^STRAP/,/^PARCEL_?ID$/,/^PARCELID$/,/^PARID$/,/^FOLIO/,/^PIN$/,/^APN$/,/^ACCOUNT$/,/PARCEL.*(ID|NO|NUM)/,/PROP_?ID/,/^PARCEL$/,/^HPARCEL$/]),
-    site:  find([/^SITE_?ADDR/,/^PHY_?ADDR1$/,/^PHY_?ADDR$/,/^LOCAD$/,/SITUS/,/^S_ADDR/,/^ADDR_?1$/,/SITE.*ADDR/,/^LOCATION$/,/SITEADDRESS/,/^STUBADDRESS$/,/^ADDRESS$/,/^FULLPROPERTYADDRESS$/,/^FULLADDRESS$/,/^PROPERTY_?ADDR/,/^SITUS_ADDRESS$/]),
-    city:  find([/^SITE_?CITY$/,/^PHY_?CITY$/,/^S_CITY$/,/^LOCCTY$/,/SITUS.*CITY/,/^SITUS_2$/,/^STR_CITY$/,/^SITE_MAILING_CITY$/,/^SCITY$/,/^SITUS_POSTAL_CITY$/]),
+    site:  find([/^SITE_?ADDR/,/^PHY_?ADDR1$/,/^PHY_?ADDR$/,/^LOCAD$/,/SITUS/,/^S_ADDR/,/^ADDR_?1$/,/SITE.*ADDR/,/^LOCATION$/,/SITEADDRESS/,/^STUBADDRESS$/,/^ADDRESS$/,/^FULLPROPERTYADDRESS$/,/^FULLADDRESS$/,/^PROPERTY_?ADDR/,/^SITUS_ADDRESS$/,/^PRIMARY_ADDRESS$/]),
+    city:  find([/^SITE_?CITY$/,/^PHY_?CITY$/,/^S_CITY$/,/^LOCCTY$/,/^LOCCITY$/,   /* LOCCITY found missing 2026-09-24: the list had only LOCCTY, while
+                                 SARASOTA's resolver entry — verified against the live layer when it
+                                 was wired — declares cityField:"LOCCITY". So Sarasota cards resolved
+                                 no city. LOCCTY is KEPT in case a county really uses it; this is
+                                 purely additive. */
+           /SITUS.*CITY/,/^SITUS_2$/,/^STR_CITY$/,/^SITE_MAILING_CITY$/,/^SCITY$/,/^SITUS_POSTAL_CITY$/,/^PROP_CITYNAME$/]),
     /* No zip channel existed, so SiteZipCode was fetched on every Collier lookup and thrown away —
        the Site address row showed street + city and stopped. Same for Lee's SITEZIP, Charlotte's
        zipcode and Sarasota's ZIP. Mail zip is kept separate so an owner's out-of-state zip can
        never be printed as the property's. */
     zip:   find([/^SITE_?ZIP/,/^PHY_?ZIP/,/^S_ZIP/,/^SITUS.*ZIP/,/^PROP.*ZIP/,/^ZIPCODE$/,/^ZIP$/,/^SITE_MAILING_ZIP/]),
-    mailZip: find([/^MAIL.*ZIP/,/^OWN.*ZIP/,/^M_ZIP/,/^ZIP_?CODE_?M/]),
+    mailZip: find([/^MAIL.*ZIP/,/^OWN.*ZIP/,/^M_ZIP/,/^ZIP_?CODE_?M/,/^PAR_MAIL_POSTALCD$/]),
     jv:    find([/^JV$/,/^JUST_?VAL/,/^JUSTVALUE$/,/^MKT_?VAL/,/^MARKET_?VAL/,/^MARKETVALUE$/,/^TOTAL_?VAL/,/^JUST$/,/^TOTVAL/,/^TOT_VAL$/,/^ASSD_TOT$/,/^JV_HMSTD$/,/^CER_JUST_VALUE$/,/^TOTAL_MKT$/,/^CAD_JUST_VALUE$/]),
     land:  find([/^LND_?VAL/,/^LAND_?VAL/,/^LAND$/,/^TOT_LND_VA$/,/^JUST_LAND$/,/^CER_LAND_VALUE$/,/^LAND_MKT$/,/^CAD_JUST_LNDVAL$/]),
     // /^ACT$/ is Hillsborough (Tampa-hosted) "Actual Year Built"; /^EFF$/ is its remodel year (fallback).
@@ -18147,14 +18231,14 @@ function detectFields(fields){
     // /^STRUCT1_BASE_SQFT$/ is Hernando's heated/living area — verified base+aux(STRUCT1_AUX_SQFT)=
     // CER_STRU_SQFT (e.g. 9382+250=9632), so CER_STRU_SQFT is the inflated total incl. non-heated aux
     // area and is deliberately NOT added here (same over-reporting trap fixed for Marion's bld1_sf).
-    liv:   find([/^TOT_?LVG_?AR/,/LIV.*AREA/,/AREA.*LIV/,/^HEATED/,/HEAT.*AREA/,/AREA.*HEAT/,/TOTLIVING/,/LIVINGAREA/,/^GRSAR/,/^BLDG_?SQFT$/,/^BLDGSQFT$/,/^SQFT_?BLDG$/,/^FLOOR_?AREA$/,/^FLOORAREA$/,/^UNDER_?AIR$/,/^UNDERAIR$/,/^CONDITIONED/,/^BLDG_?AREA$/,/^BUILDINGAREA$/,/^CALC_?AREA$/,/^BLDGSF$/,/^BLDG_?SF$/,/^RESUSESF$/,/^USE_SF$/,/^BLD1_SF$/,/^HEAT_?AR$/,/^STRUCT1_BASE_SQFT$/,/^BLDGS_SQFT_LIVING$/,/^LIVING$/]),
+    liv:   find([/^TOT_?LVG_?AR/,/LIV.*AREA/,/AREA.*LIV/,/^HEATED/,/HEAT.*AREA/,/AREA.*HEAT/,/TOTLIVING/,/LIVINGAREA/,/^GRSAR/,/^BLDG_?SQFT$/,/^BLDGSQFT$/,/^SQFT_?BLDG$/,/^FLOOR_?AREA$/,/^FLOORAREA$/,/^UNDER_?AIR$/,/^UNDERAIR$/,/^CONDITIONED/,/^BLDG_?AREA$/,/^BUILDINGAREA$/,/^CALC_?AREA$/,/^BLDGSF$/,/^BLDG_?SF$/,/^RESUSESF$/,/^USE_SF$/,/^BLD1_SF$/,/^HEAT_?AR$/,/^STRUCT1_BASE_SQFT$/,/^BLDGS_SQFT_LIVING$/,/^LIVING$/,/^SFLA$/]),
     saleP: find([/^SALE_?PRC1$/,/^SALE_?PRICE$/,/^SALEAMT$/,/^LASTSALE/,/SALEPRICE/,/SALE.*AMT/,/^SALE_?PR/,/^S_1AMOUNT$/,/^PR_1$/,/^AMT$/,/^SALE_AMOUNT$/,/^LSALE_PRICE$/,/^SALE_ADJ_VALUE$/,/^SALE_PRICE_LAST$/]),
-    saleY: find([/^SALE_?YR1$/,/^SALE_?YEAR$/,/SALEYR/,/SALE.*YEAR/,/SALEDATE1/,/^S_1DATE$/,/^YR1$/,/^SALE_DATE$/,/^LSALE_DATE$/,/^SALE_DATE_LAST$/]),
+    saleY: find([/^SALE_?YR1$/,/^SALE_?YEAR$/,/SALEYR/,/SALE.*YEAR/,/SALEDATE1/,/^S_1DATE$/,/^YR1$/,/^SALE_DATE$/,/^LSALE_DATE$/,/^SALE_DATE_LAST$/,/^SALEDATE$/]),
     mail:  find([/^OWN_?ADDR1$/,/^OWNER_?ADDR/,/^MAIL_?ADDR/,/^MAILING/,/^OWN_?ADDR$/,/MAILADDR/,/^ADD_1$/,/^MAILADD$/,/^PAR_MAIL_ADDR1$/]),
     mailCity: find([/^OWN_?CITY$/,/^MAIL_?CITY$/,/^O_CITY$/,/OWNER_?CITY/,/^ADD_3$/,/^MAILING_CITY$/,/^PAR_MAIL_CITY$/]),
     // /^DOR_CODE$/ (last) is Orange County's OCPA roll — the primary FL DOR use code (reads through the
     // DOR_USE table). Anchored so it can't match LAND_DOR_CODE / BLDG_DOR_CODE / DOR_CODE_OVR on the same roll.
-    use:   find([/^USE_?CODE$/,/^USE_?CD$/,/^DOR_?UC$/,/^PA_?UC$/,/^LAND_?USE$/,/^USETYPE$/,/^USE_?DESC/,/^PROP_?USE(?!.*_(CD|CODE)$)/,/^PUSE1$/,/^DOR_?DESC/,/^PC$/,/^DOR_C$/,/^PROPERTY_USE$/,/^LAND_USE_DESC$/,/^LAND_USE_CODE$/,/^PARUSEDESC$/,/^CER_DOR_CODE$/,/^DOR_CODE$/,/^CAD_DOR_LUC_CODE$/]),
+    use:   find([/^USE_?CODE$/,/^USE_?CD$/,/^DOR_?UC$/,/^PA_?UC$/,/^LAND_?USE$/,/^USETYPE$/,/^USE_?DESC/,/^PROP_?USE(?!.*_(CD|CODE)$)/,/^PUSE1$/,/^DOR_?DESC/,/^PC$/,/^DOR_C$/,/^PROPERTY_USE$/,/^LAND_USE_DESC$/,/^LAND_USE_CODE$/,/^PARUSEDESC$/,/^CER_DOR_CODE$/,/^DOR_CODE$/,/^CAD_DOR_LUC_CODE$/,/^LUC_DESCRIPTION$/]),
     lotSqft: find([/^LND_?SQFOOT$/,/^LOT_?SQ/,/^LOTSQFT$/,/^LAND_?SQFT$/,/^SQFT_?LND$/,/^LOTSF$/,/^LOT_?SIZE$/,/LOTSQUARE/,/^LAND_?SQ/,/^LAND_SQFT_CAMA$/])
   };
 }
@@ -25270,6 +25354,19 @@ function renderCapeCoralGeneratorRules(districtCode){
    width, grantee, OR book/page and a link to the recorded instrument; and the parcel-fabric boundary lines with
    their platted distances. Drawn over the lot after drawParcel(); listed on the Permits card. Toggle: Layers ›
    Easements & lot lines. Other counties get added here as their layers are found. */
+/* MANATEE HAS NO EQUIVALENT — searched 2026-09-24, recorded so it is not re-hunted blind.
+   Enumerated every service on Manatee's five public REST roots (giscomm, gisbads, gisits, gisps,
+   and gis.manateepao.gov): 240 services. Keyword sweep for easement / dimension / survey /
+   landrecord / plat / lot / utility returned exactly one relevant hit:
+     gisits/.../NaturalResources/conservationeasements/MapServer
+   That is CONSERVATION easements — land-protection covenants — NOT the recorded utility and
+   access easements Lee's LandRecords layers draw. Wiring it would put lines on a generator siting
+   map that mean something entirely different, so it was rejected, not wired.
+   No lot-line dimension layer is published either.
+   Caveat on this finding: the sweep was keyword-based over service NAMES. Manatee's parcel layer
+   is called "parcellines" and turned out to be a full CAMA join, so a name can hide the content —
+   if easements are ever needed here, enumerate LAYERS inside the landdevelopment and
+   commonoperational services rather than trusting service names. */
 const SITE_SKETCH = {
   LEE: { easements:'https://gismapserver.leegov.com/gisserver910/rest/services/DataExplorer/LandRecords/MapServer/2',
          dims:'https://gismapserver.leegov.com/gisserver910/rest/services/DataExplorer/LandRecords/MapServer/7' },
@@ -25613,6 +25710,16 @@ const WELLFIELD = {
             heading:'Springs protection', noun:'springs protection zone',
             tie:'the most protective tier governs' }
 };
+/* MANATEE: NOT WIRED, AND DELIBERATELY SO. No well records appear in any of Manatee's 240
+   public services. The regional alternative was found and REJECTED on meaning, not on quality:
+     www25.swfwmd.state.fl.us/arcgiswmis/rest/services/r27/WupPortalMap/MapServer/0
+     "WUP Withdrawals" — 7 points within ~1km of a test parcel, 203ms, 49 fields. Works fine.
+   But WUP withdrawals are permitted withdrawal points under Water Use Permits: agricultural
+   irrigation, public supply, industrial users. That is a DIFFERENT POPULATION from the county
+   domestic/private well permits this registry holds for Lee. Showing them in the same row would
+   imply a property has a potable well needing generator clearance when it does not.
+   Brandon's call, 2026-09-24: "if its not the same then i dont need it."
+   If a true domestic-well source for Manatee ever surfaces, it belongs here; WupPortalMap does not. */
 const WELLS_PERMITTED = {
   LEE: { label:'Lee County permitted wells', radiusM:60,
          url:'https://services2.arcgis.com/LvWGAAhHwbCJ2GMP/arcgis/rest/services/WellsPermittedLeeCounty/FeatureServer/0/query',
@@ -30240,6 +30347,70 @@ async function _runLookupInner(lat,lng,searchCtx){
                     .map(v=>String(v).trim()).join(' ').replace(/\s+/g,' ').trim();
         if(_lg) _la.__legal=_lg;
       }
+
+      /* ---- generator-sizing + site context, 2026-09-24 ----
+         Manatee's Parcel Search layer carries 428 fields; the block above used ~20 of them. These
+         are the ones the card already has a channel for, so they cost nothing but the mapping and
+         bring Manatee level with Lee. Everything here is READ-ONLY field mapping — no new rows. */
+      if(_n(_la.BLDGS_SQFT_UNROOF)) _la.__underRoof=_n(_la.BLDGS_SQFT_UNROOF);  // vs SQFT_LIVING = under air
+      if(_n(_la.BLDG_R1_STORIES))   _la.__stories=_n(_la.BLDG_R1_STORIES);
+      if(_n(_la.BLDG_R1_BEDRMS))    _la.__beds=_n(_la.BLDG_R1_BEDRMS);
+      /* Manatee splits baths into FULL and HALF columns where Lee has one number. Combine the way a
+         listing does — 3 full + 1 half = 3.5 — rather than showing full only, which under-reports,
+         or adding them, which over-reports. */
+      { const _fb=_n(_la.BLDG_R1_FBATHS), _hb=_n(_la.BLDG_R1_HBATHS);
+        if(_fb || _hb) _la.__baths = _fb + (_hb*0.5); }
+      if(_n(_la.BLDGS_LIVINGUNITS) && Number(_la.BLDGS_LIVINGUNITS)>1) _la.__units=_n(_la.BLDGS_LIVINGUNITS);
+      if(_n(_la.BLDG_R1_EFFYR)) _la.__effYr=_n(_la.BLDG_R1_EFFYR);
+      /* Lot frontage x depth — the same "stated dimensions" row Lee fills from FRONTAGE/DEPTH.
+         Manatee has LAND_FRONTAGE_EFF (effective, adjusted for irregular lots) as well; the RAW
+         frontage is used because the card labels this "per appraiser" and the effective figure is a
+         valuation construct, not a measurement of the lot. */
+      if(_n(_la.LAND_FRONTAGE) && _n(_la.LAND_DEPTH))
+        _la.__statedDims=Math.round(_n(_la.LAND_FRONTAGE))+' \u00d7 '+Math.round(_la.LAND_DEPTH)+' ft';
+      if(_t(_la.NAV_FIRE_NAME))     _la.__fireDist=_t(_la.NAV_FIRE_NAME);
+      if(_t(_la.PAR_NBHD_NAME))     _la.__neighborhood=_t(_la.PAR_NBHD_NAME);
+      if(_t(_la.CAD_TAX_DISTRICT))  _la.__taxDist=_t(_la.CAD_TAX_DISTRICT);
+      { const _bc=_n(_la.BLDGS_RESIDENTIAL)+_n(_la.BLDGS_COMMERCIAL);
+        if(_bc>1) _la.__bldgCount=_bc; }
+      /* ---- community / HOA channels ----
+         Manatee carries the special-district picture per parcel, which is exactly what the HOA card
+         is for. A CDD is not an HOA but it is the thing people mean when they ask who runs the
+         community and what the annual charge is — it is a unit of local government that bonds and
+         maintains the infrastructure, and its assessment is on the tax bill alongside any HOA dues.
+         NAV_* are non-ad-valorem assessment columns: CODE, NAME and the annual TAX amount. */
+      if(_t(_la.NAV_CDD_NAME)){ _la.__cdd=_t(_la.NAV_CDD_NAME);
+        if(_n(_la.NAV_CDD_TAX)) _la.__cddTax=_n(_la.NAV_CDD_TAX); }
+      if(_t(_la.NAV_STEWARD_NAME)){ _la.__steward=_t(_la.NAV_STEWARD_NAME);
+        if(_n(_la.NAV_STEWARD_TAX)) _la.__stewardTax=_n(_la.NAV_STEWARD_TAX); }
+      if(_t(_la.PAR_CRA_NAME)) _la.__cra=_t(_la.PAR_CRA_NAME);
+      /* COMMON AREA: the parcel itself is association-owned common ground — a retention pond, an
+         entry feature, a clubhouse lot. Worth saying out loud on a siting card, because it is not a
+         buildable homesite and anyone quoting a generator for it has the wrong parcel. */
+      { const _ca=_t(_la.PAR_COMAREA_FLAG);
+        if(_ca && !/^(n|no|none|false|0)$/i.test(_ca)) _la.__commonArea=_t(_la.PAR_COMAREA_ID)||'Yes'; }
+      { const _lot=_t(_la.PAR_SUBDIV_LOT), _blk=_t(_la.PAR_SUBDIV_BLOCK);
+        if(_lot||_blk) _la.__subLotBlock=[_lot?'Lot '+_lot:null,_blk?'Block '+_blk:null].filter(Boolean).join(' · '); }
+      /* __subdivision is the GENERIC channel the HOA card already uses to seed its Sunbiz search
+         for the association. Manatee only set det.sub (a display column), so that search had
+         nothing to go on here. */
+      if(_la.__subdivision==null){
+        const _sn=_t(_la.PAR_SUBDIV_NAME)||_t(_la.PAR_SUBDIVISION);
+        if(_sn && !/^NOT IN SUBDIVISION/i.test(_sn)) _la.__subdivision=_sn;
+      }
+      /* Amenity flags are String and their values are not documented — same trap Lee's block calls
+         out. Treat an explicit negative as absent and show anything else verbatim, rather than
+         assuming Y/N and silently dropping a real value. Garage is a COUNT, not a flag. */
+      { const _yes=v=>{ const x=_t(v); if(!x) return null;
+          if(/^(n|no|none|false|0)$/i.test(x)) return null;
+          return /^(y|yes|true|1)$/i.test(x) ? 'Yes' : x; };
+        const _am=[];
+        [['Pool','PAR_SWIMPOOL_FLAG'],['Waterfront','PAR_WATERFRT_FLAG'],
+         ['Golf course frontage','PAR_GOLFCFRT_FLAG']].forEach(function(pr){
+          const v=_yes(_la[pr[1]]); if(v) _am.push(v==='Yes'?pr[0]:pr[0]+' ('+v+')'); });
+        const _gb=_n(_la.BLDGS_GARAGE_BAYS);
+        if(_gb) _am.push('Garage ('+_gb+' bay'+(_gb>1?'s':'')+')');
+        if(_am.length && !_la.__amenities) _la.__amenities=_am.join(' \u00b7 '); }
     }
 
     if(norm(countyName)==='MARION'){
@@ -32092,7 +32263,9 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
       html += `<div id="${_hoaSlotId}"><div class="freshline"><span class="badge live">● CHECKING</span> ${esc(titleCase(countyName))} County community layers… <span class="zone-spin" aria-hidden="true"></span></div></div>`;
       queryCommunity(lat, lng, countyName, 8000).then(c=>{
         if(myId!==runId) return;
-        patchSlot(_hoaSlotId, renderCommunityBlock(c, countyName) + `<div style="height:8px"></div>`);
+        patchSlot(_hoaSlotId, renderCommunityBlock(c, countyName,
+          (liveRes && liveRes.features && liveRes.features[0]) ? liveRes.features[0].attributes : null)
+          + `<div style="height:8px"></div>`);
       }).catch(()=>{ if(myId===runId) patchSlot(_hoaSlotId, ''); });
     }
 
@@ -34516,6 +34689,77 @@ const COUNTY_PARCEL_RESOLVERS = {
     folioField:"ID",            // UNIT-UNIQUE parcel id (ACCOUNT is the shared building number)
     ownerField:"NAME1",
     parcelUnitField:"UNIT"      // dedicated unit column — a typed unit resolves to the exact record
+  },
+  /* MARION — wired 2026-09-24. Marion had a live parcel layer in COUNTY_LIVE for lookups but no
+     SEARCH resolver, so every Marion address fell through to the geocoder + statewide-roll snap.
+     Measured on a real search before this entry existed: county fan-out done at 997ms, map did not
+     move until 6,109ms.
+
+     VERIFIED against both of Marion's COUNTY_LIVE sources from the browser, query
+     "5520 SW 81st Pl" (hn 5520, distinctive token 81ST):
+       services5 Reach_Parcels : addr SITUS_1, owner NAME, parcel ALT_KEY   1 match, geometry,  468ms
+       gis.ocalafl.org         : addr situs_1, owner name, parcel alt_key   1 match, geometry,  174ms
+     Both returned the same record (ALT_KEY 3193351, STIPINS SANDRA). The Ocala host is ~2.7x
+     faster, but this entry uses the Esri-hosted AGOL service: it is the one COUNTY_LIVE lists
+     first, it is on Esri infrastructure rather than a single city server, and 468ms is immaterial
+     next to the ~6s path it replaces. If Ocala is ever preferred, the field names are the SAME
+     but lowercase, which ArcGIS where-clauses treat case-insensitively.
+
+     cityField / zipField DELIBERATELY OMITTED. Marion's CITY is a numeric code (0 = unincorporated,
+     which is what 5520 SW 81ST PL returns) and ZIP is an undashed ZIP+4 ("344767754"). Joined into
+     the label those give "5520 SW 81ST PL, 3, 344767754". The address alone is correct and clean.
+     Same reasoning as Charlotte's entry above. (0 would be dropped by filter(Boolean) anyway, but a
+     nonzero city code would not be.)
+
+     ⚠️ KNOWN MISS, NOT YET EXPLAINED: "9628 SUMMER HOUSE LN" returned 0 matches on BOTH sources
+     (390ms / 98ms), while 5520 SW 81ST PL matched on both. Either that address is not in Marion or
+     its situs_1 is stored differently. A miss is SAFE — resolveCountyParcel returns null and the
+     search falls through to exactly today's behaviour — so this costs ~400ms, never a wrong parcel.
+     Worth re-checking if Marion searches start missing more often than they hit. */
+  MARION: {
+    url: "https://services5.arcgis.com/zh4IrtLvSvA0sfub/arcgis/rest/services/Reach_Parcels/FeatureServer/0/query",
+    addrField: "SITUS_1",
+    folioField:"ALT_KEY",
+    ownerField:"NAME"
+  },
+  /* MANATEE — wired 2026-09-24, on the THIRD source tried. Recording the two that failed, because
+     the obvious ones look right and are not:
+
+       gis.manateepao.gov/.../Website/WebLayers/MapServer/0
+         The Property Appraiser's own layer, and schema-wise the perfect candidate — metadata reads
+         fine and carries SITUS_ADDRESS, PAR_OWNER_NAME1, PARID. But a where= query dies with
+         "Failed to fetch" in 58ms. Metadata works, the text query does not. Do not re-try this
+         blind; if it is ever revisited, prove a where= query returns JSON first.
+
+       mymanatee.org/gisits/.../publicportal/publicportal/MapServer/0
+         Works, 1 match — in 4,468ms, and it has NO owner field. Four and a half seconds is not
+         worth wiring when the fallback path it replaces is about six.
+
+     WHAT IS WIRED, verified from the browser with "1212 Millbrook Cir" (hn 1212, token MILLBROOK):
+       giscomm/.../commonoperational/parcellines/MapServer/0
+         1 match, 453ms, capabilities "Map,Query,Data,TileMap".
+         PRIMARY_ADDRESS "1212 MILLBROOK CIR" · OWNER "CARPENTER ROBERT A" · PARCEL_ID 566821609
+         PROP_CITYNAME "BRADENTON" · PROP_ZIP "34212" · UNIT present (null on this lot).
+     The service NAME says "parcellines", which reads like geometry only. It is not — it is the
+     full CAMA join (owner, values, year built, zoning, flood zone, subdivision). Judge a layer by
+     its field list, not its name; going by the name here would have cost the county a resolver.
+
+     cityField/zipField ARE wired for Manatee, unlike Marion: PROP_CITYNAME is a real name and
+     PROP_ZIP is a clean 5-digit zip, so the label comes out "1212 MILLBROOK CIR, BRADENTON, 34212"
+     — which matches the card header exactly. Note PROP_CITYNAME is the POSTAL city: this parcel is
+     unincorporated Manatee but posts as Bradenton. That is right for a label and must never be
+     read as jurisdiction.
+
+     CORS: the same host (www.mymanatee.org) already answered a cross-origin query from the app's
+     own origin during source research, so it is open to the app, not only to a Manatee tab. */
+  MANATEE: {
+    url: "https://www.mymanatee.org/giscomm/rest/services/commonoperational/parcellines/MapServer/0/query",
+    addrField: "PRIMARY_ADDRESS",
+    cityField: "PROP_CITYNAME",
+    zipField:  "PROP_ZIP",
+    folioField:"PARCEL_ID",
+    ownerField:"OWNER",
+    parcelUnitField:"UNIT"
   }
 };
 /* Suffix/abbreviation folding so "Rd"/"Road", "Ct"/"Court", "Dr"/"Drive" etc. all compare equal,
@@ -35470,6 +35714,18 @@ async function doSearch(){
      lot; in newer subdivisions its addressing can be a house or two out. The snap's first ring
      (~440m) found the correct parcel here in 1,013ms. A second of latency is worth far more than a
      confidently wrong card, so the snap stays for every source. */
+  /* ── SHOW THE MAP BEFORE THE SNAP, NOT AFTER ────────────────────────────────────────────────
+     Measured on a real search (console timeline, 2026-09-24): the county fan-out finished at
+     997ms and the map did not move until 6,109ms. That 5.1s of staring at the old view was
+     entirely the snap below, whose two rings scan PHY_ADDR1 on the 10.8M-row statewide roll (the
+     note on snapToParcelByAddress records ~4,200ms + ~1,527ms cold).
+     The geocode point is already accurate to within a lot or two — that is the whole premise of
+     the snap, which only nudges it. So move there NOW and let the snap correct it. Identical final
+     position, identical card, feedback ~5 seconds earlier. The snap is NOT skipped: see the
+     Bradford Ct case above for why it must always run. */
+  if(stale()) return;
+  map.setView([sLat,sLng], 18);
+  const _preSnapLat=sLat, _preSnapLng=sLng;
   if(searchCtx.hn && g.src!=='FL parcel roll'){
     try{
       const snap=await snapToParcelByAddress(q, g.lat, g.lng);
@@ -35480,7 +35736,11 @@ async function doSearch(){
     }catch(e){}
   }
   if(stale()) return;
-  map.setView([sLat,sLng], 18);
+  /* Re-centre ONLY if the snap actually relocated us. setView to the centre we are already on
+     still fires movestart/moveend — which the label layer, the parcel-line refresh and the
+     boundary refresh all listen to — so an unconditional second call made the map twitch and did a
+     round of needless work on every search where the snap agreed with the geocoder. */
+  if(Math.abs(sLat-_preSnapLat)>1e-7 || Math.abs(sLng-_preSnapLng)>1e-7) map.setView([sLat,sLng], 18);
   await runLookup(sLat,sLng, searchCtx);
   if(stale()) return;
   /* Was an unconditional warning tier. The click path already checked whether the rooftop snap
