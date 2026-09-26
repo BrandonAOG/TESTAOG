@@ -2127,7 +2127,25 @@ const FL_UTILITY = {
   HOLMES:     { name:"Gulf Power (now FPL/NextEra)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
   INDIANRIVER:{ name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
   JACKSON:    { name:"Gulf Power (now FPL/NextEra)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
-  JEFFERSON:  { name:"Talquin Electric Cooperative", type:"Electric cooperative", phone:"(850) 627-7651", web:"https://www.talquinelectric.com" },
+  /* ⚠️ CORRECTED 26 Sep 2026 — THIS ENTRY NAMED THE WRONG UTILITY. It said Talquin Electric
+     Cooperative, which serves Leon, Gadsden, Liberty and Wakulla — not Jefferson. Measured
+     against the Jefferson property appraiser's OWN service-area layer
+     (services5.arcgis.com/vFMp1Ly1q6rKKp0o .../JC_POWER_COMPANY_SERVICE_AREA_view/0, 2 polygons,
+     field UTILITY), point-queried at two locations:
+         a rural county parcel (-83.84465, 30.38195)  -> "Tri-County Electric Coop, Inc (TCEC)"
+         Monticello            (-83.880701, 30.548073) -> "Duke Energy Florida"
+     Both returned 1 polygon in 116-166 ms. DUKE_ENERGY_SERVICE_AREA in the same org is a
+     DUPLICATE publish of the identical 2 features (same Shape_Leng 703182.71398), not a
+     second dataset — do not treat them as corroborating sources.
+     PHONE AND WEB ARE DELIBERATELY ABSENT. The old number was Talquin's and was wrong for this
+     county; TCEC's could not be verified from here, and a wrong number on a card someone dials
+     during an outage is worse than no number. Both fields are guarded at the render site
+     (if(hint.phone) / if(hint.web)), so the rows simply do not draw. Fill them in once confirmed.
+     TO MAKE THIS POINT-ACCURATE rather than county-level: the layer above answers a point query
+     in ~150 ms and carries UTILITY directly. FL_UTILITY has no live-layer mechanism today — every
+     entry is static — so wiring it would mean adding one, which is a bigger change than this fix. */
+  JEFFERSON:  { name:"Tri-County Electric Cooperative (TCEC)", type:"Electric cooperative",
+     note:"Jefferson is split between two providers. TCEC serves the unincorporated county; Duke Energy Florida serves Monticello. Confirm which one serves the exact address before filing an interconnection application — the two have different processes, and the boundary runs at the city limits." },
   LAFAYETTE:  { name:"Florida Power & Light (FPL)", type:"Investor-owned", phone:"1-800-226-3545", web:"https://www.fpl.com" },
   LAKE:       { name:"Duke Energy Florida", type:"Investor-owned", phone:"1-800-700-8744", web:"https://www.duke-energy.com/home/products/florida", note:"Utilities Commission of New Smyrna Beach and city utilities serve some areas." },
   LEE:        { name:"Lee County Electric Cooperative (LCEC)", type:"Electric cooperative", phone:"(239) 656-2300", web:"https://www.lcec.net", note:"LCEC serves Cape Coral, Sanibel, Pine Island, North Fort Myers, Lehigh Acres & much of the county. FPL serves the City of Fort Myers and some adjacent areas — the two split Lee, so confirm by address." },
@@ -2539,6 +2557,61 @@ const COUNTY_LIVE = {
     // 43,866 polygons — high for the county's parcel count because platted lots are carried as rows.
     // Has land_val AND land1_val plus cra_cd/cra_dscr (community redevelopment area) and census_cd.
     "https://gis11.cama.io/arcgis/rest/services/Washington/WashingtonCounty_Basemap/MapServer/0/query"
+  ]},
+  /* ⭐ JEFFERSON — ADDED 26 Sep 2026. Sixth of the seven no-live-feed counties to get a real
+     feed, and the first from an appraiser's OWN AGOL org rather than a vendor. Org
+     vFMp1Ly1q6rKKp0o (gisdata-jcpa.hub.arcgis.com), 108 items, owner bcrouch_JCPA.
+     54,847 rows over 10,883 real parcels. Point query 1 feature in ~120-310 ms across 30 sampled
+     parcels; paint test 50/50 carrying geometry. CORS-readable from brandonaog.github.io —
+     verified from THAT origin, not from the appraiser's own page (the Union trap).
+
+     ⚠️ THE SERVICE IS NOT NAMED AFTER ITS ITEM. The item is titled "JefCo_Parcels_Source"; the
+        service is JefCo_Parcels_20260122_162231. Building the URL from the title returns
+        "Invalid URL" / HTTP 400 — it cost two probe runs. Always read item.url. Same trap on the
+        zoning item: "JC City Zoning" is served as JC_CITY_ZONING_view.
+
+     ⚠️ ~27% OF PARCELS COME BACK 16 TIMES. Measured on the eight worst real parcels: 16 rows,
+        16 geometries each, but 1 distinct Owner and 1 distinct Zoning — they are EXACT duplicates
+        from the publish, not a one-to-many join. That is why no dedupe is wired here and none is
+        needed: arcQuery() sends an uncapped point query, so duplicates cannot crowd out a
+        neighbouring parcel, and the multi-feature selector further down (see "SELECT THE RIGHT
+        FEATURE") picks one — every candidate carries identical attributes, so any choice is the
+        right one. If the appraiser ever fixes the publish, nothing here has to change.
+        Roads are a pseudo-parcel: parcelid 00-00-00-0000-0RDS-0000 holds 925 rows on its own.
+
+     ⚠️ THIS FEED CARRIES NO VALUES, NO USE CODE, NO YEAR BUILT AND NO LIVING AREA — so on
+        THIS county those four rows come from the statewide roll. Note the precedence, because
+        the comment by the Parcel & Owner card reads more absolutely than the code behaves:
+        the roll BACKFILLS, it does not override. Each field is guarded — if(!det.jv), if(!det.yr),
+        if(!det.use), and the !det.liv branch — so a live feed that HAS the column keeps its own
+        value and the roll is never consulted for it. JefCo simply has none of those columns,
+        which is why all four fall through here. Wiring this is therefore purely ADDITIVE: it
+        adds owner, situs address, legal, subdivision and lot/block, and costs the card nothing
+        it shows today.
+        detectFields() maps: owner=OWNER, pid=PARCELNO, site=ADDRESS, zip=ZIP,
+        mail=OWNERADDRESS, mailCity=OWNERCITY, mailZip=OWNERZIP. There is no /^CITY$/ pattern in
+        the site-city list, so det.city stays null and the geocoder fills it — same as Columbia.
+        OwnerPhone (1.5% populated) and OwnerEmail (0.02%) are NOT read by any detector channel
+        and are deliberately left alone.
+
+     ℹ️ A FRESHER SIBLING EXISTS, and is deliberately NOT used: "JC Parcels"
+        (JC__PARCELS_view) is 12,489 rows / 12,138 parcels — 1.03 rows each, no duplication — and
+        its newest Dt_Spt_Mrg is 2026-09-25 against this layer's 2026-09-10. But it is FABRIC
+        ONLY: parcel id and acreage, no owner or address. Splitting geometry from one and
+        attributes from the other would buy ~15 days of boundary currency for a second request
+        per lookup. Recorded so the option is a decision, not a rediscovery.
+
+     ⚠️ NO LICENSE TEXT on this item or on any of the 108 in the org. Not permissive, not
+        restrictive — absent. Worth one email to the appraiser before leaning on it harder.
+
+     ✅ THIS LAYER IS ALSO JEFFERSON'S ZONING SOURCE. Its "Zoning" column holds the county's
+        regulatory LAND USE DISTRICTS, which the Land Development Code treats as zoning and
+        attaches setbacks to (25 ft from any road, 10 ft sides and rear). It is wired separately
+        as ZONING_LIVE.JEFFERSON — same service, same 16x duplication, handled the same way.
+        I originally recorded this column as future land use and was wrong; see the MONTICELLO
+        note in ZONING_LIVE_CITY for what the code actually says. */
+  JEFFERSON: { label:"Jefferson County (Property Appraiser · own AGOL)", urls:[
+    "https://services5.arcgis.com/vFMp1Ly1q6rKKp0o/arcgis/rest/services/JefCo_Parcels_20260122_162231/FeatureServer/0/query"
   ]},
   COLLIER : { label:"Collier County (Property Appraiser)", urls:[
     // ✅ PRIMARY: the parcel layer that carries the correct SiteStreetAddress, SiteCity, SiteZipCode,
@@ -6188,6 +6261,63 @@ const ZONING_LIVE = {
     urls:[
     "https://gis2.cama.io/arcgis/rest/services/Gilchrist/GilchristCounty_Features/MapServer/7/query"
   ]},
+  /* ⭐ JEFFERSON — ADDED 26 Sep 2026, AFTER FIRST GETTING IT WRONG. Jefferson runs a UNIFIED
+     regulatory map: one set of districts the Land Development Code calls "land use districts"
+     and treats as zoning. They live in the "Zoning" column of the appraiser's parcel layer —
+     the SAME service already wired as COUNTY_LIVE.JEFFERSON — not in a standalone zoning layer,
+     which is why a search of the org for "zoning" finds only the city one.
+
+     THE EVIDENCE, from Municode ch. 50 art. II rather than from the shape of the codes:
+       · "land use district" 75 occurrences vs "zoning district" 9.
+       · Sec. 50-2.2.4 "prison land use district"; 50-2.2.5 "industrial land use district";
+         "the agriculture 20 and conservation land use districts"; "the mixed use interchange
+         business land use district at SR 59 and I-10" — AGRI-20, CONSERV, PRISON, INDUSTRIAL
+         and MU-INT-BUS all named in the code itself.
+       · The TOWER SITE definition equates the terms: "smaller than the minimum lot size
+         required in the zoning or land use district".
+       · SETBACKS ATTACH: "Setbacks will follow standard building setbacks for each zoning
+         district (25 feet from any Road, ten feet from sides and rear)"; in the mixed use
+         interchange business district, "no less than 25 feet or more than 35 feet from any road
+         right of way". A future land use designation carries no setbacks. This does.
+
+     ⚠️ WHAT I GOT WRONG, recorded so it is not repeated. I judged these 15 values against
+        MONTICELLO's city codes (R-1, R-1A, B-1, B-2, I-1, S-R), found zero overlap, and called
+        the column FLUM. A county scheme and a city scheme are separate jurisdictions with
+        separate codes — they would not overlap whether or not the column is zoning, so that
+        test could never have answered the question. I also treated the density-suffix naming
+        (AGRI-20, RES-01) as comp-plan style when it is exactly how a rural county names a
+        minimum-acreage zoning district. Naming style is not evidence; the LDC is.
+
+     ⚠️ CITY-BDY AND OUT PARCEL ARE NOT DISTRICTS and are in badCodes. CITY-BDY marks land
+        inside Monticello, where county zoning does not reach — skipping the whole result lets
+        the lookup fall through to ZONING_LIVE_CITY.MONTICELLO, which is the correct answer for
+        those parcels. Measured: all 9 CITY-BDY parcels in a 30-parcel sample got a Monticello
+        district, and every non-CITY-BDY parcel got none. OUT PARCEL is unclassified.
+
+     ⚠️ SAME 16x DUPLICATION as the parcel feed — ~27% of parcels return 16 identical rows
+        (verified: 16 rows, 16 geometries, but 1 distinct Owner and 1 distinct Zoning, so the
+        duplicates agree and any one is correct). arcQuery sends an uncapped point query, so
+        nothing is crowded out. No dedupe needed.
+
+     ℹ️ NO descField — the layer has no district-name column, so the code stands alone. The
+        full names for AGRI-03/05, RES-01/02/204 and the MU-* pair were NOT confirmed from the
+        code text and are deliberately not invented here; only the districts the LDC names
+        outright are described in valueMap below. */
+  JEFFERSON: { label:"Jefferson County Land Use Districts (= zoning; unincorporated only)",
+    codeField:"Zoning",
+    badCodes:["CITY-BDY","OUT PARCEL"],
+    where:"Zoning IS NOT NULL AND Zoning <> '' AND Zoning NOT IN ('CITY-BDY','OUT PARCEL')",
+    valueMap:{
+      "AGRI-20":{code:"AGRI-20", desc:"Agriculture 20"},
+      "CONSERV":{code:"CONSERV", desc:"Conservation"},
+      "PRISON":{code:"PRISON",  desc:"Prison"},
+      "INDUSTRIAL":{code:"INDUSTRIAL", desc:"Industrial"},
+      "MU-INT-BUS":{code:"MU-INT-BUS", desc:"Mixed Use Interchange Business"},
+      "MINING":{code:"MINING", desc:"Mining (overlay — standards in art. V)"}
+    },
+    urls:[
+    "https://services5.arcgis.com/vFMp1Ly1q6rKKp0o/arcgis/rest/services/JefCo_Parcels_20260122_162231/FeatureServer/0/query"
+  ]},
   /* ⭐ COLUMBIA — ADDED 20 Sep 2026. County zoning only, and that is the honest answer.
      523 polygons, 25 districts: A-1/2/3 · RR · RSF-1/2/3 · RSF/MH-1/2/3 · RMH-P · RMF-1/2 · RO ·
      CN/CG/CI/CHI/CSV · I/ILW · MUD-I · PRD · PRRD · ESA-2.
@@ -7753,6 +7883,65 @@ const ZONING_LIVE_CITY = {
     // Parcel_PropInfo) covers the unincorporated county.
     // descField ZONED carries the readable district name alongside the code.
     "https://intervector.leoncountyfl.gov/intervector/rest/services/MapServices/TLC_OverlayZoning_D_WM/MapServer/0/query"
+  ]},
+
+  /* ⭐ MONTICELLO — ADDED 26 Sep 2026. Jefferson County's only incorporated place, and the only
+     real zoning layer anywhere in that county. Found while testing whether the property
+     appraiser's own AGOL org (vFMp1Ly1q6rKKp0o, gisdata-jcpa.hub.arcgis.com) could close
+     Jefferson's county-zoning gap. It cannot — see the first warning — but this city layer stands.
+     JC_CITY_ZONING_view: 83 polygons, extent -83.8937,30.5209 to -83.8514,30.5622 = the city
+     limits. A point query returns exactly 1 district. 30 sampled parcels ran 115–310 ms against
+     a 3s budget, and the paint test returned 50/50 carrying geometry.
+     COVERAGE, measured rather than assumed: of 30 parcels sampled from a RECTANGLE around the
+     city, 11 got a district — but all 9 whose parcel record is flagged CITY-BDY (inside the city
+     limits) got one. The misses were unincorporated county land caught by the rectangle, and
+     "no district" is the correct answer for them. Coverage inside the limits is effectively
+     complete; do not read the 37% as a hole.
+
+     ⚠️ CORRECTED 26 Sep 2026 — I FIRST WROTE THAT JEFFERSON HAS NO COUNTY ZONING. It does,
+        and ZONING_LIVE.JEFFERSON is now wired. What I got wrong and why it is worth remembering:
+        JefCo_Parcels carries a column named "Zoning" (AGRI-03/05/20, RES-01/02/204, MU-BUS-RES,
+        MU-INT-BUS, MU-SUB-RES, CONSERV, INDUSTRIAL, MINING, PRISON, CITY-BDY, OUT PARCEL) and I
+        called it future land use because those 15 values share NOTHING with this city layer's
+        R-1/B-1/I-1 vocabulary. That comparison was worthless — a COUNTY scheme and a CITY scheme
+        are different jurisdictions with different codes and would not overlap either way.
+        Jefferson's Land Development Code (Municode ch. 50, art. II) settles it: it says
+        "land use district" 75 times to "zoning district" 9, names a "prison land use district"
+        (Sec. 50-2.2.4), an "industrial land use district" (50-2.2.5), the "agriculture 20 and
+        conservation land use districts", and the "mixed use interchange business land use
+        district" — and it equates the two terms outright in the TOWER SITE definition:
+        "smaller than the minimum lot size required in the zoning or land use district".
+        Setbacks are attached: "standard building setbacks for each zoning district (25 feet from
+        any Road, ten feet from sides and rear)". A future land use designation carries no
+        setbacks; this does. The county runs a UNIFIED map and calls it land use.
+        THE LESSON: naming style is not evidence. AGRI-20 reads like a comp-plan density label
+        and is in fact a 20-acre-minimum zoning district. Read the LDC, not the vocabulary.
+
+     ⚠️ ZONES IS DIRTY IN 3 ROWS OF 83, and valueMap below is what cleans it. " R-1" (LEADING
+        space, 1 polygon) pairs with ZONENAME "RESIDENTIAL\SINGLE-FAMILY" — the same district as
+        the 19 clean "R-1" rows, confirmed by the name, not guessed from the shape of the string.
+        valueMap keys are compared TRIMMED (see the coded-value decode note in arcQuery), so the
+        "R-1" key catches the spaced variant and rewrites the code. Without it that one lot
+        reports a district no legend row matches. The other 8 entries are identities: harmless,
+        and they catch the same class of bug if the appraiser ever fat-fingers another row.
+     ⚠️ TWO POLYGONS CARRY A SINGLE SPACE AS THEIR CODE but have real names — "BUSINESS\HIGHWAY"
+        (which is B-2) and "LIGHT INDUSTRY LIMITED USE" (no code at all in the source). They are
+        KEPT, not excluded: descField answers for them and line 8448 keeps a result that has a
+        desc even with a blank code. Same reasoning as Deltona's "(C)" codes above — dropping
+        them would put a hole that reads as "no zoning" on real property.
+     ⚠️ ZONENAME CARRIES THE APPRAISER'S OWN TYPOS — "AGRICULTRIAL", and "RESIDENTAL" twice.
+        Left exactly as published. valueMap only supplies a desc when descField returns none, so
+        these are what the card shows, and they are the authoritative source's wording.
+     ⚠️ NO LICENSE TEXT on this item — nor on any of the 108 items in that org. Not permissive,
+        not restrictive, absent. Worth one email to the appraiser before leaning on it harder. */
+  MONTICELLO: { label:"City of Monticello Zoning", codeField:"ZONES", descField:"ZONENAME",
+    valueMap:{
+      "R-1":{code:"R-1"},  "R-1A":{code:"R-1A"}, "R-2":{code:"R-2"},
+      "A":{code:"A"},      "B-1":{code:"B-1"},   "B-2":{code:"B-2"},
+      "BR":{code:"BR"},    "I-1":{code:"I-1"},   "S-R":{code:"S-R"}
+    },
+    urls:[
+    "https://services5.arcgis.com/vFMp1Ly1q6rKKp0o/arcgis/rest/services/JC_CITY_ZONING_view/FeatureServer/0/query"
   ]},
 
   ORLANDO: { label:"City of Orlando Zoning", codeField:"Zoning", urls:[
@@ -34123,7 +34312,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
       const _bcWhy = _bcCty==='JACKSON'
         ? 'Jackson has no live county parcel feed, so the card above is the Florida Dept. of Revenue’s annual roll. This report is the appraiser’s own current record — on both parcels tested its just value was higher than the roll’s, because it is on the 2026 certified figures while the roll is still 2025. It also carries the sale history and land-line breakdown the roll omits.'
         : _bcCty==='JEFFERSON'
-        ? 'Jefferson has no live county parcel feed, so the card above is the Florida Dept. of Revenue’s annual roll. The report breaks living area out PER BUILDING where the roll gives one combined number — on the parcel tested, a 5,000 sq ft principal structure plus a 900 sq ft second one, with total-under-roof for each. Useful when a lot has more than one structure.'
+        ? 'Jefferson’s live county feed carries owner, address and parcel geometry; living area and values still come from the Florida Dept. of Revenue’s annual roll. The report breaks living area out PER BUILDING where the roll gives one combined number — on the parcel tested, a 5,000 sq ft principal structure plus a 900 sq ft second one, with total-under-roof for each. Useful when a lot has more than one structure.'
         : _bcCty==='GADSDEN'
         ? 'Gadsden has no live county parcel feed, so the card above is the Florida Dept. of Revenue’s annual roll. This report adds a 2026 working valuation (the roll is 2025) and, usefully for sizing, a Buildings block giving BOTH total area and heated area — the under-roof split the roll does not carry. Its heated area matched the roll exactly on the parcel tested.'
         : _bcCty==='TAYLOR'
