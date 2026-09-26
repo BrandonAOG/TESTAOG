@@ -124,7 +124,23 @@
     '  white-space: nowrap;',
     '  align-self: center;',
     '}',
-    '#aog-update-banner .aog-btn:hover { filter: brightness(1.15); }'
+    '#aog-update-banner .aog-btn:hover { filter: brightness(1.15); }',
+    '#aog-repair-bar {',
+    '  position: fixed; top: 0; left: 0; right: 0; z-index: 9998;',
+    '  background: #4a2c00; color: #ffd79a;',
+    '  font-family: var(--font-body, sans-serif); font-size: 13px;',
+    '  padding: 10px 14px; display: flex; align-items: center; gap: 10px;',
+    '  box-shadow: 0 2px 8px rgba(0,0,0,0.4); border-bottom: 1px solid rgba(255,180,60,0.5);',
+    '}',
+    '#aog-repair-bar .aog-rtext { flex: 1; line-height: 1.4; }',
+    '#aog-repair-bar .aog-btn {',
+    '  background: #FBBF24; color: #201200; border: none; border-radius: 6px;',
+    '  padding: 7px 13px; font-weight: bold; font-size: 12px; cursor: pointer; white-space: nowrap;',
+    '}',
+    '#aog-repair-bar .aog-x {',
+    '  background: transparent; color: #c8a06a; border: none; font-size: 15px;',
+    '  padding: 4px 6px; cursor: pointer;',
+    '}'
   ].join('\n');
   document.head.appendChild(style);
 
@@ -192,6 +208,73 @@
     });
   }
 
+  /* ── OFFLINE INSTALL HEALTH (added 2026-09-26) ──────────────────────────────
+     Asks the worker how many precached files are actually missing, and says something
+     ONLY when the answer is non-zero — which on a healthy device is always, so this is
+     silent in normal use. A button that is permanently on screen is clutter and invites
+     people to press it for no reason.
+     The value is the timing, not the button: ensurePrecached() already repairs a broken
+     install silently, but only if there is a connection at that moment, and nobody was
+     ever told. This tells a tech their offline copy is incomplete while they still have
+     signal, rather than in a yard with none.
+     Deliberately NOT shown while the update banner is up: installing an update
+     re-precaches everything, so the prompt would be redundant and two stacked bars
+     would cover the app. */
+  function askWorker(worker, action, timeoutMs) {
+    return new Promise(function (resolve) {
+      if (!worker) { resolve(null); return; }
+      var ch = new MessageChannel(), done = false;
+      var t = setTimeout(function () { if (!done) { done = true; resolve(null); } }, timeoutMs || 8000);
+      ch.port1.onmessage = function (ev) {
+        if (done) return; done = true; clearTimeout(t); resolve(ev.data);
+      };
+      try { worker.postMessage({ action: action }, [ch.port2]); }
+      catch (e) { if (!done) { done = true; clearTimeout(t); resolve(null); } }
+    });
+  }
+
+  function showRepairBar(worker, missing, total) {
+    if (document.getElementById('aog-repair-bar')) return;
+    if (document.getElementById('aog-update-banner')) return;   // update supersedes repair
+    var bar = document.createElement('div');
+    bar.id = 'aog-repair-bar';
+    bar.innerHTML =
+      '<div class="aog-rtext">⚠ <b>' + missing + ' of ' + total + ' offline files are missing.</b>' +
+      ' Some tools may not work without signal.</div>' +
+      '<button class="aog-btn" id="aog-repair-btn">Fix Now</button>' +
+      '<button class="aog-x" id="aog-repair-x" aria-label="Dismiss">✕</button>';
+    document.body.insertBefore(bar, document.body.firstChild);
+    document.getElementById('aog-repair-x').onclick = function () { bar.remove(); };
+    document.getElementById('aog-repair-btn').onclick = function () {
+      var btn = this;
+      btn.disabled = true; btn.textContent = 'Fixing…';
+      askWorker(worker, 'REPAIR_CACHE', 120000).then(function () {
+        return askWorker(worker, 'GET_CACHE_HEALTH', 15000);
+      }).then(function (h) {
+        var left = h && typeof h.missing === 'number' ? h.missing : null;
+        if (left === 0) {
+          bar.querySelector('.aog-rtext').innerHTML = '✓ <b>Offline files repaired.</b> All ' + total + ' files are ready.';
+          btn.remove(); setTimeout(function () { bar.remove(); }, 6000);
+        } else {
+          /* Almost always no signal. Say that plainly rather than "failed" — the repair
+             is retried automatically on the next launch that has a connection. */
+          bar.querySelector('.aog-rtext').innerHTML = '⚠ <b>Could not finish.</b> ' +
+            (left === null ? '' : left + ' still missing. ') + 'Connect to the internet and try again.';
+          btn.disabled = false; btn.textContent = 'Retry';
+        }
+      });
+    };
+  }
+
+  function checkOfflineHealth() {
+    var worker = navigator.serviceWorker.controller;
+    if (!worker) return;                       // uncontrolled load (e.g. hard reload) — skip
+    askWorker(worker, 'GET_CACHE_HEALTH', 15000).then(function (h) {
+      if (!h || h.error || typeof h.missing !== 'number') return;
+      if (h.missing > 0) showRepairBar(worker, h.missing, h.total);
+    });
+  }
+
   // ── Reload once the new SW takes control ───────────────────
   /* WHY THIS IS NOT JUST `if (controller) reload()`  — fixed 2026-09-25.
      The old guard was:   var aogHadController = !!navigator.serviceWorker.controller;
@@ -235,6 +318,10 @@
       document.addEventListener('visibilitychange', function () {
         if (!document.hidden) { try { reg.update(); } catch (e) {} }
       });
+
+      /* Delayed: this is ~52 cache.match calls, and today's tile work was all about
+         keeping concurrent work off the page-load path. Nothing here is urgent. */
+      setTimeout(checkOfflineHealth, 6000);
 
       // Waiting worker already present on page load
       if (reg.waiting) {
