@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v2.5.1';
+var CACHE_VERSION = 'v2.5.4';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -35,6 +35,16 @@ var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 var IS_TEST_BUILD   = /test/i.test(self.registration.scope);
 var DISPLAY_VERSION = 'aog-forms-v' + (IS_TEST_BUILD ? 'TEST' : '') +
                       CACHE_VERSION.replace(/^v/, '');
+
+/* ONE-TIME MIGRATION off the old flat naming ('aog-forms-v2.5.0' / 'aog-forms-vTEST2.5.0').
+   Those names do not carry the scope, so the prefix test in activate() can never match them and
+   they would sit orphaned forever — measured on the test site: 23 MB of dead cache alongside the
+   live one. This must NOT be a blanket 'aog-forms-' sweep: while one site is migrated and the
+   other is not, a blanket sweep would delete the un-migrated site's LIVE cache, which is exactly
+   the bug the scope prefix was introduced to fix. So each build only ever clears its own legacy
+   name — and the negative lookahead matters, because 'aog-forms-v' is itself a prefix of
+   'aog-forms-vTEST...', so the public build would otherwise eat the test build's legacy cache. */
+var LEGACY_CACHE_RE = IS_TEST_BUILD ? /^aog-forms-vTEST/ : /^aog-forms-v(?!TEST)/;
 
 var DEV_MODE   = false;   // ← SET TRUE during development/testing
 
@@ -212,6 +222,11 @@ self.addEventListener('activate', function(event) {
             // see the CACHE_PREFIX note at the top of this file.
             if (cacheName.indexOf(CACHE_PREFIX) === 0 && cacheName !== CACHE_NAME) {
               console.log('[SW] Deleting old cache:', cacheName);
+              return caches.delete(cacheName);
+            }
+            // ...and this build's own pre-migration cache, once. See LEGACY_CACHE_RE above.
+            if (LEGACY_CACHE_RE.test(cacheName)) {
+              console.log('[SW] Deleting legacy-named cache:', cacheName);
               return caches.delete(cacheName);
             }
           })
