@@ -21,9 +21,22 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v2.5.8';
+var CACHE_VERSION = 'v2.5.9';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
+
+/* DATA CACHE — deliberately NOT versioned, and never deleted on activation.
+   The county address-point files are 4–11 MB each and are fetched on demand, then kept by
+   the cache-first rule below. They used to live in the versioned cache alongside the app,
+   which meant every single release threw them away: Brandon's own storage probe on 2026-09-26
+   showed the public build (settled on one version) holding lee 10.86 MB + collier 4.39 MB,
+   while the freshly-updated test build held neither. A tech who takes an update and then
+   drives to a job is the person who pays for that, re-downloading 15 MB on one bar of signal
+   to look up the first parcel of the day.
+   The app's own files stay versioned — those SHOULD be replaced on release. Only fetched
+   data lives here, and its filenames already carry their own version (…_v3.json.gz), so a
+   genuinely new dataset misses this cache once and refills it. */
+var DATA_CACHE    = CACHE_PREFIX + 'data';
 
 // What the UPDATE BANNER / FOOTER shows the user. CACHE_NAME is now a long
 // internal string with the site address inside it, which must never reach the
@@ -223,7 +236,8 @@ self.addEventListener('activate', function(event) {
             // ONLY delete caches belonging to THIS build (same scope prefix).
             // Without the prefix test, this deleted the other site's cache —
             // see the CACHE_PREFIX note at the top of this file.
-            if (cacheName.indexOf(CACHE_PREFIX) === 0 && cacheName !== CACHE_NAME) {
+            if (cacheName.indexOf(CACHE_PREFIX) === 0 &&
+                cacheName !== CACHE_NAME && cacheName !== DATA_CACHE) {
               console.log('[SW] Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
@@ -404,7 +418,7 @@ self.addEventListener('fetch', function(event) {
   // they fell through to networkFirst and re-downloaded 5–11 MB per file on every
   // online visit even though a cached copy was sitting right there.
   if (url.pathname.match(/\.(json|json\.gz|geojson)$/i)) {
-    event.respondWith(cacheFirst(request));
+    event.respondWith(cacheFirst(request, DATA_CACHE));   // survives releases — see DATA_CACHE
     return;
   }
 
@@ -548,13 +562,16 @@ function staleWhileRevalidate(request) {
 // ============================================================
 //  STRATEGY: Cache First
 // ============================================================
-function cacheFirst(request) {
+/* cacheName is optional and defaults to this build's versioned cache. The lookup still uses
+   caches.match() with no name, which searches EVERY cache on the origin — so a file already
+   sitting in an older versioned cache is still served, and only the write location changes. */
+function cacheFirst(request, cacheName) {
   return caches.match(request).then(function(cachedResponse) {
     if (cachedResponse) return cachedResponse;
     return fetch(request).then(function(networkResponse) {
       if (_cacheable(networkResponse)) {
         var responseClone = networkResponse.clone();
-        caches.open(CACHE_NAME).then(function(cache) {
+        caches.open(cacheName || CACHE_NAME).then(function(cache) {
           cache.put(request, responseClone);
         });
       }
