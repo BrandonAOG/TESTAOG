@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v2.5.6';
+var CACHE_VERSION = 'v2.5.7';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -50,6 +50,9 @@ var DEV_MODE   = false;   // ← SET TRUE during development/testing
 
 // Tracks whether this SW instance has already run a precache repair pass
 var _repairRan = false;
+/* Handles for the delayed repair pass armed in the fetch handler, so an explicit
+   "Update Now" can release it instead of waiting it out. See the note at that site. */
+var _repairTimer = null, _repairRelease = null;
 
 // Stores last known cache progress so late-loading pages can request it
 var cacheProgress = { percent: 0, label: '', done: false };
@@ -250,6 +253,13 @@ self.addEventListener('activate', function(event) {
 // the CDN libraries/fonts (a library that failed to cache on install is exactly
 // the "PDF export doesn't work offline" failure, so repair those too).
 // Safe to run repeatedly; only fetches what's absent.
+/* Cancel the delayed repair and settle its waitUntil right now, so it stops holding up an
+   activation the user explicitly asked for. Safe to call when nothing is pending. */
+function releasePendingRepair() {
+  if (_repairTimer) { clearTimeout(_repairTimer); _repairTimer = null; }
+  if (_repairRelease) { var r = _repairRelease; _repairRelease = null; try { r(); } catch (e) {} }
+}
+
 function ensurePrecached() {
   return caches.open(CACHE_NAME).then(function(cache) {
     var scope = self.registration.scope;
@@ -330,10 +340,18 @@ self.addEventListener('fetch', function(event) {
     // with the page's own loading — and on the property-lookup page, concurrent
     // requests are exactly what starves the map tiles. Still inside waitUntil so
     // the browser will not kill the worker mid-repair.
+    /* The handles below let this pending waitUntil be CANCELLED. Measured 2026-09-26: a
+       pending waitUntil is an "extended lifetime promise", and the spec makes an incoming
+       worker's activation wait for the outgoing worker's to settle. So a user who tapped
+       "Update Now" inside this 5-second window sat looking at "Updating…" until the timer
+       expired — 3.7s to get the app back, versus 1.05s outside the window. The delay is
+       still worth having (see above), it just must not outrank an explicit user action. */
     if (!_repairRan) {
       _repairRan = true;
       event.waitUntil(new Promise(function(resolve) {
-        setTimeout(function() {
+        _repairRelease = resolve;
+        _repairTimer = setTimeout(function() {
+          _repairTimer = null;
           ensurePrecached().catch(function(){}).then(resolve, resolve);
         }, 5000);
       }));
@@ -555,7 +573,18 @@ self.addEventListener('message', function(event) {
   // User tapped "Update Now" — activate and let page reload
   if (event.data && event.data.action === 'SKIP_WAITING') {
     console.log('[SW] User approved update — activating now');
+    releasePendingRepair();          // in case this worker is also the one holding one
     self.skipWaiting();
+  }
+
+  /* Sent to the CONTROLLING (outgoing) worker the moment the user taps "Update Now".
+     SKIP_WAITING goes to the waiting worker, which is a different global — it cannot reach
+     the timer this one is holding. Without this message the outgoing worker keeps the page
+     on "Updating…" for the remainder of its 5-second repair delay.
+     Nothing is lost by cancelling: the incoming worker runs ensurePrecached() in its own
+     activate handler moments later. */
+  if (event.data && event.data.action === 'RELEASE_FOR_UPDATE') {
+    releasePendingRepair();
   }
 
   /* How complete is the offline install? Counts the precache list against what is
