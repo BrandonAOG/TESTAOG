@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v2.6.0';
+var CACHE_VERSION = 'v2.6.1';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -517,7 +517,7 @@ function networkFirst(request) {
         var responseClone = networkResponse.clone();
         caches.open(CACHE_NAME).then(function(cache) {
           cache.put(request, responseClone);
-        });
+        }).catch(function(){});   // storage full / evicted mid-write — the response still went out
       }
       return networkResponse;
     })
@@ -607,7 +607,7 @@ function cacheFirst(request, cacheName) {
         var responseClone = networkResponse.clone();
         caches.open(cacheName || CACHE_NAME).then(function(cache) {
           putUnpadded(cache, request, responseClone);
-        });
+        }).catch(function(){});   // same: caching is best-effort, the fetch already succeeded
       }
       return networkResponse;
     }).catch(function() {
@@ -686,7 +686,7 @@ self.addEventListener('message', function(event) {
       keys.forEach(function(key) {
         if (key.indexOf(CACHE_PREFIX) === 0) caches.delete(key);
       });
-    });
+    }).catch(function(){});
     event.ports[0].postMessage({ result: 'Cache cleared' });
   }
 
