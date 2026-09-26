@@ -262,6 +262,11 @@
             (left === null ? '' : left + ' still missing. ') + 'Connect to the internet and try again.';
           btn.disabled = false; btn.textContent = 'Retry';
         }
+      }).catch(function () {
+        /* askWorker never rejects (it resolves null on timeout), so this only fires if a
+           handler above throws. Swallow it: an escaped rejection would be written to the
+           10-entry bug-report log, which is the one place noise actually costs something. */
+        btn.disabled = false; btn.textContent = 'Retry';
       });
     };
   }
@@ -272,7 +277,7 @@
     askWorker(worker, 'GET_CACHE_HEALTH', 15000).then(function (h) {
       if (!h || h.error || typeof h.missing !== 'number') return;
       if (h.missing > 0) showRepairBar(worker, h.missing, h.total);
-    });
+    }).catch(function () {});
   }
 
   // ── Reload once the new SW takes control ───────────────────
@@ -312,11 +317,20 @@
       // Actively check for a new sw.js NOW and every few minutes. Without this, the browser
       // only re-checks on its own schedule (often only on navigation, or ~once a day), so a
       // freshly pushed update (bumped CACHE_VERSION) may not surface the banner for a long time.
-      try { reg.update(); } catch (e) {}
-      setInterval(function () { try { reg.update(); } catch (e) {} }, 5 * 60 * 1000);
+      /* reg.update() returns a PROMISE. A try/catch around it only catches a synchronous
+         throw, which never happens — so when the update check fails (GitHub Pages serving a
+         stale or 5xx sw.js, an update racing an in-flight install, or the network dropping
+         mid-check) the rejection escapes, lands in the unhandledrejection listener above,
+         and burns a slot in the 10-entry bug-report error log. Three of those were filling
+         the log with "Failed to update a ServiceWorker ... An unknown error occurred".
+         A failed check is a non-event: the next one (5 min, or the next tab focus) retries. */
+      function safeUpdate() { try { reg.update().catch(function () {}); } catch (e) {} }
+
+      safeUpdate();
+      setInterval(safeUpdate, 5 * 60 * 1000);
       // Also re-check whenever the user returns to the tab/app.
       document.addEventListener('visibilitychange', function () {
-        if (!document.hidden) { try { reg.update(); } catch (e) {} }
+        if (!document.hidden) safeUpdate();
       });
 
       /* Delayed: this is ~52 cache.match calls, and today's tile work was all about
