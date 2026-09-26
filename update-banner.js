@@ -197,6 +197,15 @@
       aogUserAskedToUpdate = true;               // ← the reload is now wanted, unconditionally
       this.disabled = true;
       this.textContent = 'Updating…';
+      /* Tell the OUTGOING worker to drop its delayed repair before asking the incoming one
+         to take over. The outgoing worker may be sitting inside a 5-second waitUntil, and an
+         incoming worker cannot activate until that settles — measured 2026-09-26 as the
+         difference between this button taking 1.0s and 3.7s. Sent first, and best-effort:
+         an older worker that predates this message simply ignores it. */
+      try {
+        if (navigator.serviceWorker.controller)
+          navigator.serviceWorker.controller.postMessage({ action: 'RELEASE_FOR_UPDATE' });
+      } catch (e) {}
       waitingWorker.postMessage({ action: 'SKIP_WAITING' });
       /* Belt and braces: controllerchange is the normal trigger, but if the worker is
          already controlling this page (or the event is missed), nothing would happen and
