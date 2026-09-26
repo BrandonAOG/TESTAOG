@@ -52,7 +52,8 @@
      rather than in a console no one can open on an iPad. */
   (function () {
     if (!(navigator.storage && navigator.storage.persist)) return;
-    var SKEY = 'aog_storage_status';
+    var SKEY = 'aog_storage_status';     // always current, overwritten every load
+    var LKEY = 'aog_storage_logged';     // what was last written to the 10-slot error log
     Promise.all([
       navigator.storage.estimate().catch(function () { return {}; }),
       navigator.storage.persisted().catch(function () { return false; })
@@ -62,13 +63,34 @@
         var used  = est.usage != null ? Math.round(est.usage / 1048576) : '?';
         var quota = est.quota != null ? Math.round(est.quota / 1048576) : '?';
         var line  = 'storage ' + used + '/' + quota + ' MB, persisted=' + persisted;
-        var prev = '';
-        try { prev = localStorage.getItem(SKEY) || ''; } catch (e) {}
+
+        // The full current reading, every load. One key, overwritten — costs no log slot.
         try { localStorage.setItem(SKEY, line + ' @' + new Date().toISOString()); } catch (e) {}
-        /* Write to the ERROR log only when the answer CHANGES. That log keeps just the
-           last 10 entries, so a line on every page load would quietly push real errors
-           out of the very report this is supposed to travel with. */
-        if (prev.indexOf(line) !== 0) log(line, 'startup');
+
+        /* Which of those readings deserves one of the 10 error-log slots.
+           The first version compared the whole line, MB figures included — and those move a
+           megabyte or two on every single load, so "only when it changes" turned into "every
+           time", and a real bug report came back carrying three storage lines and nothing
+           else. Compare the things that MEAN something instead: whether the browser is
+           protecting the data, whether storage is getting tight, and a materially different
+           size. Ordinary drift now says nothing at all. */
+        var usedNum = (typeof used === 'number') ? used : null;
+        var tight = (typeof used === 'number' && typeof quota === 'number' &&
+                     quota > 0 && used / quota > 0.8);
+        var prev = null;
+        try { prev = JSON.parse(localStorage.getItem(LKEY) || 'null'); } catch (e) {}
+
+        var worthLogging =
+              !prev                                        // first run on this device
+           || prev.p !== persisted                         // protection granted or lost
+           || !!prev.tight !== tight                       // crossed 80% of quota
+           || (usedNum != null && prev.u != null && Math.abs(usedNum - prev.u) >= 50);
+
+        if (worthLogging) {
+          log(line, 'startup');
+          try { localStorage.setItem(LKEY, JSON.stringify({ p: persisted, u: usedNum, tight: tight })); }
+          catch (e) {}
+        }
       }
       if (already) { record(true); return; }
       navigator.storage.persist().then(record).catch(function () { record(false); });
