@@ -10433,7 +10433,7 @@ document.addEventListener('click', closeBasemapMenu);
     const names = Object.keys(LOCAL_AERIAL_ACTIVE).map(k=>LOCAL_AERIAL_ACTIVE[k].label.replace(/\s*\(.+\)/,'')).join(", ");
     if(btn) btn.title = "Local high-res county aerials — auto-switches by location. Live: " + names + ". Falls back to Esri elsewhere.";
     if(_curBasemap==='sarco') updateLocalAerial(true);
-  });
+  }).catch(()=>{});   // a county aerial being down just means it stays out of LOCAL_AERIAL_ACTIVE
 })();
 
 // Auto-switch the local aerial to whichever county you pan into (only while Local HD is active).
@@ -14402,7 +14402,7 @@ const btnFootprints=document.getElementById('btnFootprints');
 if(btnFootprints) btnFootprints.addEventListener('click',()=>{ fpOn=!fpOn; btnFootprints.classList.toggle('active',fpOn);
   if(!fpOn){ clearFootprints(); }
   else if(window.__lastParcelGeom){
-    try{ checkFootprint(window.__lastParcelGeom, window.__parcelCounty||'').then(res=>{ if(res!==undefined){ window.__footprint=res; _fillLotNotes(); } }); }catch(e){}
+    try{ checkFootprint(window.__lastParcelGeom, window.__parcelCounty||'').then(res=>{ if(res!==undefined){ window.__footprint=res; _fillLotNotes(); } }).catch(()=>{}); }catch(e){}
   } });
 const btnZoning=document.getElementById('btnZoning');
 const zoningLegend=document.getElementById('zoningLegend');
@@ -24500,7 +24500,7 @@ async function loadHostedFileIndex(url){
       servesCurrentParcel = !!(cty && ADDRPOINT_FILES[cty] === url);
     }catch(e){}
     if(servesCurrentParcel){ try{ rerunLastLookup(); }catch(e){} }
-  });
+  }).catch(()=>{});   // a missing or unreachable county file is not an error worth logging
   return p;
 }
 // Find a condo unit's FOLIO from the compact file by (house number + street + unit). Used when the
@@ -26453,10 +26453,10 @@ function drawParcel(g, info){
         fillColor:col,fillOpacity:oversized?.05:.12,
         dashArray:oversized?'6 5':null,opacity:oversized?.85:1}).addTo(map);
       try{ if(!oversized) drawSiteSketch(g, (info&&info.county)||window.__parcelCounty||''); else clearSiteSketch(); }catch(e){}
-      try{ checkPreserves(g, (info&&info.county)||window.__parcelCounty||'').then(res=>{ window.__preserveCheck=res; _fillLotNotes(); }); }catch(e){}
-      try{ checkZoningExceptions(g, (info&&info.county)||window.__parcelCounty||'').then(res=>{ window.__zoningExceptions=res; _fillLotNotes(); }); }catch(e){}
+      try{ checkPreserves(g, (info&&info.county)||window.__parcelCounty||'').then(res=>{ window.__preserveCheck=res; _fillLotNotes(); }).catch(()=>{}); }catch(e){}
+      try{ checkZoningExceptions(g, (info&&info.county)||window.__parcelCounty||'').then(res=>{ window.__zoningExceptions=res; _fillLotNotes(); }).catch(()=>{}); }catch(e){}
       // res===undefined means "superseded by a newer lookup" — never let it clobber the live result.
-      try{ if(!oversized) checkFootprint(g, (info&&info.county)||window.__parcelCounty||'').then(res=>{ if(res!==undefined){ window.__footprint=res; _fillLotNotes(); } }); else clearFootprints(); }catch(e){}
+      try{ if(!oversized) checkFootprint(g, (info&&info.county)||window.__parcelCounty||'').then(res=>{ if(res!==undefined){ window.__footprint=res; _fillLotNotes(); } }).catch(()=>{}); else clearFootprints(); }catch(e){}
       // Hover popup: address / parcel ID / owner. Follows the cursor (sticky) while over the lot.
       const tip=parcelTooltipHTML(info);
       if(tip){
