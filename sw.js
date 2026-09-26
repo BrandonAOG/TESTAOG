@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v2.5.4';
+var CACHE_VERSION = 'v2.5.5';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -556,6 +556,47 @@ self.addEventListener('message', function(event) {
   if (event.data && event.data.action === 'SKIP_WAITING') {
     console.log('[SW] User approved update — activating now');
     self.skipWaiting();
+  }
+
+  /* How complete is the offline install? Counts the precache list against what is
+     actually in the cache — ~52 cache.match calls, no network, so it is cheap enough to
+     ask on every page load. The POINT is that a tech learns their offline copy is
+     incomplete WHILE THEY STILL HAVE SIGNAL, instead of finding out in a yard.
+     ensurePrecached() already repairs this silently, but only when there is a connection
+     at that moment, and nobody was ever told there had been a problem. */
+  if (event.data && event.data.action === 'GET_CACHE_HEALTH') {
+    (function () {
+      var port = event.ports[0];
+      if (!port) return;
+      caches.open(CACHE_NAME).then(function (cache) {
+        var scope = self.registration.scope;
+        var all = PRECACHE_URLS.concat(PRECACHE_CDN).concat(PRECACHE_FONTS);
+        return Promise.all(all.map(function (url) {
+          var absUrl = url.startsWith('http') ? url : new URL(url, scope).href;
+          return cache.match(absUrl).then(function (hit) { return hit ? 0 : 1; })
+                      .catch(function () { return 0; });   // unreadable != missing
+        })).then(function (misses) {
+          var missing = misses.reduce(function (a, b) { return a + b; }, 0);
+          port.postMessage({ action: 'CACHE_HEALTH', total: all.length,
+                             missing: missing, version: DISPLAY_VERSION });
+        });
+      }).catch(function () {
+        // Never leave the page hanging on a reply it is awaiting.
+        try { port.postMessage({ action: 'CACHE_HEALTH', total: 0, missing: 0, error: true }); } catch (e) {}
+      });
+    })();
+  }
+
+  /* Repair on demand — the same pass activate() runs, triggered by the user. */
+  if (event.data && event.data.action === 'REPAIR_CACHE') {
+    (function () {
+      var port = event.ports[0];
+      ensurePrecached().then(function () {
+        if (port) port.postMessage({ action: 'REPAIR_DONE', ok: true });
+      }).catch(function () {
+        if (port) port.postMessage({ action: 'REPAIR_DONE', ok: false });
+      });
+    })();
   }
 
   if (event.data && event.data.action === 'CLEAR_CACHE') {
