@@ -37,6 +37,43 @@
     var r = e.reason;
     log('Unhandled promise rejection: ' + (r && r.message ? r.message : r), r && r.stack ? String(r.stack).split('\n')[1] : '');
   });
+
+  /* ── STORAGE HEALTH (added 2026-09-26) ────────────────────────────────────
+     The offline cache is ~40MB. A browser may clear it under disk pressure, and on
+     iOS also after a stretch without opening the app — which is exactly the tech who
+     uses this fortnightly, discovers nothing works on a job site, and re-downloads
+     everything on one bar of signal. persist() asks the browser to exempt this origin.
+     It asks SILENTLY: Chrome and Edge decide from their own heuristics (installed?
+     used often?) and Safari simply answers; none of them prompt the user, so nothing
+     appears on screen. Firefox does prompt, but is not in the fleet.
+     A refusal is not a failure — the app behaves exactly as before. On iOS the real
+     protection is adding it to the Home Screen, so the recorded answer is a diagnostic
+     as much as a fix, and it is recorded where a bug report will actually carry it
+     rather than in a console no one can open on an iPad. */
+  (function () {
+    if (!(navigator.storage && navigator.storage.persist)) return;
+    var SKEY = 'aog_storage_status';
+    Promise.all([
+      navigator.storage.estimate().catch(function () { return {}; }),
+      navigator.storage.persisted().catch(function () { return false; })
+    ]).then(function (r) {
+      var est = r[0] || {}, already = r[1];
+      function record(persisted) {
+        var used  = est.usage != null ? Math.round(est.usage / 1048576) : '?';
+        var quota = est.quota != null ? Math.round(est.quota / 1048576) : '?';
+        var line  = 'storage ' + used + '/' + quota + ' MB, persisted=' + persisted;
+        var prev = '';
+        try { prev = localStorage.getItem(SKEY) || ''; } catch (e) {}
+        try { localStorage.setItem(SKEY, line + ' @' + new Date().toISOString()); } catch (e) {}
+        /* Write to the ERROR log only when the answer CHANGES. That log keeps just the
+           last 10 entries, so a line on every page load would quietly push real errors
+           out of the very report this is supposed to travel with. */
+        if (prev.indexOf(line) !== 0) log(line, 'startup');
+      }
+      if (already) { record(true); return; }
+      navigator.storage.persist().then(record).catch(function () { record(false); });
+    }).catch(function () {});
+  })();
 })();
 
 (function () {
