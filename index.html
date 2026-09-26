@@ -3763,7 +3763,9 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   recent.push(idx);
   while(recent.length > avoid) recent.shift();
   try { sessionStorage.setItem('aog_recent', JSON.stringify(recent)); } catch(e){}
-  sessionStorage.setItem('aog_theme', idx);
+  /* The line above this one is already wrapped; this one was not. In Safari private mode a
+     sessionStorage write throws, which killed this whole IIFE — no background, no switcher. */
+  try { sessionStorage.setItem('aog_theme', idx); } catch(e){}
   var theme = themes[idx];
 
   resize();
@@ -3829,7 +3831,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     resize();
     theme.init();
     announceScene(theme.name);
-    sessionStorage.setItem('aog_theme', idx);
+    try { sessionStorage.setItem('aog_theme', idx); } catch(e){}
     last = 0; acc = 0;
     loop(generation);
     var lbl = document.getElementById('scene-switcher-label');
@@ -4295,7 +4297,7 @@ document.querySelectorAll('.cat-btn').forEach(function(btn) {
         var old = shareBtn.innerHTML;
         shareBtn.innerHTML = 'LINK COPIED ✓';
         setTimeout(function(){ shareBtn.innerHTML = old; }, 1800);
-      });
+      }).catch(function(){ prompt('Copy this link:', location.href); });   // permission denied
     } else {
       prompt('Copy this link:', location.href);
     }
@@ -4341,6 +4343,10 @@ if(!navigator.onLine) setOffline();
 // Service Worker
 if('serviceWorker' in navigator){
   var waitingWorker=null;
+  /* Shared by the Update Now button and the controllerchange handler below, which live in
+     different scopes. _swHadActive answers "was an app already installed at this scope?" —
+     the question navigator.serviceWorker.controller CANNOT answer on a hard-reloaded page. */
+  var _swRefreshing=false, _swUserAskedToUpdate=false, _swHadActive=false;
 
   // ── Cache progress helpers ──────────────────────────────
   function showProgress(pct, label, done) {
@@ -4370,7 +4376,11 @@ if('serviceWorker' in navigator){
         showProgress(e.data.percent, e.data.label, e.data.done);
         if(e.data.done) clearInterval(interval);
       };
-      installingWorker.postMessage({action:'GET_CACHE_PROGRESS'}, [ch.port2]);
+      /* postMessage THROWS if this worker has gone redundant (replaced, or a failed
+         install). Unguarded, that throws every 500ms for the full two minutes — up to 240
+         uncaught errors, which would flush the 10-entry log a bug report carries. */
+      try { installingWorker.postMessage({action:'GET_CACHE_PROGRESS'}, [ch.port2]); }
+      catch(e){ clearInterval(interval); }
     }, 500);
     // Stop polling after 2 minutes max
     setTimeout(function(){ clearInterval(interval); }, 120000);
@@ -4378,6 +4388,7 @@ if('serviceWorker' in navigator){
 
   window.addEventListener('load',function(){
     navigator.serviceWorker.register('./sw.js',{scope:'./'}).then(function(reg){
+      _swHadActive = !!reg.active;   // set BEFORE any controllerchange can fire — see below
       if(reg.active){swDot.classList.add('blue');swLabel.textContent=navigator.onLine?'Sync Enabled':'Offline Mode';}
       // Pull the live version from the controlling SW into the footer
       function updateFooterVersion(worker){
@@ -4421,16 +4432,35 @@ if('serviceWorker' in navigator){
     // Reload when a NEW SW replaces an old one — but not on the first-ever install,
     // where clients.claim() also fires controllerchange and would reload the page
     // out from under the user. Loop-guarded so it can only fire once.
-    var _hadController = !!navigator.serviceWorker.controller;
-    var _swRefreshing = false;
+    /* WHY THIS IS NOT `if(controller) reload()` — fixed 2026-09-26.
+       The old guard skipped the reload whenever navigator.serviceWorker.controller was null,
+       to avoid yanking the page out from under someone on a brand-new install. Right intent,
+       wrong test: a HARD RELOAD (Ctrl+Shift+R) deliberately bypasses the service worker, so
+       controller is null even on a long-installed app — and "Update Now" then did nothing at
+       all, with no fallback timer here to cover it.
+       reg.active is the correct question, and it was captured above. And once the user has
+       ASKED to update, the reload is wanted unconditionally. */
     navigator.serviceWorker.addEventListener('controllerchange',function(){
-      if(!_hadController){ _hadController = true; return; } // first install — no reload
+      if(!_swUserAskedToUpdate && !_swHadActive) return;   // genuine first install — no reload
       if(_swRefreshing) return;
       _swRefreshing = true;
       window.location.reload();
     });
   });
-  document.getElementById('update-reload-btn').addEventListener('click',function(){if(waitingWorker)waitingWorker.postMessage({action:'SKIP_WAITING'});});
+  document.getElementById('update-reload-btn').addEventListener('click',function(){
+    if(!waitingWorker) return;
+    _swUserAskedToUpdate = true;                  // the reload below is now wanted, always
+    this.disabled = true; this.textContent = 'Updating...';
+    /* Tell the OUTGOING worker to drop its delayed repair pass BEFORE asking the incoming one
+       to take over. A pending waitUntil is an extended-lifetime promise and the incoming
+       worker cannot activate until it settles — measured 2026-09-26 as 3.7s versus 1.0s.
+       Best effort: a worker that predates this message simply ignores it. */
+    try { if(navigator.serviceWorker.controller)
+            navigator.serviceWorker.controller.postMessage({action:'RELEASE_FOR_UPDATE'}); }catch(e){}
+    waitingWorker.postMessage({action:'SKIP_WAITING'});
+    /* Belt and braces: if controllerchange never arrives the button would look dead. */
+    setTimeout(function(){ if(!_swRefreshing){ _swRefreshing=true; window.location.reload(); } }, 3000);
+  });
   document.getElementById('update-toast-later').addEventListener('click',function(){document.getElementById('update-toast').classList.remove('visible');});
   document.getElementById('update-dismiss-btn').addEventListener('click',function(){document.getElementById('update-toast').classList.remove('visible');});
 }
