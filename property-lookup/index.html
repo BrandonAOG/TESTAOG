@@ -6318,6 +6318,71 @@ const ZONING_LIVE = {
     urls:[
     "https://services5.arcgis.com/vFMp1Ly1q6rKKp0o/arcgis/rest/services/JefCo_Parcels_20260122_162231/FeatureServer/0/query"
   ]},
+  /* ⭐ LIBERTY — ADDED 26 Sep 2026. Same finding as Jefferson, same week: a county that runs
+     ONE regulatory map and calls its districts "land use districts". Confirmed from the code,
+     not from the layer name — Municode PART II LAND DEVELOPMENT CODE, Chapter 103 "LAND USE
+     DISTRICTS AND DEVELOPMENT STANDARDS":
+       · "land use district" appears 22 times; Sec. 103-50 is literally "Land use district
+         requirements", and it lists allowable uses "in the agricultural land use district",
+         "in the rural village land use district", "in the mixed use, rural residential land use
+         district", "in the industrial land use district", "in the conservation land use district".
+       · Regulatory, not advisory: "Junkyards ... are only allowed in the industrial district";
+         "Night clubs ... only allowed in the industrial district".
+       · DIMENSIONAL STANDARDS ARE IN THAT SECTION — a table with Front yard / Side yard /
+         Rear yard, plus "Setback means the minimum horizontal distance between the street setback
+         line or street right-of-way line and the building line." 16 setback mentions, 6 front
+         yard, 4 rear yard, 4 lot width. A future land use map carries none of that.
+
+     SOURCE: gis.arpc.org/server — the Apalachee Regional Planning Council's own ArcGIS Server,
+     which hosts GIS for its nine member counties. MapImages/Future_Land_Use_Maps/MapServer/4.
+     Server 11.2, field LANDUSE, 47 polygons, geometry verified landing inside Liberty
+     (-85.025, 29.992). CORS-readable from brandonaog.github.io.
+
+     ⚠️ IT IS 47 POLYGONS FOR AN ENTIRE COUNTY. That is the whole caveat and it is a big one.
+        Jefferson's districts rode on 12,137 individual parcels; these are county-scale blobs.
+        Liberty is 843 sq mi and mostly Apalachicola National Forest, so a handful of large
+        conservation and agriculture areas plus small village nodes is plausible — but a lot
+        near a boundary is genuinely uncertain and the label says "generalized" for that reason.
+
+     ⚠️ THE LAYER IS A SUBSET OF THE CODE. Chapter 103 also defines TOWN CENTER, PUBLIC
+        INSTITUTIONAL, PUBLIC RESOURCE MANAGEMENT and PUBLIC PRESERVATION districts that do not
+        appear among the 7 values in the GIS. So a parcel in one of those either returns nothing
+        (fine) or sits inside a neighbouring blob (wrong, and silently). Treat a Liberty answer
+        as indicative, and do not present it with the confidence of a parcel-level layer.
+
+     ⚠️ "Prison" IS IN badCodes. The GIS carries it; Chapter 103 does NOT define a prison
+        district — unlike Jefferson, whose Sec. 50-2.2.4 does. It is almost certainly the
+        Apalachee Correctional site mapped as a label rather than a district, so claiming it as
+        one would be inventing a regulation. Skipping the whole result lets the lookup fall
+        through rather than print a district the code does not recognise.
+
+     ℹ️ valueMap EXISTS TO UNTRUNCATE. The raw LANDUSE value is "Open Space/Conservat" — cut off
+        mid-word by the field width. Printed raw it looks like a data error; the code's own term
+        is Conservation, and the checker matched "OPEN SPACE" / "CONSERVATION" 28 times in the
+        chapter text. The other entries are confirmed by name in Sec. 103-50 and are there so a
+        stray-whitespace variant cannot split a legend row.
+
+     ⚠️ SETBACK NUMBERS NOT RECORDED HERE ON PURPOSE. The Front/Side/Rear yard table exists in
+        Sec. 103-50 but its cell values did not come through the text extraction, so no
+        distances are quoted here at all — deliberately, since a number sitting in this
+        comment would get read as Liberty's. Jefferson's own figures are in the JEFFERSON
+        entry and belong ONLY to Jefferson. Read Liberty's off Municode Sec. 103-50 before
+        anyone relies on one. */
+  LIBERTY: { label:"Liberty County Land Use Districts (= zoning; generalized, 47 polygons)",
+    codeField:"LANDUSE",
+    badCodes:["Prison"],
+    where:"LANDUSE IS NOT NULL AND LANDUSE <> '' AND LANDUSE <> 'Prison'",
+    valueMap:{
+      "Open Space/Conservat":{code:"Open Space/Conservation", desc:"Conservation"},
+      "Agriculture":{code:"Agriculture"},
+      "Rural Village":{code:"Rural Village"},
+      "Mixed Use Rural Residential":{code:"Mixed Use Rural Residential"},
+      "Mixed Use Suburban Residential":{code:"Mixed Use Suburban Residential"},
+      "Industrial":{code:"Industrial"}
+    },
+    urls:[
+    "https://gis.arpc.org/server/rest/services/MapImages/Future_Land_Use_Maps/MapServer/4/query"
+  ]},
   /* ⭐ COLUMBIA — ADDED 20 Sep 2026. County zoning only, and that is the honest answer.
      523 polygons, 25 districts: A-1/2/3 · RR · RSF-1/2/3 · RSF/MH-1/2/3 · RMH-P · RMF-1/2 · RO ·
      CN/CG/CI/CHI/CSV · I/ILW · MUD-I · PRD · PRRD · ESA-2.
@@ -6511,8 +6576,28 @@ const ZONING_LIVE = {
     // NOTE: county layer has a "NO ZON"/unassigned style and the city layers an "NA" (Unassigned/City
     // Unassigned) value — treat as unknown, not an error. City data is a CFRPC DOR-join build (last noted
     // update 2/5/2015 on Wauchula — older than the county layer, but it is the county's published municipal
-    // zoning). Not yet live-point-tested through the app's parameterized query — verify a real Wauchula/Bowling
-    // Green/Zolfo Springs parcel AND an unincorporated parcel before fully trusting a "no live zoning" gap.
+    // zoning).
+    //
+    // ✅ LIVE-POINT-TESTED 26 Sep 2026 from brandonaog.github.io, so nobody repeats the work. The caveat
+    // that stood here — "not yet live-point-tested, verify before trusting a no-live-zoning gap" — is
+    // discharged. Measured, not inferred:
+    //   server   ArcGIS Server 10.81 · maxRecordCount 1000 · supportedQueryFormats "JSON, geoJSON"
+    //            · spatialReference wkid 102659 / latestWkid 2237 · service metadata 324ms
+    //   CORS     SENDS THE HEADERS. Reads cross-origin from the GitHub Pages origin without a proxy. This is
+    //            NOT a Union-style dead end; it is a working public feed.
+    //   points   all four sublayers answered a real point-in-polygon query, 74–102ms each:
+    //              -81.905,27.455 unincorporated -> 20  ZONING=A-1, CLASS=AGRICULTURE
+    //              -81.811,27.546 Wauchula       -> 18  ZON=C-2
+    //              -81.823,27.638 Bowling Green  -> 17  ZON=P-I
+    //              -81.795,27.494 Zolfo Springs  -> 19  ZON=C-C
+    //            Confirms the documented field split (county keys on ZONING, all three cities on ZON) and
+    //            confirms detectZoningFields()' anchored ^ZON$ pattern resolves the city parcels.
+    //
+    // ⚠️ IF THE OVERLAY LOOKS EMPTY, CHECK WHICH COUNTY THE MAP IS ACTUALLY OVER BEFORE SUSPECTING THIS ENTRY.
+    //    Hardee's south line is ~27.21 and DeSoto starts immediately below it, so a view centred at 27.224 is
+    //    in DESOTO — which has no wired zoning, paints nothing, and reads as a Hardee failure. That is exactly
+    //    how this got misdiagnosed once already. jurisdictionsInView() is the authority; it runs against Census
+    //    county polygons. A hand-drawn bounding box is not.
     "https://gis.hardeecounty.net/arcgis/rest/services/LandUseZoning/MapServer/20/query",
     "https://gis.hardeecounty.net/arcgis/rest/services/LandUseZoning/MapServer/17/query",
     "https://gis.hardeecounty.net/arcgis/rest/services/LandUseZoning/MapServer/18/query",
