@@ -2465,9 +2465,9 @@ const COUNTY_LIVE = {
 
      ⚠️ NO LIVING AREA on Lafayette or Madison (no bld_heat_area column at all) — det.liv falls
         through to the statewide roll there, exactly as it does for Gulf.
-     ⚠️ NO SITUS ADDRESS on Calhoun, Franklin, Gilchrist, Hamilton, Lafayette, Madison, Suwannee or
-        Washington. The card shows the geocoded address on those, which is what it did before; owner,
-        values, use, heated area and lot geometry are all still live.
+     ⚠️ NO SITUS ADDRESS on Calhoun, Franklin, Gilchrist, Hamilton, Jackson, Lafayette, Madison,
+        Suwannee or Washington. The card shows the geocoded address on those, which is what it did
+        before; owner, values, use, heated area and lot geometry are all still live.
      ── HOW FRESH IS IT? MEASURED 20 Sep 2026, NOT ASSUMED ────────────────────────────────────────
      These are MapServers, so there is no editingInfo/lastEditDate to read. The honest proxy is the
      NEWEST RECORDED SALE (`dos`), because deeds flow in continuously and a sale date cannot
@@ -2500,8 +2500,11 @@ const COUNTY_LIVE = {
      · Gulf — already wired to the county's own layer 9, which has acres, legal and a split situs
        that this one lacks. cama.io's Gulf layer DOES have bld_heat_area, which the wired layer does
        not; if the roll's living area ever proves unreliable there, that is where to get it.
-     · Bay, Highlands, Nassau, Okeechobee, Walton, Baker, Jackson — already wired elsewhere, or
+     · Bay, Highlands, Nassau, Okeechobee, Walton, Baker — already wired elsewhere, or
        aerials-only on this host.
+     · Jackson — WAS listed here and it was WRONG. Corrected 27 Sep 2026: Jackson had no
+       COUNTY_LIVE entry anywhere, and it is aerials-only on gis11 but NOT on gis2, which publishes
+       JacksonCounty_Basemap/0 with 40,351 parcels. Now wired; see the JACKSON entry above.
      ═══════════════════════════════════════════════════════════════════════════════════════════════ */
   COLUMBIA: { label:"Columbia County (Property Appraiser · cama.io)", urls:[
     // 37,824 parcels · 29,735 with a situs address · 26,290 with heated area. site_addr is STREET
@@ -2533,6 +2536,58 @@ const COUNTY_LIVE = {
     // 14,378 polygons, WITH site_addr and bld_heat_area. ("Parcels Dark" is a cartographic name —
     // the dark/light pair are two symbologies of the same parcel table, not two datasets.)
     "https://gis11.cama.io/arcgis/rest/services/HolmesFL/HolmesFL_Parcels/MapServer/0/query"
+  ]},
+  /* ⭐ JACKSON — ADDED 27 Sep 2026, and it CORRECTS THE "NOT WIRED" LINE BELOW IN THIS SAME BLOCK.
+     That line lists Jackson as "already wired elsewhere, or aerials-only on this host". Jackson was
+     NEITHER: it had no COUNTY_LIVE entry at all (the registry held exactly 61 and Jackson was not
+     one of them), and it is aerials-only on gis11 but NOT on gis2, which carries the full parcel
+     set. The 20 Sep sweep evidently checked gis11's Jackson folder and the catch-all swallowed it.
+     Lesson worth keeping: the two hosts serve DIFFERENT folder lists, and "not on this host" must
+     be checked per host, not once.
+     40,351 parcels — the LARGEST county in the cama cluster (Bradford 15,788, Hamilton 12,926).
+
+     ✅ GATE 1, IDENTITY — measured in coordinates, not read off the folder name. There are Jackson
+        counties in MS, GA, AL, MO, TX, OR and WV. 400 parcels pulled in WGS84 bound to
+        lon -85.4013..-84.8768, lat 30.5867..30.6971 — inside Jackson FL. Corroborated by the data
+        itself: one owner is "TOWN OF ALFORD", and Alford is a town in Jackson County, Florida.
+     ✅ GATE 2, COVERAGE — 14 of 14 sampled parcels answered, 82-167 ms, ZERO misses and ZERO
+        neighbour-hits. Every point was validated by querying the layer back and requiring the
+        returned strap to EQUAL the sampled parcel's strap, so a centroid that fell outside its own
+        polygon could not be counted as a hit. (One parcel needed the vertex-pull fallback and still
+        returned itself.) Gadsden_Parcels answered 10 of 20 and was rejected twice; this is the bar.
+     ✅ GATE 3, FRESHNESS — newest recorded sale (`dos`) 2026-09-15, twelve days before wiring, with
+        ZERO future-dated keying errors in the top 60. That places Jackson with its eleven siblings
+        in the table above rather than on an annual snapshot. Method validated first against two
+        controls whose answers this file already records: Bradford came back 2026-09-20 (file:
+        2026-09-17 on 20 Sep) and Hamilton 2026-09-21 (file: 2026-09-02) — both later, as they must
+        be a week on. Bradford also returned dos values of 2029-06-29, 2029-06-22 and 2026-12-26,
+        which were discarded as keying errors rather than believed; an earlier pass of mine read
+        that 2029 date as Bradford's vintage and reported it as valid.
+     ⚠️ NO SITUS ADDRESS — there is no site_addr/situs_addr column at all, so the card geocodes the
+        address exactly as it does for Calhoun, Franklin, Gilchrist, Hamilton, Lafayette, Madison,
+        Suwannee and Washington.
+     ℹ️ bld_heat_area is 56% non-zero, which is NOT a defect and needs no guard: Bradford, wired and
+        working, is 55%. The zeros are parcels with no heated structure — the sample's own use_dscr
+        reads "TIMBERLAND 70-79" and its owner "FIA TIMBER GROWTH FLORIDA 1". I initially flagged
+        this as the PROP_USE trap because I had counted non-null instead of non-zero; it is not.
+     ℹ️ VALUE STAYS ON THE ROLL. bxcm_val tracks the 2025 FDOR roll — 14 points, median signed +1.2%,
+        median absolute 1.3%, same-cycle noise. detectFields matches none of the cama money columns,
+        so nothing binds and nothing needs to: the roll's figure is CERTIFIED, bxcm_val is a working
+        number, and swapping one for a near-identical other would light a LIVE badge over no gain.
+        The reason to wire Jackson is OWNER (400/400) and PARCEL ID, which the annual roll cannot
+        match and which Jackson showed NOT AT ALL before today.
+     ℹ️ Sales-in-30-days could not be measured here: the `dos >= date '...'` literal is rejected on
+        this layer (as it is on Hamilton, which carries extra dos_yr/dos_timestamp columns), so dos
+        is likely typed as a string. Bradford answered 41 with the same syntax. The newest-sale
+        figure above is unaffected — it comes from an ordered pull, not a date comparison.
+     ℹ️ status_cd is "A" on all 400 sampled rows — no retired-parcel rows like Bradford's "I" (143)
+        or Calhoun's "RM" (215) turned up, so no degraded-row guard is needed on this county today.
+     ℹ️ Jackson has NO zoning entry and that is correct and settled — the county does not zone,
+        confirmed out of its own Code of Ordinances (see the negative record in ZONING_LIVE). */
+  JACKSON: { label:"Jackson County (Property Appraiser · cama.io)", urls:[
+    // 40,351 parcels. owner_name / owner_addr / strap / dsp_strap / use_dscr all ~100% populated.
+    // No situs column — the geocoder fills the address row.
+    "https://gis2.cama.io/arcgis/rest/services/Jackson/JacksonCounty_Basemap/MapServer/0/query"
   ]},
   LAFAYETTE: { label:"Lafayette County (Property Appraiser · cama.io)", urls:[
     // 7,080 polygons — the smallest county roll in the state. NO bld_heat_area and no situs.
@@ -2610,6 +2665,53 @@ const COUNTY_LIVE = {
         as ZONING_LIVE.JEFFERSON — same service, same 16x duplication, handled the same way.
         I originally recorded this column as future land use and was wrong; see the MONTICELLO
         note in ZONING_LIVE_CITY for what the code actually says. */
+  /* ❌ GADSDEN PARCEL FEED — WIRED AND THEN PULLED THE SAME DAY, 26 Sep 2026. NO LIVE FEED.
+     Gadsden stays on the Florida Dept. of Revenue roll. Recorded in full because the layer LOOKS
+     ideal on every metric anyone would normally check, and the one that mattered was not one of them.
+
+     WHAT I MEASURED AND WIRED IT ON:
+       Gadsden_DOR (ARPCmaps AGOL, services8 · Gadsden_DOR/FeatureServer/1)
+       coverage 39 of 40 sampled points · speed 70/135/315ms · PARCELNO, JV, DOR_Land_Use and
+       Category all 20/20 populated. Every one of those is a fact and every one is irrelevant.
+
+     WHAT KILLED IT: THE DATA IS FROM 25 FEBRUARY 2019. The card rendered
+         ● LIVE   Gadsden County (DOR parcels · ARPC) · updated 2/25/2019
+     with OWNER showing "field not detected". The statewide roll is 2025. So the "live" feed was
+     SIX YEARS OLDER than the fallback it displaced — and because the roll BACKFILLS rather than
+     overrides (if(!det.jv) …), a 2019 just value from this layer would have WON over the roll's
+     2025 figure. Wiring it did not add a fresher number; it replaced a current one with a stale
+     one and put a LIVE badge on it.
+
+     ⚠️ THE WARNING WAS IN MY OWN OUTPUT HOURS EARLIER AND I WALKED PAST IT. The ARPC sweep
+        printed the item as "Gadsden_DOR [ARPCmaps, 2019-02-25]". I put that date in a table and
+        then wired the layer on coverage and speed without asking how old the numbers were.
+        COVERAGE AND SPEED DESCRIBE THE PIPE. THEY SAY NOTHING ABOUT WHAT IS FLOWING THROUGH IT.
+        Before any future county feed goes in, diff its values against the statewide roll and
+        compare vintages — gadsden-vintage.js does exactly that, and it is the test that should
+        run FIRST, not last.
+
+     ALSO REJECTED, for a different reason — Gadsden_Parcels, in BOTH of its publications:
+         gis.arpc.org/server/rest/services/Counties/Gadsden_GIS/MapServer/1
+         gis.arpc.org/server/rest/services/Hosted/Gadsden_GIS_Feature_Layers/FeatureServer/1
+     34,690 polygons WITH owner (OWNERFORMA, e.g. "SUMMERS NATALIE M"), land appraised value,
+     lot acres and a use description (XRDISTRICT). Fast — 58/125/279ms on the hosted copy. But
+     asked at 20 points that Gadsden_DOR proves are parcels, BOTH copies answered only TEN.
+     The hosted republish was tested specifically to rule out a stale spatial index; it scored
+     identically, so the gap is in the parcel table, not the service. Do not try a third copy.
+     Its PROP_USE column is also 100% empty while detectFields matches that name, so it would
+     hijack the use channel and blank a row; the populated use field is XRDISTRICT, which no
+     pattern matches. And FORMATTEDA is NOT a street address despite the name — it reads
+     "HAVANA  FL 32333", city/state/zip only.
+
+     ℹ️ WHAT WOULD ACTUALLY HELP GADSDEN: a current parcel layer from the Property Appraiser
+        (gadsdenpa.com) rather than ARPC's 2019 republish. The qPublic report already wired in
+        BEACON_SITES carries a 2026 working valuation and a heated-area split, which is the
+        freshest Gadsden data this app can reach today.
+
+     ℹ️ KEPT FROM THIS WORK: the anchored /^DOR_?LAND_?USE$/ pattern added to detectFields the
+        same day. It was added for this layer but it is correct on its own merits, regression-
+        tested against Lee, Collier, Jefferson and two synthetic shapes, and it cannot match
+        DOR_Land_Use_Code. Left in place. */
   JEFFERSON: { label:"Jefferson County (Property Appraiser · own AGOL)", urls:[
     "https://services5.arcgis.com/vFMp1Ly1q6rKKp0o/arcgis/rest/services/JefCo_Parcels_20260122_162231/FeatureServer/0/query"
   ]},
@@ -6303,6 +6405,169 @@ const ZONING_LIVE = {
         full names for AGRI-03/05, RES-01/02/204 and the MU-* pair were NOT confirmed from the
         code text and are deliberately not invented here; only the districts the LDC names
         outright are described in valueMap below. */
+  /* ⭐ GADSDEN — RESOLVED AND WIRED 26 Sep 2026. Third county this week where the regulatory
+     map is called "land use categories" and IS the zoning. Jefferson, Liberty, now Gadsden.
+
+     WHAT SETTLED IT, from the county's own LAND DEVELOPMENT CODE Chapter 4 — NOT from Municode,
+     which carries only Gadsden's Code of Ordinances. That Code names no districts at all and has
+     ZERO yard standards in 1.24M characters (front yard 0, side yard 0, rear yard 0, minimum lot
+     0); it only refers to "subsection 7202 of the Gadsden County Land Development Code" as a
+     separate document. The LDC lives on the county's Growth Management site:
+       · SUBSECTION 4002 IS TITLED "ESTABLISHMENT OF CATEGORIES AND DISTRICTS". The word district
+         is in the section heading of the regulatory document itself.
+       · "the County is hereby divided into the following land use categories" — enacting
+         language, with ordinance citations throughout (Ord. 2003-006, 1999-002, 2006-020, 2016-019).
+       · DIMENSIONAL STANDARDS ATTACH. § 4104 Neighborhood Commercial carries the full set:
+         front 15 ft, rear 15 ft, side 5 ft, 20 ft from a collector right-of-way and 35 ft from an
+         arterial, and — THE NUMBER THAT MATTERS FOR A PAD — "Accessory structures setbacks shall
+         be a minimum of five (5) feet from any side or rear property line, and a minimum of twenty
+         (20) feet from the front property line." Plus FAR 0.60, min lot 1 ac, max lot 3 ac,
+         frontage 40 ft, impervious surface ratio 0.75.
+       · Every other category carries a minimum lot size and a density (Tables 4101 and 4103).
+
+     CONTRAST WITH JACKSON, immediately below, which uses nearly identical wording and is NOT
+     zoning: Jackson has no LDC, no rezoning process, no lot minimum tied to any category and no
+     yard standard anywhere. Vocabulary did not separate these two — DIMENSIONAL STANDARDS DID.
+     That is the test, and it is the only one that has worked all week.
+
+     SOURCE: gis.arpc.org — the Apalachee Regional Planning Council's own ArcGIS Server.
+     MapImages/Future_Land_Use_Maps/MapServer/2 "Gadsden_FLUM", 2,425 polygons. SR wkid 2883
+     (NAD83 HARN Florida North ftUS); the tool sends inSR=4326 and asks outSR=4326 and the server
+     reprojects. maxRecordCount 2000. CORS-readable — verified by direct query, not assumed.
+
+     ✅ LIVE POINT-TESTED 26 Sep 2026, BEFORE SHIPPING — the step the Hardee entry above went
+        without for months, and the step I nearly skipped here. THREE proven-land points, all HIT:
+          -84.4281,30.6754  ->  Zone_full "Agriculture-2" / ZONE "AG"     82ms
+          -84.5830,30.5870  ->  Zone_full "Municipal"     (Quincy)        74ms
+          -84.4140,30.6180  ->  Zone_full "Municipal"     (Havana)       118ms
+        plus the layer finding its own interior point (-84.4753,30.5973, an 89-vertex ring) in
+        116ms. Those coordinates are not mine: the first is a point Gadsden_Parcels independently
+        proved is land, the other two are where Gadsden_DOR returned real parcels with just values.
+
+     ⚠️ POINT QUERIES ARE FAST; THE OVERLAY FETCH IS NOT. 74–118ms for point-in-polygon, which is
+        what the site card does. But a bulk `where=1=1` pull of 2,000 polygons with geometry took
+        1,747ms. An earlier note here called this "the slowest wired zoning layer — watch it";
+        THAT WAS WRONG and is corrected. It described the bulk read, not the card path. The map
+        overlay uses an envelope, so it sits nearer the bulk figure — that is the one to watch.
+
+     ✅ badCodes CONFIRMED EMPIRICALLY, not just from the code. Quincy and Havana both returned
+        Zone_full "Municipal". Without the badCode those two lookups would print "Municipal" as a
+        Gadsden zoning district over incorporated city land the county does not regulate. They now
+        fall through, which is the truthful answer. This is the reason badCodes exists and it is
+        the first time it has been demonstrated rather than reasoned about.
+
+     ℹ️ Jackson_FLUM was run as a control in the same pass: it answered its OWN interior point in
+        151ms and returned nothing at all three Gadsden points. Correct behaviour, and it rules out
+        a whole-folder problem on that server.
+
+     ✅ ALL 13 LDC CATEGORIES ARE PRESENT IN THE LAYER. Checked one by one against the renderer's
+        unique-value list: USA→Urban, RR→Rural Residential, Agricultural 1/2/3→Agriculture-1/2/3,
+        NC→Neighborhood Commercial, COMM→Commercial, LI→Light Industrial, IND→Heavy Industrial,
+        CONS→Conservation, REC→Recreational, SILV→Silviculture, PUB→Public / Institutional,
+        HIS→Historical, MINING→Mining. Nothing the code defines is missing from the map.
+
+     ⚠️ "Lake" AND "Municipal" ARE IN badCodes. They are the only two layer values that are NOT
+        categories in Chapter 4 — "lake" appears 0 times in that chapter and "municipal" once, in
+        passing. Municipal is incorporated city land, which the COUNTY DOES NOT ZONE; printing it
+        as a district would claim a county regulation over Quincy, Havana, Gretna, Chattahoochee,
+        Midway or Greensboro that does not exist. Skipping the whole result lets the lookup fall
+        through, which is the truthful answer until those cities' own layers are wired — ARPC has
+        Havana Zoning Districts (1,292 polys, 114ms, 8 districts), Quincy FLUM and Gretna FLUM,
+        none of them vetted yet.
+
+     ⚠️ THE YARD NUMBERS BELOW ARE NEIGHBORHOOD COMMERCIAL ONLY. Chapter 4 states front/side/rear
+        setbacks for § 4104 and for no other category; it cross-references § 5200 and Subsection
+        5900 for density and intensity, and says setbacks are "measured as defined in Chapter 2".
+        CHAPTERS 2 AND 5 HAVE NOT BEEN READ. So an Agriculture-1 or Rural Residential lookup gets
+        its lot size and density here and NOTHING about yards — do not invent one, and do not let
+        the NC numbers bleed onto another category on the card. */
+  GADSDEN: { label:"Gadsden County Land Use Categories (= zoning; unincorporated only)",
+    codeField:"Zone_full",
+    badCodes:["Lake","Municipal"],
+    where:"Zone_full IS NOT NULL AND Zone_full <> '' AND Zone_full NOT IN ('Lake','Municipal')",
+    valueMap:{
+      "Urban":{code:"USA — Urban Service Area",
+        desc:"Min lot 1.0 ac (USA1, paved roads) / 0.5 ac (USA2, + central water) / 0.2 ac (USA5, + central sewer). LDC §4101"},
+      "Rural Residential":{code:"RR — Rural Residential",
+        desc:"Min lot 1 acre; no lot under 0.5 ac even when clustered. LDC §4102"},
+      "Agriculture-1":{code:"AG-1 — Agriculture 1",
+        desc:"1 DU / 5 ac · min lot 5.0 ac, 2.0 ac clustered. LDC §4103 Table 4103"},
+      "Agriculture-2":{code:"AG-2 — Agriculture 2",
+        desc:"1 DU / 10 ac · min lot 10.0 ac, 4.0 ac clustered. Solar generation permitted. LDC §4103"},
+      "Agriculture-3":{code:"AG-3 — Agriculture 3",
+        desc:"1 DU / 20 ac · min lot 20.0 ac, 5.0 ac clustered. Solar permitted; RV parks by special exception. LDC §4103"},
+      "Neighborhood Commercial":{code:"NC — Neighborhood Commercial",
+        desc:"Front 15 ft · side 5 ft · rear 15 ft · accessory structures 5 ft side/rear and 20 ft front · 20 ft off a collector, 35 ft off an arterial. Min lot 1 ac, max 3 ac, FAR 0.60. LDC §4104"},
+      "Commercial":{code:"COMM — Commercial", desc:"LDC §4105"},
+      "Conservation":{code:"CONS — Conservation", desc:"LDC §4106"},
+      "Recreational":{code:"REC — Recreation", desc:"LDC §4107"},
+      "Public / Institutional":{code:"PUB — Public", desc:"LDC §4108"},
+      "Historical":{code:"HIS — Historical", desc:"LDC §4109"},
+      "Light Industrial":{code:"LI — Light Industrial", desc:"LDC §4110"},
+      "Heavy Industrial":{code:"IND — Industrial",
+        desc:"Outdoor storage / outdoor industrial activity; greater off-site impact than LI. LDC §4111"},
+      "Mining":{code:"MINING — Mining",
+        desc:"Attapulgite clay, surface mining, quarries and associated processing. LDC §4112"},
+      "Silviculture":{code:"SILV — Silviculture",
+        desc:"Min lot 80 acres (1:80). No commercial activity permitted. LDC §4113"}
+    },
+    urls:[
+    "https://gis.arpc.org/server/rest/services/MapImages/Future_Land_Use_Maps/MapServer/2/query"
+  ]},
+  /* ❌ JACKSON — SEARCHED 26 Sep 2026, AND THE ANSWER IS THAT JACKSON COUNTY HAS NO ZONING.
+     Recorded so nobody hunts it again. This is not "no layer found"; it is "the county does not
+     zone", which is a different and final answer.
+
+     WHAT LOOKED PROMISING. ARPC publishes Jackson_FLUM on its own server —
+     gis.arpc.org/server/rest/services/MapImages/Future_Land_Use_Maps/MapServer/0 — 568 polygons,
+     600ms, CORS-readable, with TWO category columns. The second one, LU_Code, reads:
+       I-2 | I-1 | Conservation | Incorporated | Recreation | AG-1 | Residential | Public
+       | RMHP | Commercial | MUUT | AG-2 | Industrial-1
+     AG-1, AG-2, I-1, I-2 are exactly the letter+digit shape a zoning scheme has, and Jefferson
+     taught us that a layer named FLUM can still be zoning. So it was checked properly.
+
+     THE CODE SAYS NO. Read from the full Code of Ordinances (596pp, 2.38M characters — four times
+     the size of Jefferson's LDC, so this is not a too-small-sample problem):
+       · "comprehensive plan" 67 · "future land use" 50 · "land use category" 8 ·
+         "land use designation" 5   =  130 occurrences of comprehensive-plan wording
+       · "zoning district" 1 · "land use district" 0 · "official zoning map" 0
+       · NO ZONING CHAPTER EXISTS. The regulatory home is Chapter 42 PLANNING, Article III
+         LAND DEVELOPMENT REGULATIONS. There is no chapter of zoning districts anywhere in it.
+       · THE SINGLE "zoning district" MENTION IS A DIRECTIVE TO CREATE ZONING THAT DOES NOT YET
+         EXIST — an instruction to prepare amendments for large-scale data centers covering
+         "appropriate zoning districts; conditional use or special exception criteria; minimum
+         parcel size; setbacks; buffers". You do not tell staff to invent districts you already have.
+       · The GIS values are named in the code as PLAN CATEGORIES, tied to specific plan policies:
+           "Agriculture 1 (AG-1) land use category ... specified in Policy 2.2(1) of the Future
+            Land Use Element in the County Comprehensive Plan"
+           "Mixed use urban transitional (MUUT) land use activities specified in Policy 2.1 and
+            Policy 2.3(2) of the Future Land Use Element"
+           "borrow pits ... allowed as a conditional use in the AG-1, AG-2, or industrial land
+            use categories"
+           "areas designated as residential (R) or mixed use urban transitional (MUUT) on the
+            County future land use map"
+
+     ⚠️ THE SETBACK TEST, RUN PROPERLY, BECAUSE TWO HITS LOOKED LIKE EXCEPTIONS. 27 "setback"
+        mentions, but "front yard" 0, "side yard" 1, "rear yard" 1 — there is no dimensional table
+        for these categories. Every setback attaches to a USE or a FEATURE, never to AG-1/AG-2/MUUT
+        as a district: telecommunication towers, signs, parking and loading, subdivision lot layout,
+        animals kept on lots, affordable-housing incentives. The two that name a category were read
+        in full and are not district standards either:
+          · "For development in the AG-2 category ... the setback shall be 50 feet" is § 42-70
+            NATIVE HABITAT preservation — septic tanks and drainfields set back from surface waters.
+            AG-2 appears only because the 80% preservation rule applies there.
+          · "Minimum building setbacks. Front: 20 feet / Side 15 / Rear 25" is the TOWNHOUSE
+            development standard — a housing type, and the same passage says ADUs are allowed
+            "in all land use categories that allow residential development".
+        Jackson regulates by DENSITY (d.u./acre, sliding scale) and permitted use, not by district
+        dimensional standards. That is a comprehensive plan doing its job, not a zoning code.
+
+     SO: DO NOT WIRE LU_Code INTO ZONING_LIVE. Printing "AG-1" on the card as a zoning district
+     would tell an installer he is in a district Jackson has never adopted, and there is no setback
+     to look up behind it. If Jackson future land use is ever shown, it must be labelled FUTURE LAND
+     USE, and the number that matters for a pad — side and rear yard — will still not be there.
+     Compare JEFFERSON and LIBERTY immediately below/above: both run ONE map, both call the
+     categories "land use districts", and both attach yard dimensions. Jackson does neither. */
   JEFFERSON: { label:"Jefferson County Land Use Districts (= zoning; unincorporated only)",
     codeField:"Zoning",
     badCodes:["CITY-BDY","OUT PARCEL"],
@@ -18811,7 +19076,7 @@ function detectFields(fields){
     mailCity: find([/^OWN_?CITY$/,/^MAIL_?CITY$/,/^O_CITY$/,/OWNER_?CITY/,/^ADD_3$/,/^MAILING_CITY$/,/^PAR_MAIL_CITY$/]),
     // /^DOR_CODE$/ (last) is Orange County's OCPA roll — the primary FL DOR use code (reads through the
     // DOR_USE table). Anchored so it can't match LAND_DOR_CODE / BLDG_DOR_CODE / DOR_CODE_OVR on the same roll.
-    use:   find([/^USE_?CODE$/,/^USE_?CD$/,/^DOR_?UC$/,/^PA_?UC$/,/^LAND_?USE$/,/^USETYPE$/,/^USE_?DESC/,/^PROP_?USE(?!.*_(CD|CODE)$)/,/^PUSE1$/,/^DOR_?DESC/,/^PC$/,/^DOR_C$/,/^PROPERTY_USE$/,/^LAND_USE_DESC$/,/^LAND_USE_CODE$/,/^PARUSEDESC$/,/^CER_DOR_CODE$/,/^DOR_CODE$/,/^CAD_DOR_LUC_CODE$/,/^LUC_DESCRIPTION$/]),
+    use:   find([/^USE_?CODE$/,/^USE_?CD$/,/^DOR_?UC$/,/^PA_?UC$/,/^LAND_?USE$/,/^DOR_?LAND_?USE$/,/^USETYPE$/,/^USE_?DESC/,/^PROP_?USE(?!.*_(CD|CODE)$)/,/^PUSE1$/,/^DOR_?DESC/,/^PC$/,/^DOR_C$/,/^PROPERTY_USE$/,/^LAND_USE_DESC$/,/^LAND_USE_CODE$/,/^PARUSEDESC$/,/^CER_DOR_CODE$/,/^DOR_CODE$/,/^CAD_DOR_LUC_CODE$/,/^LUC_DESCRIPTION$/]),
     lotSqft: find([/^LND_?SQFOOT$/,/^LOT_?SQ/,/^LOTSQFT$/,/^LAND_?SQFT$/,/^SQFT_?LND$/,/^LOTSF$/,/^LOT_?SIZE$/,/LOTSQUARE/,/^LAND_?SQ/,/^LAND_SQFT_CAMA$/])
   };
 }
