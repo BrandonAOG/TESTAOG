@@ -2279,6 +2279,22 @@ function renderSetbacks(cityName, countyName, code){
   var f = setbacksFor(cityName, countyName, code);
   if(!f) return '';
   var J = f.jur, r = f.row, h = '';
+  /* The jurisdiction's zoning code is not in the document we hold — Orlando's Municode entry is
+     a supplement stub, Hallandale Beach replaced a 250-page Chapter 32 with one page pointing at
+     Gridics. Say that, rather than let the lookup fall through to the county and hand back the
+     county's setbacks for an incorporated parcel. */
+  /* Guarded on the district count as well as the flag. The flag is computed before the hand
+     tables are merged in, so a jurisdiction can arrive here carrying both — Venice does, with 32
+     districts — and an unguarded early return would hide every one of them.
+     The rules that ARE in the document still print below the warning: Bradenton Beach lost its
+     zoning chapter in 2016 but still prints § 26-115(b) on pool and AC equipment placement, and
+     that rule governs a generator pad whatever happened to Chapter 34. */
+  if(J.offsite && !(J.districts && Object.keys(J.districts).length)){
+    return '<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> '
+         + 'setbacks · ' + esc(J.name) + '</div>'
+         + '<div class="note warnbox">' + esc(J.offsite) + '</div>'
+         + _sbSitewide(J) + _sbEquip(J, code);
+  }
   var badge = (typeof codeVerifyBadgeAll === 'function' && SB_VERIFY.indexOf(f.key) >= 0)
               ? codeVerifyBadgeAll(f.key) : '';
   if(!r){
