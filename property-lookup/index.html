@@ -424,6 +424,24 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     border-left:2px solid var(--signal);border-radius:0 6px 6px 0;background:rgba(244,104,0,.07)}
   .sb-rule k{display:block;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
     color:var(--faint);margin-bottom:3px}
+  /* the district family offered when the layer gave a category — a compact picker, deliberately
+     plainer than a resolved district row so it never reads as "here is your answer" */
+  .sb-fam{margin-top:8px;display:flex;flex-direction:column;gap:1px;
+    border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .sb-famrow{display:grid;grid-template-columns:minmax(74px,1.1fr) repeat(3,1fr);gap:8px;
+    align-items:baseline;padding:7px 10px;background:var(--bg)}
+  .sb-famrow:nth-child(odd){background:rgba(127,127,127,.055)}
+  .sb-famrow>b{font-family:var(--mono);font-size:11.5px;color:var(--signal);
+    overflow-wrap:anywhere}
+  .sb-famrow>span{font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums}
+  .sb-famrow>span>k{display:block;font-size:9px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--faint);margin-bottom:1px}
+  /* a printed distance reads at full weight; a condition or a gap must not be mistaken for one */
+  .sb-famrow>span.cond,.sb-famrow>span.none{font-size:10.5px;color:var(--faint);font-style:italic}
+  @media(max-width:420px){
+    .sb-famrow{grid-template-columns:1fr 1fr 1fr}
+    .sb-famrow>b{grid-column:1/-1;margin-bottom:2px}
+  }
   .sb-fine{margin-top:6px}
   .sb-fine>summary{cursor:pointer;list-style:none;font-family:var(--mono);font-size:10px;
     letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding:5px 0}
@@ -2215,22 +2233,89 @@ function _sbFind(key, code){
   var j = _SB && _SB[key];
   if(!j || code == null || String(code).trim() === '') return null;
   var D = j.districts, want = _sbNorm(code), k;
-  if(D[code]) return D[code];
-  for(k in D) if(_sbNorm(k) === want) return D[k];
-  /* his alias tables: the full district NAME a layer sometimes returns in place of a code */
+
+  /* The order below is the whole correctness of this function, and it was wrong.
+
+     _sbNorm() keeps only the FIRST TOKEN — it exists so "RSF-3.5 (PUD)" and "RSF 3.5" land on the
+     same district. Applied to a multi-word district NAME it keeps just "DOWNTOWN", which matched
+     Palatka's "Downtown overlay" when the layer had said "Downtown Riverfront District" — a wrong
+     district's setbacks returned with no sign anything was amiss. So the loose, first-token
+     matches now run only for input that actually looks like a code, and the exact full-name
+     lookups run first. Exact beats approximate, always. */
+  var raw = String(code).trim();
+  var codeLike = !/\s/.test(raw) || raw.split(/\s+/).length <= 2 && raw.length <= 12;
+
+  if(D[code]) return D[code];                                   // 1. the code, verbatim
+  /* 2. the code, normalized — but ONLY when exactly one district answers to it. Longboat Key's
+        zoning layer reports "R-3MX"; the code splits R-3MX into single-family, two-family and
+        multi-family rows with different setbacks. Returning whichever one the loop reached first
+        is a coin flip presented as an answer. Several matches means the caller gets null and the
+        family picker takes over. */
+  if(codeLike){
+    var only = null, many = false;
+    for(k in D) if(_sbNorm(k) === want){ if(only) many = true; else only = D[k]; }
+    if(only && !many) return only;
+    if(many) return null;
+  }
+
+  /* 3. the full district NAME a layer sometimes returns in place of a code — hand-built maps plus
+        the names derived in names.py from what each ordinance prints. "Downtown Core" from the
+        layer and "Downtown Core District" in the code are the same district; so are "Zone" and
+        "Zoning District" tails. Trimming that noun is a spelling difference, not a guess. */
+  var trim = function(s){
+    return String(s).toUpperCase().replace(/[^A-Z0-9 ]/g,' ')
+      .replace(/\s+/g,' ').trim()
+      .replace(/\s+(ZONING\s+)?(DISTRICT|ZONE|DISTRICTS|SUB-?DISTRICT)$/,'')
+      .replace(/[^A-Z0-9]/g,'');
+  };
+  var reach = function(t){
+    if(D[t]) return D[t];
+    for(var k2 in D) if(_sbNorm(k2) === _sbNorm(t)) return D[k2];
+    for(k2 in D) if(trim(k2) === trim(t)) return D[k2];
+    return null;
+  };
   if(j.alias){
-    var flat = String(code).toUpperCase().replace(/[^A-Z0-9]/g,'');
-    for(var a in j.alias){
-      if(a.replace(/[^A-Z0-9]/g,'') === flat){
-        var t = j.alias[a];
-        if(D[t]) return D[t];
-        for(k in D) if(_sbNorm(k) === _sbNorm(t)) return D[k];
-      }
+    var flat = raw.toUpperCase().replace(/[^A-Z0-9]/g,''), want2 = trim(raw), a, hit;
+    for(a in j.alias) if(a.replace(/[^A-Z0-9]/g,'') === flat && (hit = reach(j.alias[a]))) return hit;
+    if(want2) for(a in j.alias) if(trim(a) === want2 && (hit = reach(j.alias[a]))) return hit;
+  }
+  // 4. the name as the district key itself, minus the trailing noun ("Downtown overlay")
+  var t2 = trim(raw);
+  if(t2 && !codeLike) for(k in D) if(trim(k) === t2) return D[k];
+
+  // 5. letters only, and only for code-like input — the loosest rule, kept last, and unique-only
+  if(codeLike){
+    var bare = want.replace(/[^A-Z]/g,''), one = null, dup = false;
+    if(bare){
+      for(k in D) if(_sbNorm(k).replace(/[^A-Z]/g,'') === bare){ if(one) dup = true; else one = D[k]; }
+      if(one && !dup) return one;
     }
   }
-  var bare = want.replace(/[^A-Z]/g,'');
-  if(bare) for(k in D) if(_sbNorm(k).replace(/[^A-Z]/g,'') === bare) return D[k];
   return null;
+}
+
+/* Every district the code prints under one label. Two shapes, both real:
+     R-3MX  -> "R-3MX (single-family)", "R-3MX (two-family)", "R-3MX (multi-family)"   (variants)
+     OS     -> "OS-A", "OS-C", "OS-P"                                                   (a family)
+   Longboat Key's layer reports the bare code for both shapes, so without this a parcel gets one
+   arbitrary row out of three. */
+function _sbKin(J, code){
+  if(!J || !J.districts) return [];
+  var base = function(s){
+    return String(s).replace(/\s*\([^)]*\)\s*$/,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  };
+  var want = base(code);
+  if(!want || want.length < 2) return [];
+  var variants = [], family = [];
+  for(var k in J.districts){
+    var b = base(k);
+    if(b === want){ variants.push(k); continue; }
+    // OS -> OS-A: the key continues from the code at a separator, not mid-word
+    if(b.indexOf(want) === 0 && /^[\s\-–—]/.test(String(k).slice(String(code).length))) family.push(k);
+  }
+  var hits = variants.length > 1 ? variants : (variants.length + family.length > 1
+             ? variants.concat(family) : []);
+  return hits.sort();
 }
 
 /* City first, and — where the city is itself in the dataset — city ONLY.
@@ -2248,6 +2333,51 @@ function setbacksFor(cityName, countyName, code){
   }
   if(nk){ hit = _sbFind(nk, code); return { key: nk, jur: _SB[nk], row: hit || null }; }
   return null;
+}
+
+/* Does this label name a FAMILY of districts rather than one? The map is derived in names.py from
+   the district names the ordinance itself prints, so nothing here is a new claim about a city. */
+function _sbCat(J, code){
+  if(!J) return null;
+  var trim = function(s){
+    return String(s).toUpperCase().replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim()
+      .replace(/\s+(ZONING\s+)?(DISTRICT|ZONE|DISTRICTS)$/,'').replace(/[^A-Z0-9]/g,'');
+  };
+  var want = trim(code);
+  if(!want) return null;
+  for(var label in J.cat){
+    if(trim(label) === want){
+      var codes = (J.cat[label] || []).filter(function(c){ return J.districts[c]; });
+      if(codes.length > 1) return { label: label, codes: codes };
+    }
+  }
+  // no derived name matched — the label may itself be a code the ordinance splits into rows
+  var kin = _sbKin(J, code);
+  if(kin.length > 1) return { label: String(code), codes: kin };
+  return null;
+}
+
+/* The family, one row each, front/side/rear only. Enough to see how far apart they are and to
+   recognise the right one once the zoning map has been checked — not a substitute for checking. */
+function _sbFamily(J, codes){
+  /* An em-dash here would say "this district has no side yard", which is a different and much
+     more dangerous claim than "the code printed a condition instead of a number". Longboat Key's
+     R-3MX rows are exactly that: the side yard is a formula, not a figure. Say which it is. */
+  var cell = function(row, key, label){
+    var v = _sbVal(row[key], 'ft');
+    if(v) return '<span><k>' + label + '</k>' + esc(v) + '</span>';
+    if(row[key + 'Rule'] || row[key + 'Note'])
+      return '<span class="cond"><k>' + label + '</k>a condition</span>';
+    return '<span class="none"><k>' + label + '</k>not printed</span>';
+  };
+  var h = '<div class="sb-fam">';
+  for(var i = 0; i < codes.length; i++){
+    var c = codes[i], row = J.districts[c] || {};
+    h += '<div class="sb-famrow"><b>' + esc(c) + '</b>'
+       + cell(row, 'front', 'front') + cell(row, 'side', 'side') + cell(row, 'rear', 'rear')
+       + '</div>';
+  }
+  return h + '</div>';
 }
 
 function _sbVal(v, unit){
@@ -2299,6 +2429,26 @@ function renderSetbacks(cityName, countyName, code){
               ? codeVerifyBadgeAll(f.key) : '';
   if(!r){
     if(code == null || String(code).trim() === '') return '';
+    /* The layer gave a CATEGORY, not a district. Sarasota's city layer classifies parcels as
+       "Residential Single Family"; the code prints five of those (RSF-1 through RSF-4 and RSF-E)
+       with different side yards. There is no way to pick one from the label, and picking one
+       anyway would be inventing a setback. So show the family and let the reader take the answer
+       off the zoning map — which is strictly more than the dead end this used to be. */
+    var fam = _sbCat(J, code);
+    if(fam){
+      return '<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> '
+           + 'setbacks · ' + esc(String(code)) + ' · ' + esc(J.name) + badge + '</div>'
+           + '<div class="sb-rule"><k>the layer gave a category, not a district</k>'
+           + esc(J.name) + ' prints <b>' + fam.codes.length + '</b> districts under &ldquo;'
+           /* A derived NAME is an upper-cased phrase and reads better lowercased in a sentence;
+              a district CODE is upper-case on purpose and must stay that way — "r-3mx" is not
+              a thing anyone can look up. A space is what tells them apart. */
+           + esc(/\s/.test(fam.label) ? fam.label.toLowerCase() : fam.label)
+           + '&rdquo;, and they do not share one setback. '
+           + 'Take the district off the zoning map, then read its row below.</div>'
+           + _sbFamily(J, fam.codes)
+           + _sbSitewide(J) + _sbEquip(J, code);
+    }
     return '<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> '
          + 'setbacks · ' + esc(String(code)) + ' · ' + esc(J.name) + badge + '</div>'
          + '<div class="sb-rule"><k>district not in the code as read</k><b>'
@@ -8468,7 +8618,17 @@ const ZONING_LIVE_CITY = {
   // SARASOTA layers as an automatic fallback. City parcels are already excluded from the county
   // setback renderer via SARASOTA_INCORP, so a detected city district shows with the City of Sarasota
   // Municode/permit links (ZONING_CITY.SARASOTA) rather than county numbers.
-  SARASOTA: { label:"City of Sarasota Zoning", urls:[
+  // Town of Longboat Key — Sarasota County's AGOL org publishes a full-key zoning layer (both the
+  // Manatee and Sarasota halves), which the Town's own service does not. ZONING = the Ch. 158
+  // district code; DISTRICT = the readable name, populated on only some rows. Cross-origin read
+  // verified from a foreign origin. Per § 158, a parcel not shown on the official Zoning Map
+  // defaults to R-1SF — the card does NOT assume that; an unmatched point simply reports no
+  // district. Several codes (R-3MX, R-4MX, R-6MX, T-3, T-6, OS) are families the code splits by
+  // dwelling type, and the setback card offers the members rather than picking one.
+  LONGBOATKEY: { label:"Town of Longboat Key Zoning", codeField:"ZONING", descField:"DISTRICT", urls:[
+    "https://services3.arcgis.com/icrWMv7eBkctFu1f/ArcGIS/rest/services/Longboat_Key_Zoning/FeatureServer/0/query"
+  ]},
+  SARASOTA: { label:"City of Sarasota Zoning", codeField:"zoningcode", descField:"zoningdescription", urls:[
     "https://ags3.scgov.net/server/rest/services/Hosted/CitySarasotaZoning/FeatureServer/0/query"
   ]},
   // ✅ City of Venice's OWN GIS (geoport.venicefl.gov — the server behind the city's Planning & Zoning
@@ -9198,7 +9358,17 @@ const ZONING_LIVE_CITY = {
 function detectZoningFields(fields){
   const up = fields.map(f=>({raw:f, u:String(f).toUpperCase()}));
   const find = pats => { for(const p of pats){ const h=up.find(f=>p.test(f.u)); if(h) return h.raw; } return null; };
-  const code = find([/^ZONING$/,/^ZONE_?CODE$/,/^ZONECODE$/,/^ZONING_?AREA_?CODE$/,/^ZONE_?AREA_?CODE$/,/^ZONE_?ABBR/,/^ZON_?CODE/,/^ZONE_?CLASS/,/^ZONE_?SYMB/,/^DISTRICT$/,/^ZONE$/,/^ZON$/,/ZONING/,/ZONE/,/DISTRICT/]);
+  const code = find([/^ZONING$/,/^ZONE_?CODE$/,/^ZONECODE$/,/^ZONING_?CODE$/,/^ZONING_?AREA_?CODE$/,/^ZONE_?AREA_?CODE$/,/^ZONE_?ABBR/,/^ZON_?CODE/,/^ZONE_?CLASS/,/^ZONE_?SYMB/,/^DISTRICT$/,/^ZONE$/,/^ZON$/])
+    /* loose stage: rank, don't take whatever the server happened to list first */
+    || (function(){
+         const c = up.filter(f=>/ZONING|ZONE|DISTRICT/.test(f.u));
+         if(!c.length) return null;
+         const isDesc = f=>/DESC|NAME|LABEL|TYPE|CATEGOR|CLASSIFICATION/.test(f.u);
+         return (c.find(f=>/CODE|ABBR|SYMB/.test(f.u))
+              || c.find(f=>!isDesc(f) && !/DISTRICT/.test(f.u))
+              || c.find(f=>!isDesc(f))
+              || c[0]).raw;
+       })();
   let desc  = find([/^ZONE_?DESC/,/^ZONEDESC/,/^ZONE_?NAME/,/^ZONINGNM/,/^ZONINGDESC/,/^DESCRIPT/,/^ZONE_?TYPE/,/^GENERAL/,/^ZONE$/,/DESC/,/NAME/]);
   if(desc===code) desc=null;
   return { code, desc };
@@ -14853,6 +15023,29 @@ function zoneCategory(code){
   const c = String(code||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
   if(!c) return 'other';
   if(ZONE_CATEGORY_OVERRIDE[c]) return ZONE_CATEGORY_OVERRIDE[c];
+  /* A NAME, not a code. The test is deliberately narrow: the string must OPEN with a real word —
+     four or more letters, no digits — and carry a second word after it. "Residential Single
+     Family" qualifies; "RMF-6 (single-family, waterfront lot)" does not, and must not, because
+     that is a district CODE with a row qualifier after it. The map paints the district, so RMF-6
+     stays multifamily however its rows are split. Requiring the first token to be a word is what
+     keeps 755 such rows on the ladder they were always meant to use. */
+  const words = String(code||'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim();
+  if(/^[A-Z]{4,}\s+[A-Z0-9]/.test(words) && /[A-Z]{3}\s+[A-Z]{3}/.test(words)){
+    const has = re => re.test(words);
+    if(has(/\bMOBILE|MANUFACTURED\b/)) return 'mobile';
+    if(has(/\bPLANNED|MIXED[ -]?USE|OVERLAY\b/)) return 'mixed';
+    if(has(/\bAGRICULTUR/)) return 'agricultural';
+    if(has(/\bESTATE|RURAL\b/)) return 'estate';
+    if(has(/\bMULTIPLE FAMILY|MULTI FAMILY|MULTIFAMILY|TWO FAMILY|DUPLEX|TOWNHOUSE|APARTMENT\b/))
+      return 'multifamily';
+    if(has(/\bSINGLE FAMILY|SINGLE MULTIPLE\b/)) return 'residential';
+    if(has(/\bCONSERVATION|PRESERV|OPEN SPACE|\bPARK\b|RECREATION|GOVERNMENT|INSTITUTION|SCHOOL|CEMETERY|PUBLIC\b/))
+      return 'public';
+    if(has(/\bINDUSTRIAL|WAREHOUS|MANUFACTUR\b/)) return 'industrial';
+    if(has(/\bCOMMERCIAL|BUSINESS|OFFICE|RETAIL|SHOPPING|DOWNTOWN|TOURIST|RESORT|MARINE|HOSPITAL|MEDICAL\b/))
+      return 'commercial';
+    if(has(/\bRESIDENTIAL\b/)) return 'residential';
+  }
   // planned / mixed-use first (PUD, MPUD, MU, PD, etc.)
   if(/^(M?P?UD|PD|MU|MX|PUD|MPUD|RPUD|CPUD|TND|VR)/.test(c)) return 'mixed';
   // mobile / manufactured home
