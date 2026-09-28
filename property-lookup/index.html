@@ -31211,7 +31211,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
     if(_hi >= 0){
       const head = html.slice(0,_hi), hand = html.slice(_hi+11);
       // Hand-checked quick reference first (open), the uniform live card beneath it.
-      html = head + (hand.trim() ? `<details class="hand-ref"><summary>Verified quick reference — hand-checked tables &amp; notes for ${esc(jurName||'this jurisdiction')}</summary>${hand}</details>` : '') + _live;
+      html = head + (hand.trim() ? `<details class="hand-ref" open><summary>Required setbacks &amp; equipment rules — read from ${esc(jurName||'this jurisdiction')}&rsquo;s adopted code</summary>${hand}</details>` : '') + _live;
     } else html += _live;
     return html;
   }
