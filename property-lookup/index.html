@@ -445,6 +445,29 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     color:var(--faint);margin-bottom:5px;line-height:1.45}
   .sb-r.on k{color:var(--signal)}
   .sb-r p{margin:0;font-size:11.5px;line-height:1.6;color:var(--ink)}
+  /* Ordinance tables. The scroller is on its own wrapper so a wide table never makes the whole
+     card scroll sideways. */
+  /* Ordinance tables, stacked. A real <table> for structure and screen readers, laid out as one
+     block per row because the card column is ~485px and Cape Coral's five-column table is 995px:
+     as a grid the Side Yard and Rear Yard cells fall off the right edge, and on the generator row
+     those are the two cells that matter. Each cell prints its own column name instead. */
+  .sb-tw{margin:7px 0 0;max-width:100%;overflow-x:auto}
+  .sb-t{display:block;width:100%;border-collapse:collapse;font-family:var(--mono)}
+  .sb-t thead{display:none}
+  .sb-t tbody,.sb-t tr,.sb-t td{display:block;width:auto}
+  .sb-t tr{padding:7px 0;border-bottom:1px solid var(--dash)}
+  .sb-t tbody tr:last-child{border-bottom:none}
+  .sb-t td.lab{color:var(--dim);font-size:11px;line-height:1.45;margin-bottom:3px}
+  .sb-t td:not(.lab){display:flex;gap:8px;padding:1.5px 0 1.5px 10px;font-size:10.5px;
+    color:var(--ink);line-height:1.5}
+  .sb-t td:not(.lab)::before{content:attr(data-h);color:var(--faint);font-size:9px;
+    letter-spacing:.05em;text-transform:uppercase;min-width:80px;flex:none;padding-top:2px}
+  .sb-t td[colspan]:not(.lab)::before{content:none}
+  /* the row this whole app exists for */
+  .sb-t tr.on{background:rgba(244,104,0,.07);border-left:2px solid var(--signal);
+    padding-left:8px;margin:2px 0;border-radius:0 5px 5px 0}
+  .sb-t tr.on td.lab{color:var(--signal)}
+  .sb-caution{margin:6px 0 0;font-size:10.5px;color:var(--faint);line-height:1.5}
   .sb-r.on p{color:var(--ink)}
   .sb-r:not(.on) p{color:var(--dim)}
   @media (max-width:430px){
@@ -2110,10 +2133,6 @@ const DOR_COUNTY_BY_NO = {11:"Alachua",12:"Baker",13:"Bay",14:"Bradford",15:"Bre
    stays quiet about equipment for them rather than printing the rule twice.
    ====================================================================================== */
 var _SB = null, _SBerr = null, _SBpending = null, _sbSlotN = 0;
-var SB_GEN_OWN = ['naples','collier_county','cape_coral','marco_island','punta_gorda','sanibel',
-  'moore_haven','glades_county','hendry_county','marion_county','ocala','polk_county','venice',
-  'north_port','bradenton','largo','pinellas_park','dunedin','tarpon_springs'];
-
 /* Jurisdictions the code API has actually been taught — the exact set that carried a Municode
    verify badge before this rewrite.
 
@@ -2413,11 +2432,52 @@ function _sbEquip(J, code){
   if(!gen.length)
     h += '<p class="sb-lead">' + esc(J.name) + ' prints no rule naming a generator, so a pad is '
        + 'governed by the accessory-structure and mechanical-equipment rules below.</p>';
-  for(i = 0; i < gen.length; i++)
-    h += '<div class="sb-r on"><k>' + esc(gen[i].cite) + '</k><p>' + esc(gen[i].text) + '</p></div>';
-  for(i = 0; i < eq.length; i++)
-    h += '<div class="sb-r"><k>' + esc(eq[i].cite) + '</k><p>' + esc(eq[i].text) + '</p></div>';
+  for(i = 0; i < gen.length; i++) h += _sbRule(gen[i], true);
+  for(i = 0; i < eq.length; i++)  h += _sbRule(eq[i], false);
   return h + '</details>';
+}
+
+function _sbRule(e, isGen){
+  return '<div class="sb-r' + (isGen ? ' on' : '') + '"><k>' + esc(e.cite) + '</k>'
+       + (e.text ? '<p>' + esc(e.text) + '</p>' : '') + _sbTable(e.table) + '</div>';
+}
+
+/* An ordinance table drawn as a table. Flattened into a sentence — "Front Yard: 'None'; Side
+   Yard: 'None'" — a reader has to rebuild the grid in their head to answer "what does the
+   generator row say for the side yard", and rebuilding it wrong is the failure mode. A merged
+   cell is drawn merged rather than repeated across columns the code left blank. */
+function _sbTable(t){
+  if(!t || !t.rows || !t.rows.length) return '';
+  var h = '<div class="sb-tw"><table class="sb-t">';
+  if(t.headers && t.headers.length){
+    h += '<thead><tr>';
+    for(var c = 0; c < t.headers.length; c++) h += '<th>' + esc(t.headers[c]) + '</th>';
+    h += '</tr></thead>';
+  }
+  h += '<tbody>';
+  for(var r = 0; r < t.rows.length; r++){
+    var row = t.rows[r], col = 0;
+    /* This card lives in a narrow panel — Cape Coral's five-column table measures 995px in a
+       485px column, so a grid clips the Side Yard and Rear Yard cells, which on the generator
+       row are the two someone came to read. Each cell carries its column name and the rows
+       stack; nothing ends up off the right edge. */
+    var gen = /generator/i.test(String(row[0] || ''));
+    h += '<tr' + (gen ? ' class="on"' : '') + '>';
+    for(var i = 0; i < row.length; i++){
+      var cell = row[i], span = 1, txt;
+      if(Object.prototype.toString.call(cell) === '[object Array]'){ txt = cell[0]; span = cell[1] || 1; }
+      else txt = cell;
+      var head = (span === 1 && t.headers && t.headers[col]) ? t.headers[col] : '';
+      h += '<td' + (span > 1 ? ' colspan="' + span + '"' : '') + (i === 0 ? ' class="lab"' : '')
+         + (i > 0 ? ' data-h="' + esc(head) + '"' : '')
+         + '>' + esc(txt == null ? '' : String(txt)) + '</td>';
+      col += span;
+    }
+    h += '</tr>';
+  }
+  h += '</tbody></table></div>';
+  if(t.caution) h += '<p class="sb-caution">' + esc(t.caution) + '</p>';
+  return h;
 }
 
 
@@ -5984,21 +6044,6 @@ async function openXref(a, base, clientId, productId, qs, num, kind){
     linkifyXrefs(box.querySelector('.live-code'), base, clientId, hit.productId, hit.nodeId);
   }catch(e){ box.innerHTML=`<div class="lc-meta">Couldn't open ${esc(a.textContent)}: ${esc(e.message||String(e))}</div>`; }
 }
-async function codeSectionRead(btn, jur, sec, tid){
-  const box=document.getElementById(tid); if(!box) return;
-  if(box.dataset.open){ box.style.display=box.style.display==='none'?'':'none'; btn.textContent=box.style.display==='none'?`▸ Read § ${sec} live — the paragraph these numbers come from`:'▾ Hide'; return; }
-  btn.textContent='… fetching'; btn.disabled=true;
-  try{
-    const d=await codeApi(`code-section?jur=${encodeURIComponent(jur)}&sec=${encodeURIComponent(sec)}`);
-    if(!d.ok) throw new Error(d.error||'no data');
-    box.dataset.open='1';
-    box.innerHTML=`<div class="note" style="margin-top:6px;padding:8px;border:1px solid rgba(255,255,255,.1);border-radius:6px;max-height:520px;overflow:auto;font-size:12px;line-height:1.45"><div class="lc-meta">${esc(d.title||'')} · ${esc(d.jobMeta&&d.jobMeta.name||'')}${d.verified?' · table verified against this text '+esc(d.verified):''} · ${d.status==='match'?'<span style="color:var(--good)">unchanged since</span>':d.status==='changed'?'<span style="color:var(--warn)">TEXT HAS CHANGED — re-check the numbers</span>':'not yet verified'}</div><div class="live-code">${d.html||esc(d.text||'')}</div></div>`;
-    btn.textContent='▾ Hide';
-    wrapTables(box.querySelector('.live-code'));
-    linkifyXrefs(box.querySelector('.live-code'), CODE_PROXY_URL.replace(/code-section$/,''), d.clientId, d.productId, d.nodeId);
-  }catch(e){ box.innerHTML=`<div class="note">Couldn't fetch: ${esc(e.message||String(e))}</div>`; btn.textContent=`▸ Read § ${sec} live`; }
-  btn.disabled=false;
-}
 /* ── FULL-PAGE CODE READER ────────────────────────────────────────────────────────────────────
    Opens the Read panel at 92vw x 90vh. Everything here is lazy and self-contained: the overlay is
    built on first use, and nothing is evaluated at load time, so there is no ordering dependency on
@@ -6353,8 +6398,6 @@ function normZoneKey(s){ return String(s==null?'':s).toUpperCase().replace(/[^A-
 // district-name abbreviation in that path ("R1REDI") isn't reliably derivable per district — so a
 // per-section deep link can't be built without 404 risk. Land on the stable Zoning chapter node instead;
 // the § number is shown in the link text, so the district's "Minimum yards" is one expand away.
-function municodeSection(sec){ return "https://library.municode.com/fl/naples/codes/code_of_ordinances?nodeId=PTIICOOR_CH58ZO"; }
-
 /* ---------- LIVE zoning-district detection (point → zoning polygon) ----------
    Same idea as COUNTY_LIVE, but for zoning districts. Each jurisdiction lists
    candidate zoning-POLYGON layer /query URLs; tried in order at runtime, first
@@ -21467,13 +21510,6 @@ function renderPuntaGordaGeneratorNote(){
    Sarasota EXEMPTS above-grade A/C, mechanical, electrical & plumbing equipment (incl. generators)
    from side and rear yard setbacks, with a 3-ft-from-line / no-easement floor. The Siesta Key
    Overlay (SKOD) is the exception — there equipment must meet the full underlying side-yard setback. */
-function renderSarasotaEquipmentNote(){
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> equipment placement · Sarasota UDC § 124-73${codeVerifyBadgeAll('sarasota_county')}</div>`;
-  h+=`<div class="note"><b>Generators are exempt from the side & rear yard setbacks.</b> Above-grade (or FEMA-elevated) A/C, mechanical, electrical and plumbing equipment — which includes a standby generator — is exempt from side and rear yard setback requirements, but <b>may not be closer than 3 ft to a property line</b> and <b>may not sit in any easement</b>. In a PUD with no required setbacks, it still can't go in an easement.</div>`;
-  h+=`<div class="note"><b>Siesta Key (SKOD) exception:</b> on Siesta Key, new at-grade or elevated mechanical equipment (A/C, pool equipment, generators) must meet the underlying district's full minimum <b>side</b> yard setback, and must be screened (lattice or similar). Replacing existing equipment is exempt if the existing encroachment isn't increased.</div>`;
-  h+=`<a class="palink" href="https://library.municode.com/fl/sarasota_county/codes/code_of_ordinances?nodeId=PTIICOOR_CH124UNDECO" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify § 124-73 — Sarasota UDC (Municode)</a>`;
-  return h;
-}
 /* Render required setbacks for an unincorporated Sarasota County district (UDC § 124-76 numbers). */
 /* ================================ CITY OF VENICE ================================
    Venice Land Development Code (Municode Chapter 87 / "LDR"), as updated by the modified
@@ -21508,11 +21544,6 @@ const VENICE_GIS_VALUE_MAP = {
   "OPENUSEESTATE":"OUE","OPENUSEESTATE1":"OUE","OPENUSEESTATE2":"OUE","OPENUSERURAL":"OUR",
   "ENCLAVE":"ENCLAVE"
 };
-let _veniceNoHyphen=null;
-function _veniceInactiveSoft(code){
-  const succ=VENICE_INACTIVE[code];
-  return { soft:true, note:`"${code}" is an inactive or former Venice district (LDC Table 2.2.1). New development is governed by ${succ==='(inactive)'?'its successor district':('district '+succ)} — confirm the parcel's current district before relying on a number.` };
-}
 const VENICE_CODE_URL='https://library.municode.com/fl/venice/codes/code_of_ordinances';
 /* Venice generator/equipment placement — a standby generator is an accessory structure (no special
    exemption like Sarasota County's). Rides on every Venice result. */
@@ -21877,11 +21908,6 @@ const MANATEE_INCORP = new Set(['BRADENTON','PALMETTO','BRADENTONBEACH','HOLMESB
    Maria), LB_ (Longboat Key). Those are CITY districts governed by the city's own code, NOT the
    Manatee County LDC, so the county renderer must not fire on them. This tests for that prefix. */
 const MANATEE_CITY_PREFIX = { BR:'Bradenton', PA:'Palmetto', BB:'Bradenton Beach', HB:'Holmes Beach', AM:'Anna Maria', LB:'Longboat Key' };
-function manateeCityPrefix(districtCode){
-  if(districtCode==null) return null;
-  const m = String(districtCode).trim().toUpperCase().match(/^([A-Z]{2})_/);
-  return m ? (MANATEE_CITY_PREFIX[m[1]] || m[1]) : null;
-}
 /* Resolve one bare Manatee LDC district token to a setbacks entry. Suffix is significant, so try the
    FULL normalized code first, then descriptive-string / LDC-code aliases, then a hyphenated PD form.
    Handles "RSF-6", "RSF6", "RSF 6", "RMF-12", "RSMH-4.5", "A-1", "PD-MU", "PDMU", the long GIS
@@ -21890,35 +21916,6 @@ function manateeCityPrefix(districtCode){
    Returns { entries:[{token,setbacks}], cityPrefix } — cityPrefix set if ANY token is a city code. */
 /* Render one resolved district block (setbacks table or PD marker). No equipment note here — that
    rides once at the end of renderManateeSetbacks so split-zoning parcels don't repeat it. */
-function renderManateeOneDistrict(token, s){
-  const shown = String(token);
-  if(s.pd){
-    let p=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ PD</span> ${esc(shown)} · setbacks set by the approved PD ordinance (Manatee LDC § 402)</div>`;
-    p+=`<div class="note">${esc(s.note)}</div>`;
-    p+=`<div class="note warnbox">Manatee Planned Development districts (LDC § 402) carry custom, project-specific setbacks, height and density adopted in the development order &amp; master site plan. The standard district tables do not apply — read the recorded PD ordinance for exact numbers.</div>`;
-    return p;
-  }
-  const ft = v => (v==null) ? '<span class="muted">see code</span>'
-                : (typeof v==='number' ? (v===0?'0 ft':v+' ft') : esc(String(v))+' ft');
-  const tref = s.nonres ? 'LDC § 401, Tables 4-8/4-9' : (s.multi ? 'LDC § 401, Table 4-6' : 'LDC § 401, Tables 4-4/4-5');
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> setbacks · ${esc(shown)} (Manatee ${esc(tref)})</div>`;
-  if(s.allFormula){
-    h+=`<div class="note">${esc(s.note)}</div>`;
-    h+=`<a class="palink" href="https://library.municode.com/fl/manatee_county/codes/code_of_ordinances" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify § 401 — Manatee LDC (Municode)</a>`;
-    return h;
-  }
-  if(s.minLot) h+=fieldRow('Minimum lot area', esc(String(s.minLot)));
-  if(s.width!=null) h+=fieldRow('Minimum lot width', (typeof s.width==='number'?s.width+' ft':esc(String(s.width))+' ft'));
-  h+=fieldRow('Front'+(s.nonres?'':' (single-family)'), ft(s.front), 'big');
-  h+=fieldRow('Side', ft(s.side));
-  h+=fieldRow('Rear', ft(s.rear));
-  if(s.wf!=null) h+=fieldRow('Waterfront', ft(s.wf));
-  if(s.height) h+=fieldRow('Max building height', esc(String(s.height)));
-  if(typeof s.front==='string' && s.front.indexOf('/')>-1 && !s.nonres) h+=`<div class="note"><b>Front detail:</b> the second figure is the minimum for a front-loaded garage or carport (25 ft), administratively reducible up to 5 ft if 25 ft of sidewalk-to-garage separation is kept (Table 4-5 fn. 5).</div>`;
-  if(s.note) h+=`<div class="note">${esc(s.note)}</div>`;
-  h+=`<a class="palink" href="https://library.municode.com/fl/manatee_county/codes/code_of_ordinances" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify § 401 — Manatee LDC (Municode)</a>`;
-  return h;
-}
 /* Render required setbacks for an unincorporated Manatee County ZONING value (LDC § 401,
    Tables 4-4..4-9). Handles split zoning ("A,PD-MU") and bails when the code is a city district. */
 /* Manatee's residential generator / mechanical-equipment rule. Rides on every unincorporated-Manatee
