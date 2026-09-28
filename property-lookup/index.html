@@ -380,6 +380,55 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .lc-also{display:block;text-decoration:none;color:inherit;cursor:pointer;opacity:.8} .lc-also:hover{opacity:1}
   .lc-adopt{font-size:12px;margin:6px 0 4px 0;padding:8px;border-radius:6px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)} .lc-chip{display:inline-block;font-family:var(--mono);font-size:11px;padding:1px 7px;border-radius:4px;border:1px solid rgba(244,104,0,.45);background:rgba(244,104,0,.1);margin:1px 2px}
   .lc-pending{margin-top:8px;padding:8px;border-radius:6px;border:1px dashed rgba(255,255,255,.3);background:rgba(255,255,255,.03);font-size:12px}
+
+  /* Required-setback card: three numbers, one sketch, the rest folded away. */
+  /* A neutral grey at low alpha, not black: rgba(0,0,0,.14) is a subtle lift on the dark theme
+     and a heavy slab on the light one. This reads the same weight in both. */
+  .sb-wrap{display:flex;gap:13px;align-items:center;margin:9px 0 0;padding:10px 12px;
+    border:1px solid var(--line);border-radius:8px;background:rgba(128,142,160,.10)}
+  .sb-glyph{flex:none;width:76px;height:58px}
+  .sb-glyph .sb-lot{fill:none;stroke:var(--line);stroke-width:1.3}
+  .sb-glyph .sb-env{fill:var(--signal);fill-opacity:.13;stroke:var(--signal);stroke-width:1.3}
+  .sb-glyph .sb-env.firm{stroke-dasharray:3 2.5}
+  .sb-glyph .sb-env.est{stroke-dasharray:1.5 2.5;opacity:.55}
+  .sb-yards{flex:1;min-width:0;display:grid;grid-template-columns:repeat(3,1fr);gap:2px 10px}
+  .sb-y{min-width:0}
+  .sb-y k{display:block;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--faint);margin-bottom:2px}
+  .sb-y v{display:block;font-family:var(--mono);font-size:19px;font-weight:600;
+    color:var(--signal);line-height:1.15;overflow-wrap:anywhere}
+  .sb-y v u{font-size:10px;font-weight:400;color:var(--dim);text-decoration:none;margin-left:2px}
+  .sb-y.alt v{font-size:13px}
+  .sb-y.cond v,.sb-y.none v{font-size:11px;font-weight:400;color:var(--faint);
+    letter-spacing:.02em;padding-top:5px}
+  .sb-spec{font-family:var(--mono);font-size:10.5px;color:var(--faint);line-height:1.7;
+    padding:6px 2px 0}
+  .sb-spec b{color:var(--dim);font-weight:600}
+  .sb-rule{font-size:11.5px;color:var(--ink);line-height:1.5;padding:7px 11px;margin-top:8px;
+    border-left:2px solid var(--signal);border-radius:0 6px 6px 0;background:rgba(244,104,0,.07)}
+  .sb-rule k{display:block;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--faint);margin-bottom:3px}
+  .sb-fine{margin-top:6px}
+  .sb-fine>summary{cursor:pointer;list-style:none;font-family:var(--mono);font-size:10px;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding:5px 0}
+  .sb-fine>summary::-webkit-details-marker{display:none}
+  .sb-fine>summary::before{content:"\25B8 ";color:var(--signal)}
+  .sb-fine[open]>summary::before{content:"\25BE "}
+  .sb-fine>summary:hover{color:var(--dim)}
+  .sb-fine p{font-size:11px;color:var(--dim);line-height:1.55;margin:6px 0}
+  .sb-fine p b{color:var(--ink);font-weight:600}
+  .sb-gen{font-size:11.5px;color:var(--ink);line-height:1.5;margin-top:9px;padding:9px 11px;
+    border:1px solid var(--line);border-left:2px solid var(--signal);border-radius:0 7px 7px 0}
+  .sb-gen k{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--signal);margin-bottom:4px}
+  .sb-gen cite{display:block;font-family:var(--mono);font-size:9.5px;color:var(--faint);
+    font-style:normal;margin-top:4px}
+  .sb-gen p{margin:0 0 6px}.sb-gen p:last-child{margin-bottom:0}
+  @media (max-width:430px){
+    .sb-wrap{gap:10px;padding:9px 10px}
+    .sb-glyph{width:58px;height:44px}
+    .sb-y v{font-size:16px}
+  }
   .hand-ref{margin-top:12px;border-top:1px solid rgba(255,255,255,.08);padding-top:6px} .hand-ref>summary{cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;opacity:.75;padding:6px 0} .hand-ref>summary:hover{opacity:1}
   .lc-inline{margin:4px 0 8px 0} .lc-excerpt{font-size:11px;opacity:.7;margin-top:2px}
   .dim-label{background:transparent;color:#fff;border:0;border-radius:3px;padding:0;font-family:var(--mono);font-size:10px;box-shadow:none} .dim-label span{background:rgba(0,0,0,.55);padding:0 4px;border-radius:3px} .dim-label::before{display:none}
@@ -2135,35 +2184,69 @@ function renderSetbacks(cityName, countyName, code){
   if(!r){
     if(code == null || String(code).trim() === '') return '';
     return '<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> '
-         + 'setbacks · ' + esc(String(code)) + badge + '</div>'
-         + '<div class="note"><b>' + esc(String(code)) + '</b> is not one of ' + esc(J.name)
-         + '&rsquo;s districts in the adopted code as read. Confirm the district on the '
-         + 'jurisdiction&rsquo;s own zoning map before relying on any setback figure.</div>'
-         + _sbSitewide(J);
+         + 'setbacks · ' + esc(String(code)) + ' · ' + esc(J.name) + badge + '</div>'
+         + '<div class="sb-rule"><k>district not in the code as read</k><b>'
+         + esc(String(code)) + '</b> is not one of ' + esc(J.name) + '&rsquo;s districts. Confirm it '
+         + 'on the jurisdiction&rsquo;s own zoning map before relying on any setback figure.</div>'
+         + _sbSitewide(J) + _sbEquip(J, code);
   }
   h += '<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> '
-     + 'setbacks · ' + esc(String(code)) + ' (' + esc(J.name)
-     + (r.section ? ' ' + esc(String(r.section)) : '') + ')' + badge + '</div>';
-  if(r.allFormula && r.front == null && r.side == null && r.rear == null){
-    h += fieldRow('Setbacks', '<span class="muted">set by formula / approved plan — see note</span>', 'big');
-  } else {
-    /* A dash in a setback row reads as "none required". Where the code printed nothing for a
-       yard, say nothing was printed — the two are not the same, and the difference is a wall. */
-    var none = '<span class="muted">not printed in the code</span>';
-    h += fieldRow('Front', (_sbVal(r.front,'ft') ? esc(_sbVal(r.front,'ft')) : (r.frontNote ? 'see note below' : none)), 'big');
-    h += fieldRow('Side',  (_sbVal(r.side,'ft')  ? esc(_sbVal(r.side,'ft'))  : (r.sideNote  ? 'see note below' : none)));
-    h += fieldRow('Rear',  (_sbVal(r.rear,'ft')  ? esc(_sbVal(r.rear,'ft'))  : (r.rearNote  ? 'see note below' : none)));
+     + 'setbacks · ' + esc(String(code)) + ' · ' + esc(J.name) + badge + '</div>';
+
+  /* ---- the three numbers, and nothing competing with them --------------------------------
+     Three yards, one glyph, read in about a second. Everything else on the row — height, lot,
+     coverage — drops to one quiet mono line, and every sentence that only QUALIFIES a number
+     that is already on screen folds away. What stays open is what a figure cannot say. */
+  h += '<div class="sb-wrap">' + _sbGlyph(r) + '<div class="sb-yards">'
+     + _sbYard('Front', r.front, r.frontNote)
+     + _sbYard('Side',  r.side,  r.sideNote)
+     + _sbYard('Rear',  r.rear,  r.rearNote)
+     + '</div></div>';
+
+  var spec = [];
+  if(r.wf != null)       spec.push('Waterfront <b>' + esc(_sbVal(r.wf,'ft')) + '</b>');
+  if(r.height != null)   spec.push('Height <b>' + esc(_sbVal(r.height,'ft')) + '</b>');
+  if(r.coverage != null) spec.push('Coverage <b>' + esc(_sbVal(r.coverage,'%')) + '</b>');
+  if(r.minLot != null)   spec.push('Min lot <b>' + esc(_sbVal(r.minLot,'sf'))
+                           + (r.lotWidth != null ? ', ' + esc(String(r.lotWidth))
+                              + (typeof r.lotWidth === 'number' ? ' ft wide' : '') : '') + '</b>');
+  /* A bare "3.7" on the spec line reads as an orphan number next to real measurements. Give a
+     section reference the § it was printed with unless it already names itself. */
+  if(r.section){
+    var sc = String(r.section).trim();
+    spec.push(esc(/^(§|Sec|Table|Ch|Art|Appendix|Div|Part|Rule)/i.test(sc) ? sc : '§ ' + sc));
   }
-  if(r.wf != null)       h += fieldRow('Waterfront yard', esc(_sbVal(r.wf,'ft')));
-  if(r.height != null)   h += fieldRow('Max building height', esc(_sbVal(r.height,'ft')));
-  if(r.coverage != null) h += fieldRow('Max lot coverage', esc(_sbVal(r.coverage,'%')));
-  if(r.minLot != null)   h += fieldRow('Minimum lot', esc(_sbVal(r.minLot,'sf'))
-                              + (r.lotWidth != null ? ' · ' + esc(String(r.lotWidth)) + (typeof r.lotWidth === 'number' ? ' ft wide' : '') : ''));
-  if(r.frontNote) h += '<div class="note"><b>Front:</b> ' + esc(r.frontNote) + '</div>';
-  if(r.sideNote)  h += '<div class="note"><b>Side:</b> '  + esc(r.sideNote)  + '</div>';
-  if(r.rearNote)  h += '<div class="note"><b>Rear:</b> '  + esc(r.rearNote)  + '</div>';
-  if(r.heightNote) h += '<div class="note"><b>Height:</b> ' + esc(r.heightNote) + '</div>';
-  if(r.note)      h += '<div class="note">' + esc(r.note) + '</div>';
+  if(spec.length) h += '<div class="sb-spec">' + spec.join(' &middot; ') + '</div>';
+
+  /* A yard with no printed figure has a standard anyway — the sentence IS the standard, so it
+     stays open. A yard that HAS a figure keeps its condition as fine print: the number is the
+     answer, the condition only qualifies it. */
+  var openRules = [], fine = [], fineOf = [];
+  function place(label, val, note, canOpen){
+    if(!note) return;
+    if(val == null && canOpen) openRules.push('<div class="sb-rule"><k>' + label + '</k>' + esc(note) + '</div>');
+    else { fine.push('<p><b>' + label + '</b> ' + esc(note) + '</p>'); fineOf.push(label.toLowerCase()); }
+  }
+  /* Only a YARD earns the open block. Height and coverage are not where a generator goes, and a
+     missing coverage figure raised to full prominence is what put a paragraph about impervious
+     surfaces at the top of the Cape Coral card. */
+  place('Front', r.front, r.frontNote, true);
+  place('Side',  r.side,  r.sideNote,  true);
+  place('Rear',  r.rear,  r.rearNote,  true);
+  place('Height', r.height, r.heightNote, false);
+  place('Coverage', r.coverage, r.coverageNote, false);
+  h += openRules.join('');
+  if(r.note){
+    /* With no yard figure anywhere, the district note is not background — it is the only
+       statement of the standard on the card, so it does not get folded away. */
+    if(r.front == null && r.side == null && r.rear == null && !openRules.length)
+      h += '<div class="sb-rule"><k>how the yards are set</k>' + esc(r.note) + '</div>';
+    else { fine.push('<p>' + esc(r.note) + '</p>'); fineOf.push('district'); }
+  }
+  if(fine.length){
+    h += '<details class="sb-fine"><summary>fine print &mdash; ' + fineOf.join(', ')
+       + '</summary>' + fine.join('') + '</details>';
+  }
   /* 189 of the 196 jurisdictions were read page by page, and three more are Brandon's own hand
      tables. The remaining seven came off a table parser and nobody has checked them against the
      page — say so on the card rather than letting them look like the rest. */
@@ -2173,11 +2256,48 @@ function renderSetbacks(cityName, countyName, code){
   return h + _sbSitewide(J) + _sbEquip(J, code);
 }
 
-/* Rules that apply across the jurisdiction regardless of district. */
+function _sbYard(label, val, note){
+  var v = _sbVal(val, 'ft'), cls = '', body;
+  if(v != null && typeof val === 'number'){
+    body = '<v>' + esc(String(val)) + '<u>ft</u></v>';
+  } else if(v != null){
+    cls = ' alt'; body = '<v>' + esc(v) + '</v>';          // "20/25", "see Table 53-2"
+  } else if(note){
+    cls = ' cond'; body = '<v>see below</v>';
+  } else {
+    /* A dash here would read as "none required". Those are not the same thing, and the
+       difference between them is a wall someone has to move. */
+    cls = ' none'; body = '<v>not printed</v>';
+  }
+  return '<div class="sb-y' + cls + '"><k>' + label + '</k>' + body + '</div>';
+}
+
+/* A 76x58 proportion sketch, carrying no numbers — they are two inches to its right and a third
+   copy would only be one more thing to keep in sync. The one thing it does say: a yard the code
+   never printed is drawn as a faint dotted edge, not a measured one, because the drawing must not
+   imply a distance the ordinance did not state. Same rule the numbers follow. */
+function _sbGlyph(r){
+  var L = 6, T = 5, W = 64, H = 48, LOT = 120;
+  function px(v){ return typeof v === 'number' ? Math.max(3, Math.min(17, (v / LOT) * H)) : null; }
+  var f = px(r.front), s = px(r.side), b = px(r.rear);
+  var firm = f !== null && s !== null && b !== null;
+  if(f === null) f = 10;
+  if(s === null) s = 7;
+  if(b === null) b = 9;
+  var iw = Math.max(8, W - s * 2), ih = Math.max(8, H - f - b);
+  return '<svg class="sb-glyph" viewBox="0 0 76 58" aria-hidden="true" focusable="false">'
+       + '<rect class="sb-lot" x="' + L + '" y="' + T + '" width="' + W + '" height="' + H + '"/>'
+       + '<rect class="sb-env ' + (firm ? 'firm' : 'est') + '" x="' + (L + s) + '" y="' + (T + f)
+       + '" width="' + iw + '" height="' + ih + '"/></svg>';
+}
+
+/* Rules that bind across the jurisdiction whatever the district — a 100 ft state-highway
+   setback outranks a 25 ft front yard, so these stay open rather than folding. */
 function _sbSitewide(J){
   if(!J || !J.sitewide || !J.sitewide.length) return '';
   var h = '';
-  for(var i = 0; i < J.sitewide.length; i++) h += '<div class="note">' + esc(J.sitewide[i]) + '</div>';
+  for(var i = 0; i < J.sitewide.length; i++)
+    h += '<div class="sb-rule"><k>applies countywide</k>' + esc(J.sitewide[i]) + '</div>';
   return h;
 }
 
@@ -2188,18 +2308,18 @@ function _sbEquip(J, code){
   for(var i = 0; i < SB_GEN_OWN.length; i++) if(_SB[SB_GEN_OWN[i]] === J) return '';
   var h = '', k;
   if(J.gen && J.gen.length){
-    h += '<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> '
-       + esc(J.name) + ' prints a rule naming generators'
-       + ((typeof codeVerifyBadgeAll === 'function') ? '' : '') + '</div>';
+    h = '<div class="sb-gen"><k>⚡ generator &mdash; ' + esc(J.name) + '</k>';
     for(k = 0; k < J.gen.length; k++)
-      h += '<div class="note">' + esc(J.gen[k].text)
-         + '<br><span class="muted">' + esc(J.gen[k].cite) + '</span></div>';
-    return h;
+      h += '<p>' + esc(J.gen[k].text) + '<cite>' + esc(J.gen[k].cite) + '</cite></p>';
+    return h + '</div>';
   }
+  /* No rule naming a generator is itself the answer, and the reader still needs the rule that
+     DOES govern the pad — so say both in one line and fold the citation, not the finding. */
   if(J.equip && J.equip.length){
-    h += '<div class="note"><b>' + esc(J.name) + ' prints no rule naming a generator.</b> A pad is '
-       + 'governed by the accessory-structure and mechanical-equipment rules: ' + esc(J.equip[0].text)
-       + ' <span class="muted">' + esc(J.equip[0].cite) + '</span></div>';
+    h = '<details class="sb-fine"><summary>generator &mdash; no rule names one here</summary>'
+      + '<p>' + esc(J.name) + ' prints no rule naming a generator, so a pad falls under the '
+      + 'accessory-structure and mechanical-equipment rules. <b>' + esc(J.equip[0].cite) + '</b> '
+      + esc(J.equip[0].text) + '</p></details>';
   }
   return h;
 }
@@ -31211,7 +31331,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
     if(_hi >= 0){
       const head = html.slice(0,_hi), hand = html.slice(_hi+11);
       // Hand-checked quick reference first (open), the uniform live card beneath it.
-      html = head + (hand.trim() ? `<details class="hand-ref" open><summary>Required setbacks &amp; equipment rules — read from ${esc(jurName||'this jurisdiction')}&rsquo;s adopted code</summary>${hand}</details>` : '') + _live;
+      html = head + (hand.trim() ? `<details class="hand-ref" open><summary>Required setbacks &amp; equipment rules — ${esc(jurName||'this jurisdiction')}&rsquo;s adopted code</summary>${hand}</details>` : '') + _live;
     } else html += _live;
     return html;
   }
