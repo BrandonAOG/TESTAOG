@@ -401,6 +401,18 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .sb-y.alt v{font-size:13px}
   .sb-y.cond v,.sb-y.none v{font-size:11px;font-weight:400;color:var(--faint);
     letter-spacing:.02em;padding-top:5px}
+  /* Yard variants: same weight as the spec line but the figures stay bright, because each one
+     REPLACES a number above it on the lot it applies to. */
+  .sb-var{display:flex;flex-wrap:wrap;align-items:baseline;gap:3px 20px;font-family:var(--mono);
+    font-size:11px;color:var(--signal);line-height:1.7;padding:7px 2px 0}
+  .sb-var span{white-space:nowrap}
+  .sb-var b{color:var(--faint);font-weight:400;font-size:10px;letter-spacing:.05em;
+    text-transform:uppercase;margin-right:5px}
+  .sb-acc{font-family:var(--mono);font-size:12px;color:var(--signal);margin-top:8px;
+    padding:7px 11px;border-left:2px solid var(--signal);border-radius:0 6px 6px 0;
+    background:rgba(244,104,0,.07)}
+  .sb-acc k{display:block;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--faint);margin-bottom:3px}
   .sb-spec{font-family:var(--mono);font-size:10.5px;color:var(--faint);line-height:1.7;
     padding:6px 2px 0}
   .sb-spec b{color:var(--dim);font-weight:600}
@@ -417,13 +429,24 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .sb-fine>summary:hover{color:var(--dim)}
   .sb-fine p{font-size:11px;color:var(--dim);line-height:1.55;margin:6px 0}
   .sb-fine p b{color:var(--ink);font-weight:600}
-  .sb-gen{font-size:11.5px;color:var(--ink);line-height:1.5;margin-top:9px;padding:9px 11px;
-    border:1px solid var(--line);border-left:2px solid var(--signal);border-radius:0 7px 7px 0}
-  .sb-gen k{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;
-    text-transform:uppercase;color:var(--signal);margin-bottom:4px}
-  .sb-gen cite{display:block;font-family:var(--mono);font-size:9.5px;color:var(--faint);
-    font-style:normal;margin-top:4px}
-  .sb-gen p{margin:0 0 6px}.sb-gen p:last-child{margin-bottom:0}
+  /* Generator & equipment rules: one disclosure, everything verbatim inside it. */
+  .sb-rules{margin-top:9px;border:1px solid var(--line);border-left:2px solid var(--signal);
+    border-radius:0 7px 7px 0}
+  .sb-rules>summary{cursor:pointer;list-style:none;font-family:var(--mono);font-size:10px;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--signal);padding:8px 11px}
+  .sb-rules>summary::-webkit-details-marker{display:none}
+  .sb-rules>summary::before{content:"\25B8 "}
+  .sb-rules[open]>summary::before{content:"\25BE "}
+  .sb-rules>summary:hover{filter:brightness(1.25)}
+  .sb-rules .sb-lead{font-size:11.5px;color:var(--dim);line-height:1.55;margin:0;
+    padding:0 11px 8px}
+  .sb-r{padding:9px 11px;border-top:1px solid var(--line)}
+  .sb-r k{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;
+    color:var(--faint);margin-bottom:5px;line-height:1.45}
+  .sb-r.on k{color:var(--signal)}
+  .sb-r p{margin:0;font-size:11.5px;line-height:1.6;color:var(--ink)}
+  .sb-r.on p{color:var(--ink)}
+  .sb-r:not(.on) p{color:var(--dim)}
   @media (max-width:430px){
     .sb-wrap{gap:10px;padding:9px 10px}
     .sb-glyph{width:58px;height:44px}
@@ -2235,6 +2258,32 @@ function renderSetbacks(cityName, countyName, code){
      + _sbYard('Rear',  r.rear,  r.rearNote)
      + '</div></div>';
 
+  /* ---- the yard variants ------------------------------------------------------------------
+     A corner lot, a cul-de-sac frontage or a double frontage is governed by a DIFFERENT figure,
+     and so is the pad itself where the code prints an accessory setback. These were sitting in
+     the fine print, or being dropped entirely — which on a card for siting a generator is the
+     wrong place for the one number that decides where it goes. Figures only: nothing is shown
+     here that the ordinance did not print as a number. */
+  var VAR = [['cornerSide','Corner lot side'], ['streetSide','Street side'],
+             ['interiorSide','Interior side'], ['culFront','Cul-de-sac front'],
+             ['doubleFront','Double frontage'], ['roadFront','Road frontage'],
+             ['cageRear','Pool cage rear'], ['wfSide','Waterfront side']];
+  var vars = [];
+  for(var vi = 0; vi < VAR.length; vi++){
+    var vv = r[VAR[vi][0]];
+    if(vv != null && !(typeof vv === 'boolean'))
+      vars.push('<b>' + esc(VAR[vi][1]) + '</b> ' + esc(_sbVal(vv,'ft')));
+  }
+  if(vars.length) h += '<div class="sb-var"><span>' + vars.join('</span><span>') + '</span></div>';
+
+  /* The accessory setback IS the generator's setback wherever the code prints one. */
+  var acc = [];
+  if(r.accFront != null) acc.push('front ' + esc(_sbVal(r.accFront,'ft')));
+  if(r.accSide  != null) acc.push('side '  + esc(_sbVal(r.accSide,'ft')));
+  if(r.accRear  != null) acc.push('rear '  + esc(_sbVal(r.accRear,'ft')));
+  if(acc.length) h += '<div class="sb-acc"><k>accessory structure — what a pad uses</k>'
+                    + acc.join(' &middot; ') + '</div>';
+
   var spec = [];
   if(r.wf != null)       spec.push('Waterfront <b>' + esc(_sbVal(r.wf,'ft')) + '</b>');
   if(r.height != null)   spec.push('Height <b>' + esc(_sbVal(r.height,'ft')) + '</b>');
@@ -2242,6 +2291,10 @@ function renderSetbacks(cityName, countyName, code){
   if(r.minLot != null)   spec.push('Min lot <b>' + esc(_sbVal(r.minLot,'sf'))
                            + (r.lotWidth != null ? ', ' + esc(String(r.lotWidth))
                               + (typeof r.lotWidth === 'number' ? ' ft wide' : '') : '') + '</b>');
+  else if(r.lotWidth != null) spec.push('Min lot width <b>' + esc(_sbVal(r.lotWidth,'ft')) + '</b>');
+  if(r.lotDepth != null) spec.push('Lot depth <b>' + esc(_sbVal(r.lotDepth,'ft')) + '</b>');
+  if(r.density != null)  spec.push('Density <b>' + esc(String(r.density)) + '</b>');
+  if(r.far != null)      spec.push('FAR <b>' + esc(String(r.far)) + '</b>');
   /* A bare "3.7" on the spec line reads as an orphan number next to real measurements. Give a
      section reference the § it was printed with unless it already names itself. */
   if(r.section){
@@ -2267,6 +2320,8 @@ function renderSetbacks(cityName, countyName, code){
   place('Rear',  r.rear,  r.rearNote,  true);
   place('Height', r.height, r.heightNote, false);
   place('Coverage', r.coverage, r.coverageNote, false);
+  place('Min lot', r.minLot, r.minLotNote, false);
+  place('Lot width', r.lotWidth, r.lotWidthNote, false);
   h += openRules.join('');
   if(r.note){
     /* With no yard figure anywhere, the district note is not background — it is the only
@@ -2335,25 +2390,34 @@ function _sbSitewide(J){
 
 /* The rule that actually governs a generator pad is almost never in the dimensional table.
    Skipped where the jurisdiction has its own generator renderer in the dispatch. */
+/* The rules that actually govern where a generator may sit — verbatim, all of them, folded.
+
+   The dimensional table above says where a BUILDING goes. These say where the GENERATOR goes,
+   and they are usually in a different chapter: Cape Coral's Sec. 5.7.4, Naples' § 56-41, Indian
+   River's § 911.15(2)(u). They used to be truncated to a couple of hundred characters and capped
+   at a handful per jurisdiction, which cut the middle out of the exact paragraph someone needs
+   to read to the end. Now they are complete and behind one disclosure, so length costs nothing.
+
+   A rule naming a generator outright is listed first and marked. Rules that merely govern
+   "mechanical equipment" follow, because a generator is mechanical equipment wherever the code
+   does not say otherwise. */
 function _sbEquip(J, code){
   if(!J) return '';
-  for(var i = 0; i < SB_GEN_OWN.length; i++) if(_SB[SB_GEN_OWN[i]] === J) return '';
-  var h = '', k;
-  if(J.gen && J.gen.length){
-    h = '<div class="sb-gen"><k>⚡ generator &mdash; ' + esc(J.name) + '</k>';
-    for(k = 0; k < J.gen.length; k++)
-      h += '<p>' + esc(J.gen[k].text) + '<cite>' + esc(J.gen[k].cite) + '</cite></p>';
-    return h + '</div>';
-  }
-  /* No rule naming a generator is itself the answer, and the reader still needs the rule that
-     DOES govern the pad — so say both in one line and fold the citation, not the finding. */
-  if(J.equip && J.equip.length){
-    h = '<details class="sb-fine"><summary>generator &mdash; no rule names one here</summary>'
-      + '<p>' + esc(J.name) + ' prints no rule naming a generator, so a pad falls under the '
-      + 'accessory-structure and mechanical-equipment rules. <b>' + esc(J.equip[0].cite) + '</b> '
-      + esc(J.equip[0].text) + '</p></details>';
-  }
-  return h;
+  var gen = J.gen || [], eq = J.equip || [], total = gen.length + eq.length, i;
+  if(!total) return '';
+  var head = gen.length
+    ? '⚡ generator rules &mdash; ' + esc(J.name) + ' (' + total + ')'
+    : 'no rule names a generator in ' + esc(J.name)
+      + ' &mdash; equipment rules that do apply (' + total + ')';
+  var h = '<details class="sb-rules"><summary>' + head + '</summary>';
+  if(!gen.length)
+    h += '<p class="sb-lead">' + esc(J.name) + ' prints no rule naming a generator, so a pad is '
+       + 'governed by the accessory-structure and mechanical-equipment rules below.</p>';
+  for(i = 0; i < gen.length; i++)
+    h += '<div class="sb-r on"><k>' + esc(gen[i].cite) + '</k><p>' + esc(gen[i].text) + '</p></div>';
+  for(i = 0; i < eq.length; i++)
+    h += '<div class="sb-r"><k>' + esc(eq[i].cite) + '</k><p>' + esc(eq[i].text) + '</p></div>';
+  return h + '</details>';
 }
 
 
