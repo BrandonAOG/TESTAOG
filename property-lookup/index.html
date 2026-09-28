@@ -440,13 +440,24 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .sb-rules>summary:hover{filter:brightness(1.25)}
   .sb-rules .sb-lead{font-size:11.5px;color:var(--dim);line-height:1.55;margin:0;
     padding:0 11px 8px}
-  .sb-r{padding:9px 11px;border-top:1px solid var(--line)}
-  .sb-r k{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;
-    color:var(--faint);margin-bottom:5px;line-height:1.45}
-  .sb-r.on k{color:var(--signal)}
-  .sb-r p{margin:0;font-size:11.5px;line-height:1.6;color:var(--ink)}
-  /* Ordinance tables. The scroller is on its own wrapper so a wide table never makes the whole
-     card scroll sideways. */
+  /* One disclosure per rule. Collapsed, the block is a scannable list of citations; a rule that
+     carries an ordinance table says so with a chip, so it does not hide three screens down. */
+  .sb-r{border-top:1px solid var(--line)}
+  .sb-r>summary{cursor:pointer;list-style:none;display:flex;gap:8px;align-items:baseline;
+    font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;line-height:1.5;
+    color:var(--faint);padding:8px 11px 8px 24px;position:relative}
+  .sb-r>summary::-webkit-details-marker{display:none}
+  .sb-r>summary::before{content:"\25B8";position:absolute;left:11px;top:8px;opacity:.7}
+  .sb-r[open]>summary::before{content:"\25BE"}
+  .sb-r>summary:hover{color:var(--dim)}
+  .sb-r.on>summary{color:var(--signal)}
+  .sb-r.on>summary:hover{filter:brightness(1.25)}
+  .sb-chip{flex:none;font-style:normal;font-size:8.5px;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--signal);border:1px solid var(--signal);
+    border-radius:3px;padding:0 4px;opacity:.85}
+  .sb-rb{padding:0 11px 10px 24px}
+  .sb-rb p{margin:0;font-size:11.5px;line-height:1.6;color:var(--ink)}
+  .sb-r:not(.on) .sb-rb p{color:var(--dim)}
   /* Ordinance tables, stacked. A real <table> for structure and screen readers, laid out as one
      block per row because the card column is ~485px and Cape Coral's five-column table is 995px:
      as a grid the Side Yard and Rear Yard cells fall off the right edge, and on the generator row
@@ -2437,9 +2448,18 @@ function _sbEquip(J, code){
   return h + '</details>';
 }
 
+/* Each rule folds on its own.
+
+   Cape Coral prints nine of them and several run past a thousand characters verbatim, so one
+   disclosure over the whole set meant scrolling through §5.7.4 and §5.1.13.E in full before
+   Table 4.1.5 even came into view — it was on screen, three screens down, which is the same as
+   not being there. Collapsed, the block is a list of nine citations you can read at a glance,
+   and a rule carrying an ordinance table says so on its own line. */
 function _sbRule(e, isGen){
-  return '<div class="sb-r' + (isGen ? ' on' : '') + '"><k>' + esc(e.cite) + '</k>'
-       + (e.text ? '<p>' + esc(e.text) + '</p>' : '') + _sbTable(e.table) + '</div>';
+  var chip = e.table ? '<i class="sb-chip">table</i>' : '';
+  return '<details class="sb-r' + (isGen ? ' on' : '') + '"><summary>' + esc(e.cite) + chip
+       + '</summary><div class="sb-rb">'
+       + (e.text ? '<p>' + esc(e.text) + '</p>' : '') + _sbTable(e.table) + '</div></details>';
 }
 
 /* An ordinance table drawn as a table. Flattened into a sentence — "Front Yard: 'None'; Side
