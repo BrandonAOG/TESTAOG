@@ -478,6 +478,17 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .sb-t tr.on{background:rgba(244,104,0,.07);border-left:2px solid var(--signal);
     padding-left:8px;margin:2px 0;border-radius:0 5px 5px 0}
   .sb-t tr.on td.lab{color:var(--signal)}
+  /* Two-column ordinance tables: label left, figure right, aligned down the column. */
+  .sb-t2{margin:8px 0 0;font-family:var(--mono)}
+  .sb-t2h,.sb-t2r{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:baseline;
+    padding:5px 2px}
+  .sb-t2h{font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
+    border-bottom:1px solid var(--line);padding-bottom:4px}
+  .sb-t2h span:last-child,.sb-t2r .v{text-align:right;white-space:nowrap}
+  .sb-t2r{border-bottom:1px solid var(--dash);font-size:10.5px;line-height:1.5}
+  .sb-t2r:last-of-type{border-bottom:none}
+  .sb-t2r .l{color:var(--dim)}
+  .sb-t2r .v{color:var(--signal);font-weight:600;font-size:12px}
   .sb-caution{margin:6px 0 0;font-size:10.5px;color:var(--faint);line-height:1.5}
   .sb-r.on p{color:var(--ink)}
   .sb-r:not(.on) p{color:var(--dim)}
@@ -2466,8 +2477,42 @@ function _sbRule(e, isGen){
    Yard: 'None'" — a reader has to rebuild the grid in their head to answer "what does the
    generator row say for the side yard", and rebuilding it wrong is the failure mode. A merged
    cell is drawn merged rather than repeated across columns the code left blank. */
+/* An ordinance table drawn as a table. Flattened into a sentence — "Front Yard: 'None'; Side
+   Yard: 'None'" — a reader has to rebuild the grid in their head to answer "what does the
+   generator row say for the side yard", and rebuilding it wrong is the failure mode. A merged
+   cell is drawn merged rather than repeated across columns the code left blank. */
+function _sbWidth(t){
+  var w = (t.headers && t.headers.length) || 0, i, j, row, n;
+  for(i = 0; i < t.rows.length; i++){
+    row = t.rows[i]; n = 0;
+    for(j = 0; j < row.length; j++)
+      n += (Object.prototype.toString.call(row[j]) === '[object Array]') ? (row[j][1] || 1) : 1;
+    if(n > w) w = n;
+  }
+  return w;
+}
+
+/* A two-column table fits the card as a real grid — label left, figure right. Sending it through
+   the stacked form would reprint the column name on every single row, which on Collier's side-yard
+   table means saying "GENERATOR DISTANCE TO LOT LINE" four times to show four numbers. */
+function _sbTable2(t){
+  var h = '<div class="sb-t2">';
+  if(t.headers && t.headers.length > 1)
+    h += '<div class="sb-t2h"><span>' + esc(t.headers[0]) + '</span><span>'
+       + esc(t.headers[1]) + '</span></div>';
+  for(var r = 0; r < t.rows.length; r++){
+    var row = t.rows[r];
+    h += '<div class="sb-t2r"><span class="l">' + esc(String(row[0] == null ? '' : row[0]))
+       + '</span><span class="v">' + esc(String(row[1] == null ? '' : row[1])) + '</span></div>';
+  }
+  h += '</div>';
+  if(t.caution) h += '<p class="sb-caution">' + esc(t.caution) + '</p>';
+  return h;
+}
+
 function _sbTable(t){
   if(!t || !t.rows || !t.rows.length) return '';
+  if(_sbWidth(t) === 2) return _sbTable2(t);
   var h = '<div class="sb-tw"><table class="sb-t">';
   if(t.headers && t.headers.length){
     h += '<thead><tr>';
