@@ -387,8 +387,12 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .sb-wrap{display:flex;gap:13px;align-items:center;margin:9px 0 0;padding:10px 12px;
     border:1px solid var(--line);border-radius:8px;background:rgba(128,142,160,.10)}
   .sb-glyph{flex:none;width:76px;height:58px}
-  .sb-glyph .sb-lot{fill:none;stroke:var(--line);stroke-width:1.3}
-  .sb-glyph .sb-env{fill:var(--signal);fill-opacity:.13;stroke:var(--signal);stroke-width:1.3}
+  /* The lot is filled grass-green so the YARD — the band between the lot line and the buildable
+     envelope — reads at a glance as the thing a generator has to fit inside. */
+  .sb-glyph .sb-lot{fill:#4f9d52;fill-opacity:.55;stroke:#3f7f42;stroke-width:1.3}
+  /* The buildable envelope is the page ground cut out of the grass, so it follows the theme
+     instead of sitting as a hardcoded navy block on a light card. */
+  .sb-glyph .sb-env{fill:var(--bg);fill-opacity:.95;stroke:var(--signal);stroke-width:1.3}
   .sb-glyph .sb-env.firm{stroke-dasharray:3 2.5}
   .sb-glyph .sb-env.est{stroke-dasharray:1.5 2.5;opacity:.55}
   .sb-yards{flex:1;min-width:0;display:grid;grid-template-columns:repeat(3,1fr);gap:2px 10px}
@@ -6321,13 +6325,6 @@ async function _codeApiInner(pathAndQuery){
   throw lastErr || new Error('no code API host reachable');
 }
 const _codeVerifyPending = [];
-function codeVerifyBadge(jur, sec){
-  if(!CODE_PROXY_URL) return '';
-  const id = 'cv_'+jur+'_'+sec.replace(/[^A-Za-z0-9]/g,'_')+'_'+Math.random().toString(36).slice(2,7);
-  _codeVerifyPending.push({id, jur, sec});
-  setTimeout(_runCodeVerify, 0);
-  return `<span id="${id}" class="badge unk cv-badge" style="margin-left:6px" title="Checking live text on Municode…">… checking Municode</span>`;
-}
 /* Aggregate badge: one per card. Asks /api/code-status for every registered section of the jurisdiction
    (one Municode call per chapter, cached 6 h server-side) and shows "✓ 23/23 match" or "! 2 of 23 changed".
    Same off-switch as the per-section badge: CODE_PROXY_URL = "". */
@@ -21550,13 +21547,6 @@ function renderLotDimensions(geometry, rollAcres){
 /* Punta Gorda's explicit generator/equipment encroachment allowance (LDR Ch. 26, Art. 7). This is
    the practical headline for a generator install — it's shown for ANY Punta Gorda parcel, because it
    applies citywide regardless of district. Charlotte County (unincorporated) has no equivalent. */
-function renderPuntaGordaGeneratorNote(){
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> equipment encroachment · Punta Gorda LDR Ch. 26 Art. 7${codeVerifyBadgeAll('punta_gorda')}</div>`;
-  h+=`<div class="note"><b>Generators may sit in a required yard.</b> Generators (with A/C units, pool & solar equipment) may encroach <b>up to 4 ft into a required side yard</b> and <b>up to 4 ft into a required rear yard</b>. Where the yard is 5 ft or less wide, the projection can't exceed half the yard width. Up to 4 ft into a recorded drainage/utility easement is also allowed (but nothing permanent may sit in an easement in use).</div>`;
-  h+=`<div class="note"><b>Screening (new construction outside the Special Residential Overlay):</b> the equipment must be screened from view at grade from the public right-of-way by 100% landscaping, a landscaping/fence combination, or an architecturally compatible wall or opaque fence panel — screen ≤ 6 ft tall, ≤ 8 ft long (or the equipment length, whichever is less), ≤ 4 ft wide.</div>`;
-  h+=`<a class="palink" href="https://library.municode.com/fl/punta_gorda/codes/code_of_ordinances" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify in Punta Gorda LDR (Chapter 26)</a>`;
-  return h;
-}
 /* Render required setbacks for a City of Punta Gorda district (governing Ch. 26 numbers). */
 /* ---------- Unincorporated Sarasota County required setbacks — Unified Development Code (UDC) -------
    Sarasota consolidated its old Appendix A (Zoning) + Chapter 74 (LDRs) into the UNIFIED DEVELOPMENT
@@ -21609,17 +21599,8 @@ const VENICE_GIS_VALUE_MAP = {
   "OPENUSEESTATE":"OUE","OPENUSEESTATE1":"OUE","OPENUSEESTATE2":"OUE","OPENUSERURAL":"OUR",
   "ENCLAVE":"ENCLAVE"
 };
-const VENICE_CODE_URL='https://library.municode.com/fl/venice/codes/code_of_ordinances';
 /* Venice generator/equipment placement — a standby generator is an accessory structure (no special
    exemption like Sarasota County's). Rides on every Venice result. */
-function renderVeniceGeneratorNote(){
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> equipment placement · Venice LDC § 3.1.9 / § 7.10.10${codeVerifyBadgeAll('venice')}</div>`;
-  h+=`<div class="note"><b>A standby generator is treated as an accessory structure</b> — Venice has no generator-specific setback exemption. It must be <b>at least 5 ft from any side or rear property line</b>, <b>may not be located in any front yard</b>, and may not sit in a utility or drainage easement, right-of-way, or visibility (sight) triangle.</div>`;
-  h+=`<div class="note">Generators and ground-mounted mechanical equipment must also be <b>screened</b> (walls, fence, or landscape) per § 7.10.10. Mechanical equipment is exempt from building-height limits but not from these placement rules.</div>`;
-  h+=`<a class="palink" href="${VENICE_CODE_URL}" target="_blank" rel="noopener" style="margin-top:6px">↗ Venice LDC (Municode) — § 3.1.9 Accessory Uses & § 7.10.10</a>`;
-  return h;
-}
-
 /* ===================================================================================
    GENERATOR-SITING NOTES for the cities wired in the Tampa Bay / SW-FL expansion.
    Each mirrors the Sarasota/Venice/Glades pattern: a "⚡ GENERATOR" run-in subhead + a
@@ -21628,48 +21609,6 @@ function renderVeniceGeneratorNote(){
    LP-tank (NFPA 58) distances, and (on coastal lots) the FBC flood-elevation requirement
    still apply on top and are frequently the real limiting factor. Dispatched by cityName.
    =================================================================================== */
-function renderBradentonGeneratorNote(){
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> equipment placement · Bradenton Zoning Code § 5.1.2 / § 5.2.2.10${codeVerifyBadgeAll('bradenton')}</div>`;
-  h+=`<div class="note"><b>A standby generator is treated as an accessory structure / mechanical equipment.</b> It must keep a <b>5 ft setback from any side or rear property line</b> and <b>may not be located in the front yard</b>. Bradenton has no generator-specific encroachment allowance — the 5 ft accessory rule governs. Keep it out of utility/drainage easements.</div>`;
-  h+=`<div class="note">Also apply the statewide layer: NFPA 37 clearance per the unit's listing, LP-tank distances (NFPA 58), and — this is a coastal city — FBC flood elevation in AE/VE zones (elevate the generator, fuel and transfer switch above BFE).</div>`;
-  h+=`<a class="palink" href="https://library.municode.com/fl/bradenton/codes/code_of_ordinances" target="_blank" rel="noopener" style="margin-top:6px">↗ Bradenton Zoning Code (Municode) — Ch. 5 Accessory Uses/Structures</a>`;
-  return h;
-}
-function renderMarcoGeneratorNote(){
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> equipment encroachment · Marco Island LDC § 30-1004(a)(4)${codeVerifyBadgeAll('marco_island')}</div>`;
-  h+=`<div class="note"><b>Marco Island names generators in its code.</b> Ground-, wall-, pad-, cube-mounted or cantilevered <b>generators</b> — plus swimming-pool equipment, A/C units, above-ground LP-gas tanks and other mounted mechanical equipment — <b>may project up to 4 ft into any required yard (front, side OR rear).</b> The rest of the required yard must stay open and unobstructed above 30 inches. Equipment set within a recorded easement is allowed but is <b>subject to removal at the owner's expense</b> if a utility must enter the easement.</div>`;
-  h+=`<div class="note"><b>Coastal / flood is usually the binding constraint:</b> in AE/VE zones the generator, its fuel and the transfer switch must be elevated above BFE (FBC/ASCE 24). Watch for a <b>Special Treatment (ST) overlay</b> on the parcel. Plus NFPA 37 listing clearance and LP-tank (NFPA 58) distances.</div>`;
-  h+=`<a class="palink" href="https://library.municode.com/fl/marco_island/codes/code_of_ordinances?nodeId=PTIICOOR_CH30LADECO" target="_blank" rel="noopener" style="margin-top:6px">↗ Marco Island LDC (Municode) — § 30-1004 Exceptions to Required Yards</a>`;
-  return h;
-}
-function renderLargoGeneratorNote(){
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> equipment placement · Largo Comprehensive Development Code (Subsec. 10001)${codeVerifyBadgeAll('largo')}</div>`;
-  h+=`<div class="note">Largo is <b>Future-Land-Use-based</b>, so setbacks vary by the parcel's land-use designation. A detached accessory structure — and a generator follows the same treatment — takes the <b>same side/rear setback as the principal use</b> for that designation, is <b>not permitted in the front yard</b>, and keeps a <b>3 ft minimum separation from the house</b>. So the generator's required distance off the line = this parcel's principal-structure side/rear setback (check the specific land-use district).</div>`;
-  h+=`<div class="note">Then apply NFPA 37 listing clearance, LP-tank (NFPA 58) distances, and FBC flood elevation on any AE/VE lot.</div>`;
-  h+=`<a class="palink" href="https://library.municode.com/fl/largo/codes/comprehensive_development_code" target="_blank" rel="noopener" style="margin-top:6px">↗ Largo Comprehensive Development Code (Municode)</a>`;
-  return h;
-}
-function renderPinellasParkGeneratorNote(){
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> equipment placement · Pinellas Park LDC § 18-1503.2 (Art. 15 Zoning)${codeVerifyBadgeAll('pinellas_park')}</div>`;
-  h+=`<div class="note"><b>Strict — a generator is regarded as a structure</b> and must meet the <b>full zoning-district structure setbacks</b> (not a reduced accessory setback). The "screened quiet equipment needs no setback variance" exemption <b>does NOT apply to generators</b>, because they generate noise. Mechanical equipment must also be located as far as practical from any abutting residential district (noise/exhaust).</div>`;
-  h+=`<div class="note">So confirm the parcel's district and use its side/rear structure setback. Then apply NFPA 37 listing clearance, LP-tank (NFPA 58) distances, and the city noise limit at the property line.</div>`;
-  h+=`<a class="palink" href="https://library.municode.com/fl/pinellas_park/codes/land_development_code?nodeId=CH18LADECO_AR15.ZO" target="_blank" rel="noopener" style="margin-top:6px">↗ Pinellas Park LDC (Municode) — Art. 15 Zoning, § 18-1503</a>`;
-  return h;
-}
-function renderDunedinGeneratorNote(){
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> equipment placement · Dunedin Zoning Ch. 103 § 103-50 (Table 103-50.1)${codeVerifyBadgeAll('dunedin')}</div>`;
-  h+=`<div class="note">A generator is mechanical equipment; its permitted <b>setback encroachment is set per district in Table 103-50.1</b> — check that table for the parcel's district rather than assuming a flat number. Not in the front yard, and not in easements. On <b>waterfront</b> lots, equipment more than <b>12 in above grade is prohibited in the waterfront view triangle</b>.</div>`;
-  h+=`<div class="note"><b>Coastal:</b> AE/VE lots require the generator, fuel and transfer switch elevated above BFE (FBC/ASCE 24). Plus NFPA 37 listing clearance and LP-tank (NFPA 58) distances.</div>`;
-  h+=`<a class="palink" href="https://library.municode.com/fl/dunedin/codes/code_of_ordinances?nodeId=SPBLADECO_CH103ZO" target="_blank" rel="noopener" style="margin-top:6px">↗ Dunedin Zoning Code (Municode) — Ch. 103, § 103-50</a>`;
-  return h;
-}
-function renderTarponGeneratorNote(){
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> equipment placement · Tarpon Springs Appendix A § 36 (Accessory Uses)${codeVerifyBadgeAll('tarpon_springs')}</div>`;
-  h+=`<div class="note"><b>A standby generator is treated as an accessory structure / mechanical equipment</b> — placed in a side or rear yard, <b>no closer than 5 ft to the side or rear lot line</b>, and <b>not in the front yard</b> or in easements.</div>`;
-  h+=`<div class="note">Sponge Docks / waterfront parcels are in flood zones — apply FBC/ASCE 24 elevation on AE/VE lots. Plus NFPA 37 listing clearance and LP-tank (NFPA 58) distances.</div>`;
-  h+=`<a class="palink" href="https://library.municode.com/fl/tarpon_springs/codes/code_of_ordinances?nodeId=COOR_APCOZOLADECO" target="_blank" rel="noopener" style="margin-top:6px">↗ Tarpon Springs Zoning (Municode) — Appendix A, Art. III § 36</a>`;
-  return h;
-}
 /* Render required setbacks for a City of Venice district. Handles numeric minimums AND the
    form-based build-to "min/max" strings. Falls back to a general Venice reference when the
    district code is null/unrecognized. */
@@ -21686,13 +21625,6 @@ function renderTarponGeneratorNote(){
 /* Resolve a Glades district code (e.g. "RS", "RF-1", "RF1", "C-RV", "ID-2", or a full-word form). */
 /* Glades treats a generator as an accessory structure — no special generator ordinance exists.
    This note rides on every Glades result so the siting rule is explicit. */
-function renderGladesGeneratorNote(){
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> placement · Glades County LDC § 125-158(4) & § 125-202${codeVerifyBadgeAll('glades_county')}</div>`;
-  h+=`<div class="note"><b>Glades County has no dedicated generator ordinance and no special yard-encroachment allowance for mechanical equipment.</b> A permanently installed generator is treated as an <b>accessory structure</b>, so it must sit in a <b>rear or side yard — never in a required front yard</b> — and no closer than <b>5 ft to the rear lot line</b>, and no closer than <b>5 ft to any other building</b> (§ 125-158 note 4; § 125-202(4)).</div>`;
-  h+=`<div class="note">Architectural features (eaves, chimneys, etc.) may project 3 ft into a required yard where it is >= 8 ft wide, but that allowance does not extend to a generator. Above-ground LP tanks follow the same accessory-structure setbacks plus the Fire Code separation distances. Confirm placement with Glades County Community Development (198 6th St., Moore Haven · 863-946-6020) before siting.</div>`;
-  h+=`<a class="palink" href="https://library.municode.com/fl/glades_county/codes/code_of_ordinances" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify §§ 125-158 & 125-202 — Glades County LDC (Municode)</a>`;
-  return h;
-}
 /* Render required setbacks for an unincorporated Glades County district (§ 125-158 numbers). */
 /* ============================ CITY OF MOORE HAVEN ============================
    Moore Haven Land Development Code, Chapter 4 (Zoning), adopted 2009 / amended Oct 5 2010,
@@ -21710,13 +21642,6 @@ function renderGladesGeneratorNote(){
 /* Map the MH_Zoning GIS layer codes (field Z010_ZONG) and full names to the table keys above. */
 /* Resolve a Moore Haven district code (handles "R-1"/"R1", "M-COM"/"MCOM", "Ag", full names). */
 /* Moore Haven generator/accessory note — no dedicated generator ordinance exists. */
-function renderMooreHavenGeneratorNote(){
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> placement · Moore Haven LDC Ch. 4, § 8 (defs. 69–70) & § 9.x.3${codeVerifyBadgeAll('moore_haven')}</div>`;
-  h+=`<div class="note"><b>The City of Moore Haven has no dedicated generator ordinance.</b> A permanently installed generator is a <b>customary accessory use/structure</b>. The yard rules govern placement: in the <b>rear yard</b>, accessory buildings/appurtenances may occupy up to <b>30% of the required rear yard</b>; in a <b>side yard</b>, only architectural appurtenances projecting <= 24 in (or fire escapes/stairways <= 4 ft) are allowed. Practical rule: <b>site the generator in the rear yard, clear of the required front and side yards.</b></div>`;
-  h+=`<div class="note">Above-ground LP tanks follow the same accessory placement plus Fire Code separation distances. A variance can deviate at most 35% from a district standard (§ 5.4.G). Confirm placement with the City of Moore Haven Building &amp; Zoning Official before siting.</div>`;
-  h+=`<a class="palink" href="https://moorehaven.org/zoning-building-code-enforcement/" target="_blank" rel="noopener" style="margin-top:6px">↗ City of Moore Haven — Zoning, Building &amp; Code Enforcement</a>`;
-  return h;
-}
 /* Render required setbacks for a City of Moore Haven district (LDC Ch. 4, § 9). */
 /* ================================ CITY OF NORTH PORT ================================
    City of North Port Unified Land Development Code (ULDC), adopted by Ord. 2024-13 (8-6-2024),
@@ -21747,26 +21672,6 @@ function renderMooreHavenGeneratorNote(){
    encroachment table. The numbers are the MAXIMUM REDUCTION to the required setback (i.e. how far the
    unit may intrude past the district line) — NOT a standalone distance. Always shown for any North
    Port parcel. */
-function renderNorthPortGeneratorNote(district){
-  const _np = district ? setbacksFor('North Port', 'Sarasota', district) : null;
-  const s = (_np && _np.row) ? _np.row : null;
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> placement · North Port ULDC § 3.5.1 (Table 3.5.1.1)${codeVerifyBadgeAll('north_port')}</div>`;
-  h+=`<div class="note"><b>North Port has no separate generator ordinance.</b> A permanently installed standby generator is <b>"Ancillary Mechanical Equipment, Residential"</b> and is governed by the allowable-encroachment table. It may encroach into the required setbacks by at most: <b>Front — not allowed</b> (must meet the full front setback); <b>Side — up to 2 ft</b>; <b>Rear — up to 5 ft</b>; <b>Waterfront — up to 5 ft</b>. The figure is the maximum <i>reduction</i> of the required setback, so the equipment's minimum distance to a line = the district setback minus that allowance.</div>`;
-  // If we know the district's side/rear, show the resulting minimum clearances for the generator.
-  if(s && !s.allFormula){
-    const calc=(base,enc)=>{ if(typeof base!=='number') return null; const v=Math.max(0, base-enc); return (v===0?'0 ft':(Number.isInteger(v)?v:v.toFixed(1))+' ft'); };
-    const wfv=(s.wf!=null?s.wf:s.waterfront);
-    const sideMin=calc(s.side,2), rearMin=calc(s.rear,5), wfMin=calc(wfv,5);
-    const parts=[];
-    if(sideMin!=null) parts.push(`side ≥ ${sideMin} (from the ${s.side} ft side setback)`);
-    if(rearMin!=null) parts.push(`rear ≥ ${rearMin} (from the ${s.rear} ft rear setback)`);
-    if(wfMin!=null && wfv!=null) parts.push(`waterfront ≥ ${wfMin} (from the ${wfv} ft waterfront setback)`);
-    if(parts.length) h+=`<div class="note"><b>For ${esc(String(district))}, that works out to:</b> ${parts.join('; ')}. Front: site the unit fully behind the front setback line.</div>`;
-  }
-  h+=`<div class="note">Equipment may not sit in a recorded easement, and these allowances do <b>not</b> apply to zero-lot-line structures. A granted variance does not stack additional encroachment on top of these. Above-ground LP/fuel tanks also follow Florida Fire Code separation distances. Confirm placement with North Port Neighborhood Development Services before siting.</div>`;
-  h+=`<a class="palink" href="https://library.municode.com/fl/north_port/codes/code_of_ordinances" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify § 3.5.1 — North Port ULDC (Municode)</a>`;
-  return h;
-}
 /* Render required setbacks for a City of North Port district (ULDC Tables 3.2.3.2 / 3.3.1.2). Always
    appends the citywide generator/encroachment note. Falls back to a general reference + the generator
    note when no district was detected or the code isn't in the table (e.g. a "V" village parcel). */
@@ -21793,13 +21698,6 @@ function renderNorthPortGeneratorNote(district){
    like "RG-2M"/"RG2M", or a full-word form. */
 /* Hendry treats a generator as an accessory structure — no dedicated generator ordinance exists.
    This note rides on every unincorporated-Hendry result so the siting rule is explicit. */
-function renderHendryGeneratorNote(){
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> placement · Hendry County LDC § 1-53-4.1 (Table 53-2) &amp; § 1-53-6${codeVerifyBadgeAll('hendry_county')}</div>`;
-  h+=`<div class="note"><b>Hendry County has no dedicated generator ordinance and no special yard-encroachment allowance for mechanical equipment.</b> A permanently installed generator is treated as an <b>accessory structure</b>: it must observe the <b>same yard setbacks as its zoning district</b> (the front/side/rear in Table 53-2) and the accessory-use placement rules of <b>§ 1-53-6</b> — kept out of the required <b>front yard</b> and out of any platted <b>utility/drainage easement</b>, generally in a side or rear yard.</div>`;
-  h+=`<div class="note">Above-ground LP/propane tanks follow the same accessory-structure setbacks plus the Florida Fire Prevention Code separation distances. Within the <b>Airglades Airport overlay (AOPD)</b>, additional noise-zone limits apply. Confirm exact placement with <b>Hendry County Planning &amp; Zoning (863-675-5240, LaBelle)</b> before siting.</div>`;
-  h+=`<a class="palink" href="https://library.municode.com/fl/hendry_county/codes/code_of_ordinances" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify §§ 1-53-4.1 &amp; 1-53-6 — Hendry County LDC (Municode)</a>`;
-  return h;
-}
 /* Render required setbacks for an unincorporated Hendry County district. The per-district feet are
    hand-entered into HENDRY_SETBACKS from the adopted LDC Table 53-2 (§ 1-53-4.1) and render directly.
    Districts whose standards come from an approved plan (PUD/DSAP/RDSAP) carry pud:true and route to
@@ -21829,13 +21727,6 @@ function renderHendryGeneratorNote(){
 const MARION_INCORP = new Set(['OCALA','BELLEVIEW','DUNNELLON','MCINTOSH','REDDICK']);
 /* Marion treats a generator as an accessory structure — no dedicated generator ordinance exists.
    This note rides on every unincorporated-Marion result so the siting rule is explicit. */
-function renderMarionGeneratorNote(){
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> placement · Marion County LDC § 4.2.6.C.(8)${codeVerifyBadgeAll('marion_county')}</div>`;
-  h+=`<div class="note"><b>Marion County has no dedicated generator ordinance and no special yard-encroachment allowance for mechanical equipment.</b> A permanently installed generator is treated as an <b>accessory structure</b>: it must sit in a <b>rear or side yard — never in a required front yard</b> — at the district's <b>General Accessory</b> setback, and for lots <b>one (1) acre or less</b> a minimum <b>8 ft from the rear &amp; side lot lines</b> (§ 4.2.6.C.8).</div>`;
-  h+=`<div class="note">Only eaves, roof overhangs, pilasters, chimneys and fireplaces may protrude 2 ft into a required setback (§ 4.2.6.C.4) — that allowance does <b>not</b> extend to a generator. No structure may be placed over an easement without the easement holder's written approval (§ 4.2.6.C.3). Above-ground LP tanks follow the same accessory-structure setbacks plus Fire Code separation distances. Confirm placement with Marion County Growth Services (352-438-2600) before siting.</div>`;
-  h+=`<a class="palink" href="https://library.municode.com/fl/marion_county/codes/land_development_code" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify § 4.2.6 &amp; the district section — Marion County LDC (Municode)</a>`;
-  return h;
-}
 /* Render required setbacks for an unincorporated Marion County district (Article 4, Div. 2). */
 /* ============================ CITY OF OCALA ============================
    City of Ocala Land Development Code / Code of Ordinances, Chapter 122 (Zoning), Article V, Division 2,
@@ -21863,13 +21754,6 @@ function renderMarionGeneratorNote(){
    OCALA is in MARION_INCORP, so it's already excluded from the county setback renderer. */
 /* Ocala treats a generator as an accessory structure — no dedicated generator ordinance exists.
    Rule is § 122-254 (accessory placement) + § 122-252 (no mechanical-equipment yard encroachment). */
-function renderOcalaGeneratorNote(){
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> placement · City of Ocala LDC § 122-254${codeVerifyBadgeAll('ocala')}</div>`;
-  h+=`<div class="note"><b>The City of Ocala has no dedicated generator ordinance and no yard-encroachment allowance for mechanical equipment.</b> A permanently installed generator is an <b>accessory structure</b>. In the <b>rear yard</b> it must sit <b>≥ 3 ft from the rear property line</b>, <b>≥ 5 ft from any main building</b>, and still meet the district's required <b>interior side setback</b> (§ 122-254(2)). A side-yard location must provide the <b>full required side setback</b> (§ 122-254(1)). On corner / through lots it may <b>not</b> sit in either front yard (§ 122-250).</div>`;
-  h+=`<div class="note">The § 122-252 yard-encroachment list (chimneys/pilasters 2 ft, awnings 3 ft, sills 12 in) does <b>not</b> include mechanical equipment, so a generator gets <b>no</b> setback intrusion. Above-ground LP tanks follow the same accessory-structure setbacks plus Fire Code separation distances. Confirm placement with City of Ocala Growth Management (Planning) before siting.</div>`;
-  h+=`<a class="palink" href="https://library.municode.com/fl/ocala/codes/code_of_ordinances?nodeId=PTIICOOR_CH122ZO" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify §§ 122-252 &amp; 122-254 — City of Ocala Ch. 122 (Municode)</a>`;
-  return h;
-}
 /* Render required setbacks for a City of Ocala district (Chapter 122, § 122-286). */
 /* ============================ POLK COUNTY ============================
    Polk County Land Development Code, Chapter 2, §§ 203-209, Table 2.2 (Density and Dimensional
@@ -21897,13 +21781,6 @@ function renderOcalaGeneratorNote(){
    adjacent property. That note rides on every unincorporated-Polk result. */
 /* Polk treats a generator as an accessory structure — no dedicated generator ordinance exists.
    Rule is § 209.D (accessory placement) + § 208.B.4 (3 ft mechanical-equipment encroachment). */
-function renderPolkGeneratorNote(){
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> placement · Polk County LDC §§ 208–209${codeVerifyBadgeAll('polk_county')}</div>`;
-  h+=`<div class="note"><b>Polk County has no dedicated generator ordinance.</b> A permanently installed generator is an <b>accessory structure</b>: per § 209.D it must sit in the <b>side or rear yard</b>, meeting the district's <b>accessory-structure setback</b> (the second number in "Principal / Accessory" above) — never in a required front yard, except a bona-fide agricultural accessory use on <b>A/RR</b> land, which may sit in any yard.</div>`;
-  h+=`<div class="note">Per § 208.B.4, mechanical equipment (including a generator) may project up to <b>3 ft</b> into a required setback, but may not extend over an adjacent property. Above-ground LP tanks follow the same accessory-structure setbacks plus Fire Code separation. Confirm placement with Polk County Planning &amp; Development (Planner-on-Call, 863-534-6084) before siting.</div>`;
-  h+=`<a class="palink" href="https://library.municode.com/fl/polk_county/codes/land_development_code" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify §§ 208–209 &amp; Table 2.2 — Polk County LDC (Municode)</a>`;
-  return h;
-}
 /* Render required setbacks for an unincorporated Polk County land use district (= zoning per § 203). */
 /* ---------- City of Sanibel required setbacks — Land Development Code, Chapter 126 (Zoning) ----------
    Sanibel is a barrier-island sanctuary city in Lee County with a UNIQUE code: instead of conventional
@@ -21927,15 +21804,6 @@ function renderPolkGeneratorNote(){
    is one of the most detailed generator rules in SWFL, so it's the headline for any Sanibel install.
    Shown for any Sanibel parcel — it's a citywide rule. Sanibel does NOT grant a yard-encroachment
    allowance (unlike Punta Gorda); generators must meet the underlying zone's required setbacks. */
-function renderSanibelGeneratorNote(){
-  let h=`<div class="freshline snap" style="margin-top:10px"><span class="badge unk">⚡ GENERATOR</span> emergency power generator ordinance · Sanibel LDC Ch. 126, Div. 16${codeVerifyBadgeAll('sanibel')}</div>`;
-  h+=`<div class="note"><b>Generators must meet the zone's required setbacks.</b> Sanibel has a dedicated emergency-generator ordinance (§ 126-1301–1308). A permanently installed generator must demonstrate compliance with all required setbacks from property lines — there's <b>no special yard-encroachment allowance</b> — and the as-built must document the distance to any dwelling unit or structure within 20 ft of the generator.</div>`;
-  h+=`<div class="note"><b>Noise cap:</b> a generator (running on outage or during its test cycle) may not exceed <b>78 dB(A) measured at any property line</b>. The city measures the sound level before issuing the completion certificate, and it must stay compliant.</div>`;
-  h+=`<div class="note"><b>Screening & coverage:</b> the generator must be effectively screened from off-site view; any sound-barrier wall must be architecturally compatible and screened with native vegetation. An administrative waiver of impermeable-coverage / vegetation-removal limits is available for up to 30 sq ft for the generator. A permit is required.</div>`;
-  h+=`<a class="palink" href="https://library.municode.com/fl/sanibel/codes/code_of_ordinances?nodeId=SPBLADECO_CH126ZO" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify Ch. 126, Div. 16 — Sanibel LDC (Municode)</a>`;
-  h+=`<div class="note">Sanibel Planning Department: (239) 472-4136 — give them the address for the parcel-specific generator placement, buildable-area and screening requirements.</div>`;
-  return h;
-}
 /* Render required setbacks for a City of Sanibel ecological zone / district (Ch. 126 numbers).
    When no zone code was detected (Sanibel's GIS isn't reliably point-queryable here), still render a
    general ecological-zone setback reference + the generator ordinance, so the card is useful. */
@@ -23160,94 +23028,10 @@ function renderCapacityCard(table, districtCode, lotSqft, jurLabel, codeRef){
    date instead of the old 2007 proxy. Year-built is still the assessor's figure, not the permit date, so a
    2006 build year is treated as AMBIGUOUS rather than qualifying. District matters too: § 58-116(5)b makes
    R1-15A an absolute no-encroachment district for generators, so the allowance is suppressed there. */
-const NAPLES_56_41_ORD = { no:"06-11495", adopted:"December 20, 2006", year:2006 };
-function renderNaplesGeneratorRules(yearBuilt, districtCode){
-  const yNum = yearBuilt!=null ? parseInt(String(yearBuilt).replace(/[^0-9]/g,''),10) : NaN;
-  const haveYear = !isNaN(yNum) && yNum>1800 && yNum<2100;
-  const dk = normZoneKey(districtCode||'');
-  const isR115A = dk==='R115A';
-  const isR110A = dk==='R110A';
-  const isSF = /^(RE|R1)/.test(dk);
-  const ORD = `Ord. ${esc(NAPLES_56_41_ORD.no)} (${esc(NAPLES_56_41_ORD.adopted)})`;
-  let g=`<div class="freshline snap" style="margin-top:12px"><span class="badge unk">⚡ GENERATOR · § 56-41</span> mechanical-equipment siting (City of Naples)${codeVerifyBadge('naples','56-41')}</div>`;
-
-  // ---- Where it can go ----
-  g+=`<div class="note"><b>Rule:</b> a generator is mechanical equipment and must sit <b>outside the required yards</b> above. One exception — a new generator at a single-family home <i>permitted and built before ${ORD}</i> may encroach up to <b>36″ into the side yard</b>. Never front or rear. The "under 30 in." rule in § 56-54(a) does not apply to equipment.</div>`;
-
-  if(isR115A){
-    g+=`<div class="note warnbox"><b>R1-15A — no encroachment at all (§ 58-116(5)b).</b> Generators, AC and pool equipment may not enter any required setback, whatever the home's age. Side yard is 12½ ft. Equipment on the side of the house: base ≤ 6 in. above the FEMA/DEP first-habitable-floor elevation (§ 58-116(4)c); permanently screened from street, neighbors and waterways.</div>`;
-  } else if(!isSF){
-    g+=`<div class="note warnbox"><b>${esc(districtCode||'This district')} is not a single-family district</b> — the 36″ allowance is written for single-family homes. Assume the full yard applies unless the Building Dept (239) 213-5020 confirms otherwise.</div>`;
-  } else if(haveYear && yNum < NAPLES_56_41_ORD.year){
-    g+=`<div class="note warnbox"><b>Likely qualifies for the 36″ side-yard allowance.</b> Built <b>${esc(String(yNum))}</b>, before ${ORD}. Generator may sit at <b>required side yard − 3 ft</b> from the side line. Year-built is the assessor's figure — confirm the permit date, and check for a &gt;50% renovation since (see below).</div>`;
-  } else if(haveYear && yNum === NAPLES_56_41_ORD.year){
-    g+=`<div class="note warnbox"><b>Built 2006 — ambiguous.</b> The ordinance was adopted Dec 20, 2006. Pull the original permit / CO date before drawing the generator inside the side yard.</div>`;
-  } else if(haveYear){
-    g+=`<div class="note warnbox"><b>No allowance.</b> Built <b>${esc(String(yNum))}</b>, after ${ORD}. Keep the generator fully outside the required yards.</div>`;
-  } else {
-    g+=`<div class="note warnbox"><b>Build year unknown.</b> Can't assess the 36″ allowance — get the original permit date from the Building Dept (239) 213-5020.</div>`;
-  }
-
-  g+=`<div class="note"><b>50% rule:</b> equipment installed with new construction, or with additions/alterations over 50% of assessed value, may not be in a required yard at all. A pre-2006 home with a later &gt;50% renovation loses the allowance.</div>`;
-  g+=`<div class="note"><b>AC / pool replacement</b> is a separate clause: pre-2006 units may be replaced in place ≤ 36″ into <i>any</i> yard. Doesn't apply to generators.</div>`;
-
-  // ---- Conditions ----
-  g+=`<div class="note" style="padding-top:6px"><b>Conditions</b></div>`;
-  g+=`<div class="note">• <b>Fuel (c):</b> within 15 ft of a property line — NG or LP only; no gasoline or diesel.</div>`;
-  g+=`<div class="note">• <b>Exercise (d):</b> Mon–Thu, 9 a.m.–4 p.m. only. Set the Generac timer at startup.</div>`;
-  g+=`<div class="note">• <b>Screening (a):</b> full equipment height. Screen walls around <i>replacement</i> equipment may exceed the fence-height limit by the minimum needed.</div>`;
-  g+=`<div class="note">• <b>Noise (§ 22-37, Table 1):</b> 60 dBA day / 55 dBA night at the neighbor's property line (residential). Air-cooled Generacs run ~66–67 dBA at 23 ft in exercise — on a 7½–10 ft side yard, point the exhaust away from the neighbor.</div>`;
-  g+=`<div class="note">• <b>Easements:</b> nothing in a utility or drainage easement — check the plat.</div>`;
-  if(isR110A){
-    g+=`<div class="note">• <b>R1-10A fences (§ 58-211):</b> normally none forward of the rear of the house, but fencing to conceal existing mechanical equipment is allowed there. ≥ 50% open.</div>`;
-  }
-
-  // ---- Other yard exceptions ----
-  g+=`<div class="note" style="padding-top:6px"><b>Other § 56-54 exceptions</b></div>`;
-  g+=`<div class="note">• <b>Front-yard averaging (c) — helps.</b> If ≥ 40% of the block face is built shallower than the district front yard, the average of those yards becomes the requirement (min 25 ft residential).</div>`;
-  g+=`<div class="note">• <b>36″ projections, fire pits, grills, pools — don't help.</b> None of those lists include mechanical equipment; § 56-54(a)(1)e sends it back to § 56-41.</div>`;
-
-  // Verbatim section text (Municode, matches Code PDF Supp. 55) — quotable in a correction response
-  g+=`<details style="margin-top:8px"><summary style="cursor:pointer;font-weight:600">Read § 56-41 in full (verbatim)</summary><div class="note" style="white-space:pre-wrap;padding-top:4px">Sec. 56-41. - Mechanical equipment.
-(a) Mechanical equipment installed with new construction or with additions or alterations exceeding 50 percent of the assessed value of the existing structure may not be located in a required yard regardless of the height or projection of the equipment. Air conditioning and pool equipment permitted and installed prior to the effective date of this ordinance may be maintained and replaced provided the new equipment does not encroach more than 36 inches into any required yard. New generators may be installed adjacent to existing single-family homes permitted and constructed prior to the effective date of the ordinance codified in this section; provided, that the new equipment does not encroach more than 36 inches into any required side yard. All new and replaced mechanical equipment must be screened from view to the full height of the equipment consistent with all applicable fencing and landscaping requirements and manufacturer's specifications. Screening walls and fences around replacement equipment may exceed the allowable height limitations provided the height is the minimum required to screen from view to the full height of the equipment and the projection into the required yard is the minimum encroachment necessary per manufacturers' specifications.
-(b) In all zone districts except C3, C4 and I, heating, ventilating and air conditioning equipment and ductwork and the like located on building rooftops shall be shielded from ground level view within 1,000 feet of the building. If shielding cannot be accomplished by judicious placement of the equipment, ornamental screening visually compatible with the building is required.
-(c) Permanently installed generators within 15 feet of a property line shall use propane, natural gas or fuel with similar exhaust impacts. Gasoline or diesel-powered generators shall be prohibited within 15 feet of a property line.
-(d) Automatic cycling of generators shall take place between 9:00 a.m. and 4:00 p.m., Monday through Thursday.
-(Comp. Dev. Code 1990, § 9-1-9; Code 1994, § 110-41; Ord. No. 06-11495, § 4, 12-20-2006)</div></details>`;
-  g+=`<a class="palink" href="https://www.naplesgov.com/building/page/installing-mechanical-equipment" target="_blank" rel="noopener" style="margin-top:6px">↗ City of Naples — Installing Mechanical Equipment (§ 56-41: generators, HVAC, pool)</a>`;
-  g+=`<a class="palink" href="https://library.municode.com/fl/naples/codes/code_of_ordinances" target="_blank" rel="noopener" style="margin-top:4px">↗ Full Naples code (Municode) — §§ 56-41, 56-54, 58-116, 22-37</a>`;
-  return g;
-}
-
 /* ---------- Collier County generator siting — LDC 5.03.07 Table 1 ----------
    Shown as a reference table (not auto-computed): the required generator-to-lot-line distance for a
    SIDE yard depends on the PRINCIPAL structure's side setback, so the installer reads the row that
    matches the real (surveyed) setback. Plus rear, road, and separation rules. Collier parcels only. */
-function renderCollierGeneratorRules(){
-  let g=`<div class="freshline snap" style="margin-top:12px"><span class="badge unk">⚡ GENERATOR · LDC 5.03.07</span> generator siting (Collier County)${codeVerifyBadgeAll('collier_county')}</div>`;
-  // General placement rules (from § 4.02.01)
-  g+=`<div class="note"><b>Where a generator may sit:</b> in the <b>rear yard</b> (10 ft setback), or encroaching up to <b>36 inches into a side yard</b>. <b>Not</b> permitted to encroach into a required front yard. In districts with a front setback of 35 ft or more, a generator may sit in the front yard no more than 6 ft from the dwelling, with a vegetative screen. Above-ground fuel tanks follow the same setbacks; underground tanks have none.</div>`;
-  // Table 1 — side-yard generator distance to lot line, by principal-structure side setback
-  g+=`<div class="note" style="padding-top:6px"><b>Generator distance to lot line — SIDE yard</b> (by the principal structure's side setback):</div>`;
-  g+=fieldRow('Structure side ≤ 5 ft', '1 ft');
-  g+=fieldRow('> 5 and ≤ 7.5 ft', '2 ft');
-  g+=fieldRow('> 7.5 and ≤ 20 ft', '4 ft');
-  g+=fieldRow('> 20 ft', '10 ft');
-  g+=fieldRow('Rear yard', '10 ft (waterfront) · 5 ft (non-waterfront)');
-  // Separation requirements
-  g+=`<div class="note" style="padding-top:6px"><b>Required separations:</b></div>`;
-  g+=fieldRow('Public/private road ROW', '10 ft');
-  g+=fieldRow('Air intake / another generator', '10 ft');
-  g+=fieldRow('Windows, soffit vents, eaves, shrubs, trees', '5 ft');
-  g+=fieldRow('Gas/elec meters, pool pumps, water systems, AC, plantings', '3 ft');
-  // Operating / equipment rules from § 4.02.01 A.13
-  g+=`<div class="note" style="padding-top:6px"><b>Operating &amp; equipment rules:</b> routine exercising is limited to <b>30 minutes, once every 7 days, 9:00 a.m.–5:00 p.m.</b>, and must not exceed the Noise Ordinance's Manufacturing/Industrial sound limits. All permanent generators must have <b>sound-attenuating housing</b>. Above-ground fuel tanks follow the same setbacks; underground tanks have none.</div>`;
-  g+=`<div class="note"><b>Encroachment exceptions:</b> at existing facilities with fuel pumps, and at existing assisted-living/nursing facilities, generators &amp; fuel storage may encroach into required side/rear yards (and buffers, for ALF/nursing) provided no hazard to pedestrian or vehicular traffic.</div>`;
-  g+=`<div class="note warnbox"><b>Reference from Collier LDC 5.03.07 Table 1 — verify the principal structure's actual side setback (from a survey) to read the correct side-yard row.</b> The structure-distance estimate elsewhere on this card is approximate and should not be used to pick the row. Confirm with Collier County Growth Management before siting.</div>`;
-  g+=`<a class="palink" href="https://library.municode.com/fl/collier_county/codes/land_development_code" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify LDC 5.03.07 (Permanent Emergency Generators) — Municode</a>`;
-  return g;
-}
-
 /* Cape Coral generator siting — LDC Table 4.1.5 (Article 4) + LDC § 5.1.13.E (Article 5).
    Verified against the adopted LDC, Supp. No. 38 (Table 4.1.5 as amended by Ord. 29-26, 6-3-2026;
    § 5.1.13 as amended by Ord. 25-25, 6-4-2025).
@@ -23649,52 +23433,6 @@ function renderWindDesign(lat, lng, cityName, countyName, liveWind){
   h+=`<div class="note warnbox">For generator &amp; LP-tank installs: the unit's wind rating, its slab/anchorage, and the tank anchoring must be designed to the <b>site V<sub>ult</sub></b>. The figures here are a planning aid — the permit's engineer of record sets the official design value.</div>`;
   h+=`</div></div>`;
   return h;
-}
-
-function renderCapeCoralGeneratorRules(districtCode){
-  const U = districtCode ? String(districtCode).toUpperCase() : '';
-  // The six-foot perimeter PUE exists in R-1, RML, RE and A (LDC § 5.1.6.A). RMM and the
-  // non-residential / mixed-use districts are not named in that subsection.
-  const hasPUE = /\bR-?1[A-Z]?\b/.test(U) || /\bRML\b/.test(U) || /\bRE\b/.test(U) ||
-                 /\bRESIDENTIAL ESTATE/.test(U) || /\bAGRICULTUR/.test(U) || U.trim()==='A';
-
-  let g=`<div class="freshline snap" style="margin-top:12px"><span class="badge unk">⚡ GENERATOR · LDC Table 4.1.5 &amp; § 5.1.13</span> generator siting (Cape Coral)${codeVerifyBadgeAll('cape_coral')}</div>`;
-
-  g+=`<div class="note"><b>Generators are exempt from building setbacks.</b> LDC § 4.1.5.C.3: newly installed generators, air conditioners and pool equipment — <i>and their concrete pads</i> — "are exempt from building setback requirements <b>but shall not be placed in any easement</b>." The district setbacks above do <b>not</b> constrain the unit. The easement does.</div>`;
-
-  g+=fieldRow('Side yard', 'Exempt from setback — no distance limit');
-  g+=fieldRow('Rear yard', 'Exempt from setback — no distance limit');
-  g+=fieldRow('Front yard', 'Allowed · ≤ 5 ft from front of building, screened enclosure required', 'big');
-  g+=fieldRow('Any easement', 'Prohibited');
-
-  if(hasPUE){
-    g+=`<div class="note warnbox"><b>The 6-foot perimeter PUE is the real limit.</b> In the R-1, RML, RE and A districts a six-foot public utility easement rings the site (LDC § 5.1.6.A), and nothing may be placed on it except a paved driveway, walkway, sidewalk, fence, or well. <b>A generator is not on that list.</b> So on a standard R-1 lot the closest a generator can sit to a side or rear line is <b>6 ft</b> — not 2.5 ft, and not the 7.5 ft side setback. Pull the plat: the PUE is platted, and utilities or drainage inside it can further restrict the pad.</div>`;
-  } else {
-    g+=`<div class="note warnbox">No six-foot perimeter PUE is imposed on this district by LDC § 5.1.6.A, but <b>any</b> recorded easement still bars a generator pad. Pull the plat and the title work before siting.</div>`;
-  }
-
-  // LDC § 5.1.13 is titled "Single-family residential standards" — its front-yard conditions bind
-  // single-family uses. Show the full checklist for districts where SF is the norm; a pointer elsewhere.
-  const isSF = hasPUE || /\bRMM\b/.test(U) || !U;
-  if(!isSF){
-    g+=`<div class="note">The detailed front-yard enclosure requirements in LDC § 5.1.13.E apply to <b>single-family residential</b> uses. For a single-family use lawfully located in this district, those conditions still apply — see § 5.1.13.E.</div>`;
-  } else
-  g+=`<div class="note"><b>Front-yard generators &amp; HVAC (single-family) — LDC § 5.1.13.E.</b> Permitted in front of the residence, subject to all of:
-    <br>· Screened from the street and from any abutting residential site by an <b>enclosure</b> of materials consistent with the building and painted to match the front façade.
-    <br>· Enclosure max height <b>6 ft</b>, unless more is needed to screen the full height of the equipment. It is not a "wall" for § 5.2.7 purposes.
-    <br>· <b>The enclosure itself must meet all building setbacks</b> for the district — the equipment's setback exemption does not pass through to it.
-    <br>· Equipment no more than <b>5 ft from the front of the building</b>, unless the Florida Building Code requires more.
-    <br>· The enclosure may screen <b>only</b> the generator/HVAC — no other equipment or storage inside it.
-    <br>· Does <b>not</b> apply to temporary portable generators during emergencies or after a natural disaster.</div>`;
-
-  g+=`<div class="note"><b>Other equipment (Table 4.1.5).</b> HVAC is treated <b>identically to generators</b> — 5 ft in the front yard, unlimited in side and rear. <b>Pool equipment is the exception:</b> <b>not allowed</b> in the front yard; unlimited in side and rear. (Existing AC, pool equipment and generators may be maintained and replaced, provided the replacement does not encroach into an easement.)</div>`;
-
-  g+=`<div class="note"><b>Also check:</b> the pad is impervious surface and counts against the district's impervious cap (60% in R-1 and RML; LDC Art. 1 § 1.15.M). Irregular residential lots abutting a platted waterway can have setbacks assigned individually by the Director (§ 4.1.4). And required setbacks must otherwise stay "open and unobstructed from 30 inches above the ground" (§ 4.1.5).</div>`;
-
-  g+=`<div class="note warnbox"><b>Currency:</b> Table 4.1.5 was last amended by Ord. 29-26 (6-3-2026) and § 5.1.13 by Ord. 25-25 (6-4-2025) — both provisions have changed twice in two years. Confirm against the live code and with Cape Coral Development Services before siting.</div>`;
-
-  g+=`<a class="palink" href="https://library.municode.com/fl/cape_coral/codes/code_of_ordinances" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify in the Cape Coral Land Development Code (Municode, Vol. II — Art. 4 &amp; Art. 5)</a>`;
-  return g;
 }
 
 /* Largest plausible single residential/home lot, in acres. Above this, the polygon is almost
@@ -31363,7 +31101,6 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   if(zhit && norm(countyName)==='POLK' && zhit.code!=null && /^CITY$/i.test(String(zhit.code).trim())){
     html += `<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ ZONING</span> Inside an incorporated city — not unincorporated Polk County</div>`;
     html += `<div class="note">This parcel is inside a Polk County <b>municipality</b>${cityName?(' ('+esc(cityName)+')'):''} , which administers its <b>own</b> zoning code — Polk County's Table 2.2 land use districts don't apply here (LDC § 203 only governs unincorporated land). Look up this parcel's zoning with the city's own planning department or GIS.</div>`;
-    html += renderPolkGeneratorNote();
   } else
   if(zhit && ((zhit.code!=null&&String(zhit.code).trim()!=='') || (zhit.desc!=null&&String(zhit.desc).trim()!=='') || (zhit.extras&&zhit.extras.length))){
     html += `<div class="freshline snap" style="margin-top:10px"><span class="badge live">● LIVE</span> zoning polygon at this point${zhit.layerName?' · '+esc(zhit.layerName):''}</div>`;
@@ -31393,63 +31130,44 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   }
   // Collier County generator siting (LDC 5.03.07) — UNINCORPORATED Collier only. The incorporated
   // cities (Naples has its own § 56-41 rendered above; Marco Island has its own LDC) are excluded.
-  if(norm(countyName)==='COLLIER' && !COLLIER_INCORP.has(norm(cityName))){ html += renderCollierGeneratorRules(); }
   if(ZONING_EXCEPTION_LAYERS[norm(countyName||'')] || PRESERVE_LAYERS[norm(countyName||'')]){ html += `<div id="preserveNote-${myId}"></div>`; setTimeout(_pollLotNotes,0); }
   // Tampa Bay / SW-FL cities wired in the zoning-layer expansion — each carries a generator-siting note
   // read from its own adopted code (verified per city). Dispatched by cityName so it rides on any parcel
   // in that city, whether or not a district code was read. (Marco Island's setback table renders above;
   // this adds its 4-ft generator encroachment rule specifically.)
-  if(norm(cityName)==='NAPLES'){ html += renderNaplesGeneratorRules(); }
-  if(norm(cityName)==='PUNTAGORDA'){ html += renderPuntaGordaGeneratorNote(); }
-  if(norm(cityName)==='BRADENTON'){ html += renderBradentonGeneratorNote(); }
-  if(norm(cityName)==='MARCOISLAND'){ html += renderMarcoGeneratorNote(); }
-  if(norm(cityName)==='LARGO'){ html += renderLargoGeneratorNote(); }
-  if(norm(cityName)==='PINELLASPARK'){ html += renderPinellasParkGeneratorNote(); }
-  if(norm(cityName)==='DUNEDIN'){ html += renderDunedinGeneratorNote(); }
-  if(norm(cityName)==='TARPONSPRINGS'){ html += renderTarponGeneratorNote(); }
-  if(norm(cityName)==='CAPECORAL'){ html += renderCapeCoralGeneratorRules(zhit && zhit.code ? zhit.code : null); }
   // City of Sanibel: ecological-zone setbacks + the Ch. 126 Div. 16 generator ordinance. Rendered
   // unconditionally for any Sanibel parcel (not gated on a detected zoning code), since Sanibel's
   // ecological-zone GIS isn't reliably point-queryable here — pass the zone code when we DID get one
   // The Ch. 126 Div. 16 generator ordinance rides on any Sanibel parcel; the ecological-zone
   // setbacks themselves come from the lookup above when the zone code resolved.
-  if(norm(cityName)==='SANIBEL'){ html += renderSanibelGeneratorNote(); }
   // City of Moore Haven — the ONLY incorporated city in Glades, with its OWN code (LDC Ch. 4).
   // Rendered for any Moore Haven parcel (not gated on a detected code); the city table maps the
   // Moore Haven's generator note rides on any parcel in the city, code or no code.
-  if(norm(cityName)==='MOOREHAVEN'){ html += renderMooreHavenGeneratorNote(); }
   // Unincorporated Glades County (LDC Ch. 125, Art. IV, § 125-158). Moore Haven (handled above)
   // uses its own code, so exclude it here. Always renders the county generator note even with no code.
-  if(norm(countyName)==='GLADES' && norm(cityName)!=='MOOREHAVEN'){ html += renderGladesGeneratorNote(); }
   // Unincorporated Hendry County (LDC Ch. 1-53, § 1-53-4.1 Table 53-2). LaBelle & Clewiston are
   // incorporated and run their own codes (excluded via HENDRY_INCORP); renderHendrySetbacks also
   // self-guards if the zoning layer handed back a "LABELLE"/"CLEWISTON" city placeholder as the code.
   // Always renders the county generator note even when no district code was detected.
-  if(norm(countyName)==='HENDRY' && !HENDRY_INCORP.has(norm(cityName))){ html += renderHendryGeneratorNote(); }
   // Unincorporated Marion County (LDC Article 4, Div. 2, Tables 4.2-2 & 4.2-4). Ocala, Belleview,
   // Dunnellon, McIntosh & Reddick are incorporated and run their own codes (excluded via
   // MARION_INCORP). Always renders the county generator note even when no district code was detected.
-  if(norm(countyName)==='MARION' && !MARION_INCORP.has(norm(cityName))){ html += renderMarionGeneratorNote(); }
   // Unincorporated Polk County — LDC has no separate zoning-district system (§ 203), so the Future
   // Land Use / land use district (read live via ZONING_LIVE.POLK, field FLU_LDC) IS the regulatory
   // district. Cities (Lakeland, Winter Haven, Bartow, Auburndale, etc.) run their own codes; without a
   // POLK_INCORP exclusion list yet, this dispatches for the whole county — acceptable since city
   // parcels won't return a district code from this unincorporated-only GIS layer, so they'll correctly
   // fall through to the "district not detected" note rather than showing a wrong county district.
-  if(norm(countyName)==='POLK' && !(zhit && zhit.code!=null && /^CITY$/i.test(String(zhit.code).trim()))){ html += renderPolkGeneratorNote(); }
   // City of Ocala — a Marion County city with its OWN code (Chapter 122, § 122-286), excluded from the
   // county renderer via MARION_INCORP. Rendered for any Ocala parcel (not gated on a detected code);
   // Ocala's generator note rides on any parcel in the city, code or no code.
-  if(norm(cityName)==='OCALA'){ html += renderOcalaGeneratorNote(); }
   // City of Venice — a Sarasota County city with its OWN code (LDC Ch. 87), excluded from the county
   // renderer via SARASOTA_INCORP. Rendered for any Venice parcel (not gated on a detected code);
   // Venice's generator note rides on any parcel in the city, code or no code.
-  if(norm(cityName)==='VENICE'){ html += renderVeniceGeneratorNote(); }
   // City of North Port — a Sarasota County city with its OWN code (ULDC, Ord. 2024-13), excluded from
   // the county renderer via SARASOTA_INCORP. Rendered for any North Port parcel (not gated on a
   // detected code). It works the generator's real clearance out of the district setback when the
   // district resolved, and states the encroachment allowances alone when it did not.
-  if(norm(cityName)==='NORTHPORT'){ html += renderNorthPortGeneratorNote(zhit && zhit.code ? zhit.code : null); }
   // (building-to-line estimate feature removed)
   if(z){
     if(z.permit) html += `<a class="palink" href="${esc(z.permit)}" target="_blank" rel="noopener">↗ ${esc(jurName)} permitting / planning portal</a>`;
