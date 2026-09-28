@@ -6444,7 +6444,7 @@ async function _runCodeVerify(){
    minimums in feet; conditional rules (height-additive, by-use, by-story, waterfront, alley, pool)
    are preserved in the *Note fields rather than flattened. Add districts by pasting another entry.
    Every front/side/rear figure below was re-checked against the Code of Ordinances PDF (Supp. 67) AND the
-   live Municode text (Supplement 74 Update 2, published 2026-06-17) on 2026-09-12 — all matched. Generator-specific rules live in renderNaplesGeneratorRules(). */
+   live Municode text (Supplement 74 Update 2, published 2026-06-17) on 2026-09-12 — all matched. Generator-specific rules live in fl-setbacks.json under naples.gen. */
 /* Normalize a zoning code for forgiving matching: uppercase, strip non-alphanumerics. */
 /* ⚠️ `s==null?'':s`, NOT `s||''`. A zoning code is not always a string: City of Freeport stores
    the district as a subtype INTEGER, and its non-district junk rows carry the value 0 — which is
@@ -7629,7 +7629,7 @@ const ZONING_LIVE = {
   // denormalized parcel layer that carries flood zone, year built, trash pickup, etc.). Field
   // "ZONING" holds the code; it's namespaced by jurisdiction — UNINCORPORATED parcels are bare
   // (A, RSF-6, PD-MU, "A,PD-MU" for split zoning), while CITY parcels carry a 2-letter prefix
-  // (BR_ Bradenton, PA_ Palmetto, etc.). manateeSetbacks()/renderManateeSetbacks() strip the city
+  // (BR_ Bradenton, PA_ Palmetto, etc.). the setback lookup strips the city
   // prefix (bailing to a "city district" note) and split comma-joined dual zoning. codeField pinned
   // to ZONING so detection can't drift to LUC (the property-appraiser USE code) or the many service
   // columns. YRBLT feeds parcelYearBuilt; the parcels service is CORS-open and token-free.
@@ -21539,7 +21539,7 @@ function renderLotDimensions(geometry, rollAcres){
    street and waterfront yard distinctions ride in sideNote/rearNote. Verified against the user-
    supplied Chapter 26 PDF (rev. March 2026). "section" carries the Article-3 section for reference.
    NOTE: unlike unincorporated Charlotte, Punta Gorda has an EXPLICIT generator/equipment rule —
-   see renderPuntaGordaGeneratorNote(). */
+   see fl-setbacks.json under punta_gorda.gen. */
 /* Resolve a Punta Gorda district code (e.g. "GS-5", "GS5", "GS", "City Center") to a setbacks entry.
    Charlotte's parcel layer 17 carries city zoning codes for in-city parcels, so the same zoningcode
    the tool already reads feeds this. Family codes with a numeric suffix (GS-3.5, GM-10) collapse to
@@ -22908,60 +22908,6 @@ function ft(n){ return (n===Math.floor(n)?String(n):String(n)).replace(/\.5$/,'�
    Any field may be omitted; the renderer only shows what's present.
    Sources: City of Naples Code Ch. 58 (zoning) dimensional tables; Collier LDC §§ 2.03, 4.02.
    Hand-entered — verify against the live code. ==================================================== */
-const NAPLES_CAPACITY = {
-  // Residential single-family (Ch. 58). Coverage/height per the R-district schedule; SF districts = 1 unit.
-  "R1-15":  { heightFt:30, stories:2, coverage:0.30, far:0.45, units:1, note:"Single-family. Min lot 15,000 sq ft." },
-  "R1-10":  { heightFt:30, stories:2, coverage:0.35, far:0.50, units:1, note:"Single-family. Min lot 10,000 sq ft." },
-  "R1-7.5": { heightFt:30, stories:3, coverage:0.67, far:2.0,  units:1, note:"Single-family residence district. Min lot 7,500 sq ft. Coverage/FAR per Ch. 58 schedule — verify the current footprint & area caps for this lot." },
-  "R1-5":   { heightFt:30, stories:2, coverage:0.40, far:0.60, units:1, note:"Single-family. Min lot 5,000 sq ft." },
-  "R2-6":   { heightFt:30, stories:3, coverage:0.50, far:0.75, density:14.5, note:"Two-/multi-family low density." },
-  "R3-12":  { heightFt:42, stories:4, coverage:0.50, far:1.0,  density:12,  note:"Multi-family medium density." },
-  "R3-16":  { heightFt:42, stories:4, coverage:0.55, far:1.2,  density:16,  note:"Multi-family." },
-  "R3-22":  { heightFt:50, stories:5, coverage:0.55, far:1.5,  density:22,  note:"Multi-family high density." },
-  "RT":     { heightFt:50, stories:5, coverage:0.60, far:1.6,  density:26,  note:"Resort tourist (hotel/motel/multifamily). Density varies by use." },
-  "RMF":    { heightFt:42, stories:4, coverage:0.50, far:1.0,  density:16,  note:"Multi-family residential." },
-  // Commercial / office / downtown (Ch. 58)
-  "C1":     { heightFt:42, stories:3, coverage:0.60, far:1.5, note:"Neighborhood/limited commercial." },
-  "C1A":    { heightFt:42, stories:3, coverage:0.60, far:1.5, note:"Commercial." },
-  "C2":     { heightFt:42, stories:3, coverage:0.65, far:2.0, note:"General commercial." },
-  "C2A":    { heightFt:42, stories:3, coverage:0.65, far:2.0, note:"Commercial." },
-  "D":      { heightFt:42, stories:3, coverage:0.80, far:2.5, note:"Downtown — form-based; verify the specific frontage/overlay standards." },
-  "PS":     { heightFt:42, stories:3, coverage:0.60, far:1.5, note:"Professional services / office." },
-  "GPS":    { heightFt:42, stories:3, coverage:0.60, far:1.5, note:"General professional services." },
-  "I":      { heightFt:42, stories:3, coverage:0.70, far:1.5, note:"Industrial." },
-  "PD":     { note:"Planned Development — capacity is fixed by the approved PD ordinance/master plan, not a generic schedule. Verify the PD document." },
-  "CF":     { heightFt:42, stories:3, coverage:0.50, far:1.0, note:"Community facilities." }
-};
-const COLLIER_CAPACITY = {
-  // Residential (LDC § 2.03.01 / 4.02). SF districts = 1 unit/lot; RMF carry a density cap (units/ac).
-  "E":      { heightFt:35, stories:2, coverage:0.30, units:1, note:"Estates. Min lot 2.25 ac (typ). Single principal dwelling per LDC § 2.03.01." },
-  "A":      { heightFt:35, coverage:0.30, density:0.2, note:"Rural Agricultural — 1 unit / 5 ac base density." },
-  "RSF-1":  { heightFt:35, stories:2, coverage:0.30, units:1, note:"Single-family, 1 unit/ac max." },
-  "RSF-2":  { heightFt:35, stories:2, coverage:0.35, units:1, note:"Single-family, 2 units/ac max." },
-  "RSF-3":  { heightFt:35, stories:2, coverage:0.40, units:1, note:"Single-family, 3 units/ac max." },
-  "RSF-4":  { heightFt:35, stories:2, coverage:0.40, units:1, note:"Single-family, 4 units/ac max." },
-  "RSF-5":  { heightFt:35, stories:2, coverage:0.40, units:1, note:"Single-family, 5 units/ac max." },
-  "RSF-6":  { heightFt:35, stories:2, coverage:0.40, units:1, note:"Single-family, 6 units/ac max." },
-  "RMF-6":  { heightFt:35, stories:2, coverage:0.40, density:6,  note:"Multi-family, 6 units/ac max." },
-  "RMF-12": { heightFt:50, stories:3, coverage:0.45, density:12, note:"Multi-family, 12 units/ac max. Height-based yards." },
-  "RMF-16": { heightFt:75, stories:5, coverage:0.45, density:16, note:"Multi-family, 16 units/ac max. Height-based yards." },
-  "RT":     { heightFt:50, coverage:0.76, density:26, note:"Resort tourist — 26 units/ac (hotel/motel) or 16 (timeshare/multifamily). Max coverage 76%." },
-  "VR":     { heightFt:30, stories:2, coverage:0.40, density:7.26, note:"Village residential." },
-  "MH":     { heightFt:30, coverage:0.40, density:7.26, note:"Mobile home." },
-  "TTRVC":  { heightFt:30, density:12, note:"Travel-trailer/RV campground — 12 units/ac." },
-  // Commercial / industrial (LDC § 4.02) — coverage/FAR vary; figures are typical maxima, verify.
-  "C-1":    { heightFt:35, coverage:0.50, far:0.40, note:"Commercial professional/general office." },
-  "C-2":    { heightFt:35, coverage:0.50, far:0.40, note:"Commercial convenience." },
-  "C-3":    { heightFt:50, coverage:0.50, far:0.50, note:"Commercial intermediate." },
-  "C-4":    { heightFt:75, coverage:0.50, far:0.60, note:"General commercial." },
-  "C-5":    { heightFt:75, coverage:0.50, far:0.60, note:"Heavy commercial." },
-  "I":      { heightFt:50, coverage:0.50, far:0.50, note:"Industrial." },
-  "BP":     { heightFt:35, coverage:0.50, far:0.50, note:"Business park." },
-  "CF":     { heightFt:35, coverage:0.40, note:"Community facility." },
-  "P":      { note:"Public use — capacity per the most restrictive adjoining district / approved plan." },
-  "CON":    { heightFt:35, coverage:0.01, units:1, note:"Conservation — minimal development." },
-  "GC":     { heightFt:35, coverage:0.10, note:"Golf course." }
-};
 /* normalize a district code to a capacity-table key (mirrors the setback normalizer) */
 function _capKey(code, aliases){
   if(code==null) return null;
@@ -22972,54 +22918,8 @@ function _capKey(code, aliases){
     hyph:  raw.replace(/\s+/g,'').replace(/^([A-Z]+)(\d)/,'$1-$2'),
     base:  raw.split(/[\s(/-]/)[0].replace(/^([A-Z]+)(\d)/,'$1-$2') };
 }
-function capacityRules(table, code){
-  const k=_capKey(code); if(!k) return null;
-  return table[k.raw] || table[k.hyph] || table[k.base] || null;
-}
 /* Compute capacity figures from lot area (sq ft) × a district rule entry. */
-function computeCapacity(rule, lotSqft){
-  if(!rule || !isFinite(lotSqft) || lotSqft<=0) return null;
-  const acres = lotSqft/43560;
-  const out = { heightFt:rule.heightFt||null, stories:rule.stories||null, note:rule.note||null,
-                coveragePct: rule.coverage!=null?Math.round(rule.coverage*100):null,
-                far: rule.far!=null?rule.far:null };
-  if(rule.coverage!=null) out.footprintSqft = Math.round(lotSqft*rule.coverage);
-  if(rule.far!=null)      out.maxBuildingSqft = Math.round(lotSqft*rule.far);
-  if(rule.openSpace!=null) out.openSpaceSqft = Math.round(lotSqft*rule.openSpace);
-  // dwelling units: explicit override wins (e.g. single-family =1), else density × acres (floored)
-  if(rule.units!=null) out.maxUnits = rule.units;
-  else if(rule.density!=null){ out.maxUnits = Math.max(0, Math.floor(rule.density*acres)); out.densityPerAcre = rule.density; }
-  return out;
-}
 /* Render the Development Capacity card. jurLabel e.g. "City of Naples" / "Collier County". */
-function renderCapacityCard(table, districtCode, lotSqft, jurLabel, codeRef){
-  const rule = capacityRules(table, districtCode);
-  if(!rule){ return ''; }
-  const cap = computeCapacity(rule, lotSqft);
-  if(!cap) return '';
-  let h=`<div class="freshline snap" style="margin-top:12px"><span class="badge unk">▣ CAPACITY</span> development envelope · ${esc(String(districtCode))}${jurLabel?' · '+esc(jurLabel):''}</div>`;
-  const haveLot = isFinite(lotSqft) && lotSqft>0;
-  if(!haveLot){
-    h+=`<div class="note">Lot area unavailable, so building totals can't be computed — showing the district ratios only.</div>`;
-  }
-  if(cap.heightFt!=null) h+=fieldRow('Max building height', esc(cap.heightFt+' ft'+(cap.stories?(' / '+cap.stories+' stories'):'')), 'big');
-  else if(cap.stories!=null) h+=fieldRow('Max stories', esc(String(cap.stories)), 'big');
-  if(cap.coveragePct!=null){
-    const fp = cap.footprintSqft!=null ? ' → ≈ '+cap.footprintSqft.toLocaleString('en-US')+' ft² footprint' : '';
-    h+=fieldRow('Max lot coverage', esc(cap.coveragePct+'%'+ (haveLot?fp:'')));
-  }
-  if(cap.far!=null){
-    const ba = cap.maxBuildingSqft!=null ? ' → ≈ '+cap.maxBuildingSqft.toLocaleString('en-US')+' ft² gross' : '';
-    h+=fieldRow('Floor-area ratio (FAR)', esc(cap.far+(haveLot?ba:'')));
-  }
-  if(cap.maxUnits!=null) h+=fieldRow('Max dwelling units', esc(cap.maxUnits+(cap.densityPerAcre?(' (@ '+cap.densityPerAcre+' du/ac)'):(cap.maxUnits===1?' (single-family)':''))));
-  if(cap.openSpaceSqft!=null) h+=fieldRow('Min open space', esc('≈ '+cap.openSpaceSqft.toLocaleString('en-US')+' ft²'));
-  if(cap.note) h+=`<div class="note" style="padding-top:2px">${esc(cap.note)}</div>`;
-  h+=`<div class="note warnbox est-note" style="margin-top:4px"><b>Computed estimate — not a permit figure.</b> These totals are the district's code ratios applied to this lot's area${haveLot?' (≈ '+Math.round(lotSqft).toLocaleString('en-US')+' ft²)':''}. Overlays, the flood zone, PUD terms, corner/waterfront conditions, non-conforming status and the setback envelope can all lower what's actually buildable. Verify with ${esc(jurLabel||'the jurisdiction')}'s planning/building department before relying on any number.</div>`;
-  if(codeRef) h+=`<a class="palink" href="${esc(codeRef)}" target="_blank" rel="noopener" style="margin-top:6px">↗ Verify dimensional standards in the adopted code</a>`;
-  return h;
-}
-
 /* ---------- Naples § 56-41 mechanical-equipment / generator siting (Always On Generators) ----------
    Verified against the City of Naples Code PDF and the live Municode text (Supplement 74 Update 2,
    published 2026-06-17) on 2026-09-12. All sections identical between the two.
@@ -31113,11 +31013,10 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
     // only for unincorporated land, which is what the per-city dispatch lines below used to do
     // one at a time — a parcel inside Naples gets Naples' figures, never Collier's.
     html += renderSetbacks(cityName, countyName, zhit.code);
-    if(norm(cityName)==='NAPLES' && zhit.code){ html += renderCapacityCard(NAPLES_CAPACITY, zhit.code, parcelLotSqft, 'City of Naples', null); }
-    // Capacity cards stay per-jurisdiction: they size a generator against the parcel, which the
-    // setback lookup does not do. Collier's applies to UNINCORPORATED Collier only — Naples and
-    // Marco Island each adopt their own Land Development Code.
-    if(norm(countyName)==='COLLIER' && !COLLIER_INCORP.has(norm(cityName)) && zhit.code){ html += renderCapacityCard(COLLIER_CAPACITY, zhit.code, parcelLotSqft, 'Collier County', null); }
+    // Collier COUNTY setbacks apply only to UNINCORPORATED Collier. The incorporated cities —
+    // Naples and Marco Island — each adopt their own Land Development Code, so they must NOT
+    // inherit county rules. (Naples and Marco Island are handled above; if a Marco Island district
+    // isn't in the quick-ref table, it falls through to the "look it up in the adopted code" note.)
     if(zhit.sheetUrl) html += `<a class="palink" href="${esc(zhit.sheetUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Official zoning map sheet (PDF)</a>`;
     html += `<div class="note" style="padding-top:6px">District read live from <b>${esc(zhit.layerName||jurName)}</b>${zhit.lastEdit?' (layer updated '+esc(zhit.lastEdit.toLocaleDateString())+')':''}. Verify overlays, any PUD/planned-development terms, and the exact front/side/rear setbacks in the adopted code below — those are not a queryable number.</div>`;
     html += `<div class="note warnbox src-note"><b>Not from the property appraiser.</b> The district above comes from <b>${esc(jurName)}</b>'s zoning GIS; setbacks and use standards live in its adopted land development code (Municode) and permitting portal.</div>`;
@@ -31131,44 +31030,9 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   // Collier County generator siting (LDC 5.03.07) — UNINCORPORATED Collier only. The incorporated
   // cities (Naples has its own § 56-41 rendered above; Marco Island has its own LDC) are excluded.
   if(ZONING_EXCEPTION_LAYERS[norm(countyName||'')] || PRESERVE_LAYERS[norm(countyName||'')]){ html += `<div id="preserveNote-${myId}"></div>`; setTimeout(_pollLotNotes,0); }
-  // Tampa Bay / SW-FL cities wired in the zoning-layer expansion — each carries a generator-siting note
-  // read from its own adopted code (verified per city). Dispatched by cityName so it rides on any parcel
-  // in that city, whether or not a district code was read. (Marco Island's setback table renders above;
-  // this adds its 4-ft generator encroachment rule specifically.)
-  // City of Sanibel: ecological-zone setbacks + the Ch. 126 Div. 16 generator ordinance. Rendered
-  // unconditionally for any Sanibel parcel (not gated on a detected zoning code), since Sanibel's
-  // ecological-zone GIS isn't reliably point-queryable here — pass the zone code when we DID get one
-  // The Ch. 126 Div. 16 generator ordinance rides on any Sanibel parcel; the ecological-zone
-  // setbacks themselves come from the lookup above when the zone code resolved.
-  // City of Moore Haven — the ONLY incorporated city in Glades, with its OWN code (LDC Ch. 4).
-  // Rendered for any Moore Haven parcel (not gated on a detected code); the city table maps the
-  // Moore Haven's generator note rides on any parcel in the city, code or no code.
-  // Unincorporated Glades County (LDC Ch. 125, Art. IV, § 125-158). Moore Haven (handled above)
-  // uses its own code, so exclude it here. Always renders the county generator note even with no code.
-  // Unincorporated Hendry County (LDC Ch. 1-53, § 1-53-4.1 Table 53-2). LaBelle & Clewiston are
-  // incorporated and run their own codes (excluded via HENDRY_INCORP); renderHendrySetbacks also
-  // self-guards if the zoning layer handed back a "LABELLE"/"CLEWISTON" city placeholder as the code.
-  // Always renders the county generator note even when no district code was detected.
-  // Unincorporated Marion County (LDC Article 4, Div. 2, Tables 4.2-2 & 4.2-4). Ocala, Belleview,
-  // Dunnellon, McIntosh & Reddick are incorporated and run their own codes (excluded via
-  // MARION_INCORP). Always renders the county generator note even when no district code was detected.
-  // Unincorporated Polk County — LDC has no separate zoning-district system (§ 203), so the Future
-  // Land Use / land use district (read live via ZONING_LIVE.POLK, field FLU_LDC) IS the regulatory
-  // district. Cities (Lakeland, Winter Haven, Bartow, Auburndale, etc.) run their own codes; without a
-  // POLK_INCORP exclusion list yet, this dispatches for the whole county — acceptable since city
-  // parcels won't return a district code from this unincorporated-only GIS layer, so they'll correctly
-  // fall through to the "district not detected" note rather than showing a wrong county district.
-  // City of Ocala — a Marion County city with its OWN code (Chapter 122, § 122-286), excluded from the
-  // county renderer via MARION_INCORP. Rendered for any Ocala parcel (not gated on a detected code);
-  // Ocala's generator note rides on any parcel in the city, code or no code.
-  // City of Venice — a Sarasota County city with its OWN code (LDC Ch. 87), excluded from the county
-  // renderer via SARASOTA_INCORP. Rendered for any Venice parcel (not gated on a detected code);
-  // Venice's generator note rides on any parcel in the city, code or no code.
-  // City of North Port — a Sarasota County city with its OWN code (ULDC, Ord. 2024-13), excluded from
-  // the county renderer via SARASOTA_INCORP. Rendered for any North Port parcel (not gated on a
-  // detected code). It works the generator's real clearance out of the district setback when the
-  // district resolved, and states the encroachment allowances alone when it did not.
-  // (building-to-line estimate feature removed)
+  // Every jurisdiction's setbacks, generator rules and equipment rules now come from one
+  // lookup in renderSetbacks() above, reading ./fl-setbacks.json. The per-city dispatch
+  // lines that used to sit here — one per jurisdiction — are gone.
   if(z){
     if(z.permit) html += `<a class="palink" href="${esc(z.permit)}" target="_blank" rel="noopener">↗ ${esc(jurName)} permitting / planning portal</a>`;
     // Official city/county zoning page (e.g. Cape Coral's Planning Division zoning page).
