@@ -2086,10 +2086,23 @@ const DOR_COUNTY_BY_NO = {11:"Alachua",12:"Baker",13:"Bay",14:"Bradford",15:"Bre
    Ocala, North Port and the rest of GEN_OWN) are dispatched separately, so this renderer
    stays quiet about equipment for them rather than printing the rule twice.
    ====================================================================================== */
-var _SB = null, _SBerr = null, _SBpending = null;
+var _SB = null, _SBerr = null, _SBpending = null, _sbSlotN = 0;
 var SB_GEN_OWN = ['naples','collier_county','cape_coral','marco_island','punta_gorda','sanibel',
   'moore_haven','glades_county','hendry_county','marion_county','ocala','polk_county','venice',
   'north_port','bradenton','largo','pinellas_park','dunedin','tarpon_springs'];
+
+/* Jurisdictions the code API has actually been taught — the exact set that carried a Municode
+   verify badge before this rewrite.
+
+   This gate is a PERFORMANCE fix, not a cosmetic one. codeVerifyBadgeAll() queues a
+   code-status call, and codeApi() walks its hosts SEQUENTIALLY WITH NO TIMEOUT: a jurisdiction
+   the Worker has never indexed can hang on the Worker, then hang again failing over to Vercel.
+   Calling it for all 196 jurisdictions instead of these 26 put a brand-new, unbounded network
+   round trip on every lookup of the other 170. */
+var SB_VERIFY = ['bonita_springs','bradenton','cape_coral','charlotte_county','collier_county',
+  'dunedin','estero','fort_myers','fort_myers_beach','glades_county','hendry_county','largo',
+  'lee_county','manatee_county','marco_island','marion_county','moore_haven','north_port','ocala',
+  'pinellas_park','polk_county','punta_gorda','sanibel','sarasota_county','tarpon_springs','venice'];
 
 function _sbLoad(){
   if(_SB || _SBerr) return Promise.resolve();
@@ -2100,7 +2113,15 @@ function _sbLoad(){
     .catch(function(e){ _SBerr = String((e && e.message) || e); });
   return _SBpending;
 }
-try { _sbLoad(); } catch(e) { _SBerr = String(e); }
+/* Warm it AFTER load, not during. Kicking off a 3.5 MB download while the map, the parcel
+   query and a dozen GIS probes are all competing for the same pipe slows the thing the person
+   is actually waiting for. A lookup that beats the warm-up renders a slot and fills it in. */
+(function(){
+  function warm(){ try { _sbLoad(); } catch(e) { _SBerr = String(e); } }
+  if(typeof window === 'undefined') return;
+  if(document.readyState === 'complete') setTimeout(warm, 0);
+  else window.addEventListener('load', function(){ setTimeout(warm, 250); }, { once: true });
+})();
 
 /* Normalization lifted from the old charlotteSetbacks(): a GIS layer hands back RSF3.5, RSF 3.5,
    "RSF-3.5 (PUD)" and RSF‑3.5 with a non-breaking hyphen for the same district. */
@@ -2176,11 +2197,22 @@ function renderSetbacks(cityName, countyName, code){
          + '<b>fl-setbacks.json</b> must sit next to index.html and be served over http(s) — a page '
          + 'opened straight off the disk cannot read it.</div>';
   }
-  if(!_SB) return '';
+  /* Data not here yet — the warm-up runs after load, and a fast lookup can beat it. Leave a slot
+     and fill it when the file lands, rather than silently returning no setbacks at all. */
+  if(!_SB){
+    var sid = 'sbslot_' + (++_sbSlotN);
+    _sbLoad().then(function(){
+      var html = (_SB || _SBerr) ? renderSetbacks(cityName, countyName, code) : '';
+      if(typeof patchSlot === 'function') patchSlot(sid, html);
+      else { var el = document.getElementById(sid); if(el) el.innerHTML = html; }
+    });
+    return '<div id="' + sid + '"></div>';
+  }
   var f = setbacksFor(cityName, countyName, code);
   if(!f) return '';
   var J = f.jur, r = f.row, h = '';
-  var badge = (typeof codeVerifyBadgeAll === 'function') ? codeVerifyBadgeAll(f.key) : '';
+  var badge = (typeof codeVerifyBadgeAll === 'function' && SB_VERIFY.indexOf(f.key) >= 0)
+              ? codeVerifyBadgeAll(f.key) : '';
   if(!r){
     if(code == null || String(code).trim() === '') return '';
     return '<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> '
@@ -6092,6 +6124,15 @@ const CODE_API_VERSION = "2026-09-17i";
 const CODE_NOCACHE = /[?&]nocache=1/.test(location.search);
 /** Call the code API: codeApi('code-find?city=…') → parsed JSON. Fails over between hosts. */
 async function codeApi(pathAndQuery){
+  const _t0 = performance.now();
+  try { return await _codeApiInner(pathAndQuery); }
+  finally {
+    const ms = Math.round(performance.now() - _t0);
+    (window.__apiTimes = window.__apiTimes || []).push({ call: pathAndQuery, ms });
+    if(ms > 2000) console.warn('[code api] ' + ms + ' ms — ' + pathAndQuery);
+  }
+}
+async function _codeApiInner(pathAndQuery){
   pathAndQuery += (pathAndQuery.includes('?')?'&':'?') + 'v=' + encodeURIComponent(CODE_API_VERSION) + (CODE_NOCACHE?'&nocache=1':'');
   const hosts = _sameOrigin ? [""] : [_codeApiHost, ...CODE_API_HOSTS.filter(h=>h!==_codeApiHost)];
   let lastErr = null;
