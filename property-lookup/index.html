@@ -2216,9 +2216,19 @@ function _sbNorm(code){
     .replace(/[‐-―−]/g,'-').replace(/[\s_]+/g,'-')
     .replace(/^([A-Z]+)[- ]?(\d)/,'$1-$2').replace(/-+/g,'-').replace(/^-|-$/g,'');
 }
+/* Turn whatever names a jurisdiction into its dataset key.
+
+   This used to strip a leading "City of" and a trailing " County" and nothing else, which made it
+   brittle in both directions: a transcript that styled the name as the code does ("Town of Cross
+   City, Florida", "Alachua (City of)") and a GIS layer that appends the state both slug to keys
+   that do not exist, and the card then renders NOTHING — no setbacks, no explanation. Strip the
+   forms that actually turn up instead. */
 function _sbSlug(nm){
   return String(nm == null ? '' : nm).toLowerCase()
-    .replace(/^(city|town|village) of\s+/,'').replace(/\s+county$/,'')
+    .replace(/\s*\((city|town|village)\s+of\)\s*$/,'')   // "Alachua (City of)"
+    .replace(/,?\s*(florida|fla\.?|fl)\s*$/,'')          // "... , Florida"
+    .replace(/^(the\s+)?(city|town|village)\s+of\s+/,'')
+    .replace(/\s+county$/,'')
     .replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
 }
 function _sbJur(nm, county){
