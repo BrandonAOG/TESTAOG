@@ -465,6 +465,13 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   /* The A/C-only case is a warning, not a footnote: the figures underneath may not govern a pad */
   .sb-rules .sb-lead.warn{color:var(--ink);background:rgba(244,104,0,.07);
     border-left:2px solid var(--signal);margin:0 0 8px;padding:8px 11px}
+  /* The page's own .warnbox is scoped to .note, so a caveat on an sb-rule needs its own rule.
+     Heavier than an ordinary sb-rule on purpose — this one qualifies the numbers beside it. */
+  .sb-rule.warnbox{background:var(--warnbox-bg,rgba(244,104,0,.1));
+    border:1px solid var(--warnbox-line,rgba(244,104,0,.35));border-left-width:2px;
+    border-radius:0 6px 6px 0;color:var(--warnbox-ink,var(--ink))}
+  .sb-rule.warnbox k{color:var(--signal)}
+  .sb-rule.warnbox b{color:var(--signal)}
   /* One disclosure per rule. Collapsed, the block is a scannable list of citations; a rule that
      carries an ordinance table says so with a chip, so it does not hide three screens down. */
   .sb-r{border-top:1px solid var(--line)}
@@ -2473,6 +2480,22 @@ function renderSetbacks(cityName, countyName, code){
            + _sbFamily(J, fam.codes)
            + _sbSitewide(J) + _sbEquip(J, code);
     }
+    /* Whose gap is it? Six jurisdictions in the file were never read — their rows came from the
+       project's early automated parser, with no citation and an obviously partial district list
+       (Santa Rosa County holds eight, all commercial, and no residential district at all). Telling
+       someone their zoning layer is wrong, when in fact this file never had the district, points
+       them at the wrong problem. Say which it is. */
+    if(!J.eye){
+      var n = J.districts ? Object.keys(J.districts).length : 0;
+      return '<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> '
+           + 'setbacks · ' + esc(String(code)) + ' · ' + esc(J.name) + badge + '</div>'
+           + '<div class="sb-rule warnbox"><k>this code has not been read</k>'
+           + 'Only <b>' + n + '</b> district' + (n === 1 ? '' : 's') + ' are on file for '
+           + esc(J.name) + ', from an automated parse rather than a reading of the ordinance, and '
+           + '<b>' + esc(String(code)) + '</b> is not among them. The zoning layer is most likely '
+           + 'right; the gap is here. Read the adopted code for this district.</div>'
+           + _sbSitewide(J) + _sbEquip(J, code);
+    }
     return '<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> '
          + 'setbacks · ' + esc(String(code)) + ' · ' + esc(J.name) + badge + '</div>'
          + '<div class="sb-rule"><k>district not in the code as read</k><b>'
@@ -2482,6 +2505,9 @@ function renderSetbacks(cityName, countyName, code){
   }
   h += '<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> '
      + 'setbacks · ' + esc(String(code)) + ' · ' + esc(J.name) + badge + '</div>';
+
+  /* (An unread jurisdiction already gets a caveat below the numbers — see the !J.eye block at the
+     end of this function. One is enough; a second above the figures just says it twice.) */
 
   /* ---- the three numbers, and nothing competing with them --------------------------------
      Three yards, one glyph, read in about a second. Everything else on the row — height, lot,
@@ -2569,12 +2595,15 @@ function renderSetbacks(cityName, countyName, code){
     h += '<details class="sb-fine"><summary>fine print &mdash; ' + fineOf.join(', ')
        + '</summary>' + fine.join('') + '</details>';
   }
-  /* 189 of the 196 jurisdictions were read page by page, and three more are Brandon's own hand
-     tables. The remaining seven came off a table parser and nobody has checked them against the
-     page — say so on the card rather than letting them look like the rest. */
+  /* 381 of the 387 jurisdictions were read page by page, and a few more are Brandon's own hand
+     tables. Six came off a table parser and nobody has checked them against the page — say so on
+     the card rather than letting them look like the rest. Their district lists are partial too
+     (Santa Rosa County holds eight, all commercial), which is what the !r branch above explains
+     when a real district comes back missing. */
   if(!J.eye && !J.hand) h += '<div class="note warnbox">This jurisdiction has <b>not</b> been read '
-      + 'page by page yet — these figures came off the code’s tables automatically. Treat them '
-      + 'as a starting point and confirm against the adopted code before siting anything.</div>';
+      + 'page by page — these figures came off the code’s tables automatically, and the district '
+      + 'list is partial. Treat them as a starting point and confirm against the adopted code '
+      + 'before siting anything.</div>';
   return h + _sbSitewide(J) + _sbEquip(J, code);
 }
 
