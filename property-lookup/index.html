@@ -23601,10 +23601,11 @@ function renderWindDesign(lat, lng, cityName, countyName, liveWind){
   } else {
     h+=`<div class="note">Design wind speed is set <b>by location</b>. Use the ASCE 7 Hazard Tool below (or the county's V<sub>ult</sub> map) to get the site's ultimate design wind speed for the relevant Risk Category. <span class="muted">(Built-in SW Florida figures cover Lee, Collier, Charlotte, Sarasota, DeSoto, Hendry &amp; Glades.)</span></div>`;
   }
-  h+=`<div class="note"><b>Calculation (ASCE 7-22 velocity pressure):</b><br>
+  h+=`<details class="adv windcalc"><summary>Calculation &amp; code references</summary>
+    <div class="note" style="margin-top:7px"><b>Calculation (ASCE 7-22 velocity pressure):</b><br>
     <span style="font-family:var(--mono);font-size:12px">q<sub>z</sub> = 0.00256 · K<sub>z</sub> · K<sub>zt</sub> · K<sub>d</sub> · K<sub>e</sub> · V²</span> &nbsp;<span class="muted">(lb/ft², V = V<sub>ult</sub> in mph)</span><br>
-    K<sub>z</sub> = velocity-pressure exposure coefficient (height &amp; exposure), K<sub>zt</sub> = topographic factor, K<sub>d</sub> = wind directionality, K<sub>e</sub> = ground-elevation factor. Design pressures then p = q·G·C<sub>p</sub> (main system) or q·(GC<sub>p</sub>) (components &amp; cladding). ASD conversion: V<sub>asd</sub> = V<sub>ult</sub> · √0.6.</div>`;
-  h+=`<div class="note"><b>Code references:</b> V<sub>ult</sub> per FBC-B § 1609.3, Figures 1609.3(1) [Risk Cat II], 1609.3(2) [III], 1609.3(3) [IV], 1609.3(4) [I]. V<sub>asd</sub> conversion § 1609.3.1 / Table 1609.3.1 (Eq. 16-33). Wind-borne debris region § 1609.2. Load procedure &amp; velocity pressure: ASCE 7-22 Ch. 26–30.</div>`;
+    K<sub>z</sub> = velocity-pressure exposure coefficient (height &amp; exposure), K<sub>zt</sub> = topographic factor, K<sub>d</sub> = wind directionality, K<sub>e</sub> = ground-elevation factor. Design pressures then p = q·G·C<sub>p</sub> (main system) or q·(GC<sub>p</sub>) (components &amp; cladding). ASD conversion: V<sub>asd</sub> = V<sub>ult</sub> · √0.6.</div>
+    <div class="note"><b>Code references:</b> V<sub>ult</sub> per FBC-B § 1609.3, Figures 1609.3(1) [Risk Cat II], 1609.3(2) [III], 1609.3(3) [IV], 1609.3(4) [I]. V<sub>asd</sub> conversion § 1609.3.1 / Table 1609.3.1 (Eq. 16-33). Wind-borne debris region § 1609.2. Load procedure &amp; velocity pressure: ASCE 7-22 Ch. 26–30.</div></details>`;
   h+=`<a class="palink" href="https://ascehazardtool.org/" target="_blank" rel="noopener" style="margin-top:8px">↗ ASCE 7 Hazard Tool — official site wind speed (enter ${lat.toFixed(5)}, ${lng.toFixed(5)})</a>`;
   /* Adopted-code cross-check — see RENDER CONTRACT. Slot now, patched when the jurisdiction's own
      layers answer; nothing waits on it. */
