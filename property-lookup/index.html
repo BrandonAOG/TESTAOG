@@ -524,6 +524,42 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .sb-caution{margin:6px 0 0;font-size:10.5px;color:var(--faint);line-height:1.5}
   .sb-r.on p{color:var(--ink)}
   .sb-r:not(.on) p{color:var(--dim)}
+
+  /* Permits tab — the three steps of actually getting a survey out of a jurisdiction.
+     The card had the folio copy, the portal link and the records request separated by the whole
+     fire-code panel and the recorded plat, so the order you do them in was invisible. */
+  .pstep{display:flex;gap:9px;align-items:flex-start;margin-top:9px}
+  .pstep>.n{flex:0 0 auto;width:19px;height:19px;border-radius:50%;margin-top:1px;
+    border:1px solid var(--unk-line);background:var(--unk-bg);color:var(--dim);
+    font-family:var(--mono);font-size:10px;line-height:17px;text-align:center}
+  .pstep>.b{flex:1;min-width:0}
+  .pstep>.b>.t{font-weight:600;font-size:12px;color:var(--ink)}
+  .pstep>.b>.s{font-size:11px;color:var(--dim);line-height:1.5;margin-top:2px}
+  .pstep .palink{margin-top:6px}
+  /* One copy row, used for the folio, the request text and the plat — they were three different
+     hand-written inline styles doing the same job. */
+  .copyrow{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:6px}
+  .copyrow code{color:var(--ink);background:var(--unk-bg);padding:2px 7px;border-radius:4px;
+    font-size:11px;word-break:break-all}
+  .copyrow .copyfolio{font-family:var(--mono);font-size:10px;padding:3px 10px;border-radius:5px;
+    border:1px solid var(--unk-line);background:var(--unk-bg);color:var(--dim);cursor:pointer}
+  .copyrow .copyfolio:hover{color:var(--ink);border-color:var(--blueprint)}
+
+  /* Fire-code adoption: three sections, each behind its own chevron. Each summary carries its own
+     headline — which edition is in force, and whether one is coming — so the collapsed panel still
+     answers both questions without being opened. */
+  .fc-row{margin-top:7px}
+  .fc-row>.k{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+  .fc-v{margin-top:5px}
+  .fc-why{font-size:10.5px;color:var(--faint);line-height:1.5;margin-top:9px}
+  .fc-d{font-family:var(--mono);font-size:11px;color:var(--ink);line-height:1.65;margin-top:5px}
+  .fc-d em{font-style:normal;color:var(--signal)}
+  /* The changeover reads in the alert colour whether open or shut. A rule arriving on a fixed date
+     is the one thing on this panel that can catch someone out, and a closed chevron is easy to skip. */
+  .fc-change>summary,.fc-change[open]>summary{color:var(--signal)}
+  .fc-change>summary::before,.fc-change[open]>summary::before{color:var(--signal)}
+  .fc-change>summary:hover{filter:brightness(1.2)}
+
   @media (max-width:430px){
     .sb-wrap{gap:10px;padding:9px 10px}
     .sb-glyph{width:58px;height:44px}
@@ -6011,28 +6047,86 @@ function fillPermitLiveCode(){
     }catch(e){ console.warn('[fire local]', e); }
   })();
 }
-/* One-line "what applies here" for a generator job, from the adoption section's text. */
+/* What applies here for a generator job, from the adoption section's text.
+
+   Three rewrites, in order of how much they mattered:
+
+   1. The old version printed two near-identical blocks, each carrying eight NFPA chips plus a
+      "+N more referenced standards" link holding ~130 more — fifteen chips and 259 hidden
+      standards on a card whose own closing line names the four that actually matter: 37, 58, 54
+      and 70. The headline is those four and nothing else.
+
+   2. The pending edition was shown as a second copy of the same list, so finding what actually
+      moves meant diffing two chip walls by eye. At a changeover the useful fact is WHICH
+      standards change edition, so that is what it prints — the four first, the rest as a count.
+
+   3. Both sections now sit behind their own chevron, and each summary carries its own headline,
+      so the collapsed card still answers "which edition is in force" and "is one coming" without
+      being opened. The one line that stays open is why those four standards and not the others:
+      it is the only part that tells you what to care about, and it is one line long. */
 function _adoptSummary(t, jurName, top, st){
   const chip=(x)=>`<span class="lc-chip">${esc(x)}</span>`;
-  const REL = ['1','101','37','54','58','70','30','211'];
-  const block = (title, meta, edition, list) => {
-    const all = list||[]; const rel = REL.map(k=>all.find(n=>n.std===k)).filter(Boolean); const rest = all.filter(n=>!REL.includes(n.std));
-    const rid='nf_'+Math.random().toString(36).slice(2,6);
-    const chips = (edition?chip('Florida Fire Prevention Code — '+edition)+' ':'') + rel.map(n=>chip('NFPA '+n.std+' ('+n.edition+')')).join(' ')
-      + (rest.length?` <a href="#" class="lc-more" onclick="var b=document.getElementById('${rid}');b.style.display=b.style.display==='none'?'':'none';return false">+ ${rest.length} more referenced standards</a><div id="${rid}" style="display:none;margin-top:4px">${rest.map(n=>chip('NFPA '+n.std+' ('+n.edition+')')).join(' ')}</div>`:'');
-    return `<div style="margin-top:6px"><b>${title}</b> <span class="lc-meta">· ${meta}</span><br>${chips||'<span class="lc-meta">nothing read</span>'}</div>`;
-  };
-  const implied = `<div class="lc-meta" style="margin-top:6px">For a generator job that means: <b>NFPA 37</b> (5 ft from openings / combustible walls unless listed closer), <b>NFPA 58</b> (LP tank distances), <b>NFPA 54</b> (gas piping), <b>NFPA 70</b> (NEC — transfer switch, bonding). Confirm the current edition with the fire marshal.</div>`;
+  const GEN = ['37','58','54','70'];                       // the four a generator pad turns on
+  const edOf = (list,k) => { const n=(list||[]).find(x=>String(x.std)===k); return n ? String(n.edition) : null; };
+  const why = `<div class="fc-why">Why these four: <b>NFPA 37</b> engine clearances (5 ft from openings / combustible walls unless listed closer) &middot; <b>NFPA 58</b> LP tank distances &middot; <b>NFPA 54</b> gas piping &middot; <b>NFPA 70</b> NEC &mdash; transfer switch, bonding. Confirm the edition with the fire marshal.</div>`;
+
   if(!st){
-    return `<div class="lc-meta">State rule (F.A.C. 69A-60.002) couldn't be read just now — the edition in force is set there. <a href="https://www.flrules.org/gateway/ruleNo.asp?id=69A-60.002" target="_blank" rel="noopener">Open it</a>.</div>${implied}`;
+    return `<div class="lc-meta">State rule (F.A.C. 69A-60.002) couldn't be read just now — the edition in force is set there. <a href="https://www.flrules.org/gateway/ruleNo.asp?id=69A-60.002" target="_blank" rel="noopener">Open it</a>.</div>` + why;
   }
-  let h = block('State rule in force', `${esc(st.rule)} · effective ${esc(st.effective||'—')} · <a href="${esc(st.source)}" target="_blank" rel="noopener">flrules.org</a>${st.ruleDoc?` · <a href="${esc(st.ruleDoc)}" target="_blank" rel="noopener">rule</a>`:''}${st.ruleDoc005?` · <a href="${esc(st.ruleDoc005)}" target="_blank" rel="noopener">referenced standards</a>`:''}`, st.edition, st.nfpa);
-  if(st.pending){
-    const P=st.pending;
-    h += block('State rule anticipated', `${esc(st.rule)} · ${P.effective?'effective '+esc(P.effective):'effective date not yet stated'} · ${esc(P.status)} ${esc(P.published||'')}${P.noticeUrl?` · <a href="${esc(P.noticeUrl)}" target="_blank" rel="noopener">notice</a>`:''}`, P.edition, P.nfpa);
-    h += `<div class="lc-meta" style="margin-top:3px">Not in force until the rule is final. On jobs near the changeover, confirm which edition the fire marshal will apply at inspection.</div>`;
+
+  const links = `<a href="${esc(st.source)}" target="_blank" rel="noopener">flrules.org</a>`
+    + (st.ruleDoc ? ` &middot; <a href="${esc(st.ruleDoc)}" target="_blank" rel="noopener">rule</a>` : '')
+    + (st.ruleDoc005 ? ` &middot; <a href="${esc(st.ruleDoc005)}" target="_blank" rel="noopener">referenced standards</a>` : '');
+
+  /* ---- in force ---- */
+  const four = GEN.map(k=>{ const e=edOf(st.nfpa,k); return e ? chip('NFPA '+k+' ('+e+')') : null; }).filter(Boolean);
+  let h = `<details class="adv fc-force"><summary>In force${st.edition?' &middot; '+esc(st.edition):''}</summary>`
+        + `<div class="lc-meta" style="margin-top:6px">${esc(st.rule)} &middot; effective ${esc(st.effective||'—')} &middot; ${links}</div>`
+        + `<div class="fc-v">${st.edition ? chip('Florida Fire Prevention Code — '+st.edition)+' ' : ''}`
+        + (four.length ? four.join(' ') : '<span class="lc-meta">no referenced standards read</span>')
+        + `</div></details>`;
+
+  /* ---- changeover: what actually moves, not a second copy of the list ---- */
+  const P = st.pending || null;
+  if(P){
+    const moved = GEN.map(k=>{
+      const a=edOf(st.nfpa,k), b=edOf(P.nfpa,k);
+      return (a && b && a!==b) ? `NFPA ${k} <em>${esc(a)}&rarr;${esc(b)}</em>` : null;
+    }).filter(Boolean);
+    let others = 0;
+    (P.nfpa||[]).forEach(n=>{
+      const k=String(n.std); if(GEN.indexOf(k)!==-1) return;
+      const a=edOf(st.nfpa,k); if(a && a!==String(n.edition)) others++;
+    });
+    h += `<details class="adv fc-change"><summary>Changeover &middot; ${esc(P.edition||'next edition')}`
+       + (P.effective ? ', ' + esc(P.effective) : '') + ` &mdash; not in force</summary>`
+       + `<div class="lc-meta" style="margin-top:6px">${esc(P.status||'proposed')} ${esc(P.published||'')}`
+       + (P.noticeUrl ? ` &middot; <a href="${esc(P.noticeUrl)}" target="_blank" rel="noopener">notice</a>` : '') + `</div>`
+       + (moved.length ? `<div class="fc-d">${moved.join(' &middot; ')}</div>`
+                       : `<div class="fc-d" style="color:var(--dim)">None of the four change edition.</div>`)
+       + (others ? `<div class="lc-meta" style="margin-top:3px">${others} other referenced standard${others===1?'':'s'} also change${others===1?'s':''} edition.</div>` : '')
+       + `<div class="lc-meta" style="margin-top:3px">On jobs near the changeover, confirm which edition the fire marshal will apply at inspection.</div>`
+       + `</details>`;
   }
-  return h + implied;
+
+  /* ---- everything else, folded ---- */
+  const full = (title, meta, edition, list) => {
+    const all = list||[];
+    return `<div class="fc-row"><div class="k">${title}</div><div class="lc-meta">${meta}</div>`
+      + `<div class="fc-v">${edition ? chip('Florida Fire Prevention Code — '+edition)+' ' : ''}`
+      + (all.length ? all.map(n=>chip('NFPA '+n.std+' ('+n.edition+')')).join(' ') : '<span class="lc-meta">nothing read</span>')
+      + `</div></div>`;
+  };
+  const nIn = (st.nfpa||[]).length, nP = P ? (P.nfpa||[]).length : 0;
+  h += `<details class="adv"><summary>All referenced standards`
+     + (nIn ? ` (${nIn} in force${nP?', '+nP+' proposed':''})` : '') + `</summary>`
+     + full('In force &mdash; every standard', `effective ${esc(st.effective||'—')}`, st.edition, st.nfpa)
+     + (P ? full('Proposed &mdash; every standard',
+                 (P.effective?'effective '+esc(P.effective):'effective date not yet stated') + ' &middot; ' + esc(P.status||'') + ' ' + esc(P.published||''),
+                 P.edition, P.nfpa) : '')
+     + `</details>`;
+
+  return h + why;
 }
 /* Zoning card lot notes — footprint distances, zoning-atlas exceptions, preserve setback. Results land in window.__*
    whenever the map queries finish; the slots land whenever the card renders; whichever is second calls this. */
@@ -14123,10 +14217,87 @@ function recordsRequestUrl(jurName, cityName, countyName, inCity){
   if(typeof direct==='string' && direct) return { url:direct, verified:true };
   return { url:'https://www.google.com/search?q='+encodeURIComponent(`${jurName} Florida public records request portal`), verified:false };
 }
+/* The wording that goes to a records clerk.
+
+   The old single paragraph opened with "Public records request (Fla. Stat. ch. 119):", asked for
+   "all documents in the building permit file(s)", and instructed the clerk on how to handle
+   exemptions. Each of those costs something and buys nothing: citing the statute up front routes
+   the thing to formal intake instead of someone emailing back a PDF, "all documents" is the phrase
+   that triggers a fee estimate and a queue, and an exemption instruction on a residential permit
+   file reads as picking a fight that isn't there. Ch. 119 applies whether or not it is cited, and
+   the agency cannot require a reason — so none of the softening below gives anything up.
+
+   Two versions, because the escalation path is real: the plain ask is what you send, and the formal
+   one is what you send when the plain ask has sat unanswered. The signature is a placeholder rather
+   than a name, so whoever is running the app fills in their own. */
+/* The address the request goes out with is the one in the page header — the .sum-addr line, which
+   is window.__printMeta.addr. Two things make that worth resolving at CLICK time rather than when
+   the card is built:
+
+     * __printMeta is assembled AFTER every card's HTML, immediately before paintResults(). Reading
+       it while the permits card is being built returns the PREVIOUS lookup's address, or nothing on
+       the first search — quietly wrong in the worst way, since the parcel number beside it would be
+       the right one.
+     * By the time anyone clicks Copy, every source has settled.
+
+   The header's own fallback chain ends at "Pin: 26.27, -81.63" when no address resolved at all.
+   Coordinates are not an address a records clerk can look a permit up by, so they are rejected here
+   and the request keeps its [address] placeholder instead. */
+function _rrAddrNow(){
+  try{
+    const m = window.__printMeta;
+    if(m && m.addr && !/^\s*Pin:/i.test(m.addr)) return String(m.addr).replace(/\s+/g,' ').trim();
+    const ed = window.__exportData;
+    if(ed && ed.address){
+      const a = siteBoxAddr(ed.address, ed.city, ed.zip);
+      if(a) return String(a).replace(/\s+/g,' ').trim();
+    }
+    const pm = window.__parcelMeta;
+    if(pm && pm.site) return String(pm.site).replace(/\s+/g,' ').trim();
+  }catch(e){}
+  return '';
+}
+function _rrTextNow(kind, strap){
+  const a = _rrAddrNow();
+  return kind === 'formal' ? recordsRequestTextFormal(a, strap, '') : recordsRequestText(a, strap, '');
+}
 function recordsRequestText(addr, strap, jurName){
-  return `Public records request (Fla. Stat. ch. 119): please provide copies of all documents in the building permit file(s) for the property at ${addr||'[address]'}`
-       + (strap ? `, parcel/folio ${strap}` : '')
-       + `, including the recorded or submitted survey, site plan / plot plan, permit application, approved plans and inspection records. Electronic copies (PDF) are preferred. If any portion is exempt, please provide the remainder and cite the exemption. Thank you.`;
+  const A = addr || '[address]';
+  const P = strap ? ` (parcel ${strap})` : '';
+  return `Survey & site plan — ${A}${strap ? ` (parcel/folio ${strap})` : ''}\n`
+    + `\n`
+    + `Hi —\n`
+    + `\n`
+    + `I'm siting a standby generator at ${A}${P} and I'm trying to get the lot dimensions and the existing structures right before we draw anything up.\n`
+    + `\n`
+    + `Could I get a copy of the survey and the site/plot plan from the building permit file for that address? A PDF by email would be ideal. If there's a copy fee, just let me know the amount and I'll take care of it.\n`
+    + `\n`
+    + `If they're already posted somewhere online, a link works just as well — and I'm happy to narrow the request if that makes it easier to pull.\n`
+    + `\n`
+    + `Thanks very much,\n`
+    + `\n`
+    + `[your name]\n[company]\n[email / phone]`;
+}
+/* The fallback: same request, cited, with a fee-estimate clause and a reference to the first ask.
+   Kept behind a chevron rather than offered as an equal choice — leading with it is the mistake the
+   old wording made. */
+function recordsRequestTextFormal(addr, strap, jurName){
+  const A = addr || '[address]';
+  return `Public records request — ${A}${strap ? ` (parcel/folio ${strap})` : ''}\n`
+    + `\n`
+    + `Hello,\n`
+    + `\n`
+    + `This is a public records request under Fla. Stat. ch. 119.\n`
+    + `\n`
+    + `I'm requesting copies of the records in the building permit file for ${A}${strap ? `, parcel/folio ${strap}` : ''} — specifically the survey, the site/plot plan, the permit application, approved plans and inspection records. Electronic copies (PDF) are preferred.\n`
+    + `\n`
+    + `If producing these will involve a fee, please send me an estimate before proceeding and I'll authorize it. If any portion is exempt, I'd appreciate the remainder along with a citation for what's being withheld.\n`
+    + `\n`
+    + `I sent an earlier request on [date] and haven't had a response, so I'm following up this way. Happy to narrow the scope if that would speed things up.\n`
+    + `\n`
+    + `Thank you,\n`
+    + `\n`
+    + `[your name]\n[company]\n[email / phone]`;
 }
 
 /* ---------- RECORDED PLAT LOOKUP ----------
@@ -19444,7 +19615,9 @@ if(results) results.addEventListener('click', async (e)=>{
   const btn = e.target && e.target.closest ? e.target.closest('.copyfolio') : null;
   if(!btn) return;
   e.preventDefault();
-  const val = btn.getAttribute('data-folio') || '';
+  const _rr = btn.getAttribute('data-rr');
+  const val = _rr ? _rrTextNow(_rr, btn.getAttribute('data-strap') || '')
+                  : (btn.getAttribute('data-folio') || '');
   if(!val) return;
   let ok=false;
   try{ if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(val); ok=true; } }catch(_){}
@@ -31646,9 +31819,9 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
            address ready to paste. */
         const _fdemAddr = ec.ecAddr ? String(ec.ecAddr).trim() : '';
         html += `<div class="note">A scanned certificate is on file for this record — <b>${esc(ec.docFileName)}</b>. The county doesn't serve the PDF directly, but the document itself is in the <b>FDEM statewide portal</b>: open the search below, paste the address, and the certificate opens as a PDF on the property page. (Or give Public Works the filename above and they can pull it by name.)</div>`;
-        html += `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">`
+        html += `<div class="copyrow" style="margin-top:8px">`
           + `<a class="palink" href="https://florida.withforerunner.com/properties" target="_blank" rel="noopener" style="margin-top:0">↗ FDEM statewide EC search — find this address's certificate PDF</a>`
-          + (_fdemAddr ? `<button type="button" class="copyfolio" data-folio="${esc(_fdemAddr)}" style="font-family:var(--mono);font-size:10px;padding:3px 10px;border-radius:5px;border:1px solid var(--unk-line);background:var(--unk-bg);color:var(--dim);cursor:pointer">Copy address</button>` : '')
+          + (_fdemAddr ? `<button type="button" class="copyfolio" data-folio="${esc(_fdemAddr)}">Copy address</button>` : '')
           + `</div>`;
       } else {
         html += `<div class="note">A certificate record exists here, but no downloadable file was attached to it — open the county EC map to view it, or search the address in the <a href="https://florida.withforerunner.com/properties" target="_blank" rel="noopener" style="color:var(--blueprint)">FDEM statewide EC portal</a> (all ECs are filed there by statute since 2017; the certificate opens as a PDF on the property page).</div>`;
@@ -31776,7 +31949,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   const portal = (docInCity && docCfg && docCfg.permit) ? docCfg.permit
                : (zr.inCity && z && z.permit) ? z.permit
                : ((docCfg && docCfg.permit) || (z && z.permit) || null);
-  html += `<div class="note warnbox" style="margin-top:10px"><b>Surveys &amp; site plans aren't a public map layer.</b> They live in <b>${esc(docJur)}</b>'s building-permit file and are retrieved from its permitting portal by ${docCfg&&docCfg.permitBy==='permit'?'permit record number':'address or parcel/STRAP number'}${strap?` (this parcel: <b style="color:var(--ink)">${esc(strap)}</b>)`:''}. Not every record is digitized.</div>`;
+  html += `<div class="lc-meta" style="margin-top:9px">Surveys and site plans aren't a public map layer &mdash; they live in <b>${esc(docJur)}</b>'s building-permit file, retrieved by ${docCfg&&docCfg.permitBy==='permit'?'permit record number':'address or parcel/STRAP number'}.</div>`;
   /* ── BS&A ONLINE, PER-PARCEL (added 19 Sep 2026) ────────────────────────────────────────────
      Grant-Valkaria is one of the towns with NO zoning layer anywhere (see ZONING_LIVE_CITY's
      not-found notes), so anything that reaches its records is worth having. The town runs BS&A
@@ -32052,8 +32225,66 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
        because a card that sometimes shows one link and sometimes another is worse than one that
        always shows the same one. */
   }
-  if(portal){
-    html += `<a class="palink" href="${esc(portal)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(docJur)} permitting portal (survey / site plan / permits)</a>`;
+  /* ---- The three steps of actually getting a survey out of a jurisdiction ----
+
+     These three things were already on the card; they were just scattered. The folio copy sat
+     BELOW the whole fire-code panel and the recorded plat, the portal link sat above them, and
+     the records request below those again — so the order you do them in was invisible, and the
+     folio you need for step 2 was two scroll-lengths past the button it goes into.
+
+     Nothing new is fetched here. Same portal, same folio, same records-request URL and text. */
+  {
+    const _rr   = recordsRequestUrl(docJur, cityName, countyName, docInCity);
+    /* The request used to carry searchCtx.raw — whatever was typed in the box. Empty on a map
+       click, and wrong whenever the lookup started from a folio, an owner name or a half-spelled
+       street, so the text went out reading "[address]" with the right parcel number beside it.
+       Both buttons now carry `data-rr` instead of a baked-in string, and the copy handler builds
+       the text at click time from the address in the page header. _rrAddrNow() in rrtext.js has
+       the reasoning; the short version is that the header is assembled after this card, so
+       resolving it here would hand back the PREVIOUS parcel's address. */
+    const _strapAttr = strap ? esc(String(strap)) : '';
+    const _byPermit = !!(docCfg && docCfg.permitBy === 'permit');
+    let p = '';
+
+    if(strap){
+      p += `<div class="pstep"><div class="n">1</div><div class="b">`
+        +  `<div class="t">This parcel</div>`
+        +  `<div class="s">${_byPermit ? 'This jurisdiction files by permit record number, so the folio is a starting point rather than the search key.' : 'The folio / STRAP its permit file is indexed under.'}</div>`
+        +  `<div class="copyrow"><code>${esc(String(strap))}</code>`
+        +  `<button type="button" class="copyfolio" data-folio="${esc(String(strap))}">Copy</button></div>`
+        +  `</div></div>`;
+    }
+
+    if(portal){
+      p += `<div class="pstep"><div class="n">${strap?2:1}</div><div class="b">`
+        +  `<div class="t">Search the permitting portal</div>`
+        +  `<div class="s">${strap ? 'Paste the folio above into the portal’s <i>Search for a Property</i> box.' : 'Search by address — no folio was read for this parcel.'} Not every record is digitized.</div>`
+        +  `<a class="palink" href="${esc(portal)}" target="_blank" rel="noopener">↗ ${esc(docJur)} permitting portal (survey / site plan / permits)</a>`
+        +  `</div></div>`;
+    }
+
+    p += `<div class="pstep"><div class="n">${(strap?1:0)+(portal?1:0)+1}</div><div class="b">`
+      +  `<div class="t">No attachment on the permit? Request the file</div>`
+      +  `<div class="s">A survey and site plan usually arrive this way — the portal shows the permit, but not what was filed with it.</div>`
+      +  `<a class="palink" href="${esc(_rr.url)}" target="_blank" rel="noopener">↗ ${_rr.verified ? 'Request the permit file — '+esc(docJur)+' public records portal' : 'Find '+esc(docJur)+'’s public records request page'}</a>`
+      +  `<div class="copyrow"><span class="lc-meta">Request text, this parcel filled in</span>`
+      +  `<button type="button" class="copyfolio" data-rr="plain" data-strap="${_strapAttr}">Copy request text</button></div>`
+      /* The formal, statute-citing version sits behind a chevron rather than beside the main
+         button. Leading with ch. 119 is what made the old wording read as a demand; but the
+         escalation is real, so it stays one click away — and visible, so you remember it exists
+         when a polite ask has sat for three weeks. */
+      +  `<details class="adv"><summary>If it goes unanswered &mdash; formal version, cites ch. 119</summary>`
+      +  `<div class="lc-meta" style="margin-top:6px">Same request, with the statute, a fee-estimate clause and a line referring back to the first ask. Fill in the date you sent that one.</div>`
+      +  `<div class="copyrow"><button type="button" class="copyfolio" data-rr="formal" data-strap="${_strapAttr}">Copy formal request</button></div>`
+      +  `</details>`
+      +  (_rr.verified ? '' : `<div class="lc-meta" style="margin-top:4px">This jurisdiction’s records portal isn’t confirmed yet — the link searches for it. Once you land on the real page, its URL can be added so this becomes one click.</div>`)
+      +  `</div></div>`;
+
+    const _rrAlt = RECORDS_PORTALS[(docInCity ? norm(cityName||'') : (norm(countyName||'')+'COUNTY'))+'_ALT'];
+    if(_rrAlt && _rrAlt.url){
+      p += `<a class="palink" href="${esc(_rrAlt.url)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(_rrAlt.label||'Alternate records custodian')}</a>`;
+    }
+    html += p;
   }
   // Fire district (who reviews the LP / generator clearances and inspects) — county GIS where published
   if(FIRE_DISTRICT_LAYERS[norm(countyName||'')]){
@@ -32080,7 +32311,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
         patchSlot(_platSlot,
           `<div class="note" style="margin-top:6px">Recorded plat: <b>${esc(p.label)}</b></div>`
           + (p.link ? `<a class="palink" href="${esc(p.link)}" target="_blank" rel="noopener" style="margin-top:6px">↗ ${esc(p.linkLabel||'Recorded plat')}</a>` : '')
-          + (p.copyText ? `<div class="note" style="margin-top:4px"><code>${esc(p.copyText)}</code> <button type="button" class="copyfolio lc-read" data-folio="${esc(p.copyText)}">${esc(p.copyLabel||'Copy')}</button>${p.copyNote?`<div class="lc-meta" style="margin-top:3px">${esc(p.copyNote)}</div>`:''}</div>` : '')
+          + (p.copyText ? `<div class="copyrow"><code>${esc(p.copyText)}</code> <button type="button" class="copyfolio" data-folio="${esc(p.copyText)}">${esc(p.copyLabel||'Copy')}</button>${p.copyNote?`<div class="lc-meta" style="flex-basis:100%;margin-top:0">${esc(p.copyNote)}</div>`:''}</div>` : '')
           + (p.extraLink ? `<a class="palink" href="${esc(p.extraLink)}" target="_blank" rel="noopener" style="margin-top:6px">↗ ${esc(p.extraLabel||'Records search')}</a>` : '')
           + `<div class="note" style="margin-top:4px">Platted utility &amp; drainage easements and any platted setback lines are on the recorded plat, not the zoning code — check it before siting the pad.</div>`
           + `<div id="easeList-${myId}" class="note" style="margin-top:6px"><span class="lc-meta">… measuring the lot${SITE_SKETCH[norm(countyName||'')]?' and reading recorded easements':''}</span></div>`
@@ -32090,38 +32321,13 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
               const A=a.toUpperCase(); const hasCity = city && new RegExp('\\b'+city.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(\\s+FL)?(\\s+\\d{5})?\\s*$').test(A);
               const q=[A.replace(/\s+FL(\s+\d{5})?\s*$/,''), hasCity?'':city, 'FL', zip].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
               return `<a class="palink" href="https://cor.collierclerk.com/coraccess/search/address?address=${encodeURIComponent(q)}" target="_blank" rel="noopener" style="margin-top:6px">↗ Recorded deed for ${esc(q)} — Collier Clerk (COR Access)</a>`
-                   + `<div class="note" style="margin-top:4px"><code>${esc(q)}</code> <button type="button" class="copyfolio lc-read" data-folio="${esc(q)}">Copy address</button><div class="lc-meta" style="margin-top:3px">Private easements and deed restrictions that never made the plat are in the deed. Same session note as the plat: if COR shows the last address, paste this one.</div></div>`; })() : ''));
+                   + `<div class="copyrow"><code>${esc(q)}</code> <button type="button" class="copyfolio" data-folio="${esc(q)}">Copy address</button><div class="lc-meta" style="flex-basis:100%;margin-top:0">Private easements and deed restrictions that never made the plat are in the deed. Same session note as the plat: if COR shows the last address, paste this one.</div></div>`; })() : ''));
       }).catch(()=>{});
     }
   }
-  if(portal){
-    // Prominent "check permits for THIS parcel" action. The CityView / permit portals are POST-search
-    // pages (no reliable address-in-URL prefill), so we open the search page AND surface the parcel's
-    // folio/address with a one-tap Copy so the user pastes it straight into the portal's search box.
-    if(strap){
-      const copyVal = esc(String(strap));
-      html += `<div class="note" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">`
-        + `<b>Check active permits for this parcel:</b> paste this folio into the portal's <i>Search for a Property</i> box `
-        + `<span style="display:inline-flex;align-items:center;gap:6px">`
-        + `<code style="color:var(--ink);background:var(--unk-bg);padding:1px 6px;border-radius:4px">${copyVal}</code>`
-        + `<button type="button" class="copyfolio" data-folio="${copyVal}" style="font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid var(--unk-line);background:var(--unk-bg);color:var(--dim);cursor:pointer">Copy</button>`
-        + `</span></div>`;
-    }
-  }
-  /* Records request: how you actually get the survey/site plan when the portal has the permit but
+/* Records request: how you actually get the survey/site plan when the portal has the permit but
      not the attachments. Direct portal where confirmed, pre-filled search otherwise, plus the
      request wording with this parcel's address and folio ready to paste. */
-  {
-    const _rr = recordsRequestUrl(docJur, cityName, countyName, docInCity);
-    const _rrAddr = (searchCtx && searchCtx.raw) ? String(searchCtx.raw).replace(/\s+/g,' ').trim() : '';
-    const _rrText = recordsRequestText(_rrAddr, strap, docJur);
-    html += `<a class="palink" href="${esc(_rr.url)}" target="_blank" rel="noopener" style="margin-top:10px">↗ ${_rr.verified?'Request the permit file — '+esc(docJur)+' public records portal':'Find '+esc(docJur)+"'s public records request page"}</a>`;
-    html += `<div class="note" style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span>Survey &amp; site plan usually arrive this way when the portal shows the permit but not its attachments. Request text with this parcel filled in:</span>`
-          + `<button type="button" class="copyfolio" data-folio="${esc(_rrText)}" style="font-family:var(--mono);font-size:10px;padding:3px 10px;border-radius:5px;border:1px solid var(--unk-line);background:var(--unk-bg);color:var(--dim);cursor:pointer">Copy request text</button></div>`;
-    if(!_rr.verified) html += `<div class="note" style="opacity:.8">This jurisdiction&rsquo;s records portal isn&rsquo;t confirmed yet — the link searches for it. Once you land on the real page, its URL can be added so this becomes one click.</div>`;
-    const _rrAlt = RECORDS_PORTALS[(docInCity ? norm(cityName||'') : (norm(countyName||'')+'COUNTY'))+'_ALT'];
-    if(_rrAlt && _rrAlt.url) html += `<a class="palink" href="${esc(_rrAlt.url)}" target="_blank" rel="noopener" style="margin-top:6px">↗ ${esc(_rrAlt.label||'Alternate records custodian')}</a>`;
-  }
   if(!portal && countyName){
     html += `<a class="palink" href="https://www.google.com/search?q=${encodeURIComponent(titleCase(countyName)+' County Florida building permit portal search by address')}" target="_blank" rel="noopener" style="margin-top:8px">↗ Find ${esc(titleCase(countyName))} County permitting portal</a>`;
   }
