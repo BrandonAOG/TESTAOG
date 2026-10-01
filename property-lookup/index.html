@@ -462,6 +462,9 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .sb-rules>summary:hover{filter:brightness(1.25)}
   .sb-rules .sb-lead{font-size:11.5px;color:var(--dim);line-height:1.55;margin:0;
     padding:0 11px 8px}
+  /* The A/C-only case is a warning, not a footnote: the figures underneath may not govern a pad */
+  .sb-rules .sb-lead.warn{color:var(--ink);background:rgba(244,104,0,.07);
+    border-left:2px solid var(--signal);margin:0 0 8px;padding:8px 11px}
   /* One disclosure per rule. Collapsed, the block is a scannable list of citations; a rule that
      carries an ordinance table says so with a chip, so it does not hide three screens down. */
   .sb-r{border-top:1px solid var(--line)}
@@ -2637,12 +2640,38 @@ function _sbEquip(J, code){
   if(!J) return '';
   var gen = J.gen || [], eq = J.equip || [], total = gen.length + eq.length, i;
   if(!total) return '';
-  var head = gen.length
+  /* Three different things can be true here, and saying the same sentence for all three is how a
+     reader ends up treating an air-conditioner figure as a generator setback. So say which it is:
+
+       gen    the code governs a generator — these ARE the rules
+       equip  no generator rule, but a generic "mechanical equipment" clause plainly covers a pad
+       ac     the nearest rule names only air conditioning or pool equipment, and the code never
+              says a generator is the same thing. That gap belongs to the ordinance; the card
+              states it instead of quietly closing it. */
+  var reach = J.reach || (gen.length ? 'gen' : 'equip');
+  var head = reach === 'gen'
     ? '⚡ generator rules &mdash; ' + esc(J.name) + ' (' + total + ')'
-    : 'no rule names a generator in ' + esc(J.name)
-      + ' &mdash; equipment rules that do apply (' + total + ')';
+    : reach === 'ac'
+      ? '⚠ no generator rule in ' + esc(J.name)
+        + ' &mdash; nearest is for A/C &amp; pool equipment (' + total + ')'
+      : reach === 'other'
+        ? '⚠ nothing on equipment placement in ' + esc(J.name)
+          + ' &mdash; nearest related rules (' + total + ')'
+        : 'no rule names a generator in ' + esc(J.name)
+          + ' &mdash; equipment rules that do apply (' + total + ')';
   var h = '<details class="sb-rules"><summary>' + head + '</summary>';
-  if(!gen.length)
+  if(reach === 'ac')
+    h += '<p class="sb-lead warn">' + esc(J.name) + ' prints no rule for generators <b>or for '
+       + 'mechanical equipment generally</b>. The rules below name air conditioning and pool '
+       + 'equipment only, and the code never says a generator counts as the same thing &mdash; '
+       + 'so whether these distances bind a pad is an open question for the building official, '
+       + 'not something this card can answer.</p>';
+  else if(reach === 'other')
+    h += '<p class="sb-lead warn">' + esc(J.name) + ' prints no rule on where a generator, or any '
+       + 'mechanical equipment, may sit. The rules below are the nearest related provisions &mdash; '
+       + 'accessory structures, flood elevation, screening &mdash; and none of them is a setback '
+       + 'for a pad. Treat the district yards above as the binding figures.</p>';
+  else if(reach !== 'gen')
     h += '<p class="sb-lead">' + esc(J.name) + ' prints no rule naming a generator, so a pad is '
        + 'governed by the accessory-structure and mechanical-equipment rules below.</p>';
   for(i = 0; i < gen.length; i++) h += _sbRule(gen[i], true);
