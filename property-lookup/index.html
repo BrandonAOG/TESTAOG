@@ -2237,6 +2237,17 @@ function _sbJur(nm, county){
   if(county && _SB[k+'_county']) return k+'_county';
   if(_SB[k]) return k;
   if(_SB[k+'_county']) return k+'_county';
+  /* Some municipalities carry the style as a SUFFIX — "Bal Harbour Village", and a GIS layer may
+     well hand back the full legal name. Stripping that word up front would be a disaster: Lake
+     City, Panama City, Cedar Key and Key West all end in a word that looks like a style and are
+     not. So it runs only here, after an exact match has already failed, which those four always
+     win. A jurisdiction genuinely named "Lake" would have to exist for this to misfire, and none
+     does. */
+  var k2 = k.replace(/_(village|town|city)$/,'');
+  if(k2 !== k){
+    if(_SB[k2]) return k2;
+    if(_SB[k2+'_county']) return k2+'_county';
+  }
   return null;
 }
 function _sbFind(key, code){
