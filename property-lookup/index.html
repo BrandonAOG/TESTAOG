@@ -14228,8 +14228,8 @@ function recordsRequestUrl(jurName, cityName, countyName, inCity){
    the agency cannot require a reason — so none of the softening below gives anything up.
 
    Two versions, because the escalation path is real: the plain ask is what you send, and the formal
-   one is what you send when the plain ask has sat unanswered. The signature is a placeholder rather
-   than a name, so whoever is running the app fills in their own. */
+   one is what you send when the plain ask has sat unanswered. The company, office email and office phone are fixed; only the
+   sender's name is left to fill in. */
 /* The address the request goes out with is the one in the page header — the .sum-addr line, which
    is window.__printMeta.addr. Two things make that worth resolving at CLICK time rather than when
    the card is built:
@@ -14276,7 +14276,7 @@ function recordsRequestText(addr, strap, jurName){
     + `\n`
     + `Thanks very much,\n`
     + `\n`
-    + `[your name]\n[company]\n[email / phone]`;
+    + `[your name]\nAlwaysOn Generators\nOffice@alwaysongenerators.com \u00b7 239-839-3553`;
 }
 /* The fallback: same request, cited, with a fee-estimate clause and a reference to the first ask.
    Kept behind a chevron rather than offered as an equal choice — leading with it is the mistake the
@@ -14297,7 +14297,7 @@ function recordsRequestTextFormal(addr, strap, jurName){
     + `\n`
     + `Thank you,\n`
     + `\n`
-    + `[your name]\n[company]\n[email / phone]`;
+    + `[your name]\nAlwaysOn Generators\nOffice@alwaysongenerators.com \u00b7 239-839-3553`;
 }
 
 /* ---------- RECORDED PLAT LOOKUP ----------
