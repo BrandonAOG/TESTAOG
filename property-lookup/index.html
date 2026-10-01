@@ -2314,11 +2314,23 @@ function _sbFind(key, code){
   var t2 = trim(raw);
   if(t2 && !codeLike) for(k in D) if(trim(k) === t2) return D[k];
 
-  // 5. letters only, and only for code-like input — the loosest rule, kept last, and unique-only
+  /* 5. letters only, and only for code-like input — the loosest rule, kept last, and unique-only.
+
+        It discarded every digit, which is how "ARZ-1" off Pensacola's zoning layer came back
+        holding ARZ's row: both reduce to "ARZ", nothing else in that code does, so the uniqueness
+        guard passed it through with no sign anything was wrong. ARZ and ARZ-1 are two separate
+        entries in the layer and the ordinance prints only ARZ, so the honest answer is that the
+        district is not in the code as read — which is what the card says when this returns null.
+        A digit is district identity, not punctuation: R-1 is not R-2, ARZ is not ARZ-1. The rule
+        may still bridge spacing, hyphens and case; the digits on both sides must now agree. */
   if(codeLike){
-    var bare = want.replace(/[^A-Z]/g,''), one = null, dup = false;
+    var digits = function(s){ return String(s).replace(/[^0-9]/g,''); };
+    var bare = want.replace(/[^A-Z]/g,''), wantD = digits(want), one = null, dup = false;
     if(bare){
-      for(k in D) if(_sbNorm(k).replace(/[^A-Z]/g,'') === bare){ if(one) dup = true; else one = D[k]; }
+      for(k in D){
+        var nk = _sbNorm(k);
+        if(nk.replace(/[^A-Z]/g,'') === bare && digits(nk) === wantD){ if(one) dup = true; else one = D[k]; }
+      }
       if(one && !dup) return one;
     }
   }
@@ -8715,6 +8727,19 @@ const ZONING_LIVE_CITY = {
   // "zoning_district", which carries LONG descriptive strings (e.g. "RESIDENTIAL, SINGLE FAMILY 1",
   // "SOUTH TRAIL: SUBAREA 2 (AUC)") — veniceSetbacks()/VENICE_GIS_VALUE_MAP map those to LDC codes.
   // Venice is a Sarasota County city with its own code, so the county layer is only a fallback.
+  // ✅ City of Pensacola zoning — the city's OWN ArcGIS Server (maps.cityofpensacola.com),
+  // Avineon_MIL1 MapServer layer 2. Pensacola adopts its own Land Development Code (Title XII,
+  // Ch. 12-3), so it must NOT inherit unincorporated Escambia County's districts; the wired
+  // ESCAMBIA layer covers 0.92 of the county and would otherwise answer for city parcels.
+  // Fields PINNED from the layer definition: ZONING = the district code (no description column
+  // exists); Density carries the per-acre allowance as prose and is surfaced as an extra.
+  // Cross-origin read verified from a foreign origin, status 200. The service also publishes
+  // Overlay Districts (layer 5) and fifteen named overlays — deliberately NOT wired until each
+  // overlay's own yard rules have been read.
+  PENSACOLA: { label:"City of Pensacola Zoning", codeField:"ZONING",
+    extra:[ {field:"Density", label:"Density"} ], urls:[
+    "https://maps.cityofpensacola.com/arcgis/rest/services/Avineon_MIL1/MapServer/2/query"
+  ]},
   VENICE: { label:"City of Venice Zoning", codeField:"zoning_district", urls:[
     "https://geoport.venicefl.gov/server/rest/services/bldg/TRAKiT/MapServer/10/query"
   ]},
