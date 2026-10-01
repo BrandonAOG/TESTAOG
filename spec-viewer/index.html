@@ -412,6 +412,100 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(circle 
 [data-theme="light"] .man-section p,[data-theme="light"] .man-list{color:#374151}
 [data-theme="light"] .man-danger{background:rgba(220,38,38,.07);color:#b91c1c}
 [data-theme="light"] .man-note{color:#374151}
+
+/* ════════ SPEC VIEWER v2 — simpler navigation ════════ */
+.sv{display:flex;flex-direction:column;gap:14px;margin-top:-6px}
+.sv-card{background:linear-gradient(135deg,var(--panel-bg),var(--panel-bg2));border:2px solid var(--border);border-radius:6px;padding:16px;clip-path:polygon(10px 0%,100% 0%,100% calc(100% - 10px),calc(100% - 10px) 100%,0% 100%,0% 10px)}
+.sv-search{position:relative}
+.sv-search input{width:100%;min-height:54px;padding:0 16px 0 46px;border:2px solid var(--border);border-radius:10px;background:var(--inp-bg);color:var(--text);font-family:var(--fb);font-size:1.02rem;font-weight:600;outline:none;-webkit-appearance:none}
+.sv-search input:focus{border-color:var(--yb);box-shadow:0 0 0 3px rgba(251,191,36,.18)}
+.sv-search-ic{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:1.05rem;pointer-events:none;z-index:2}
+.sv-qres{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:50;background:var(--panel-bg);border:2px solid var(--border);border-radius:10px;box-shadow:0 18px 40px -12px rgba(0,0,0,.5);overflow:hidden;max-height:60vh;overflow-y:auto}
+.sv-qr{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;border:0;border-bottom:1px solid var(--sep-col);background:none;color:var(--text);text-align:left;cursor:pointer;font-family:var(--fb)}
+.sv-qr:last-child{border-bottom:0}
+.sv-qr:hover,.sv-qr.on{background:var(--card-bg)}
+.sv-qr b{display:block;font-size:.98rem}
+.sv-qr small{display:block;font-size:.78rem;color:var(--dim)}
+.sv-qr .tag{flex-shrink:0;font-family:var(--fm);font-size:.7rem;letter-spacing:1px;padding:3px 7px;border-radius:5px;border:1px solid var(--border);color:var(--ob);text-transform:uppercase}
+.sv-qr-empty{padding:14px;color:var(--dim);font-size:.9rem}
+
+.sv-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sv-tab,.sv-chip{min-height:48px;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;background:var(--panel-bg);color:var(--text);cursor:pointer;text-align:left;font-family:var(--fb);touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:border-color .15s,background .15s,box-shadow .15s}
+.sv-tab b,.sv-chip b{display:block;font-size:.98rem;font-weight:700;line-height:1.2}
+.sv-tab small,.sv-chip small{display:block;font-size:.74rem;color:var(--dim);margin-top:2px;line-height:1.3}
+.sv-tab{text-align:center}
+.sv-tab[aria-pressed="true"],.sv-chip[aria-pressed="true"]{border-color:var(--yb);background:linear-gradient(135deg,rgba(251,191,36,.16),rgba(249,115,22,.08));box-shadow:0 0 18px rgba(251,191,36,.2)}
+.sv-tab[aria-pressed="true"] b,.sv-chip[aria-pressed="true"] b{color:var(--yb)}
+.sv-tab:hover,.sv-chip:hover{border-color:var(--ob)}
+@media(max-width:480px){.sv-tab small{display:none}.sv-tab b{font-size:.9rem}}
+.sv-seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}
+.sv-seg3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:420px){.sv-seg3 small{display:none}}
+.sv-grp{font-family:var(--fm);font-size:.78rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--be);margin:16px 0 8px;display:flex;justify-content:space-between;gap:8px}
+.sv-grp span{color:var(--dim);letter-spacing:.5px;text-transform:none}
+.sv-chips{display:flex;flex-wrap:wrap;gap:8px}
+.sv-chips .sv-chip{min-width:96px}
+.sv-chips .sv-chip b{font-family:var(--fd);font-size:1.02rem;letter-spacing:.5px}
+.sv-wide{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.sv-wide .sv-chip b{font-family:var(--fd);font-size:.95rem;letter-spacing:.5px}
+.sv-wide .sv-chip .nm{display:block;font-size:.9rem;font-weight:600;margin-top:3px;color:var(--text)}
+.sv-wide .sv-chip .pn{display:block;font-family:var(--fm);font-size:.74rem;color:var(--be);margin-top:3px;word-break:break-word}
+.sv-wide .sv-chip .tg{float:right;font-family:var(--fm);font-size:.66rem;letter-spacing:1px;padding:2px 6px;border-radius:4px;border:1px solid var(--border);color:var(--ob);margin-left:6px}
+
+#detail{scroll-margin-top:80px}
+.sv-crumb{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between;padding:12px 14px;border:2px solid var(--yb);border-radius:10px;background:linear-gradient(90deg,rgba(251,191,36,.12),rgba(249,115,22,.04))}
+.sv-crumb-t{font-family:var(--fd);font-weight:900;font-size:1.05rem;letter-spacing:1px;color:var(--yb);line-height:1.25}
+.sv-crumb-t small{display:block;font-family:var(--fm);font-weight:400;font-size:.78rem;letter-spacing:.5px;color:var(--be)}
+.sv-crumb-a{display:flex;gap:6px}
+.sv-mini{min-height:40px;padding:0 12px;border:1.5px solid var(--border);border-radius:8px;background:var(--panel-bg);color:var(--text);font-family:var(--fb);font-weight:700;font-size:.85rem;cursor:pointer}
+.sv-jump{position:sticky;top:var(--barH,56px);z-index:40;display:flex;gap:6px;overflow-x:auto;padding:8px 2px;margin:4px 0 2px;scrollbar-width:none;background:var(--bg0);box-shadow:0 8px 12px -10px rgba(0,0,0,.6)}
+.sv-jump::-webkit-scrollbar{display:none}
+.sv-jump button{flex-shrink:0;min-height:38px;padding:0 13px;border:1.5px solid var(--border);border-radius:20px;background:var(--panel-bg);color:var(--text);font-family:var(--fb);font-weight:600;font-size:.85rem;cursor:pointer;white-space:nowrap}
+.sv-jump button.man{border-color:var(--yb);color:var(--yb)}
+.sv-jump button.on{background:var(--yb);border-color:var(--yb);color:#0A0E27}
+@media(max-width:759px){.sv-jump{-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent);padding-right:28px}}
+@media(min-width:760px){.sv-jump{flex-wrap:wrap;overflow:visible}}
+[data-theme="light"] .sv-jump button.on{background:#F59E0B;border-color:#F59E0B;color:#1F1300}
+#detail .panel{margin-bottom:12px}
+#detail .ss{scroll-margin-top:130px}
+#panel-man{scroll-margin-top:130px}
+.sv-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--gr);color:#fff;padding:10px 16px;border-radius:10px;font-weight:700;opacity:0;transition:opacity .2s;pointer-events:none;z-index:100000}
+.sv-toast.show{opacity:1}
+
+html,body{overflow-x:clip!important;overflow-y:visible!important}
+@media(max-width:420px){.tagline{letter-spacing:2px;white-space:nowrap}}
+/* ── readability: larger type for field use ── */
+.st{font-size:.82rem;letter-spacing:1.5px}
+.mdsc{font-size:.85rem;letter-spacing:.3px}
+.icl,.ecl,.ats-lbl{font-size:.7rem;letter-spacing:1px}
+.icv,.ecv,.ats-val{font-size:.92rem}
+.fc-label{font-size:.72rem}
+.ot td,.dims-table td,.timing-table td{font-size:.86rem}
+.at td{font-size:.82rem}
+.fi,.pi{font-size:.82rem;letter-spacing:.2px}
+.srcnote{font-size:.74rem}
+.man-section p,.man-list{font-size:.88rem;line-height:1.65}
+.man-table{font-size:.8rem}
+.man-note,.man-danger,.man-caution{font-size:.84rem}
+.man-acc-hd{font-size:.82rem;padding:14px 16px;min-height:50px}
+.man-title{font-size:.95rem}
+
+/* ── light mode polish ── */
+[data-theme="light"] .sv-card,[data-theme="light"] #detail .panel{clip-path:none;border-radius:16px;border:1px solid #ECE6DA;background:#fff;box-shadow:0 1px 2px rgba(31,41,51,.04),0 10px 28px -12px rgba(31,41,51,.14)}
+[data-theme="light"] #detail .panel::before,[data-theme="light"] #detail .panel::after{display:none}
+[data-theme="light"] .sv-search input{background:#fff;border:1px solid #DAD3C4;border-radius:14px;box-shadow:0 1px 2px rgba(31,41,51,.05)}
+[data-theme="light"] .sv-qres{background:#fff;border:1px solid #E4DED1;box-shadow:0 18px 40px -16px rgba(31,41,51,.3)}
+[data-theme="light"] .sv-tab,[data-theme="light"] .sv-chip,[data-theme="light"] .sv-mini,[data-theme="light"] .sv-jump button{background:#fff;border:1px solid #E4DED1;border-radius:12px;box-shadow:0 1px 2px rgba(31,41,51,.05)}
+[data-theme="light"] .sv-jump button{border-radius:20px}
+[data-theme="light"] .sv-tab[aria-pressed="true"],[data-theme="light"] .sv-chip[aria-pressed="true"]{background:linear-gradient(180deg,#FFF8E6,#FFEFC7);border:1px solid #F59E0B;box-shadow:0 0 0 3px rgba(245,158,11,.15)}
+[data-theme="light"] .sv-tab[aria-pressed="true"] b,[data-theme="light"] .sv-chip[aria-pressed="true"] b{color:#92400E}
+[data-theme="light"] .sv-grp{color:#1D5F99}
+[data-theme="light"] .sv-crumb{background:linear-gradient(90deg,#FFF4D6,#FFFBF0);border:1px solid #F3D9A4}
+[data-theme="light"] .sv-crumb-t{color:#92400E}
+[data-theme="light"] .sv-crumb-t small{color:#1D5F99}
+[data-theme="light"] .sv-wide .sv-chip .pn{color:#1D5F99}
+[data-theme="light"] .sv-jump{background:#EDF2FF;box-shadow:0 8px 12px -10px rgba(31,41,51,.25)}
+@media (prefers-reduced-motion:reduce){body{animation:none!important}}
 </style>
 <script src="../update-banner.js"></script>
 </head>
@@ -439,158 +533,59 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(circle 
   <div class="subtitle">Generac <span>Spec</span> Viewer</div>
 </div>
 
-<div class="slabel">Generators · Transfer Switches · Full Spec Display</div>
+<div class="sv">
 
-<!-- ══ STEP 01 — PRODUCT CATEGORY ══ -->
-<div class="panel">
-  <div class="ph"><div class="pn">01</div><div><div class="pt">Product Category</div><div class="pd">Choose what you're looking up</div></div></div>
-  <div class="pb">
-    <div class="choice-grid">
-      <div class="choice-card" id="card-gen" onclick="setCategory('gen')">
-        <div class="cc-badge">✓ SELECTED</div>
-        <span class="cc-icon">⚡</span>
-        <div class="cc-title">Generators</div>
-        <div class="cc-sub">Air Cooled · Guardian 10–28kW<br>Liquid Cooled · Protector 32–150kW</div>
-      </div>
-      <div class="choice-card" id="card-ats" onclick="setCategory('ats')">
-        <div class="cc-badge">✓ SELECTED</div>
-        <span class="cc-icon">🔀</span>
-        <div class="cc-title">Transfer Switches</div>
-        <div class="cc-sub">Service Rated · Non-Service Rated<br>Single Phase · Three Phase · 100–800A</div>
-      </div>
-    </div>
+  <!-- SEARCH -->
+  <div class="sv-search">
+    <span class="sv-search-ic">🔍</span>
+    <input id="q" type="search" autocomplete="off" placeholder="Search model, kW or part #" aria-label="Search">
+    <div id="qres" class="sv-qres hidden" role="listbox"></div>
   </div>
-</div>
 
-<!-- ══ STEP 02 — GENERATOR: COOLING TYPE ══ -->
-<div class="panel hidden" id="panel-cooling">
-  <div class="ph"><div class="pn">02</div><div><div class="pt">Cooling Type</div><div class="pd">Select generator cooling method</div></div></div>
-  <div class="pb">
-    <div class="cgrid">
-      <button class="cbtn" id="ba" onclick="setC('air')">
-        <div class="cchk">✓ SELECTED</div>
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><path d="M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/></svg>
-        <div class="cbl">Air Cooled</div>
-        <div class="cbs">Guardian 10–28kW · NextGen &amp; Legacy</div>
-      </button>
-      <button class="cbtn" id="bl" onclick="setC('liq')">
-        <div class="cchk">✓ SELECTED</div>
-        <svg viewBox="0 0 24 24"><path d="M12 2C8 6 6 10 8 14c1 2 3 3 4 3s3-1 4-3c2-4 0-8-4-12z"/><path d="M5 20h14M8 17v3M12 17v3M16 17v3"/><rect x="3" y="16" width="18" height="2" rx="1"/></svg>
-        <div class="cbl">Liquid Cooled</div>
-        <div class="cbs">Protector XG &amp; RG · 25–150kW</div>
-      </button>
-    </div>
+  <!-- WHAT ARE YOU LOOKING UP -->
+  <div class="sv-tabs" id="svTabs" role="tablist">
+    <button class="sv-tab" data-tab="gen" aria-pressed="true"><b>⚡ Generators</b><small>Specs + manual</small></button>
+    <button class="sv-tab" data-tab="ats" aria-pressed="false"><b>🔀 Transfer Switches</b><small>Specs + manual</small></button>
+    <button class="sv-tab" data-tab="man" aria-pressed="false"><b>📖 Manuals</b><small>All manuals</small></button>
   </div>
-</div>
 
-<!-- ══ GENERATOR MODE SELECT — Specs or Manual ══ -->
-<div class="panel hidden" id="panel-gen-mode">
-  <div class="ph"><div class="pn">03</div><div><div class="pt">What are you looking for?</div><div class="pd">Full specifications or installation manual</div></div></div>
-  <div class="pb">
-    <div class="choice-grid">
-      <div class="choice-card" id="card-gen-specs" onclick="setGenMode('specs')">
-        <div class="cc-badge">✓ SELECTED</div>
-        <span class="cc-icon">📋</span>
-        <div class="cc-title">Specs</div>
-        <div class="cc-sub">Full electrical specs · Fuel consumption<br>Engine data · Accessories · Models</div>
-      </div>
-      <div class="choice-card" id="card-gen-manual" onclick="setGenMode('manual')">
-        <div class="cc-badge">✓ SELECTED</div>
-        <span class="cc-icon">📖</span>
-        <div class="cc-title">Manual</div>
-        <div class="cc-sub">Installation · Wiring · Fuel lines<br>Startup · Testing · Troubleshooting</div>
+  <!-- GENERATOR PICKER -->
+  <section class="sv-card" id="pickGen">
+    <div class="sv-seg" id="coolSeg">
+      <button class="sv-chip" data-cool="air" aria-pressed="true"><b>Air Cooled</b><small>Guardian · 10–28kW</small></button>
+      <button class="sv-chip" data-cool="liq" aria-pressed="false"><b>Liquid Cooled</b><small>Protector XG &amp; RG · 22–150kW</small></button>
+    </div>
+    <div id="genChips"></div>
+  </section>
+
+  <!-- ATS PICKER -->
+  <section class="sv-card hidden" id="pickAts">
+    <div class="sv-seg sv-seg3" id="atsSeg">
+      <button class="sv-chip" data-cat="sr" aria-pressed="true"><b>Service Rated</b><small>1-Ph · 100–400A</small></button>
+      <button class="sv-chip" data-cat="ns" aria-pressed="false"><b>Non-Service</b><small>1-Ph · 100–800A</small></button>
+      <button class="sv-chip" data-cat="3ph" aria-pressed="false"><b>3-Phase</b><small>208/240/480V</small></button>
+    </div>
+    <div id="atsChips"></div>
+  </section>
+
+  <!-- MANUALS PICKER -->
+  <section class="sv-card hidden" id="pickMan">
+    <div id="manChips"></div>
+  </section>
+
+  <!-- DETAIL -->
+  <section id="detail" class="hidden">
+    <div class="sv-crumb">
+      <div class="sv-crumb-t" id="crumbT"></div>
+      <div class="sv-crumb-a">
+        <button class="sv-mini" id="shareBtn" title="Copy a link to this page">🔗 Copy link</button>
+        <button class="sv-mini" id="changeBtn">↑ Change</button>
       </div>
     </div>
-  </div>
-</div>
+    <div class="sv-jump" id="jump"></div>
 
-<!-- ══ GENERATOR MANUAL PANEL ══ -->
-<div class="panel hidden" id="panel-gen-manual">
-  <div class="ph"><div class="pn">04</div><div><div class="pt">Installation Manuals</div><div class="pd">Select a generator series to view its installation guide</div></div></div>
-  <div class="pb">
-    <div id="gen-manual-cards"></div>
-    <div id="gen-manual-content" class="hidden"></div>
-  </div>
-</div>
-
-<!-- ══ ATS MODE SELECT — Specs or Manual ══ -->
-<div class="panel hidden" id="panel-ats-mode">
-  <div class="ph"><div class="pn">02</div><div><div class="pt">What are you looking for?</div><div class="pd">Full specifications or installation manual</div></div></div>
-  <div class="pb">
-    <div class="choice-grid">
-      <div class="choice-card" id="card-ats-specs" onclick="setAtsMode('specs')">
-        <div class="cc-badge">✓ SELECTED</div>
-        <span class="cc-icon">📋</span>
-        <div class="cc-title">Specs</div>
-        <div class="cc-sub">Full electrical specs · Dimensions<br>Timing · Accessories · Models</div>
-      </div>
-      <div class="choice-card" id="card-ats-manual" onclick="setAtsMode('manual')">
-        <div class="cc-badge">✓ SELECTED</div>
-        <span class="cc-icon">📖</span>
-        <div class="cc-title">Manual</div>
-        <div class="cc-sub">Installation · Wiring · Operation<br>Torque specs · SACM · Testing</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ STEP 02 — ATS: PHASE / TYPE ══ -->
-<div class="panel hidden" id="panel-ats-type">
-  <div class="ph"><div class="pn">02</div><div><div class="pt">Switch Category</div><div class="pd">Select phase and service rating</div></div></div>
-  <div class="pb">
-    <div class="cgrid" style="grid-template-columns:repeat(3,1fr)">
-      <button class="cbtn" id="ats-cat-sr" onclick="setAtsCategory('sr')">
-        <div class="cchk">✓</div>
-        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><rect x="9" y="12" width="6" height="10"/><circle cx="12" cy="6" r="1.5"/></svg>
-        <div class="cbl">Service Rated</div>
-        <div class="cbs">1-Phase · Meter-main position<br>100A – 400A</div>
-      </button>
-      <button class="cbtn" id="ats-cat-ns" onclick="setAtsCategory('ns')">
-        <div class="cchk">✓</div>
-        <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
-        <div class="cbl">Non-Service Rated</div>
-        <div class="cbs">1-Phase · Load-side of meter<br>100A – 800A</div>
-      </button>
-      <button class="cbtn" id="ats-cat-3ph" onclick="setAtsCategory('3ph')">
-        <div class="cchk">✓</div>
-        <svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="4"/></svg>
-        <div class="cbl">Three Phase</div>
-        <div class="cbs">208V / 240V / 480V<br>100A – 800A</div>
-      </button>
-    </div>
-
-    <div id="ats-sub-sr" class="hidden" style="margin-top:20px">
-      <div class="card-group-hd"><span class="card-group-hd-label">Select Series</span></div>
-      <div class="ats-pick-grid" id="ats-pick-sr"></div>
-    </div>
-    <div id="ats-sub-ns" class="hidden" style="margin-top:20px">
-      <div class="card-group-hd"><span class="card-group-hd-label">Select Series</span></div>
-      <div class="ats-pick-grid" id="ats-pick-ns"></div>
-    </div>
-    <div id="ats-sub-3ph" class="hidden" style="margin-top:20px">
-      <div class="card-group-hd"><span class="card-group-hd-label">Select Series</span></div>
-      <div class="ats-pick-grid" id="ats-pick-3ph"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ STEP 03 — MODEL SELECT ══ -->
-<div class="panel hidden" id="panel-model">
-  <div class="ph"><div class="pn">04</div><div><div class="pt">Select Model</div><div class="pd" id="mhint">Choose a series, then select a model</div></div></div>
-  <div class="pb">
-    <div class="card-group-hd"><span class="card-group-hd-label">Select Series</span></div>
-    <div class="ats-pick-grid" id="series-card-grid"></div>
-    <div id="model-sub-grid" class="hidden" style="margin-top:20px">
-      <div class="card-group-hd"><span class="card-group-hd-label" id="model-sub-label">Select Model</span></div>
-      <div class="ats-pick-grid" id="model-card-grid"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ STEP 04 — SPEC OUTPUT ══ -->
-<div class="panel hidden" id="panel-specs">
-  <div class="ph"><div class="pn">05</div><div><div class="pt">Full Specifications</div><div class="pd">Spec-accurate data from Generac official documentation</div></div></div>
-  <div class="pb">
+    <div class="panel hidden" id="panel-specs">
+      <div class="pb">
     <div id="out-gen" class="hidden">
       <div class="mcard"><div class="mglow"></div>
         <div class="mlbl">Selected Generator</div>
@@ -645,17 +640,17 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(circle 
       </div>
       <div class="srcnote" id="ats-sn"></div>
     </div>
-  </div>
-</div>
+  
+      </div>
+    </div>
 
-<!-- ══ MANUAL PANEL ══ -->
-<div class="panel hidden" id="panel-manual">
-  <div class="ph"><div class="pn">03</div><div><div class="pt">Installation Manuals</div><div class="pd">Select a transfer switch series to view its manual</div></div></div>
-  <div class="pb">
-    <div class="card-group-hd"><span class="card-group-hd-label">Select Series</span></div>
-    <div class="ats-pick-grid" id="ats-manual-cards"></div>
-    <div id="manual-content" class="hidden" style="margin-top:20px"></div>
-  </div>
+    <div class="panel hidden" id="panel-man">
+      <div class="pb">
+        <div id="gen-manual-content" class="hidden"></div>
+        <div id="manual-content" class="hidden"></div>
+      </div>
+    </div>
+  </section>
 </div>
 
 <div class="foot">
@@ -726,13 +721,13 @@ function setHidden(id,hide){document.getElementById(id).classList.toggle('hidden
 
 // ── GENERATOR DATA ─────────────────────────────────────────────────────
 const GENS=[
-{id:'n10',c:'air',lbl:'10kW NextGen · G007257-0',mdl:'10kW Guardian NextGen',num:'G007257-0 (gen) / G007321-0 (w/ transfer switch)',grp:'Guardian NextGen — 10–28kW',src:'A0005151081 Rev. C',klp:10,kng:9,ilp:'42',ing:'38',cb:'45A',wlb:334,wkg:156,dims:'46.4×26.3×30.7 in / 117.9×66.8×77.9 cm',sn:'61 dB(A) @ 23 ft',sq:'49 dB(A) Quiet-Test',ngh:98,ngf:132,lph:0.94,lpf:1.60,lp3h:35,lp3f:58,png:'3.5–7" WC (0.87–1.74 kPa)',plp:'10–12" WC (2.49–2.99 kPa)',bng:'1,000 BTU/ft³',blp:'2,500 BTU/ft³ (LP) · ~91,500 BTU/gal',warr:'5 Year Limited',bat:'12V AGM BTX20L 310 CCA min',eng:'G-Force 400 Series',cyl:1,disp:'459cc',comp:'9.5:1',blk:'Aluminum w/ cast iron sleeve',vlv:'Overhead valve',lft:'Hydraulic',ign:'Solid-state',gov:'Electronic',rpm:'3,600',oil:'~1.4 qt / 1.3 L',strt:'12 VDC',ctrl:'Power Zone™ 200',conn:'Cellular + Wi-Fi® + Bluetooth™',color:'Metro Gray (Aluminum)',cert:'ETL Listed · UL 2200',inst:'18 in — SwRI Listed',fc:'14 in ANSI Z21.75/CSA 6.27',exer:'Adjustable 5–20 min',der:'3.5% per 1,000 ft ASL',po:[{v:'120/240V 1-Phase',nk:9,na:38,lk:10,la:42}],ft:['EFIC — Electronic Fuel & Ignition Control','G-Force 400 Series 1-cylinder 459cc engine','True Power™ <5% THD','Power Zone™ 200 controller','Oil level sensor','Smart Exercise Technology','200A ATS in bundled models','Cellular + Wi-Fi® + Bluetooth™ (Mobile Link)','Sound attenuated — 150 mph wind rated','5 Year limited warranty'],pr:[{n:'Low Oil Pressure / High Oil Temp',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'},{n:'Auto Voltage Regulation',v:'Over & Under'},{n:'Smart Battery Charger',v:'AGM compatible'}],ac:[{p:'A0006487350',n:'AGM BTX20L Battery',d:'Required starter battery.'},{p:'G007211-0',n:'Battery Heater',d:'Below 32°F.'},{p:'G007102-1',n:'Oil Heater',d:'Below 32°F.'},{p:'G007025-0',n:'HVAC Energy Manager',d:'Up to 2 HVAC systems.'}]},
-{id:'n14',c:'air',lbl:'14kW NextGen · G007258-0',mdl:'14kW Guardian NextGen',num:'G007258-0 (gen) / G007323-0 (w/ transfer switch)',grp:'Guardian NextGen — 10–28kW',src:'A0005151081 Rev. C',klp:14,kng:14,ilp:'58',ing:'58',cb:'60A',wlb:391,wkg:177,dims:'46.4×26.3×30.7 in / 117.9×66.8×77.9 cm',sn:'65 dB(A) @ 23 ft',sq:'55 dB(A) Quiet-Test',ngh:189,ngf:243,lph:1.76,lpf:2.92,lp3h:63,lp3f:106,png:'3.5–7" WC',plp:'10–12" WC',bng:'1,000 BTU/ft³',blp:'2,500 BTU/ft³ (LP)',warr:'5 Year Limited',bat:'12V AGM BTX20L 310 CCA min',eng:'G-Force 800 Series',cyl:2,disp:'817cc',comp:'9.5:1',blk:'Aluminum w/ cast iron sleeve',vlv:'Overhead valve',lft:'Hydraulic',ign:'Solid-state',gov:'Electronic',rpm:'3,600',oil:'~2.5 qt / 2.4 L',strt:'12 VDC',ctrl:'Power Zone™ 200',conn:'Cellular + Wi-Fi® + Bluetooth™',color:'Metro Gray (Aluminum)',cert:'ETL Listed · UL 2200',inst:'18 in — SwRI Listed',fc:'14 in ANSI Z21.75/CSA 6.27',exer:'Adjustable 5–20 min',der:'3.5% per 1,000 ft ASL',po:[{v:'120/240V 1-Phase',nk:14,na:58,lk:14,la:58}],ft:['EFIC — Electronic Fuel & Ignition Control','G-Force 800 Series 2-cylinder 817cc engine','True Power™ <5% THD','Power Zone™ 200 controller','Oil level sensor','Smart Exercise Technology','200A ATS in bundled models','Cellular + Wi-Fi® + Bluetooth™','5 Year limited warranty'],pr:[{n:'Low Oil Pressure / High Oil Temp',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'},{n:'Auto Voltage Regulation',v:'Over & Under'}],ac:[{p:'A0006487350',n:'AGM BTX20L Battery',d:'Required.'},{p:'G007211-0',n:'Battery Heater',d:'Below 32°F.'},{p:'G007216-0',n:'Maintenance Kit (14-18kW)',d:'Oil not included.'}]},
-{id:'n18',c:'air',lbl:'18kW NextGen · G007259-0',mdl:'18kW Guardian NextGen',num:'G007259-0 (gen) / G007324-0 (w/ transfer switch)',grp:'Guardian NextGen — 10–28kW',src:'A0005151081 Rev. C',klp:18,kng:17,ilp:'75',ing:'71',cb:'80A',wlb:426,wkg:193,dims:'46.4×26.3×30.7 in / 117.9×66.8×77.9 cm',sn:'65 dB(A) @ 23 ft',sq:'55 dB(A) Quiet-Test',ngh:164,ngf:235,lph:1.65,lpf:2.87,lp3h:60,lp3f:105,png:'3.5–7" WC',plp:'10–12" WC',bng:'1,000 BTU/ft³',blp:'2,500 BTU/ft³ (LP)',warr:'5 Year Limited',bat:'12V AGM BTX20L 310 CCA min',eng:'G-Force 800 Series',cyl:2,disp:'817cc',comp:'9.5:1',blk:'Aluminum w/ cast iron sleeve',vlv:'Overhead valve',lft:'Hydraulic',ign:'Solid-state',gov:'Electronic',rpm:'3,600',oil:'~2.5 qt / 2.4 L',strt:'12 VDC',ctrl:'Power Zone™ 200',conn:'Cellular + Wi-Fi® + Bluetooth™',color:'Metro Gray (Aluminum)',cert:'ETL Listed · UL 2200',inst:'18 in — SwRI Listed',fc:'14 in ANSI Z21.75/CSA 6.27',exer:'Adjustable 5–20 min',der:'3.5% per 1,000 ft ASL',po:[{v:'120/240V 1-Phase',nk:17,na:71,lk:18,la:75}],ft:['EFIC','G-Force 800 Series 2-cylinder 817cc','True Power™ <5% THD','Power Zone™ 200 controller','200A ATS bundled','5 Year limited warranty'],pr:[{n:'Low Oil Pressure / High Oil Temp',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'}],ac:[{p:'A0006487350',n:'AGM BTX20L Battery',d:'Required.'},{p:'G007216-0',n:'Maintenance Kit (14-18kW)',d:'Oil not included.'}]},
-{id:'n22',c:'air',lbl:'22kW NextGen · G007260-0',mdl:'22kW Guardian NextGen',num:'G007260-0 (gen) / G007325-0 (w/ transfer switch)',grp:'Guardian NextGen — 10–28kW',src:'A0005151077 Rev. B',klp:22,kng:21,ilp:'92',ing:'88',cb:'100A',wlb:451,wkg:205,dims:'46.4×26.3×30.7 in / 117.9×66.8×77.9 cm',sn:'67 dB(A) @ 23 ft',sq:'55 dB(A) Quiet-Test',ngh:221,ngf:311,lph:2.45,lpf:3.71,lp3h:89,lp3f:135,png:'3.5–7" WC',plp:'10–12" WC',bng:'1,000 BTU/ft³',blp:'2,500 BTU/ft³ (LP)',warr:'5 Year Limited',bat:'12V AGM BTX20L 310 CCA min',eng:'G-Force 1000 Series',cyl:2,disp:'997cc',comp:'10.1:1',blk:'Aluminum w/ cast iron sleeve',vlv:'Overhead valve',lft:'Hydraulic',ign:'Solid-state',gov:'Electronic',rpm:'3,600',oil:'~2.2 qt / 2.1 L',strt:'12 VDC',ctrl:'Power Zone™ 200',conn:'Cellular + Wi-Fi® + Bluetooth™',color:'Metro Gray (Aluminum)',cert:'ETL / CETL Listed · UL 2200',inst:'18 in — SwRI Listed',fc:'14 in ANSI Z21.75/CSA 6.27',exer:'Adjustable 5–20 min',der:'3.5% per 1,000 ft ASL',po:[{v:'120/240V 1-Phase',nk:21,na:88,lk:22,la:92}],ft:['EFIC · G-Force 1000 Series (997cc 10.1:1)','True Power™ <5% THD','Power Zone™ 200 controller','200A ATS bundled','Cellular + Wi-Fi® + Bluetooth™','Integrated surge protection on ATS','5 Year limited warranty'],pr:[{n:'Low Oil Pressure / High Oil Temp',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'},{n:'Auto Voltage Regulation',v:'Over & Under'}],ac:[{p:'A0006487350',n:'AGM BTX20L Battery',d:'Required.'},{p:'G007216-0',n:'Maintenance Kit',d:'Oil not included.'},{p:'G007025-0',n:'HVAC Energy Manager',d:'Up to 2 HVAC systems.'}]},
-{id:'n24',c:'air',lbl:'24kW NextGen · G007261-0',mdl:'24kW Guardian NextGen',num:'G007261-0 (gen) / G007326-0 (w/ transfer switch)',grp:'Guardian NextGen — 10–28kW',src:'A0005151077 Rev. B',klp:24,kng:22.5,ilp:'100',ing:'94',cb:'100A',wlb:461,wkg:209,dims:'46.4×26.3×30.7 in / 117.9×66.8×77.9 cm',sn:'67 dB(A) @ 23 ft',sq:'55 dB(A) Quiet-Test',ngh:197,ngf:291,lph:2.45,lpf:3.71,lp3h:89,lp3f:135,png:'3.5–7" WC',plp:'10–12" WC',bng:'1,000 BTU/ft³',blp:'2,500 BTU/ft³ (LP)',warr:'5 Year Limited',bat:'12V AGM BTX20L 310 CCA min',eng:'G-Force 1000 Series',cyl:2,disp:'997cc',comp:'10.1:1',blk:'Aluminum w/ cast iron sleeve',vlv:'Overhead valve',lft:'Hydraulic',ign:'Solid-state',gov:'Electronic',rpm:'3,600',oil:'~2.2 qt / 2.1 L',strt:'12 VDC',ctrl:'Power Zone™ 200',conn:'Cellular + Wi-Fi® + Bluetooth™',color:'Metro Gray (Aluminum)',cert:'ETL / CETL Listed · UL 2200',inst:'18 in — SwRI Listed',fc:'14 in ANSI Z21.75/CSA 6.27',exer:'Adjustable 5–20 min',der:'3.5% per 1,000 ft ASL',po:[{v:'120/240V 1-Phase',nk:22.5,na:94,lk:24,la:100}],ft:['EFIC · G-Force 1000 (997cc 10.1:1)','True Power™ <5% THD','Power Zone™ 200 controller','200A ATS bundled','5 Year limited warranty'],pr:[{n:'Low Oil Pressure / High Temp',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'}],ac:[{p:'A0006487350',n:'AGM BTX20L Battery',d:'Required.'},{p:'G007216-0',n:'Maintenance Kit',d:'Oil not included.'}]},
-{id:'n26',c:'air',lbl:'26kW NextGen · G007327-0',mdl:'26kW Guardian NextGen',num:'G007327-0 (gen) / G007328-0 (w/ transfer switch)',grp:'Guardian NextGen — 10–28kW',src:'A0005151077 Rev. B',klp:26,kng:24,ilp:'108',ing:'100',cb:'110A',wlb:524,wkg:238,dims:'46.4×26.3×30.7 in / 117.9×66.8×77.9 cm',sn:'67 dB(A) @ 23 ft',sq:'55 dB(A) Quiet-Test',ngh:182,ngf:316,lph:2.05,lpf:3.95,lp3h:74,lp3f:144,png:'3.5–7" WC',plp:'10–12" WC',bng:'1,000 BTU/ft³',blp:'2,500 BTU/ft³ (LP)',warr:'5 Year Limited',bat:'12V AGM BTX20L 310 CCA min',eng:'G-Force 1000 Series',cyl:2,disp:'997cc',comp:'10.1:1',blk:'Aluminum w/ cast iron sleeve',vlv:'Overhead valve',lft:'Hydraulic',ign:'Solid-state',gov:'Electronic',rpm:'3,600',oil:'~2.2 qt / 2.1 L',strt:'12 VDC',ctrl:'Power Zone™ 200',conn:'Cellular + Wi-Fi® + Bluetooth™',color:'Metro Gray (Aluminum)',cert:'ETL / CETL Listed · UL 2200',inst:'18 in — SwRI Listed',fc:'14 in ANSI Z21.75/CSA 6.27',exer:'Adjustable 5–20 min',der:'3.5% per 1,000 ft ASL',po:[{v:'120/240V 1-Phase',nk:24,na:100,lk:26,la:108}],ft:['EFIC · G-Force 1000 (997cc 10.1:1)','True Power™ <5% THD','Power Zone™ 200 controller','200A ATS bundled','Integrated surge protection on ATS','5 Year limited warranty'],pr:[{n:'Low Oil Pressure / High Temp',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'}],ac:[{p:'A0006487350',n:'AGM BTX20L Battery',d:'Required.'},{p:'G007216-0',n:'Maintenance Kit',d:'Oil not included.'}]},
-{id:'n28',c:'air',lbl:'28kW NextGen · G007282-0',mdl:'28kW Guardian NextGen',num:'G007282-0 (gen) / G007329-0 (w/ transfer switch + ecobee)',grp:'Guardian NextGen — 10–28kW',src:'A0005151077 Rev. B',klp:28,kng:25,ilp:'116',ing:'104',cb:'125A',wlb:524,wkg:238,dims:'46.4×26.3×30.7 in / 117.9×66.8×77.9 cm',sn:'67 dB(A) @ 23 ft',sq:'55 dB(A) Quiet-Test',ngh:182,ngf:297,lph:2.23,lpf:3.97,lp3h:81,lp3f:144,png:'3.5–7" WC',plp:'10–12" WC',bng:'1,000 BTU/ft³',blp:'2,500 BTU/ft³ (LP)',warr:'5 Year Limited',bat:'12V AGM BTX20L 310 CCA min',eng:'G-Force 1000 Series',cyl:2,disp:'997cc',comp:'10.1:1',blk:'Aluminum w/ cast iron sleeve',vlv:'Overhead valve',lft:'Hydraulic',ign:'Solid-state',gov:'Electronic',rpm:'3,600',oil:'~2.2 qt / 2.1 L',strt:'12 VDC',ctrl:'Power Zone™ 200',conn:'Cellular + Wi-Fi® + Bluetooth™',color:'Metro Gray (Aluminum)',cert:'ETL / CETL Listed · UL 2200',inst:'18 in — SwRI Listed',fc:'14 in ANSI Z21.75/CSA 6.27',exer:'Adjustable 5–20 min',der:'3.5% per 1,000 ft ASL',po:[{v:'120/240V 1-Phase',nk:25,na:104,lk:28,la:116}],ft:['EFIC · G-Force 1000 (997cc 10.1:1)','True Power™ <5% THD','Power Zone™ 200 controller','200A ATS bundled','ecobee Smart Thermostat (G007329-0 bundle)','Integrated surge protection on ATS','5 Year limited warranty'],pr:[{n:'Low Oil Pressure / High Temp',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'}],ac:[{p:'A0006487350',n:'AGM BTX20L Battery',d:'Required.'},{p:'G007216-0',n:'Maintenance Kit',d:'Oil not included.'},{p:'G007364-0',n:'ecobee Smart Thermostat',d:'HVAC load management.'}]},
+{id:'n10',c:'air',lbl:'10kW NextGen · G007257-0',mdl:'10kW Guardian NextGen',num:'G007257-0 (gen) / G007321-0 (w/ transfer switch)',grp:'Guardian NextGen — 10–28kW',src:'A0005151081 Rev. D (08/13/2026)',klp:10,kng:9,ilp:'42',ing:'38',cb:'45A',wlb:344,wkg:156,dims:'46.4×26.3×30.7 in / 117.9×66.8×77.9 cm',sn:'61 dB(A) @ 23 ft',sq:'49 dB(A) Quiet-Test',ngh:98,ngf:132,lph:0.94,lpf:1.60,lp3h:35,lp3f:58,png:'3.5–7" WC (0.87–1.74 kPa)',plp:'10–12" WC (2.49–2.99 kPa)',bng:'1,000 BTU/ft³',blp:'2,500 BTU/ft³ (LP) · ~91,500 BTU/gal',warr:'5 Year Limited',bat:'12V AGM Powersport BTX30L 400 CCA min',eng:'G-Force 400 Series',cyl:1,disp:'459cc',comp:'9.5:1',blk:'Aluminum w/ cast iron sleeve',vlv:'Overhead valve',lft:'Hydraulic',ign:'Solid-state',gov:'Electronic',rpm:'3,600',oil:'~1.4 qt / 1.3 L',strt:'12 VDC',ctrl:'Power Zone™ 200',conn:'Cellular + Wi-Fi® + Bluetooth™',color:'Metro Gray (Aluminum)',cert:'ETL Listed · UL 2200',inst:'18 in — SwRI Listed',fc:'14 in ANSI Z21.75/CSA 6.27',exer:'Adjustable 5–20 min',der:'3.5% per 1,000 ft ASL',po:[{v:'120/240V 1-Phase',nk:9,na:38,lk:10,la:42}],ft:['EFIC — Electronic Fuel & Ignition Control','G-Force 400 Series 1-cylinder 459cc engine','True Power™ <5% THD','Power Zone™ 200 controller','Oil level sensor','Smart Exercise Technology','200A ATS in bundled models','Cellular + Wi-Fi® + Bluetooth™ (Mobile Link)','Sound attenuated — 150 mph wind rated','5 Year limited warranty'],pr:[{n:'Low Oil Pressure / High Oil Temp',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'},{n:'Auto Voltage Regulation',v:'Over & Under'},{n:'Smart Battery Charger',v:'AGM compatible'}],ac:[{p:'A0010137451',n:'AGM BTX30L Battery',d:'Required starter battery.'},{p:'G007211-0',n:'Battery Heater',d:'Below 32°F.'},{p:'G007102-1',n:'Oil Heater',d:'Below 32°F.'},{p:'G007025-0',n:'HVAC Energy Manager',d:'Up to 2 HVAC systems.'}]},
+{id:'n14',c:'air',lbl:'14kW NextGen · G007258-0',mdl:'14kW Guardian NextGen',num:'G007258-0 (gen) / G007323-0 (w/ transfer switch)',grp:'Guardian NextGen — 10–28kW',src:'A0005151081 Rev. D (08/13/2026)',klp:14,kng:14,ilp:'58',ing:'58',cb:'60A',wlb:391,wkg:177,dims:'46.4×26.3×30.7 in / 117.9×66.8×77.9 cm',sn:'65 dB(A) @ 23 ft',sq:'55 dB(A) Quiet-Test',ngh:189,ngf:243,lph:1.76,lpf:2.92,lp3h:63,lp3f:106,png:'3.5–7" WC',plp:'10–12" WC',bng:'1,000 BTU/ft³',blp:'2,500 BTU/ft³ (LP)',warr:'5 Year Limited',bat:'12V AGM Powersport BTX30L 400 CCA min',eng:'G-Force 800 Series',cyl:2,disp:'817cc',comp:'9.5:1',blk:'Aluminum w/ cast iron sleeve',vlv:'Overhead valve',lft:'Hydraulic',ign:'Solid-state',gov:'Electronic',rpm:'3,600',oil:'~2.5 qt / 2.4 L',strt:'12 VDC',ctrl:'Power Zone™ 200',conn:'Cellular + Wi-Fi® + Bluetooth™',color:'Metro Gray (Aluminum)',cert:'ETL Listed · UL 2200',inst:'18 in — SwRI Listed',fc:'14 in ANSI Z21.75/CSA 6.27',exer:'Adjustable 5–20 min',der:'3.5% per 1,000 ft ASL',po:[{v:'120/240V 1-Phase',nk:14,na:58,lk:14,la:58}],ft:['EFIC — Electronic Fuel & Ignition Control','G-Force 800 Series 2-cylinder 817cc engine','True Power™ <5% THD','Power Zone™ 200 controller','Oil level sensor','Smart Exercise Technology','200A ATS in bundled models','Cellular + Wi-Fi® + Bluetooth™','5 Year limited warranty'],pr:[{n:'Low Oil Pressure / High Oil Temp',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'},{n:'Auto Voltage Regulation',v:'Over & Under'}],ac:[{p:'A0010137451',n:'AGM BTX30L Battery',d:'Required.'},{p:'G007211-0',n:'Battery Heater',d:'Below 32°F.'},{p:'G007216-0',n:'Maintenance Kit (14-18kW)',d:'Oil not included.'}]},
+{id:'n18',c:'air',lbl:'18kW NextGen · G007259-0',mdl:'18kW Guardian NextGen',num:'G007259-0 (gen) / G007324-0 (w/ transfer switch)',grp:'Guardian NextGen — 10–28kW',src:'A0005151081 Rev. D (08/13/2026)',klp:18,kng:17,ilp:'75',ing:'71',cb:'80A',wlb:426,wkg:193,dims:'46.4×26.3×30.7 in / 117.9×66.8×77.9 cm',sn:'65 dB(A) @ 23 ft',sq:'55 dB(A) Quiet-Test',ngh:164,ngf:235,lph:1.65,lpf:2.87,lp3h:60,lp3f:105,png:'3.5–7" WC',plp:'10–12" WC',bng:'1,000 BTU/ft³',blp:'2,500 BTU/ft³ (LP)',warr:'5 Year Limited',bat:'12V AGM Powersport BTX30L 400 CCA min',eng:'G-Force 800 Series',cyl:2,disp:'817cc',comp:'9.5:1',blk:'Aluminum w/ cast iron sleeve',vlv:'Overhead valve',lft:'Hydraulic',ign:'Solid-state',gov:'Electronic',rpm:'3,600',oil:'~2.5 qt / 2.4 L',strt:'12 VDC',ctrl:'Power Zone™ 200',conn:'Cellular + Wi-Fi® + Bluetooth™',color:'Metro Gray (Aluminum)',cert:'ETL Listed · UL 2200',inst:'18 in — SwRI Listed',fc:'14 in ANSI Z21.75/CSA 6.27',exer:'Adjustable 5–20 min',der:'3.5% per 1,000 ft ASL',po:[{v:'120/240V 1-Phase',nk:17,na:71,lk:18,la:75}],ft:['EFIC','G-Force 800 Series 2-cylinder 817cc','True Power™ <5% THD','Power Zone™ 200 controller','200A ATS bundled','5 Year limited warranty'],pr:[{n:'Low Oil Pressure / High Oil Temp',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'}],ac:[{p:'A0010137451',n:'AGM BTX30L Battery',d:'Required.'},{p:'G007216-0',n:'Maintenance Kit (14-18kW)',d:'Oil not included.'}]},
+{id:'n22',c:'air',lbl:'22kW NextGen · G007260-0',mdl:'22kW Guardian NextGen',num:'G007260-0 (gen) / G007325-0 (w/ transfer switch)',grp:'Guardian NextGen — 10–28kW',src:'A0005151077 Rev. D (08/13/2026)',klp:22,kng:21,ilp:'92',ing:'88',cb:'100A',wlb:451,wkg:205,dims:'46.4×26.3×30.7 in / 117.9×66.8×77.9 cm',sn:'67 dB(A) @ 23 ft',sq:'55 dB(A) Quiet-Test',ngh:221,ngf:311,lph:2.45,lpf:3.71,lp3h:89,lp3f:135,png:'3.5–7" WC',plp:'10–12" WC',bng:'1,000 BTU/ft³',blp:'2,500 BTU/ft³ (LP)',warr:'5 Year Limited',bat:'12V AGM Powersport BTX30L 400 CCA min',eng:'G-Force 1000 Series',cyl:2,disp:'997cc',comp:'10.1:1',blk:'Aluminum w/ cast iron sleeve',vlv:'Overhead valve',lft:'Hydraulic',ign:'Solid-state',gov:'Electronic',rpm:'3,600',oil:'~2.2 qt / 2.1 L',strt:'12 VDC',ctrl:'Power Zone™ 200',conn:'Cellular + Wi-Fi® + Bluetooth™',color:'Metro Gray (Aluminum)',cert:'ETL / CETL Listed · UL 2200',inst:'18 in — SwRI Listed',fc:'14 in ANSI Z21.75/CSA 6.27',exer:'Adjustable 5–20 min',der:'3.5% per 1,000 ft ASL',po:[{v:'120/240V 1-Phase',nk:21,na:88,lk:22,la:92}],ft:['EFIC · G-Force 1000 Series (997cc 10.1:1)','True Power™ <5% THD','Power Zone™ 200 controller','200A ATS bundled','Cellular + Wi-Fi® + Bluetooth™','Integrated surge protection on ATS','5 Year limited warranty'],pr:[{n:'Low Oil Pressure / High Oil Temp',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'},{n:'Auto Voltage Regulation',v:'Over & Under'}],ac:[{p:'A0010137451',n:'AGM BTX30L Battery',d:'Required.'},{p:'G007216-0',n:'Maintenance Kit',d:'Oil not included.'},{p:'G007025-0',n:'HVAC Energy Manager',d:'Up to 2 HVAC systems.'}]},
+{id:'n24',c:'air',lbl:'24kW NextGen · G007261-0',mdl:'24kW Guardian NextGen',num:'G007261-0 (gen) / G007326-0 (w/ transfer switch)',grp:'Guardian NextGen — 10–28kW',src:'A0005151077 Rev. D (08/13/2026)',klp:24,kng:22.5,ilp:'100',ing:'94',cb:'100A',wlb:461,wkg:209,dims:'46.4×26.3×30.7 in / 117.9×66.8×77.9 cm',sn:'67 dB(A) @ 23 ft',sq:'55 dB(A) Quiet-Test',ngh:197,ngf:291,lph:2.45,lpf:3.71,lp3h:89,lp3f:135,png:'3.5–7" WC',plp:'10–12" WC',bng:'1,000 BTU/ft³',blp:'2,500 BTU/ft³ (LP)',warr:'5 Year Limited',bat:'12V AGM Powersport BTX30L 400 CCA min',eng:'G-Force 1000 Series',cyl:2,disp:'997cc',comp:'10.1:1',blk:'Aluminum w/ cast iron sleeve',vlv:'Overhead valve',lft:'Hydraulic',ign:'Solid-state',gov:'Electronic',rpm:'3,600',oil:'~2.2 qt / 2.1 L',strt:'12 VDC',ctrl:'Power Zone™ 200',conn:'Cellular + Wi-Fi® + Bluetooth™',color:'Metro Gray (Aluminum)',cert:'ETL / CETL Listed · UL 2200',inst:'18 in — SwRI Listed',fc:'14 in ANSI Z21.75/CSA 6.27',exer:'Adjustable 5–20 min',der:'3.5% per 1,000 ft ASL',po:[{v:'120/240V 1-Phase',nk:22.5,na:94,lk:24,la:100}],ft:['EFIC · G-Force 1000 (997cc 10.1:1)','True Power™ <5% THD','Power Zone™ 200 controller','200A ATS bundled','5 Year limited warranty'],pr:[{n:'Low Oil Pressure / High Temp',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'}],ac:[{p:'A0010137451',n:'AGM BTX30L Battery',d:'Required.'},{p:'G007216-0',n:'Maintenance Kit',d:'Oil not included.'}]},
+{id:'n26',c:'air',lbl:'26kW NextGen · G007327-0',mdl:'26kW Guardian NextGen',num:'G007327-0 (gen) / G007328-0 (w/ transfer switch)',grp:'Guardian NextGen — 10–28kW',src:'A0005151077 Rev. D (08/13/2026)',klp:26,kng:24,ilp:'108',ing:'100',cb:'110A',wlb:524,wkg:238,dims:'46.4×26.3×30.7 in / 117.9×66.8×77.9 cm',sn:'67 dB(A) @ 23 ft',sq:'55 dB(A) Quiet-Test',ngh:182,ngf:316,lph:2.05,lpf:3.95,lp3h:74,lp3f:144,png:'3.5–7" WC',plp:'10–12" WC',bng:'1,000 BTU/ft³',blp:'2,500 BTU/ft³ (LP)',warr:'5 Year Limited',bat:'12V AGM Powersport BTX30L 400 CCA min',eng:'G-Force 1000 Series',cyl:2,disp:'997cc',comp:'10.1:1',blk:'Aluminum w/ cast iron sleeve',vlv:'Overhead valve',lft:'Hydraulic',ign:'Solid-state',gov:'Electronic',rpm:'3,600',oil:'~2.2 qt / 2.1 L',strt:'12 VDC',ctrl:'Power Zone™ 200',conn:'Cellular + Wi-Fi® + Bluetooth™',color:'Metro Gray (Aluminum)',cert:'ETL / CETL Listed · UL 2200',inst:'18 in — SwRI Listed',fc:'14 in ANSI Z21.75/CSA 6.27',exer:'Adjustable 5–20 min',der:'3.5% per 1,000 ft ASL',po:[{v:'120/240V 1-Phase',nk:24,na:100,lk:26,la:108}],ft:['EFIC · G-Force 1000 (997cc 10.1:1)','True Power™ <5% THD','Power Zone™ 200 controller','200A ATS bundled','Integrated surge protection on ATS','5 Year limited warranty'],pr:[{n:'Low Oil Pressure / High Temp',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'}],ac:[{p:'A0010137451',n:'AGM BTX30L Battery',d:'Required.'},{p:'G007216-0',n:'Maintenance Kit',d:'Oil not included.'}]},
+{id:'n28',c:'air',lbl:'28kW NextGen · G007282-0',mdl:'28kW Guardian NextGen',num:'G007282-0 (gen) / G007329-0 (w/ transfer switch + ecobee)',grp:'Guardian NextGen — 10–28kW',src:'A0005151077 Rev. D (08/13/2026)',klp:28,kng:25,ilp:'116',ing:'104',cb:'125A',wlb:524,wkg:238,dims:'46.4×26.3×30.7 in / 117.9×66.8×77.9 cm',sn:'67 dB(A) @ 23 ft',sq:'55 dB(A) Quiet-Test',ngh:182,ngf:297,lph:2.23,lpf:3.97,lp3h:81,lp3f:144,png:'3.5–7" WC',plp:'10–12" WC',bng:'1,000 BTU/ft³',blp:'2,500 BTU/ft³ (LP)',warr:'5 Year Limited',bat:'12V AGM Powersport BTX30L 400 CCA min',eng:'G-Force 1000 Series',cyl:2,disp:'997cc',comp:'10.1:1',blk:'Aluminum w/ cast iron sleeve',vlv:'Overhead valve',lft:'Hydraulic',ign:'Solid-state',gov:'Electronic',rpm:'3,600',oil:'~2.2 qt / 2.1 L',strt:'12 VDC',ctrl:'Power Zone™ 200',conn:'Cellular + Wi-Fi® + Bluetooth™',color:'Metro Gray (Aluminum)',cert:'ETL / CETL Listed · UL 2200',inst:'18 in — SwRI Listed',fc:'14 in ANSI Z21.75/CSA 6.27',exer:'Adjustable 5–20 min',der:'3.5% per 1,000 ft ASL',po:[{v:'120/240V 1-Phase',nk:25,na:104,lk:28,la:116}],ft:['EFIC · G-Force 1000 (997cc 10.1:1)','True Power™ <5% THD','Power Zone™ 200 controller','200A ATS bundled','ecobee Smart Thermostat (G007329-0 bundle)','Integrated surge protection on ATS','5 Year limited warranty'],pr:[{n:'Low Oil Pressure / High Temp',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'}],ac:[{p:'A0010137451',n:'AGM BTX30L Battery',d:'Required.'},{p:'G007216-0',n:'Maintenance Kit',d:'Oil not included.'},{p:'G007364-0',n:'ecobee Smart Thermostat',d:'HVAC load management.'}]},
 {id:'l22',c:'air',lbl:'22kW Legacy · G007042-10',mdl:'22kW Guardian (Legacy)',num:'G007042-10 (gen) / G007043-10 (bundled)',grp:'Guardian Legacy — 20/22/24kW  [A0000937814]',src:'A0000937814 Rev. E',klp:22,kng:19.5,ilp:'91.7',ing:'81.3',cb:'100A',wlb:466,wkg:211,dims:'48×25×29 in / 121.9×63.5×73.7 cm',sn:'67 dB(A) @ 23 ft',sq:'57 dB(A) Quiet-Test',ngh:228,ngf:327,lph:2.53,lpf:3.90,lp3h:92,lp3f:142,png:'3.5–7" WC',plp:'10–12" WC',bng:'1,000 BTU/ft³',blp:'2,500 BTU/ft³ (LP)',warr:'5 Year Limited',bat:'12V Group 26R 540 CCA or Group 35AGM 650 CCA',eng:'G-Force 1000 Series',cyl:2,disp:'999cc',comp:'9.5:1',blk:'Aluminum w/ cast iron sleeve',vlv:'Overhead valve',lft:'—',ign:'Solid-state w/ magneto',gov:'Electronic',rpm:'3,600',oil:'~1.9 qt / 1.8 L',strt:'12 VDC',ctrl:'Evolution™ two-line multilingual LCD',conn:'Standard Wi-Fi® — Mobile Link',color:'Bisque (Aluminum)',cert:'ETL / UL Listed · UL 2200',inst:'18 in (457 mm)',fc:'14 in ANSI Z21.75/CSA 6.27',exer:'5 min (weekly/bi-weekly/monthly)',der:'3.5% per 1,000 ft ASL',po:[{v:'120/240V 1-Phase',nk:19.5,na:81.3,lk:22,la:91.7}],ft:['G-Force 1000 engine','True Power™ <5% THD','Evolution™ LCD controller (EN/ES/FR/PT)','Standard Wi-Fi® (Mobile Link)','200A ATS available','5 Year limited warranty'],pr:[{n:'Low Oil Pressure / High Temp',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'}],ac:[{p:'G007101-0',n:'Battery Pad Warmer',d:'Below 0°F.'},{p:'G006485-0',n:'Maintenance Kit',d:'Oil not included.'}]},
 {id:'l24',c:'air',lbl:'24kW Legacy · G007209-10',mdl:'24kW Guardian (Legacy)',num:'G007209-10 (gen) / G007210-10 (bundled)',grp:'Guardian Legacy — 20/22/24kW  [A0000937814]',src:'A0000937814 Rev. E',klp:24,kng:21,ilp:'100',ing:'87.5',cb:'100A',wlb:455,wkg:206,dims:'48×25×29 in / 121.9×63.5×73.7 cm',sn:'67 dB(A) @ 23 ft',sq:'57 dB(A) Quiet-Test',ngh:164,ngf:287,lph:2.36,lpf:3.74,lp3h:86,lp3f:136,png:'3.5–7" WC',plp:'10–12" WC',bng:'1,000 BTU/ft³',blp:'2,500 BTU/ft³ (LP)',warr:'5 Year Limited',bat:'12V Group 26R 540 CCA or Group 35AGM 650 CCA',eng:'G-Force 1000 Series',cyl:2,disp:'999cc',comp:'9.5:1',blk:'Aluminum w/ cast iron sleeve',vlv:'Overhead valve',lft:'—',ign:'Solid-state w/ magneto',gov:'Electronic',rpm:'3,600',oil:'~1.9 qt / 1.8 L',strt:'12 VDC',ctrl:'Evolution™ two-line multilingual LCD',conn:'Standard Wi-Fi® — Mobile Link',color:'Bisque (Aluminum)',cert:'ETL / UL Listed · UL 2200',inst:'18 in',fc:'14 in ANSI Z21.75/CSA 6.27',exer:'5 min',der:'3.5% per 1,000 ft ASL',po:[{v:'120/240V 1-Phase',nk:21,na:87.5,lk:24,la:100}],ft:['G-Force 1000 engine','True Power™ <5% THD','Evolution™ LCD controller','Standard Wi-Fi®','200A ATS available','5 Year limited warranty'],pr:[{n:'Low Oil Pressure / High Temp',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'}],ac:[{p:'G007101-0',n:'Battery Pad Warmer',d:'Below 0°F.'},{p:'G006485-0',n:'Maintenance Kit',d:'Oil not included.'}]},
 {id:'l26',c:'air',lbl:'26kW Legacy · G007290-0',mdl:'26kW Guardian (Legacy)',num:'G007290-0 (gen) / G007291-0 (bundled)',grp:'Guardian Legacy — 26kW  [A0002026894]',src:'A0002026894 Rev. D',klp:26,kng:22.5,ilp:'108.3',ing:'93.8',cb:'110A',wlb:518,wkg:235,dims:'48×25×29 in / 121.9×63.5×73.7 cm',sn:'67 dB(A) @ 23 ft',sq:'57 dB(A) Quiet-Test',ngh:188,ngf:333,lph:2.06,lpf:3.63,lp3h:75,lp3f:132,png:'3.5–7" WC',plp:'10–12" WC',bng:'1,000 BTU/ft³',blp:'2,500 BTU/ft³ (LP)',warr:'5 Year Limited',bat:'12V Group 26R 540 CCA or Group 35AGM 650 CCA',eng:'G-Force 1000 Series',cyl:2,disp:'999cc',comp:'9.5:1',blk:'Aluminum w/ cast iron sleeve',vlv:'Overhead valve',lft:'—',ign:'Solid-state w/ magneto',gov:'Electronic',rpm:'3,600',oil:'~1.9 qt / 1.8 L',strt:'12 VDC',ctrl:'Evolution™ two-line multilingual LCD',conn:'Standard Wi-Fi® — Mobile Link',color:'Bisque (Aluminum)',cert:'ETL / UL Listed · UL 2200',inst:'18 in (457 mm)',fc:'14 in ANSI Z21.75/CSA 6.27',exer:'5 min',der:'3.5% per 1,000 ft ASL',po:[{v:'120/240V 1-Phase',nk:22.5,na:93.8,lk:26,la:108.3}],ft:['G-Force 1000 engine','True Power™ <5% THD','Evolution™ two-line LCD','Standard Wi-Fi® — Mobile Link','200A ATS available','High Altitude Kit required above 2,000 ft (EPA)','5 Year limited warranty'],pr:[{n:'Low Oil Pressure / High Temp',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'},{n:'Altitude Derate',v:'3.5% / 1,000 ft ASL'}],ac:[{p:'G007301-0',n:'High Altitude Kit',d:'Required above 2,000 ft (EPA).'},{p:'G006485-0',n:'Maintenance Kit',d:'Oil not included.'}]},
@@ -743,13 +738,13 @@ const GENS=[
 {id:'rg45',c:'liq',lbl:'45kW Protector RG · RG04524',mdl:'45kW Protector RG',num:'RG04524',grp:'Protector RG — 22–60kW  [A0005999721]',src:'A0005999721 Rev. B (04/10/2025)',klp:45,kng:45,ilp:'188 (1-Ph)',ing:'188 (1-Ph)',cb:'200A (1-Ph)',wlb:1260,wkg:572,dims:'76.8×35.0×46.1 in / 1,950×888×1,171 mm',sn:'73 dB(A) op / 61 dB(A) exercise @ 23 ft',sq:'61 dB(A) exercise @ 23 ft',ng25:210,ngh:380,ng75:545,ngf:730,ngex:65,lp25:2.3,lph:4.2,lp75:5.9,lpf:8.0,lpex:0.7,png:'5–14" WC (1.24–3.48 kPa)',plp:'5–14" WC (1.24–3.48 kPa)',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid Group 26 525 CCA Minimum (not included)',eng:'2.4L Inline 4-Cyl, Naturally Aspirated (High Speed)',cyl:4,disp:'2.4L',comp:'9.5:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'3,600 op / 1,800 exercise',oil:'4 qt (3.8 L)',strt:'12 VDC',ctrl:'Evolution™ two-line multilingual LCD',conn:'Cellular (GGCAC standard) — Mobile Link & Fleet',color:'Bisque (Aluminum)',cert:'EPA · ETL · UL 2200',inst:'See installation documentation',fc:'3/4" NPT Female Coupling',exer:'7-day programmable',der:'3% / 1,000 ft above 600 ft · 1.7% / 10°F above 77°F',po:[{v:'120/240V 1-Phase',nk:45,na:188,lk:45,la:188},{v:'208/120V 3-Phase',nk:45,na:156,lk:45,la:156},{v:'240/120V 3-Phase',nk:45,na:135,lk:45,la:135},{v:'480/277V 3-Phase',nk:45,na:68,lk:45,la:68}],ft:['2.4L I-4 Naturally Aspirated — 3,600 RPM op / 1,800 RPM exercise (high speed)','Evolution™ two-line multilingual LCD (EN/ES/FR/PT)','Cellular (GGCAC) standard — Mobile Link & Fleet','3-phase 208/240/480V available','EPA Certified · UL 2200','5 Year / 2,000 Hour warranty · Bisque aluminum enclosure'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'},{n:'High Temperature',v:'Shutdown'}],ac:[{p:'G0072150',n:'GGCAC Cellular Accessory',d:'Standard on new RG04524.'},{p:'G0061720',n:'2.4L NA HS Maintenance Kit',d:'Oil filter, funnel, air filter, spark plugs. For RG04524.'}]},
 {id:'rg60',c:'liq',lbl:'60kW Protector RG · RG06024',mdl:'60kW Protector RG',num:'RG06024',grp:'Protector RG — 22–60kW  [A0005999721]',src:'A0005999721 Rev. B (04/10/2025)',klp:60,kng:60,ilp:'250 (1-Ph)',ing:'250 (1-Ph)',cb:'300A (1-Ph)',wlb:1230,wkg:558,dims:'76.8×39.4×46.1 in / 1,950×1,000×1,171 mm',sn:'73 dB(A) op / 65 dB(A) exercise @ 23 ft',sq:'65 dB(A) exercise @ 23 ft',ng25:267,ngh:483,ng75:672,ngf:862,ngex:123,lp25:2.7,lph:5.0,lp75:7.0,lpf:9.0,lpex:1.3,png:'5–14" WC (1.24–3.48 kPa)',plp:'5–14" WC (1.24–3.48 kPa)',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid Group 26 525 CCA Minimum (not included)',eng:'2.4L Inline 4-Cyl, Turbocharged & Aftercooled (High Speed)',cyl:4,disp:'2.4L',comp:'9.5:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'3,600 op / 1,800 exercise',oil:'4 qt (3.8 L)',strt:'12 VDC',ctrl:'Evolution™ two-line multilingual LCD',conn:'Cellular (GGCAC standard) — Mobile Link & Fleet',color:'Bisque (Aluminum)',cert:'EPA · ETL · UL 2200',inst:'See installation documentation',fc:'3/4" NPT Female Coupling',exer:'7-day programmable',der:'3% / 1,000 ft above 3,000 ft · 1.7% / 10°F above 77°F',po:[{v:'120/240V 1-Phase',nk:60,na:250,lk:60,la:250},{v:'208/120V 3-Phase',nk:60,na:208,lk:60,la:208},{v:'240/120V 3-Phase',nk:60,na:180,lk:60,la:180},{v:'480/277V 3-Phase',nk:60,na:90,lk:60,la:90}],ft:['⚠ Model-specific fuel — NG or LP — NOT interchangeable','2.4L I-4 Turbocharged & Aftercooled — 3,600 RPM op / 1,800 RPM exercise','Evolution™ two-line multilingual LCD (EN/ES/FR/PT)','Cellular (GGCAC) standard — Mobile Link & Fleet','3-phase 208/240/480V available','5 Year / 2,000 Hour warranty · Bisque aluminum enclosure'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'},{n:'High Temperature',v:'Shutdown'}],ac:[{p:'G0072150',n:'GGCAC Cellular Accessory',d:'Standard on new RG06024.'},{p:'G0061710',n:'2.4L TAC HS Maintenance Kit',d:'Oil filter, funnel, air filter, spark plugs. For RG06024.'}]},
 
-{id:'x25',c:'liq',lbl:'25kW Protector XG · XG02525',mdl:'25kW Protector XG',num:'XG02525',grp:'Protector XG — 25–80kW  [A0005286945]',src:'A0010408477 Rev. A (05/06/2026)',klp:25,kng:25,ilp:'104 (1-Ph)',ing:'104 (1-Ph)',cb:'125A (1-Ph)',wlb:1120,wkg:508,dims:'66.6×32.6×40.7 in / 1,692×828×1,034 mm',sn:'59 dB(A) op / 51 dB(A) exercise @ 23 ft',sq:'51 dB(A) exercise @ 23 ft',ng25:152,ngh:452,ng75:346,ngf:452,ngex:null,lp25:0.5,lph:2.1,lp75:1.5,lpf:2.1,lpex:null,png:'3.5–7" WC (0.87–1.74 kPa)',plp:'7–14" WC (1.74–3.48 kPa)',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid, Group 26, 525 CCA min',eng:'2.5L Inline 4-Cyl, Naturally Aspirated',cyl:4,disp:'2.5L',comp:'9.7:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'1,800 op / 1,200 exercise',oil:'7.0 qt (6.6 L)',strt:'12 VDC',ctrl:'Power Zone® 410',conn:'Cellular + Wi-Fi backup — Mobile Link & Fleet',color:'Metro Gray (Aluminum)',cert:'EPA · CA & MA Compliant · ETL · UL 2200 · NFPA 110 capable',inst:'18 in — SwRI Listed',fc:'1/2" NPT through baseframe',exer:'Selectable low-speed',der:'LP: 2.6% / 1,000 ft above 2,000 ft · NG: 3% / 1,000 ft above 0 ft',po:[{v:'120/240V 1-Phase',nk:25,na:104,lk:25,la:104},{v:'208/120V 3-Phase',nk:25,na:86,lk:25,la:86},{v:'240/120V 3-Phase',nk:25,na:75,lk:25,la:75},{v:'480/277V 3-Phase',nk:25,na:37,lk:25,la:37}],ft:['2.5L I-4 Naturally Aspirated — 1,800 RPM','Power Zone® 410 controller — 128×64 graphical display','Cellular + Wi-Fi backup — Mobile Link & Fleet','3-phase configurable 208/240/480V via VCC','Stainless steel exhaust system · Aluminum enclosure','EPA Certified · CA & MA Compliant · NFPA 110 capable','145 mph wind speed rating (ASCE 7-16 Exposure B)','UL 2200 · 5 Year / 2,000 Hour warranty'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'Low Coolant Level',v:'Shutdown'},{n:'High/Low Coolant Temp',v:'Shutdown'},{n:'Over/Under Speed',v:'Shutdown'},{n:'Over/Under Voltage',v:'Shutdown'},{n:'Over/Under Frequency',v:'Shutdown'},{n:'Over/Under Current',v:'Shutdown'},{n:'Phase-to-Phase Short',v:'I²T Algorithm'},{n:'Ground Fault',v:'Protection'}],ac:[{p:'G0099010',n:'VCC 208V 3-Phase',d:'208/120V voltage config cartridge (factory installed in 3-phase models).'},{p:'G0099020',n:'VCC 240V 3-Phase',d:'240/120V config cartridge — field installable.'},{p:'G0099030',n:'VCC 480V 3-Phase',d:'480/277V config cartridge — field installable.'},{p:'G0079920',n:'Battery Heater Kit',d:'For temps below 32°F. 120VAC 60Hz.'},{p:'G0099850',n:'Engine Block Heater Kit',d:'For temps below 0°F. Requires G0089370 I/O Extender.'},{p:'G0099920',n:'Baseframe Blockoff Kit',d:'Required when generator is elevated.'},{p:'G0099725',n:'Exhaust Diverter Kit',d:'Redirects exhaust to side — useful in heavy snowfall areas.'},{p:'G0073710',n:'2.5L Maintenance Kit',d:'Oil filter, oil funnel, air filter, spark plugs.'},{p:'G0070001',n:'Load Manager 50A',d:'Manages large loads on startup and recovery.'},{p:'G0070061',n:'Load Manager 100A',d:'100A version of load manager.'}]},
-{id:'x30',c:'liq',lbl:'30kW Protector XG · XG03025',mdl:'30kW Protector XG',num:'XG03025',grp:'Protector XG — 25–80kW  [A0005286945]',src:'A0010408477 Rev. A (05/06/2026)',klp:30,kng:30,ilp:'125 (1-Ph)',ing:'125 (1-Ph)',cb:'150A (1-Ph)',wlb:1128,wkg:512,dims:'66.6×32.6×40.7 in / 1,692×828×1,034 mm',sn:'59 dB(A) op / 51 dB(A) exercise @ 23 ft',sq:'51 dB(A) exercise @ 23 ft',ng25:170,ngh:540,ng75:410,ngf:540,ngex:null,lp25:0.6,lph:2.6,lp75:1.8,lpf:2.6,lpex:null,png:'3.5–7" WC (0.87–1.74 kPa)',plp:'7–14" WC (1.74–3.48 kPa)',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid, Group 26, 525 CCA min',eng:'2.5L Inline 4-Cyl, Naturally Aspirated',cyl:4,disp:'2.5L',comp:'9.7:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'1,800 op / 1,200 exercise',oil:'7.0 qt (6.6 L)',strt:'12 VDC',ctrl:'Power Zone® 410',conn:'Cellular + Wi-Fi backup — Mobile Link & Fleet',color:'Metro Gray (Aluminum)',cert:'EPA · CA & MA Compliant · ETL · UL 2200 · NFPA 110 capable',inst:'18 in — SwRI Listed',fc:'1/2" NPT through baseframe',exer:'Selectable low-speed',der:'LP: 2.6% / 1,000 ft above 2,000 ft · NG: 3% / 1,000 ft above 0 ft',po:[{v:'120/240V 1-Phase',nk:30,na:125,lk:30,la:125},{v:'208/120V 3-Phase',nk:30,na:104,lk:30,la:104},{v:'240/120V 3-Phase',nk:30,na:90,lk:30,la:90},{v:'480/277V 3-Phase',nk:30,na:45,lk:30,la:45}],ft:['2.5L I-4 Naturally Aspirated — 1,800 RPM','Power Zone® 410 controller — 128×64 graphical display','Cellular + Wi-Fi backup — Mobile Link & Fleet','3-phase configurable 208/240/480V via VCC','Stainless steel exhaust system · Aluminum enclosure','EPA Certified · CA & MA Compliant · NFPA 110 capable','145 mph wind speed rating (ASCE 7-16 Exposure B)','UL 2200 · 5 Year / 2,000 Hour warranty'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'Low Coolant Level',v:'Shutdown'},{n:'High/Low Coolant Temp',v:'Shutdown'},{n:'Over/Under Speed',v:'Shutdown'},{n:'Over/Under Voltage',v:'Shutdown'},{n:'Over/Under Frequency',v:'Shutdown'},{n:'Over/Under Current',v:'Shutdown'},{n:'Phase-to-Phase Short',v:'I²T Algorithm'},{n:'Ground Fault',v:'Protection'}],ac:[{p:'G0099010',n:'VCC 208V 3-Phase',d:'208/120V voltage config cartridge (factory installed in 3-phase models).'},{p:'G0099020',n:'VCC 240V 3-Phase',d:'240/120V config cartridge — field installable.'},{p:'G0099030',n:'VCC 480V 3-Phase',d:'480/277V config cartridge — field installable.'},{p:'G0079920',n:'Battery Heater Kit',d:'For temps below 32°F. 120VAC 60Hz.'},{p:'G0099850',n:'Engine Block Heater Kit',d:'For temps below 0°F. Requires G0089370 I/O Extender.'},{p:'G0099920',n:'Baseframe Blockoff Kit',d:'Required when generator is elevated.'},{p:'G0099725',n:'Exhaust Diverter Kit',d:'Redirects exhaust to side — useful in heavy snowfall areas.'},{p:'G0073710',n:'2.5L Maintenance Kit',d:'Oil filter, oil funnel, air filter, spark plugs.'},{p:'G0070001',n:'Load Manager 50A',d:'Manages large loads on startup and recovery.'},{p:'G0070061',n:'Load Manager 100A',d:'100A version of load manager.'}]},
-{id:'x32',c:'liq',lbl:'32kW Protector XG · XG03245',mdl:'32kW Protector XG',num:'XG03245',grp:'Protector XG — 25–80kW  [A0005286945]',src:'A0005286945 Rev. E',klp:32,kng:32,ilp:'133 (1-Ph)',ing:'133 (1-Ph)',cb:'150A (1-Ph)',wlb:1695,wkg:769,dims:'83.4×33.6×57.1 in / 2,012×854×1,449 mm',sn:'66 dB(A) op / 59 dB(A) exercise @ 23 ft',sq:'59 dB(A) exercise @ 23 ft',ng25:177,ngh:258,ng75:335,ngf:417,ngex:71,lp25:2.6,lph:3.4,lp75:4.2,lpf:5.0,lpex:1.1,png:'3.5–14" WC',plp:'7–14" WC',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid Group 27 600 CCA min',eng:'4.5L Inline 4-Cyl, Naturally Aspirated',cyl:4,disp:'4.5L',comp:'9.9:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'1,800 op / 1,200 exercise',oil:'11.6 qt (11.0 L)',strt:'12 VDC',ctrl:'Power Zone® 410',conn:'Cellular + Wi-Fi backup — Mobile Link & Fleet',color:'Metro Gray (Aluminum)',cert:'EPA · ETL · UL 2200 · NFPA 110',inst:'18 in — SwRI Listed',fc:'1/2" NPT through baseframe',exer:'Selectable low-speed',der:'3% / 1,000 ft above 600 ft',po:[{v:'120/240V 1-Phase',nk:32,na:133,lk:32,la:133},{v:'208/120V 3-Phase',nk:32,na:111,lk:32,la:111},{v:'240/120V 3-Phase',nk:32,na:96,lk:32,la:96},{v:'480/277V 3-Phase',nk:32,na:48,lk:32,la:48}],ft:['4.5L I-4 Naturally Aspirated — 1,800 RPM','Power Zone® 410 controller — 128×64 graphical display','Cellular + Wi-Fi backup — Mobile Link & Fleet','3-phase configurable 208/240/480V via VCC','EPA Certified · CA & MA Compliant · NFPA 110 capable','145 mph wind speed rating','UL 2200 · 5 Year / 2,000 Hour warranty','SwRI Listed — 18" from structure'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'Low Coolant Level',v:'Shutdown'},{n:'High/Low Coolant Temp',v:'Shutdown'},{n:'Phase-to-Phase Short',v:'I²T Algorithm'}],ac:[{p:'G0099010',n:'VCC 208V 3-Phase',d:'208/120V voltage config cartridge.'},{p:'G0099020',n:'VCC 240V 3-Phase',d:'240/120V config.'},{p:'G0099030',n:'VCC 480V 3-Phase',d:'480/277V config.'},{p:'G0079910',n:'4.5L Maintenance Kit',d:'Oil filter, air filter, spark plugs.'}]},
-{id:'x40',c:'liq',lbl:'40kW Protector XG · XG04045',mdl:'40kW Protector XG',num:'XG04045',grp:'Protector XG — 25–80kW  [A0005286945]',src:'A0005286945 Rev. E',klp:40,kng:40,ilp:'167 (1-Ph)',ing:'167 (1-Ph)',cb:'200A (1-Ph)',wlb:1695,wkg:769,dims:'83.4×33.6×57.1 in / 2,012×854×1,449 mm',sn:'66 dB(A) op / 59 dB(A) exercise @ 23 ft',sq:'59 dB(A) exercise @ 23 ft',ng25:198,ngh:297,ng75:396,ngf:494,ngex:71,lp25:2.8,lph:3.8,lp75:4.8,lpf:5.8,lpex:1.1,png:'3.5–14" WC',plp:'7–14" WC',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid Group 27 600 CCA min',eng:'4.5L Inline 4-Cyl, Naturally Aspirated',cyl:4,disp:'4.5L',comp:'9.9:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'1,800 op / 1,200 exercise',oil:'11.6 qt (11.0 L)',strt:'12 VDC',ctrl:'Power Zone® 410',conn:'Cellular + Wi-Fi backup',color:'Metro Gray (Aluminum)',cert:'EPA · ETL · UL 2200 · NFPA 110',inst:'18 in — SwRI Listed',fc:'1/2" NPT through baseframe',exer:'Selectable low-speed',der:'3% / 1,000 ft above 600 ft',po:[{v:'120/240V 1-Phase',nk:40,na:167,lk:40,la:167},{v:'208/120V 3-Phase',nk:40,na:139,lk:40,la:139},{v:'240/120V 3-Phase',nk:40,na:120,lk:40,la:120},{v:'480/277V 3-Phase',nk:40,na:60,lk:40,la:60}],ft:['4.5L I-4 Naturally Aspirated — 1,800 RPM','Power Zone® 410 controller','Cellular + Wi-Fi backup — Mobile Link & Fleet','3-phase configurable 208/240/480V','EPA · ETL · UL 2200 · NFPA 110','5 Year / 2,000 Hour warranty'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'Low Coolant Level',v:'Shutdown'},{n:'High/Low Coolant Temp',v:'Shutdown'}],ac:[{p:'G0099010/20/30',n:'VCC 208/240/480V',d:'Voltage configuration cartridges.'},{p:'G0079910',n:'4.5L Maintenance Kit',d:'Oil filter, air filter, spark plugs.'}]},
-{id:'x48',c:'liq',lbl:'48kW Protector XG · XG04845',mdl:'48kW Protector XG',num:'XG04845',grp:'Protector XG — 25–80kW  [A0005286945]',src:'A0005286945 Rev. E',klp:48,kng:48,ilp:'200 (1-Ph)',ing:'200 (1-Ph)',cb:'200A (1-Ph)',wlb:1695,wkg:769,dims:'83.4×33.6×57.1 in / 2,012×854×1,449 mm',sn:'58 dB(A) op / 54 dB(A) exercise @ 23 ft',sq:'54 dB(A) exercise @ 23 ft',ng25:215,ngh:335,ng75:456,ngf:576,ngex:71,lp25:3.0,lph:4.2,lp75:5.4,lpf:6.6,lpex:1.1,png:'3.5–14" WC',plp:'7–14" WC',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid Group 27 600 CCA min',eng:'4.5L Inline 4-Cyl, Naturally Aspirated',cyl:4,disp:'4.5L',comp:'9.9:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'1,800 op / 1,200 exercise',oil:'11.6 qt (11.0 L)',strt:'12 VDC',ctrl:'Power Zone® 410',conn:'Cellular + Wi-Fi backup',color:'Metro Gray (Aluminum)',cert:'EPA · ETL · UL 2200 · NFPA 110',inst:'18 in — SwRI Listed',fc:'1/2" NPT through baseframe',exer:'Selectable low-speed',der:'3% / 1,000 ft above 600 ft',po:[{v:'120/240V 1-Phase',nk:48,na:200,lk:48,la:200},{v:'208/120V 3-Phase',nk:48,na:167,lk:48,la:167},{v:'240/120V 3-Phase',nk:48,na:144,lk:48,la:144},{v:'480/277V 3-Phase',nk:48,na:72,lk:48,la:72}],ft:['4.5L I-4 Naturally Aspirated — 1,800 RPM','Power Zone® 410 controller','1-phase 48kW US/Canada includes ecobee Smart Thermostat','EPA · ETL · UL 2200 · NFPA 110','5 Year / 2,000 Hour warranty'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'Low Coolant Level',v:'Shutdown'},{n:'High/Low Coolant Temp',v:'Shutdown'}],ac:[{p:'G0099010/20/30',n:'VCC 208/240/480V',d:'Voltage config cartridges.'},{p:'G0079910',n:'4.5L Maintenance Kit',d:'Oil filter, air filter, spark plugs.'}]},
-{id:'x60',c:'liq',lbl:'60kW Protector XG · XG06045',mdl:'60kW Protector XG',num:'XG06045',grp:'Protector XG — 25–80kW  [A0005286945]',src:'A0005286945 Rev. E',klp:60,kng:60,ilp:'250 (1-Ph)',ing:'250 (1-Ph)',cb:'300A (1-Ph)',wlb:1960,wkg:889,dims:'104.8×33.6×51.2 in / 2,554×854×1,300 mm',sn:'64 dB(A) op / 55 dB(A) exercise @ 23 ft',sq:'55 dB(A) exercise @ 23 ft',ng25:391,ngh:571,ng75:765,ngf:972,ngex:105,lp25:4.2,lph:6.4,lp75:8.6,lpf:11.0,lpex:0.8,png:'3.5–14" WC',plp:'7–14" WC',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid Group 27 600 CCA min',eng:'4.5L Inline 4-Cyl, Turbocharged & Aftercooled',cyl:4,disp:'4.5L',comp:'9.1:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'1,800 op / 1,200 exercise',oil:'11.6 qt (11.0 L)',strt:'12 VDC (145A charge alt)',ctrl:'Power Zone® 410',conn:'Cellular + Wi-Fi backup',color:'Metro Gray (Aluminum)',cert:'EPA · ETL · UL 2200 · NFPA 110',inst:'See installation drawing',fc:'1-1/4" NPT female tee through baseframe',exer:'Selectable low-speed',der:'3% / 1,000 ft above 3,000 ft · 8.3% / 10°F above 86°F',po:[{v:'120/240V 1-Phase',nk:60,na:250,lk:60,la:250},{v:'208/120V 3-Phase',nk:60,na:208,lk:60,la:208},{v:'240/120V 3-Phase',nk:60,na:180,lk:60,la:180},{v:'480/277V 3-Phase',nk:60,na:90,lk:60,la:90}],ft:['4.5L I-4 Turbocharged & Aftercooled — 1,800 RPM','Power Zone® 410 controller','3-phase configurable 208/240/480V via VCC','EPA · ETL · UL 2200 · NFPA 110','145 mph wind · 3 electric fans','5 Year / 2,000 Hour warranty'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'Low Coolant Level',v:'Shutdown'},{n:'Altitude Derate',v:'3% / 1,000 ft above 3,000 ft'}],ac:[{p:'G0099740/750/760',n:'VCC 208/240/480V (XG060/80)',d:'VCC cartridges for XG060/080 only.'},{p:'G0099710',n:'Exhaust Diverter Kit',d:'Redirects exhaust.'}]},
-{id:'x80',c:'liq',lbl:'80kW Protector XG · XG08045',mdl:'80kW Protector XG',num:'XG08045',grp:'Protector XG — 25–80kW  [A0005286945]',src:'A0005286945 Rev. E',klp:75,kng:80,ilp:'312 (1-Ph)',ing:'333 (1-Ph)',cb:'400A (1-Ph)',wlb:2101,wkg:953,dims:'104.8×33.6×51.2 in / 2,554×854×1,300 mm',sn:'64 dB(A) op / 55 dB(A) exercise @ 23 ft',sq:'55 dB(A) exercise @ 23 ft',ng25:449,ngh:698,ng75:972,ngf:1270,ngex:105,lp25:4.9,lph:7.9,lp75:11.0,lpf:14.2,lpex:0.8,png:'3.5–14" WC',plp:'7–14" WC',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid Group 27 600 CCA min',eng:'4.5L Inline 4-Cyl, Turbocharged & Aftercooled',cyl:4,disp:'4.5L',comp:'9.1:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'1,800 op / 1,200 exercise',oil:'11.6 qt (11.0 L)',strt:'12 VDC (145A charge alt)',ctrl:'Power Zone® 410',conn:'Cellular + Wi-Fi backup',color:'Metro Gray (Aluminum)',cert:'EPA · ETL · UL 2200 · NFPA 110',inst:'See installation drawing',fc:'1-1/4" NPT female tee through baseframe',exer:'Selectable low-speed',der:'3% / 1,000 ft above 3,000 ft',po:[{v:'120/240V 1-Phase',nk:80,na:333,lk:75,la:312},{v:'208/120V 3-Phase',nk:80,na:278,lk:75,la:260},{v:'240/120V 3-Phase',nk:80,na:241,lk:75,la:226},{v:'480/277V 3-Phase',nk:80,na:120,lk:75,la:113}],ft:['⚠ NG = 80kW · LP = 75kW (output differs by fuel)','4.5L I-4 Turbocharged & Aftercooled — 1,800 RPM','Power Zone® 410 controller','EPA · ETL · UL 2200 · NFPA 110','4 electric fans','5 Year / 2,000 Hour warranty'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'Low Coolant Level',v:'Shutdown'},{n:'Altitude Derate',v:'3% / 1,000 ft above 3,000 ft'}],ac:[{p:'G0099740/750/760',n:'VCC 208/240/480V (XG060/80)',d:'VCC cartridges.'},{p:'G0099710',n:'Exhaust Diverter Kit',d:'Redirects exhaust.'}]},
+{id:'x25',c:'liq',lbl:'25kW Protector XG · XG02525',mdl:'25kW Protector XG',num:'XG02525',grp:'Protector XG — 25–80kW  [A0005286945]',src:'A0010408477 Rev. B (09/10/2026)',klp:25,kng:25,ilp:'104 (1-Ph)',ing:'104 (1-Ph)',cb:'125A (1-Ph)',wlb:1120,wkg:508,dims:'66.6×32.6×40.7 in / 1,692×828×1,034 mm',sn:'59 dB(A) op / 51 dB(A) exercise @ 23 ft',sq:'51 dB(A) exercise @ 23 ft',ng25:104,ngh:154,ng75:209,ngf:269,ngex:35,lp25:0.9,lph:1.6,lp75:2.3,lpf:3.0,lpex:0.1,png:'3.5–14" WC (0.87–3.48 kPa)',plp:'7–14" WC (1.74–3.48 kPa)',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid, Group 26, 525 CCA min',eng:'2.5L Inline 4-Cyl, Naturally Aspirated',cyl:4,disp:'2.5L',comp:'9.7:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'1,800 op / 1,200 exercise',oil:'5.0 qt (4.7 L)',strt:'12 VDC',ctrl:'Power Zone® 410',conn:'Cellular + Wi-Fi backup — Mobile Link & Fleet',color:'Metro Gray (Aluminum)',cert:'EPA · CA & MA Compliant · ETL · UL 2200 · NFPA 110 capable',inst:'18 in — SwRI Listed',fc:'1/2" NPT through baseframe',exer:'Selectable low-speed',der:'LP: 2.6% / 1,000 ft above 2,000 ft · NG: 3% / 1,000 ft above 0 ft',po:[{v:'120/240V 1-Phase',nk:25,na:104,lk:25,la:104},{v:'208/120V 3-Phase',nk:25,na:86,lk:25,la:86},{v:'240/120V 3-Phase',nk:25,na:75,lk:25,la:75},{v:'480/277V 3-Phase',nk:25,na:37,lk:25,la:37}],ft:['2.5L I-4 Naturally Aspirated — 1,800 RPM','Power Zone® 410 controller — 128×64 graphical display','Cellular + Wi-Fi backup — Mobile Link & Fleet','3-phase configurable 208/240/480V via VCC','Stainless steel exhaust system · Aluminum enclosure','EPA Certified · CA & MA Compliant · NFPA 110 capable','145 mph wind speed rating (ASCE 7-16 Exposure B)','UL 2200 · 5 Year / 2,000 Hour warranty'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'Low Coolant Level',v:'Shutdown'},{n:'High/Low Coolant Temp',v:'Shutdown'},{n:'Over/Under Speed',v:'Shutdown'},{n:'Over/Under Voltage',v:'Shutdown'},{n:'Over/Under Frequency',v:'Shutdown'},{n:'Over/Under Current',v:'Shutdown'},{n:'Phase-to-Phase Short',v:'I²T Algorithm'},{n:'Ground Fault',v:'Protection'}],ac:[{p:'G0099010',n:'VCC 208V 3-Phase',d:'208/120V voltage config cartridge (factory installed in 3-phase models).'},{p:'G0099020',n:'VCC 240V 3-Phase',d:'240/120V config cartridge — field installable.'},{p:'G0099030',n:'VCC 480V 3-Phase',d:'480/277V config cartridge — field installable.'},{p:'G0079920',n:'Battery Heater Kit',d:'For temps below 32°F. 120VAC 60Hz.'},{p:'G0099850',n:'Engine Block Heater Kit',d:'For temps below 0°F. Requires G0089370 I/O Extender.'},{p:'G0099920',n:'Baseframe Blockoff Kit',d:'Required when generator is elevated.'},{p:'G0099725',n:'Exhaust Diverter Kit',d:'Redirects exhaust to side — useful in heavy snowfall areas.'},{p:'G0073710',n:'2.5L Maintenance Kit',d:'Oil filter, oil funnel, air filter, spark plugs.'},{p:'G0070001',n:'Load Manager 50A',d:'Manages large loads on startup and recovery.'},{p:'G0070061',n:'Load Manager 100A',d:'100A version of load manager.'}]},
+{id:'x30',c:'liq',lbl:'30kW Protector XG · XG03025',mdl:'30kW Protector XG',num:'XG03025',grp:'Protector XG — 25–80kW  [A0005286945]',src:'A0010408477 Rev. B (09/10/2026)',klp:30,kng:30,ilp:'125 (1-Ph)',ing:'125 (1-Ph)',cb:'150A (1-Ph)',wlb:1128,wkg:512,dims:'66.6×32.6×40.7 in / 1,692×828×1,034 mm',sn:'59 dB(A) op / 51 dB(A) exercise @ 23 ft',sq:'51 dB(A) exercise @ 23 ft',ng25:114,ngh:176,ng75:244,ngf:320,ngex:35,lp25:1.0,lph:1.8,lp75:2.7,lpf:3.7,lpex:0.1,png:'3.5–14" WC (0.87–3.48 kPa)',plp:'7–14" WC (1.74–3.48 kPa)',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid, Group 26, 525 CCA min',eng:'2.5L Inline 4-Cyl, Naturally Aspirated',cyl:4,disp:'2.5L',comp:'9.7:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'1,800 op / 1,200 exercise',oil:'5.0 qt (4.7 L)',strt:'12 VDC',ctrl:'Power Zone® 410',conn:'Cellular + Wi-Fi backup — Mobile Link & Fleet',color:'Metro Gray (Aluminum)',cert:'EPA · CA & MA Compliant · ETL · UL 2200 · NFPA 110 capable',inst:'18 in — SwRI Listed',fc:'1/2" NPT through baseframe',exer:'Selectable low-speed',der:'LP: 2.6% / 1,000 ft above 2,000 ft · NG: 3% / 1,000 ft above 0 ft',po:[{v:'120/240V 1-Phase',nk:30,na:125,lk:30,la:125},{v:'208/120V 3-Phase',nk:30,na:104,lk:30,la:104},{v:'240/120V 3-Phase',nk:30,na:90,lk:30,la:90},{v:'480/277V 3-Phase',nk:30,na:45,lk:30,la:45}],ft:['2.5L I-4 Naturally Aspirated — 1,800 RPM','Power Zone® 410 controller — 128×64 graphical display','Cellular + Wi-Fi backup — Mobile Link & Fleet','3-phase configurable 208/240/480V via VCC','Stainless steel exhaust system · Aluminum enclosure','EPA Certified · CA & MA Compliant · NFPA 110 capable','145 mph wind speed rating (ASCE 7-16 Exposure B)','UL 2200 · 5 Year / 2,000 Hour warranty'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'Low Coolant Level',v:'Shutdown'},{n:'High/Low Coolant Temp',v:'Shutdown'},{n:'Over/Under Speed',v:'Shutdown'},{n:'Over/Under Voltage',v:'Shutdown'},{n:'Over/Under Frequency',v:'Shutdown'},{n:'Over/Under Current',v:'Shutdown'},{n:'Phase-to-Phase Short',v:'I²T Algorithm'},{n:'Ground Fault',v:'Protection'}],ac:[{p:'G0099010',n:'VCC 208V 3-Phase',d:'208/120V voltage config cartridge (factory installed in 3-phase models).'},{p:'G0099020',n:'VCC 240V 3-Phase',d:'240/120V config cartridge — field installable.'},{p:'G0099030',n:'VCC 480V 3-Phase',d:'480/277V config cartridge — field installable.'},{p:'G0079920',n:'Battery Heater Kit',d:'For temps below 32°F. 120VAC 60Hz.'},{p:'G0099850',n:'Engine Block Heater Kit',d:'For temps below 0°F. Requires G0089370 I/O Extender.'},{p:'G0099920',n:'Baseframe Blockoff Kit',d:'Required when generator is elevated.'},{p:'G0099725',n:'Exhaust Diverter Kit',d:'Redirects exhaust to side — useful in heavy snowfall areas.'},{p:'G0073710',n:'2.5L Maintenance Kit',d:'Oil filter, oil funnel, air filter, spark plugs.'},{p:'G0070001',n:'Load Manager 50A',d:'Manages large loads on startup and recovery.'},{p:'G0070061',n:'Load Manager 100A',d:'100A version of load manager.'}]},
+{id:'x32',c:'liq',lbl:'32kW Protector XG · XG03245',mdl:'32kW Protector XG',num:'XG03245',grp:'Protector XG — 25–80kW  [A0005286945]',src:'A0005286945 Rev. F (08/03/2026)',klp:32,kng:32,ilp:'133 (1-Ph)',ing:'133 (1-Ph)',cb:'150A (1-Ph)',wlb:1695,wkg:769,dims:'83.4×33.6×57.1 in / 2,012×854×1,449 mm',sn:'66 dB(A) op / 59 dB(A) exercise @ 23 ft',sq:'59 dB(A) exercise @ 23 ft',ng25:177,ngh:258,ng75:335,ngf:417,ngex:71,lp25:2.6,lph:3.4,lp75:4.2,lpf:5.0,lpex:1.1,png:'3.5–14" WC',plp:'7–14" WC',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid Group 27 600 CCA min',eng:'4.5L Inline 4-Cyl, Naturally Aspirated',cyl:4,disp:'4.5L',comp:'9.9:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'1,800 op / 1,200 exercise',oil:'11.6 qt (11.0 L)',strt:'12 VDC',ctrl:'Power Zone® 410',conn:'Cellular + Wi-Fi backup — Mobile Link & Fleet',color:'Metro Gray (Aluminum)',cert:'EPA · ETL · UL 2200 · NFPA 110',inst:'18 in — SwRI Listed',fc:'1/2" NPT through baseframe',exer:'Selectable low-speed',der:'3% / 1,000 ft above 600 ft',po:[{v:'120/240V 1-Phase',nk:32,na:133,lk:32,la:133},{v:'208/120V 3-Phase',nk:32,na:111,lk:32,la:111},{v:'240/120V 3-Phase',nk:32,na:96,lk:32,la:96},{v:'480/277V 3-Phase',nk:32,na:48,lk:32,la:48}],ft:['4.5L I-4 Naturally Aspirated — 1,800 RPM','Power Zone® 410 controller — 128×64 graphical display','Cellular + Wi-Fi backup — Mobile Link & Fleet','3-phase configurable 208/240/480V via VCC','EPA Certified · CA & MA Compliant · NFPA 110 capable','145 mph wind speed rating','UL 2200 · 5 Year / 2,000 Hour warranty','SwRI Listed — 18" from structure'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'Low Coolant Level',v:'Shutdown'},{n:'High/Low Coolant Temp',v:'Shutdown'},{n:'Phase-to-Phase Short',v:'I²T Algorithm'}],ac:[{p:'G0099010',n:'VCC 208V 3-Phase',d:'208/120V voltage config cartridge.'},{p:'G0099020',n:'VCC 240V 3-Phase',d:'240/120V config.'},{p:'G0099030',n:'VCC 480V 3-Phase',d:'480/277V config.'},{p:'G0079910',n:'4.5L Maintenance Kit',d:'Oil filter, air filter, spark plugs.'}]},
+{id:'x40',c:'liq',lbl:'40kW Protector XG · XG04045',mdl:'40kW Protector XG',num:'XG04045',grp:'Protector XG — 25–80kW  [A0005286945]',src:'A0005286945 Rev. F (08/03/2026)',klp:40,kng:40,ilp:'167 (1-Ph)',ing:'167 (1-Ph)',cb:'200A (1-Ph)',wlb:1695,wkg:769,dims:'83.4×33.6×57.1 in / 2,012×854×1,449 mm',sn:'66 dB(A) op / 59 dB(A) exercise @ 23 ft',sq:'59 dB(A) exercise @ 23 ft',ng25:198,ngh:297,ng75:396,ngf:494,ngex:71,lp25:2.8,lph:3.8,lp75:4.8,lpf:5.8,lpex:1.1,png:'3.5–14" WC',plp:'7–14" WC',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid Group 27 600 CCA min',eng:'4.5L Inline 4-Cyl, Naturally Aspirated',cyl:4,disp:'4.5L',comp:'9.9:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'1,800 op / 1,200 exercise',oil:'11.6 qt (11.0 L)',strt:'12 VDC',ctrl:'Power Zone® 410',conn:'Cellular + Wi-Fi backup',color:'Metro Gray (Aluminum)',cert:'EPA · ETL · UL 2200 · NFPA 110',inst:'18 in — SwRI Listed',fc:'1/2" NPT through baseframe',exer:'Selectable low-speed',der:'3% / 1,000 ft above 600 ft',po:[{v:'120/240V 1-Phase',nk:40,na:167,lk:40,la:167},{v:'208/120V 3-Phase',nk:40,na:139,lk:40,la:139},{v:'240/120V 3-Phase',nk:40,na:120,lk:40,la:120},{v:'480/277V 3-Phase',nk:40,na:60,lk:40,la:60}],ft:['4.5L I-4 Naturally Aspirated — 1,800 RPM','Power Zone® 410 controller','Cellular + Wi-Fi backup — Mobile Link & Fleet','3-phase configurable 208/240/480V','EPA · ETL · UL 2200 · NFPA 110','5 Year / 2,000 Hour warranty'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'Low Coolant Level',v:'Shutdown'},{n:'High/Low Coolant Temp',v:'Shutdown'}],ac:[{p:'G0099010/20/30',n:'VCC 208/240/480V',d:'Voltage configuration cartridges.'},{p:'G0079910',n:'4.5L Maintenance Kit',d:'Oil filter, air filter, spark plugs.'}]},
+{id:'x48',c:'liq',lbl:'48kW Protector XG · XG04845',mdl:'48kW Protector XG',num:'XG04845',grp:'Protector XG — 25–80kW  [A0005286945]',src:'A0005286945 Rev. F (08/03/2026)',klp:48,kng:48,ilp:'200 (1-Ph)',ing:'200 (1-Ph)',cb:'200A (1-Ph)',wlb:1695,wkg:769,dims:'83.4×33.6×57.1 in / 2,012×854×1,449 mm',sn:'58 dB(A) op / 54 dB(A) exercise @ 23 ft',sq:'54 dB(A) exercise @ 23 ft',ng25:215,ngh:335,ng75:456,ngf:576,ngex:71,lp25:3.0,lph:4.2,lp75:5.4,lpf:6.6,lpex:1.1,png:'3.5–14" WC',plp:'7–14" WC',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid Group 27 600 CCA min',eng:'4.5L Inline 4-Cyl, Naturally Aspirated',cyl:4,disp:'4.5L',comp:'9.9:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'1,800 op / 1,200 exercise',oil:'11.6 qt (11.0 L)',strt:'12 VDC',ctrl:'Power Zone® 410',conn:'Cellular + Wi-Fi backup',color:'Metro Gray (Aluminum)',cert:'EPA · ETL · UL 2200 · NFPA 110',inst:'18 in — SwRI Listed',fc:'1/2" NPT through baseframe',exer:'Selectable low-speed',der:'3% / 1,000 ft above 600 ft',po:[{v:'120/240V 1-Phase',nk:48,na:200,lk:48,la:200},{v:'208/120V 3-Phase',nk:48,na:167,lk:48,la:167},{v:'240/120V 3-Phase',nk:48,na:144,lk:48,la:144},{v:'480/277V 3-Phase',nk:48,na:72,lk:48,la:72}],ft:['4.5L I-4 Naturally Aspirated — 1,800 RPM','Power Zone® 410 controller','1-phase 48kW US/Canada includes ecobee Smart Thermostat','EPA · ETL · UL 2200 · NFPA 110','5 Year / 2,000 Hour warranty'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'Low Coolant Level',v:'Shutdown'},{n:'High/Low Coolant Temp',v:'Shutdown'}],ac:[{p:'G0099010/20/30',n:'VCC 208/240/480V',d:'Voltage config cartridges.'},{p:'G0079910',n:'4.5L Maintenance Kit',d:'Oil filter, air filter, spark plugs.'}]},
+{id:'x60',c:'liq',lbl:'60kW Protector XG · XG06045',mdl:'60kW Protector XG',num:'XG06045',grp:'Protector XG — 25–80kW  [A0005286945]',src:'A0005286945 Rev. F (08/03/2026)',klp:60,kng:60,ilp:'250 (1-Ph)',ing:'250 (1-Ph)',cb:'300A (1-Ph)',wlb:1960,wkg:889,dims:'104.8×33.6×51.2 in / 2,554×854×1,300 mm',sn:'64 dB(A) op / 55 dB(A) exercise @ 23 ft',sq:'55 dB(A) exercise @ 23 ft',ng25:391,ngh:571,ng75:765,ngf:972,ngex:105,lp25:4.2,lph:6.4,lp75:8.6,lpf:11.0,lpex:0.8,png:'3.5–14" WC',plp:'7–14" WC',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid Group 27 600 CCA min',eng:'4.5L Inline 4-Cyl, Turbocharged & Aftercooled',cyl:4,disp:'4.5L',comp:'9.1:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'1,800 op / 1,200 exercise',oil:'11.6 qt (11.0 L)',strt:'12 VDC (145A charge alt)',ctrl:'Power Zone® 410',conn:'Cellular + Wi-Fi backup',color:'Metro Gray (Aluminum)',cert:'EPA · ETL · UL 2200 · NFPA 110',inst:'See installation drawing',fc:'1-1/4" NPT female tee through baseframe',exer:'Selectable low-speed',der:'3% / 1,000 ft above 3,000 ft · 8.3% / 10°F above 86°F',po:[{v:'120/240V 1-Phase',nk:60,na:250,lk:60,la:250},{v:'208/120V 3-Phase',nk:60,na:208,lk:60,la:208},{v:'240/120V 3-Phase',nk:60,na:180,lk:60,la:180},{v:'480/277V 3-Phase',nk:60,na:90,lk:60,la:90}],ft:['4.5L I-4 Turbocharged & Aftercooled — 1,800 RPM','Power Zone® 410 controller','3-phase configurable 208/240/480V via VCC','EPA · ETL · UL 2200 · NFPA 110','145 mph wind · 3 electric fans','5 Year / 2,000 Hour warranty'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'Low Coolant Level',v:'Shutdown'},{n:'Altitude Derate',v:'3% / 1,000 ft above 3,000 ft'}],ac:[{p:'G0099740/750/760',n:'VCC 208/240/480V (XG060/80)',d:'VCC cartridges for XG060/080 only.'},{p:'G0099710',n:'Exhaust Diverter Kit',d:'Redirects exhaust.'}]},
+{id:'x80',c:'liq',lbl:'80kW Protector XG · XG08045',mdl:'80kW Protector XG',num:'XG08045',grp:'Protector XG — 25–80kW  [A0005286945]',src:'A0005286945 Rev. F (08/03/2026)',klp:75,kng:80,ilp:'312 (1-Ph)',ing:'333 (1-Ph)',cb:'400A (1-Ph)',wlb:2101,wkg:953,dims:'104.8×33.6×51.2 in / 2,554×854×1,300 mm',sn:'64 dB(A) op / 55 dB(A) exercise @ 23 ft',sq:'55 dB(A) exercise @ 23 ft',ng25:449,ngh:698,ng75:972,ngf:1270,ngex:105,lp25:4.9,lph:7.9,lp75:11.0,lpf:14.2,lpex:0.8,png:'3.5–14" WC',plp:'7–14" WC',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid Group 27 600 CCA min',eng:'4.5L Inline 4-Cyl, Turbocharged & Aftercooled',cyl:4,disp:'4.5L',comp:'9.1:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'1,800 op / 1,200 exercise',oil:'11.6 qt (11.0 L)',strt:'12 VDC (145A charge alt)',ctrl:'Power Zone® 410',conn:'Cellular + Wi-Fi backup',color:'Metro Gray (Aluminum)',cert:'EPA · ETL · UL 2200 · NFPA 110',inst:'See installation drawing',fc:'1-1/4" NPT female tee through baseframe',exer:'Selectable low-speed',der:'3% / 1,000 ft above 3,000 ft',po:[{v:'120/240V 1-Phase',nk:80,na:333,lk:75,la:312},{v:'208/120V 3-Phase',nk:80,na:278,lk:75,la:260},{v:'240/120V 3-Phase',nk:80,na:241,lk:75,la:226},{v:'480/277V 3-Phase',nk:80,na:120,lk:75,la:113}],ft:['⚠ NG = 80kW · LP = 75kW (output differs by fuel)','4.5L I-4 Turbocharged & Aftercooled — 1,800 RPM','Power Zone® 410 controller','EPA · ETL · UL 2200 · NFPA 110','4 electric fans','5 Year / 2,000 Hour warranty'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'Low Coolant Level',v:'Shutdown'},{n:'Altitude Derate',v:'3% / 1,000 ft above 3,000 ft'}],ac:[{p:'G0099740/750/760',n:'VCC 208/240/480V (XG060/80)',d:'VCC cartridges.'},{p:'G0099710',n:'Exhaust Diverter Kit',d:'Redirects exhaust.'}]},
 {id:'r48',c:'liq',lbl:'48kW Protector RG · RG04845',mdl:'48kW Protector RG',num:'RG04845',grp:'Protector RG — 48–80kW  [A0000373704]',src:'A0000373704 Rev. G',klp:48,kng:48,ilp:'200 (1-Ph)',ing:'200 (1-Ph)',cb:'200A (1-Ph)',wlb:1781,wkg:808,dims:'83.4×35.0×46.1 in / 2,119×888×1,170 mm',sn:'68 dB(A) exercise @ 23 ft',sq:'68 dB(A) exercise',ng25:201,ngh:336,ng75:447,ngf:607,ngex:101,lp25:2.9,lph:4.2,lp75:5.3,lpf:6.6,lpex:0.7,png:'3.5–14" WC',plp:'7–14" WC',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid Group 27 600 CCA min',eng:'4.5L Inline 4-Cyl, Naturally Aspirated',cyl:4,disp:'4.5L',comp:'9.9:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'1,800 op / 1,500 exercise',oil:'12 qt (11 L)',strt:'12 VDC',ctrl:'Evolution™ two-line multilingual LCD',conn:'Cellular (GGCAC standard) — Mobile Link & Fleet',color:'Bisque (Aluminum)',cert:'EPA · ETL · UL 2200',inst:'18 in — SwRI Listed',fc:'1-1/4" NPT female tee through baseframe',exer:'7-day programmable',der:'3% / 1,000 ft above 600 ft',po:[{v:'120/240V 1-Phase',nk:48,na:200,lk:48,la:200},{v:'208/120V 3-Phase',nk:48,na:167,lk:48,la:167},{v:'240/120V 3-Phase',nk:48,na:144,lk:48,la:144},{v:'480/277V 3-Phase',nk:48,na:72,lk:48,la:72}],ft:['4.5L I-4 Naturally Aspirated — 1,800 RPM','Evolution™ LCD controller','Cellular (GGCAC) standard — Mobile Link & Fleet','EPA · ETL · UL 2200 · 115 mph wind','5 Year / 2,000 Hour warranty · Bisque aluminum enclosure'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'High Temperature',v:'Shutdown'},{n:'Overspeed (72 Hz)',v:'Shutdown'}],ac:[{p:'G0072150',n:'GGCAC Cellular Accessory',d:'Included standard on new RG04845.'},{p:'G0079910',n:'4.5L Maintenance Kit',d:'Oil filter, air filter, spark plugs.'}]},
 {id:'r60',c:'liq',lbl:'60kW Protector RG · RG06045',mdl:'60kW Protector RG',num:'RG06045',grp:'Protector RG — 48–80kW  [A0000373704]',src:'A0000373704 Rev. G',klp:60,kng:60,ilp:'250 (1-Ph)',ing:'250 (1-Ph)',cb:'300A (1-Ph)',wlb:1890,wkg:857,dims:'97.7×38×48.9 in',sn:'68 dB(A) exercise @ 23 ft',sq:'68 dB(A) exercise',ng25:257,ngh:432,ng75:618,ngf:808,ngex:103,lp25:2.1,lph:4.4,lp75:6.8,lpf:8.4,lpex:0.9,png:'3.5–14" WC',plp:'7–14" WC',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid Group 27 600 CCA min',eng:'4.5L Inline 4-Cyl, Turbocharged & Aftercooled',cyl:4,disp:'4.5L',comp:'8.9:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'1,800 op / 1,500 exercise',oil:'12 qt (11 L)',strt:'12 VDC',ctrl:'Evolution™ two-line multilingual LCD',conn:'Cellular (GGCAC standard) — Mobile Link & Fleet',color:'Bisque (Aluminum)',cert:'EPA · ETL · UL 2200',inst:'18 in — SwRI Listed',fc:'1-1/4" NPT through baseframe',exer:'7-day programmable',der:'3% / 1,000 ft above 3,000 ft',po:[{v:'120/240V 1-Phase',nk:60,na:250,lk:60,la:250},{v:'208/120V 3-Phase',nk:60,na:208,lk:60,la:208},{v:'240/120V 3-Phase',nk:60,na:180,lk:60,la:180},{v:'480/277V 3-Phase',nk:60,na:90,lk:60,la:90}],ft:['4.5L I-4 Turbocharged & Aftercooled — 1,800 RPM','Evolution™ LCD — Mobile Link & Fleet','EPA · ETL · UL 2200 · 115 mph wind','5 Year / 2,000 Hour warranty'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'High Temperature',v:'Shutdown'},{n:'Altitude Derate',v:'3% / 1,000 ft above 3,000 ft'}],ac:[{p:'G0072150',n:'GGCAC Cellular Accessory',d:'Included standard.'},{p:'G0079910',n:'4.5L Maintenance Kit',d:'Oil filter, air filter, spark plugs.'}]},
 {id:'r80',c:'liq',lbl:'80kW Protector RG · RG08045',mdl:'80kW Protector RG',num:'RG08045',grp:'Protector RG — 48–80kW  [A0000373704]',src:'A0000373704 Rev. G',klp:75,kng:80,ilp:'312 (1-Ph)',ing:'333 (1-Ph)',cb:'400A (1-Ph)',wlb:1990,wkg:903,dims:'97.7×38×48.9 in',sn:'68 dB(A) exercise @ 23 ft',sq:'68 dB(A) exercise',ng25:292,ngh:534,ng75:799,ngf:1063,ngex:103,lp25:2.6,lph:5.7,lp75:8.3,lpf:10.8,lpex:0.9,png:'3.5–14" WC',plp:'7–14" WC',bng:'1,036 BTU/ft³',blp:'91,452 BTU/gal',warr:'5 Year / 2,000 Hour Limited',bat:'Flooded Lead Acid Group 27 600 CCA min',eng:'4.5L Inline 4-Cyl, Turbocharged & Aftercooled',cyl:4,disp:'4.5L',comp:'8.9:1',blk:'—',vlv:'—',lft:'Hydraulic',ign:'—',gov:'Electronic (Isochronous)',rpm:'1,800 op / 1,500 exercise',oil:'12 qt (11 L)',strt:'12 VDC',ctrl:'Evolution™ two-line multilingual LCD',conn:'Cellular (GGCAC standard)',color:'Bisque (Aluminum)',cert:'EPA · ETL · UL 2200',inst:'18 in — SwRI Listed',fc:'1-1/4" NPT through baseframe',exer:'7-day programmable',der:'3% / 1,000 ft above 3,000 ft',po:[{v:'120/240V 1-Phase',nk:80,na:333,lk:75,la:312},{v:'208/120V 3-Phase',nk:80,na:278,lk:75,la:260},{v:'240/120V 3-Phase',nk:80,na:241,lk:75,la:226},{v:'480/277V 3-Phase',nk:80,na:120,lk:75,la:113}],ft:['⚠ NG = 80kW · LP = 75kW','4.5L I-4 Turbocharged & Aftercooled — 1,800 RPM','Evolution™ LCD — Mobile Link & Fleet','EPA · ETL · UL 2200 · 115 mph wind','5 Year / 2,000 Hour warranty'],pr:[{n:'Low Oil Pressure',v:'Auto Shutdown'},{n:'High Temperature',v:'Shutdown'}],ac:[{p:'G0072150',n:'GGCAC Cellular Accessory',d:'Included standard.'},{p:'G0079910',n:'4.5L Maintenance Kit',d:'Oil filter, air filter, spark plugs.'}]},
@@ -5281,6 +5276,201 @@ function buildRG9_Accessories(){
   h+='</div>';return h;
 }
 
+</script>
+
+<script>
+/* ════════ SPEC VIEWER v2 navigation ════════ */
+(function(){
+const $=id=>document.getElementById(id);
+const ST={tab:'gen',cool:'air',cat:'sr',cur:null};
+const nameplate=g=>{const m=(g.mdl||'').match(/(\d+(?:\.\d+)?)\s*kW/);return m?m[1]:g.klp;};
+const grpLabel=grp=>grp.replace(/\s*\[.*?\]/,'').trim();
+
+/* generator → manual */
+function genManual(g){
+  if(g.id.startsWith('n')) return 'man-install-10-28kw';
+  if(g.id.startsWith('l')) return 'man-legacy-owners';
+  if(g.id.startsWith('x')) return 'man-xg-owners';
+  if(['rg22','rg27','rg32','rg38','rg45','rg60','r48','r60'].includes(g.id)) return 'man-rg-22-60kw';
+  if(['r130','r150'].includes(g.id)) return 'man-rg-100-150kw';
+  return null;
+}
+const ATS_MAN={'sr-100-200':'man-owner-100-200','sr-100-200-spd':'man-owner-100-200','ns-100-200':'man-owner-100-200','sr-300-400':'man-rtsw300-400','sr-600-800-1ph':'man-rtsc600-800','sr-rbu':'man-rxuw-rbu','sr-rxgw':'man-rxgw20sha3','sr-rxg16':'man-rxg16','ns-3ph-600-800':'man-rtsn600-800'};
+const ALL_MAN=[...GEN_MANUALS.map(m=>({...m,kind:'gen',head:m.kw})),...ATS_MANUALS.map(m=>({...m,kind:'ats',head:m.amps}))];
+const atsItems=()=>Object.entries(ATS_CATS).flatMap(([cat,arr])=>arr.map(x=>({...x,cat})));
+
+/* ── tabs ── */
+function setTab(t){
+  ST.tab=t;
+  document.querySelectorAll('#svTabs .sv-tab').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tab===t));
+  $('pickGen').classList.toggle('hidden',t!=='gen');
+  $('pickAts').classList.toggle('hidden',t!=='ats');
+  $('pickMan').classList.toggle('hidden',t!=='man');
+}
+$('svTabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){setTab(b.dataset.tab);}});
+
+/* ── generators ── */
+function renderGen(){
+  const list=GENS.filter(g=>g.c===ST.cool);
+  let grps=[...new Set(list.map(g=>g.grp))];
+  grps.sort((a,b)=>(/XG/.test(b)?1:0)-(/XG/.test(a)?1:0));     // XG first
+  $('genChips').innerHTML=grps.map(grp=>{
+    const gs=list.filter(g=>g.grp===grp).sort((a,b)=>a.klp-b.klp);
+    const meta=(typeof GEN_SERIES!=='undefined'&&GEN_SERIES[grp])||{};
+    return `<div class="sv-grp">${grpLabel(grp)}<span>${meta.eng||''}</span></div>
+      <div class="sv-chips">${gs.map(g=>`<button class="sv-chip" data-gen="${g.id}" aria-pressed="${ST.cur==='g:'+g.id}"><b>${nameplate(g)}kW</b><small>${g.num.split(' ')[0]}</small></button>`).join('')}</div>`;
+  }).join('');
+}
+$('coolSeg').addEventListener('click',e=>{const b=e.target.closest('[data-cool]');if(!b)return;ST.cool=b.dataset.cool;$('coolSeg').querySelectorAll('.sv-chip').forEach(c=>c.setAttribute('aria-pressed',c===b));renderGen();});
+$('genChips').addEventListener('click',e=>{const b=e.target.closest('[data-gen]');if(b)openGen(b.dataset.gen);});
+
+/* ── ATS ── */
+function renderAts(){
+  $('atsChips').innerHTML=`<div class="sv-grp">Pick a series</div><div class="sv-wide">${ATS_CATS[ST.cat].map(x=>`
+    <button class="sv-chip" data-ats="${x.key}" aria-pressed="${ST.cur==='a:'+x.key}">
+      ${x.tag?`<span class="tg">${x.tagLabel}</span>`:''}<b>${x.amps}</b><span class="nm">${x.name}</span><span class="pn">${x.pn}</span>
+    </button>`).join('')}</div>`;
+}
+$('atsSeg').addEventListener('click',e=>{const b=e.target.closest('[data-cat]');if(!b)return;ST.cat=b.dataset.cat;$('atsSeg').querySelectorAll('.sv-chip').forEach(c=>c.setAttribute('aria-pressed',c===b));renderAts();});
+$('atsChips').addEventListener('click',e=>{const b=e.target.closest('[data-ats]');if(b)openAts(b.dataset.ats);});
+
+/* ── manuals ── */
+function renderMan(){
+  const sec=(title,arr)=>`<div class="sv-grp">${title}</div><div class="sv-wide">${arr.map(m=>`
+    <button class="sv-chip" data-man="${m.key}" aria-pressed="${ST.cur==='m:'+m.key}"><b>${m.head}</b><span class="nm">${m.name}</span><span class="pn">${m.sub} · ${m.pn}</span></button>`).join('')}</div>`;
+  $('manChips').innerHTML=sec('Air-cooled generators',ALL_MAN.filter(m=>m.kind==='gen'&&m.cooling==='air'))
+    +sec('Liquid-cooled generators',ALL_MAN.filter(m=>m.kind==='gen'&&m.cooling==='liq'))
+    +sec('Transfer switches',ALL_MAN.filter(m=>m.kind==='ats'));
+}
+$('manChips').addEventListener('click',e=>{const b=e.target.closest('[data-man]');if(b)openMan(b.dataset.man);});
+
+/* ── detail views ── */
+function markSel(){document.querySelectorAll('[data-gen],[data-ats],[data-man]').forEach(b=>{
+  const k=b.dataset.gen?'g:'+b.dataset.gen:b.dataset.ats?'a:'+b.dataset.ats:'m:'+b.dataset.man;b.setAttribute('aria-pressed',k===ST.cur);});}
+function hideMan(){$('panel-man').classList.add('hidden');['gen-manual-content','manual-content'].forEach(id=>{const el=$(id);el.classList.add('hidden');el.innerHTML='';});}
+function buildJump(manKey){
+  const out=document.querySelector('#panel-specs:not(.hidden) #out-gen:not(.hidden), #panel-specs:not(.hidden) #out-ats:not(.hidden)');
+  let html='';
+  if(out){
+    out.querySelectorAll('.ss').forEach((ss,i)=>{
+      if(ss.style.display==='none')return;
+      const st=ss.querySelector('.st'); if(!st)return;
+      if(!ss.id) ss.id='sec-'+Math.random().toString(36).slice(2,8);
+      const raw=st.textContent.replace(/^▸\s*/,'').trim();
+      const SHORT=[[/^Fuel/,'⛽ Fuel'],[/^Rated Power/,'⚡ Power'],[/^Key Spec/,'📋 Specs'],[/^Engine/,'⚙️ Engine'],[/^Dimensions/,'📐 Size'],[/^Standard Features/,'✅ Features'],[/^Controller Prot/,'🛡️ Protections'],[/Accessories/,'🧩 Accessories'],[/^Models in/,'📦 Models'],[/^Electrical/,'⚡ Electrical'],[/^Timing/,'⏱️ Timing'],[/Surge Protection/,'🌩️ Surge']];
+      let t=raw; for(const [re,lab] of SHORT){ if(re.test(raw)){t=lab;break;} }
+      html+=`<button data-to="${ss.id}" title="${raw}">${t}</button>`;
+    });
+  }
+  if(manKey) html+=`<button class="man" data-manopen="${manKey}">📖 Manual</button>`;
+  $('jump').innerHTML=html; $('jump').style.display=html?'':'none';
+  $('jump').scrollLeft=0; spy();
+}
+/* highlight the section you're looking at */
+let holdUntil=0;
+function hold(b){holdUntil=Date.now()+900;document.querySelectorAll('#jump button').forEach(x=>x.classList.toggle('on',x===b));}
+function spy(){
+  if(Date.now()<holdUntil){clearTimeout(spyT);spyT=setTimeout(spy,950-0);return;}
+  const btns=[...document.querySelectorAll('#jump [data-to]')]; if(!btns.length) return;
+  const off=140; // matches scroll-margin-top (130px) + a little slack
+  let cur=btns[0];
+  btns.forEach(b=>{const el=$(b.dataset.to); if(el && el.getBoundingClientRect().top-off<=0) cur=b;});
+  const pm=$('panel-man'); const mb=document.querySelector('#jump .man');
+  let act=cur; if(mb && !pm.classList.contains('hidden') && pm.getBoundingClientRect().top-off<=0) act=mb;
+  document.querySelectorAll('#jump button').forEach(b=>b.classList.toggle('on',b===act));
+  const j=$('jump'); if(j.scrollWidth>j.clientWidth){const l=act.offsetLeft-j.offsetLeft, r=l+act.offsetWidth; if(l<j.scrollLeft+8||r>j.scrollLeft+j.clientWidth-8) j.scrollTo({left:Math.max(0,l-40),behavior:'smooth'});}
+}
+let spyT; window.addEventListener('scroll',()=>{clearTimeout(spyT);spyT=setTimeout(spy,60);},{passive:true});
+$('jump').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.manopen){showMan(b.dataset.manopen,true);hold(b);return;}
+  const el=$(b.dataset.to); if(el){el.scrollIntoView({behavior:'smooth',block:'start'});hold(b);}
+});
+function showMan(key,scroll){
+  $('panel-man').classList.remove('hidden');
+  ['gen-manual-content','manual-content'].forEach(id=>{$(id).classList.add('hidden');$(id).innerHTML='';});
+  showManual(key);
+  if(scroll) $('panel-man').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function reveal(){ $('detail').classList.remove('hidden'); setTimeout(()=>$('detail').scrollIntoView({behavior:'smooth',block:'start'}),30); }
+function setHash(h){try{history.replaceState(null,'','#'+h);}catch(e){}}
+
+function openGen(id){
+  const g=GENS.find(x=>x.id===id); if(!g) return;
+  ST.cur='g:'+id; ST.cool=g.c;
+  hideMan(); showGen(id);
+  $('crumbT').innerHTML=`${g.mdl}<small>${g.num} · ${grpLabel(g.grp)}</small>`;
+  buildJump(genManual(g)); markSel(); setHash('gen='+id); reveal();
+}
+function openAts(key){
+  const a=ATS_DATA[key]; if(!a) return;
+  ST.cur='a:'+key;
+  hideMan(); showAts(key);
+  $('crumbT').innerHTML=`${a.title}<small>${a.subtitle}</small>`;
+  buildJump(ATS_MAN[key]); markSel(); setHash('ats='+key); reveal();
+}
+function openMan(key){
+  const m=ALL_MAN.find(x=>x.key===key); if(!m) return;
+  ST.cur='m:'+key;
+  clearSpecs(); $('crumbT').innerHTML=`${m.name}<small>${m.sub} · Part No. ${m.pn}</small>`;
+  $('jump').innerHTML=''; $('jump').style.display='none';
+  showMan(key,false); markSel(); setHash('man='+key); reveal();
+}
+
+$('changeBtn').addEventListener('click',()=>{
+  const tgt=ST.cur&&ST.cur[0]==='a'?'ats':ST.cur&&ST.cur[0]==='m'?'man':'gen';
+  setTab(tgt); $(tgt==='gen'?'pickGen':tgt==='ats'?'pickAts':'pickMan').scrollIntoView({behavior:'smooth',block:'center'});
+});
+const toast=t=>{let el=document.querySelector('.sv-toast');if(!el){el=document.createElement('div');el.className='sv-toast';document.body.appendChild(el);}el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1500);};
+$('shareBtn').addEventListener('click',()=>{
+  const url=location.href;
+  const done=()=>toast('Link copied');
+  if(navigator.clipboard&&window.isSecureContext) navigator.clipboard.writeText(url).then(done,fb); else fb();
+  function fb(){const ta=document.createElement('textarea');ta.value=url;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done();}catch(e){}ta.remove();}
+});
+
+/* ── search ── */
+const norm=s=>String(s||'').toLowerCase().replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/[^a-z0-9.]/g,'');
+const words=s=>String(s||'').toLowerCase().replace(/<[^>]+>/g,' ').replace(/&amp;/g,' ').replace(/(\d)\s+kw\b/g,'$1kw').split(/[\s\/·,–—\-()\[\]+|]+/).map(norm).filter(Boolean);
+const seriesName=grp=>grpLabel(grp).replace(/[\d.]+\s*[–-]\s*[\d.]+\s*kW/gi,'').replace(/\b[\d/]+\s*kW\b/gi,'').replace(/\d+(\.\d+)?L\b/g,'');
+const IDX=[
+  ...GENS.map(g=>({kw:norm(nameplate(g)+'kw'),type:'Generator',title:g.mdl,sub:`${g.num.split(' ')[0]} · ${grpLabel(g.grp)}`,hay:words([g.num,seriesName(g.grp),g.mdl.replace(/^[\d.]+\s*kW\s*/i,''),nameplate(g)+'kw',g.c==='air'?'air cooled guardian':'liquid cooled protector'].join(' ')),go:()=>{setTab('gen');ST.cool=g.c;$('coolSeg').querySelectorAll('.sv-chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.cool===g.c));renderGen();openGen(g.id);}})),
+  ...atsItems().map(x=>{const d=ATS_DATA[x.key]||{};return {type:'Switch',title:`${x.amps} · ${x.name}`,sub:x.pn,hay:words([x.amps,x.name,x.pn,(d.models||[]).map(m=>m.m).join(' '),x.cat==='3ph'?'3 phase three':'single 1 phase'].join(' ')),go:()=>{setTab('ats');ST.cat=x.cat;$('atsSeg').querySelectorAll('.sv-chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.cat===x.cat));renderAts();openAts(x.key);}};}),
+  ...ALL_MAN.map(m=>({type:'Manual',title:m.name.replace(/&amp;/g,'&'),sub:`${m.sub.replace(/&amp;/g,'&')} · ${m.pn}`,hay:words([m.name,m.sub,m.pn,m.head,'manual install'].join(' ')),go:()=>{setTab('man');openMan(m.key);}})),
+];
+let hits=[],hi=-1;
+function search(q){
+  const toks=q.toLowerCase().replace(/(\d)\s+kw\b/g,'$1kw').split(/\s+/).map(norm).filter(Boolean);
+  if(!toks.length){$('qres').classList.add('hidden');return;}
+  hits=IDX.filter(it=>toks.every(t=>/^\d+(\.\d+)?kw$/.test(t)&&it.kw?it.kw===t:it.hay.some(w=>w.startsWith(t)&&(!/^\d+$/.test(t)||!/\d/.test(w.charAt(t.length)||''))))).slice(0,10); hi=hits.length?0:-1;
+  $('qres').innerHTML=hits.length?hits.map((h,i)=>`<button class="sv-qr${i===hi?' on':''}" data-i="${i}"><span class="tag">${h.type}</span><span><b>${h.title}</b><small>${h.sub}</small></span></button>`).join('')
+    :`<div class="sv-qr-empty">No match. Try a kW (22kW), model # (G007260) or amps (200A).</div>`;
+  $('qres').classList.remove('hidden');
+}
+function pick(i){const h=hits[i];if(!h)return;$('qres').classList.add('hidden');$('q').value='';$('q').blur();h.go();}
+$('q').addEventListener('input',e=>search(e.target.value));
+$('q').addEventListener('focus',e=>{if(e.target.value)search(e.target.value);});
+$('q').addEventListener('keydown',e=>{
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(!hits.length)return;hi=(hi+(e.key==='ArrowDown'?1:-1)+hits.length)%hits.length;$('qres').querySelectorAll('.sv-qr').forEach((b,i)=>b.classList.toggle('on',i===hi));}
+  else if(e.key==='Enter'){e.preventDefault();pick(hi<0?0:hi);}
+  else if(e.key==='Escape'){$('qres').classList.add('hidden');}
+});
+$('qres').addEventListener('mousedown',e=>{const b=e.target.closest('[data-i]');if(b){e.preventDefault();pick(+b.dataset.i);}});
+document.addEventListener('click',e=>{if(!e.target.closest('.sv-search'))$('qres').classList.add('hidden');});
+
+/* sticky jump-bar offset under fixed top bar */
+function barH(){const b=$('action-bar');if(b)document.documentElement.style.setProperty('--barH',(b.offsetHeight)+'px');}
+window.addEventListener('resize',barH);setTimeout(barH,120);
+
+/* ── init (supports links like #gen=n22, #ats=sr-300-400, #man=man-xg-owners) ── */
+renderGen();renderAts();renderMan();
+function route(){const h=decodeURIComponent(location.hash.slice(1)); const [k,v]=h.split('=');
+if(k==='gen'&&GENS.find(g=>g.id===v)){const g=GENS.find(x=>x.id===v);ST.cool=g.c;$('coolSeg').querySelectorAll('.sv-chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.cool===g.c));renderGen();openGen(v);}
+else if(k==='ats'&&ATS_DATA[v]){const it=atsItems().find(x=>x.key===v);if(it){ST.cat=it.cat;$('atsSeg').querySelectorAll('.sv-chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.cat===it.cat));}setTab('ats');renderAts();openAts(v);}
+else if(k==='man'&&MANUALS[v]){setTab('man');openMan(v);}
+}
+route(); window.addEventListener('hashchange',route);
+})();
 </script>
 </body>
 </html>
