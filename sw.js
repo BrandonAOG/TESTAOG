@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v2.6.1';
+var CACHE_VERSION = 'v2.6.0';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -78,6 +78,10 @@ var cacheProgress = { percent: 0, label: '', done: false };
 var CHANGELOG = [
 '📖 PROPERTY LOOKUP — live municipal code lookups, pulled from each city or county’s own code',
 '🗺️ PROPERTY LOOKUP — now live in 60 Florida counties',
+'⛽ GAS CALC — easier steps, propane added, code-accurate pipe sizing',
+'⛽ GAS CALC — house appliances, safety warnings, Copy for Job Notes',
+'📋 SPEC VIEWER — search by model or kW, specs + manual in one place',
+'📋 SPEC VIEWER — fixed XG 25/30kW and NextGen spec data',
 ];
 //
 // ============================================================
