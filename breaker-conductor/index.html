@@ -195,6 +195,116 @@ select:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 2px rgba(2
 @media (max-width: 480px) {
   .action-bar { padding: 4px 4px; padding-top: max(4px, env(safe-area-inset-top, 4px)); gap: 3px; }
 }
+
+/* ════════ BREAKER TOOL v2 — simpler layout ════════ */
+html,body{overflow-x:clip!important}
+.bk{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;position:relative}
+.card h2{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-size:.88rem;letter-spacing:2px;text-transform:uppercase;color:var(--label-color);margin-bottom:12px}
+.card h2 .n{font-weight:900;font-size:1.1rem;color:var(--yellow-bright)}
+.card h2 .v{margin-left:auto;font-family:var(--font-mono);font-size:.8rem;letter-spacing:.5px;text-transform:none;color:var(--blue-electric);text-align:right}
+.hint{font-size:.86rem;color:var(--text-dim);margin-top:8px;line-height:1.45}
+.grp{font-family:var(--font-mono);font-size:.76rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--blue-electric);margin:14px 0 8px}
+.grp:first-of-type{margin-top:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:46px;min-width:64px;padding:8px 12px;border:1.5px solid var(--border);border-radius:9px;background:var(--bg-input);color:var(--text);font-family:var(--font-body);font-size:.98rem;font-weight:700;cursor:pointer;text-align:left;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:border-color .15s,background .15s,box-shadow .15s}
+.chip small{display:block;font-size:.72rem;font-weight:500;color:var(--text-dim);margin-top:1px}
+.chip[aria-pressed="true"]{border-color:var(--yellow-bright);background:linear-gradient(135deg,rgba(251,191,36,.16),rgba(249,115,22,.08));box-shadow:0 0 16px rgba(251,191,36,.2);color:var(--yellow-bright)}
+.chip[aria-pressed="true"] small{color:var(--text)}
+.chip:hover{border-color:var(--orange)}
+.chip:disabled{opacity:.4;cursor:not-allowed;filter:grayscale(1);border-color:var(--border)!important;box-shadow:none!important}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg .chip b{display:block;font-size:1rem}
+.amps .chip{font-family:var(--font-display);font-size:.95rem;text-align:center;min-width:70px}
+.gens .chip{min-width:92px}
+.gens .chip b{font-family:var(--font-display);font-size:.95rem}
+select.other{min-height:46px;font-size:.95rem;width:auto;min-width:150px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.row label{font-size:.85rem;color:var(--text-dim);font-weight:600}
+
+/* answer */
+.ans{border:2px solid var(--yellow-bright);border-radius:14px;background:var(--result-bg);overflow:hidden}
+.ans-h{padding:10px 16px;font-family:var(--font-display);font-size:.78rem;letter-spacing:3px;text-transform:uppercase;color:var(--yellow-bright);background:rgba(251,191,36,.08);border-bottom:1px solid var(--divider);display:flex;justify-content:space-between;gap:8px}
+.ans-h span{font-family:var(--font-mono);letter-spacing:1px;color:var(--blue-electric);text-transform:none}
+.big{padding:16px}
+.big .lbl{font-family:var(--font-mono);font-size:.78rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim)}
+.big .wire{font-family:var(--font-display);font-weight:900;font-size:clamp(1.9rem,8vw,2.6rem);color:var(--yellow-bright);line-height:1.1;margin:4px 0 2px;text-shadow:0 0 18px rgba(251,191,36,.35)}
+.big .wire small{font-family:var(--font-body);font-size:1rem;font-weight:600;color:var(--text-dim);text-shadow:none}
+.big .wire.bad{color:var(--tag-err-text);text-shadow:none;font-size:clamp(1.4rem,6vw,1.9rem)}
+.meter{height:10px;border-radius:6px;background:var(--bg-input);border:1px solid var(--divider);overflow:hidden;margin:10px 0 6px}
+.meter i{display:block;height:100%;background:linear-gradient(90deg,#10B981,#FBBF24)}
+.cap{font-size:.92rem;color:var(--text-dim);line-height:1.45}
+.cap b{color:var(--text)}
+.pill{display:inline-block;margin-top:8px;padding:4px 10px;border-radius:6px;font-family:var(--font-mono);font-size:.74rem;letter-spacing:1px;background:var(--tag-ok-bg);color:var(--tag-ok-text)}
+.pill.info{background:var(--tag-info-bg);color:var(--tag-info-text)}
+.pill.warn{background:var(--tag-warn-bg);color:var(--tag-warn-text)}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--divider);border-top:1px solid var(--divider)}
+.facts div{background:var(--result-bg);padding:12px}
+.facts span{display:block;font-family:var(--font-mono);font-size:.7rem;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim)}
+.facts b{display:block;font-family:var(--font-mono);font-size:1.05rem;color:var(--orange-bright);margin-top:3px}
+@media(max-width:460px){.facts{grid-template-columns:1fr 1fr}}
+.notes{padding:12px 16px 4px}
+.note{padding:10px 12px;border-radius:10px;border:1px solid var(--note-border);background:var(--note-bg);font-size:.88rem;line-height:1.5;color:var(--text-dim);margin-bottom:10px}
+.note strong{display:block;color:var(--text);font-size:.8rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;font-family:var(--font-mono)}
+.note.warn{border-color:rgba(249,115,22,.45);background:var(--tag-warn-bg)}
+.note.warn strong{color:var(--tag-warn-text)}
+.note.err{border-color:rgba(239,68,68,.5);background:var(--tag-err-bg)}
+.note.err strong{color:var(--tag-err-text)}
+.acts{display:flex;gap:8px;padding:4px 16px 16px}
+.acts button{flex:1;min-height:48px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg-input);color:var(--text);font-family:var(--font-display);font-size:.72rem;letter-spacing:2px;text-transform:uppercase;font-weight:700;cursor:pointer}
+.acts .primary{background:linear-gradient(135deg,#FBBF24,#F97316);border:none;color:#0A0E27}
+details.more{background:var(--bg-card);border:1px solid var(--border);border-radius:10px}
+details.more summary{list-style:none;cursor:pointer;padding:15px 16px;font-family:var(--font-display);font-size:.82rem;letter-spacing:2px;text-transform:uppercase;color:var(--label-color);display:flex;justify-content:space-between;align-items:center;gap:8px}
+details.more summary::-webkit-details-marker{display:none}
+details.more summary::after{content:'+';font-size:1.3rem;color:var(--yellow-bright)}
+details.more[open] summary::after{content:'−'}
+details.more summary small{font-family:var(--font-mono);font-size:.74rem;letter-spacing:.5px;text-transform:none;color:var(--blue-electric);margin-left:auto;margin-right:10px;text-align:right}
+details.more .in{padding:0 16px 16px}
+.stepper{display:flex;gap:8px;align-items:stretch;max-width:240px}
+.stepper button{width:48px;min-height:46px;border:1.5px solid var(--border);border-radius:9px;background:var(--bg-input);color:var(--yellow-bright);font-size:1.3rem;font-weight:700;cursor:pointer}
+.stepper output{flex:1;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border);border-radius:9px;background:var(--bg-input);font-family:var(--font-display);font-size:1.1rem;font-weight:700}
+details.more select{min-height:46px;font-size:.92rem}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#10B981;color:#fff;padding:10px 16px;border-radius:10px;font-weight:700;opacity:0;transition:opacity .2s;pointer-events:none;z-index:100000}
+.toast.show{opacity:1}
+.fine{font-family:var(--font-mono);font-size:.74rem;color:var(--text-muted);line-height:1.6;margin-top:4px}
+@media(max-width:420px){.tagline{letter-spacing:2px;white-space:nowrap}}
+
+/* light mode polish */
+[data-theme="light"] .card,[data-theme="light"] details.more,[data-theme="light"] .ans{border-radius:16px;background:#fff;border:1px solid #ECE6DA;box-shadow:0 1px 2px rgba(31,41,51,.04),0 10px 28px -12px rgba(31,41,51,.14)}
+[data-theme="light"] .ans{border:1px solid #F3D9A4}
+[data-theme="light"] .ans-h{background:linear-gradient(90deg,#FFF4D6,#FFFBF0);color:#92400E}
+[data-theme="light"] .ans-h span,[data-theme="light"] .card h2 .v,[data-theme="light"] details.more summary small,[data-theme="light"] .grp{color:#1D5F99}
+[data-theme="light"] .big .wire{color:#1F2933;text-shadow:none}
+[data-theme="light"] .card h2 .n{color:#F59E0B}
+[data-theme="light"] .chip,[data-theme="light"] .stepper button,[data-theme="light"] .stepper output,[data-theme="light"] .acts button{background:#fff;border:1px solid #E4DED1;box-shadow:0 1px 2px rgba(31,41,51,.05)}
+[data-theme="light"] .chip[aria-pressed="true"]{background:linear-gradient(180deg,#FFF8E6,#FFEFC7);border:1px solid #F59E0B;color:#92400E;box-shadow:0 0 0 3px rgba(245,158,11,.15)}
+[data-theme="light"] .acts .primary{background:linear-gradient(135deg,#FBBF24,#F97316);border:none;color:#1F1300}
+[data-theme="light"] .facts div{background:#FCFBF8}
+[data-theme="light"] .facts b{color:#C2410C}
+[data-theme="light"] .stepper button{color:#B45309}
+
+/* ── answer always in view ── */
+@media(min-width:960px){
+  .page{max-width:1240px}
+  .bk{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,440px);gap:14px 20px;align-items:start}
+  .bk>*{grid-column:1}
+  .bk>.ans{grid-column:2;grid-row:1 / span 20;position:sticky;top:calc(var(--barH,48px) + 14px);max-height:calc(100vh - var(--barH,48px) - 28px);overflow:auto}
+  .bk>.ans .big .wire{font-size:2.3rem}
+  .mini{display:none!important}
+}
+.mini{position:fixed;left:0;right:0;bottom:0;z-index:9000;display:flex;align-items:center;gap:12px;padding:10px 14px;padding-bottom:max(10px,env(safe-area-inset-bottom));background:var(--bg);border-top:2px solid var(--yellow-bright);box-shadow:0 -8px 24px -10px rgba(0,0,0,.55);transform:translateY(110%);transition:transform .2s}
+.mini.show{transform:none}
+.mini .t{flex:1;min-width:0}
+.mini .w{font-family:var(--font-display);font-weight:900;font-size:1.15rem;color:var(--yellow-bright);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini .w.bad{color:var(--tag-err-text);font-size:1rem}
+.mini .s{font-family:var(--font-mono);font-size:.76rem;color:var(--blue-electric);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini button{min-height:44px;padding:0 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#FBBF24,#F97316);color:#0A0E27;font-family:var(--font-display);font-size:.7rem;letter-spacing:1.5px;font-weight:700;cursor:pointer}
+.mini.pulse .w{animation:mp .5s ease}
+@keyframes mp{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}
+.page{padding-bottom:90px}
+[data-theme="light"] .mini{background:rgba(255,255,255,.96);border-top:1px solid #F3D9A4;box-shadow:0 -8px 24px -12px rgba(31,41,51,.2)}
+[data-theme="light"] .mini .w{color:#92400E}
+[data-theme="light"] .mini .s{color:#1D5F99}
 </style>
 <script src="../update-banner.js"></script>
 </head>
@@ -217,627 +327,353 @@ select:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 2px rgba(2
     <div class="tool-title">Breaker &amp; Conductor <span>Sizing Tool</span></div>
   </div>
 
-  <!-- INPUTS -->
-  <div class="panel">
-    <div class="panel-label">Circuit Parameters</div>
-    <div class="selects-grid">
+  <div class="bk">
 
-      <div class="field">
-        <label>Breaker Size (240.6)</label>
-        <select id="breaker">
-          <option value="15">15 A</option><option value="20">20 A</option>
-          <option value="25">25 A</option><option value="30">30 A</option>
-          <option value="35">35 A</option><option value="40">40 A</option>
-          <option value="45">45 A</option><option value="50">50 A</option>
-          <option value="60">60 A</option><option value="70">70 A</option>
-          <option value="80">80 A</option><option value="90">90 A</option>
-          <option value="100">100 A</option><option value="110">110 A</option>
-          <option value="125">125 A</option><option value="150">150 A</option>
-          <option value="175">175 A</option><option value="200">200 A</option>
-          <option value="225">225 A</option><option value="250">250 A</option>
-          <option value="300">300 A</option><option value="350">350 A</option>
-          <option value="400">400 A</option><option value="450">450 A</option>
-          <option value="500">500 A</option><option value="600">600 A</option>
-          <option value="700">700 A</option><option value="800">800 A</option>
-          <option value="1000">1000 A</option><option value="1200">1200 A</option>
-          <option value="1600">1600 A</option><option value="2000">2000 A</option>
-          <option value="2500">2500 A</option><option value="3000">3000 A</option>
-          <option value="4000">4000 A</option><option value="5000">5000 A</option>
-          <option value="6000">6000 A</option>
-        </select>
+    <!-- 1. BREAKER -->
+    <section class="card">
+      <h2><span class="n">01</span>Breaker size<span class="v" id="v1"></span></h2>
+      <div class="grp">Pick by generator</div>
+      <div class="chips gens" id="genChips"></div>
+      <div id="genMode" hidden>
+        <div class="grp">Size the generator wire by</div>
+        <div class="seg" id="gmSeg">
+          <button class="chip" data-gm="np" aria-pressed="true"><b>Nameplate amps</b><small>445.13 · max amps it can produce</small></button>
+          <button class="chip" data-gm="bk" aria-pressed="false"><b>Breaker size</b><small>Wire ≥ generator breaker</small></button>
+        </div>
+        <div class="seg" id="gpSeg" style="margin-top:8px">
+          <button class="chip" data-gp="100" aria-pressed="true"><b>100%</b><small>Design prevents overload · 445.13(A) Ex.</small></button>
+          <button class="chip" data-gp="115" aria-pressed="false"><b>115%</b><small>445.13(A) general rule</small></button>
+        </div>
+        <div class="hint" id="gmHint"></div>
       </div>
-
-      <div class="field">
-        <label>Conductor Material</label>
-        <select id="material">
-          <option value="copper">Copper</option>
-          <option value="aluminum">Aluminum / CU-clad AL</option>
-        </select>
+      <div class="grp">Or pick a breaker</div>
+      <div class="chips amps" id="ampChips"></div>
+      <div class="row">
+        <label for="otherAmp">Other size</label>
+        <select id="otherAmp" class="other"></select>
       </div>
+    </section>
 
-      <div class="field">
-        <label>Application</label>
-        <select id="application">
-          <option value="general">General (310.16 75&deg;C)</option>
-          <option value="dwelling">1&amp;2 Family Dwelling Svc/Feeder (310.12)</option>
-        </select>
+    <!-- 2. WIRE -->
+    <section class="card">
+      <h2><span class="n">02</span>Wire</h2>
+      <div class="seg" id="matSeg">
+        <button class="chip" data-mat="copper" aria-pressed="true"><b>Copper</b><small>Cu</small></button>
+        <button class="chip" data-mat="aluminum" aria-pressed="false"><b>Aluminum</b><small>Al / CU-clad Al</small></button>
       </div>
+    </section>
 
-      <div class="field">
-        <label>Parallel Sets</label>
-        <select id="sets">
-          <option value="1">1 Set (single)</option>
-          <option value="2">2 Sets</option><option value="3">3 Sets</option>
-          <option value="4">4 Sets</option><option value="5">5 Sets</option>
-          <option value="6">6 Sets</option><option value="7">7 Sets</option>
-          <option value="8">8 Sets</option><option value="9">9 Sets</option>
-          <option value="10">10 Sets</option>
-        </select>
+    <!-- 3. USE -->
+    <section class="card">
+      <h2><span class="n">03</span>What is it feeding?</h2>
+      <div class="seg" id="appSeg">
+        <button class="chip" data-app="general" aria-pressed="true"><b>General</b><small>Gen feeder, branch circuit · 310.16</small></button>
+        <button class="chip" data-app="dwelling" aria-pressed="false"><b>Whole-home service</b><small>1 &amp; 2 family, 100–400A · 310.12</small></button>
       </div>
+      <div class="hint" id="appHint"></div>
+    </section>
 
-      <div class="field">
-        <label>Conductor Temp Rating</label>
-        <select id="tempCol">
-          <option value="75">75&deg;C (standard)</option>
-          <option value="60">60&deg;C</option>
-          <option value="90">90&deg;C (derate from 90&deg;, cap at 75&deg;)</option>
-        </select>
+    <!-- ANSWER -->
+    <section class="ans" aria-live="polite">
+      <div class="ans-h">Answer<span id="ansTag"></span></div>
+      <div id="ansBody"></div>
+    </section>
+
+    <!-- CONDITIONS -->
+    <details class="more" id="more">
+      <summary>Installation conditions <small id="condSum">Standard</small></summary>
+      <div class="in">
+        <div class="grp">Wire temperature rating</div>
+        <div class="chips" id="tcSeg">
+          <button class="chip" data-tc="60" aria-pressed="false">60°C<small>TW, UF, NM-B*</small></button>
+          <button class="chip" data-tc="75" aria-pressed="true">75°C<small>THWN, XHHW, USE</small></button>
+          <button class="chip" data-tc="90" aria-pressed="false">90°C<small>THHN/THWN-2, XHHW-2</small></button>
+        </div>
+        <div class="hint">90°C wire can use the 90°C column for derating only. The final answer is still limited to the 75°C value at the terminals (110.14(C)).</div>
+
+        <div class="grp">Hottest air temperature around the wire</div>
+        <select id="ambient"></select>
+
+        <div class="grp">Current-carrying wires in the same conduit</div>
+        <div class="chips" id="cccSeg">
+          <button class="chip" data-ccc="3" aria-pressed="true">1–3<small>no derate</small></button>
+          <button class="chip" data-ccc="4" aria-pressed="false">4–6<small>80%</small></button>
+          <button class="chip" data-ccc="7" aria-pressed="false">7–9<small>70%</small></button>
+          <button class="chip" data-ccc="10" aria-pressed="false">10–20<small>50%</small></button>
+          <button class="chip" data-ccc="21" aria-pressed="false">21–30<small>45%</small></button>
+          <button class="chip" data-ccc="31" aria-pressed="false">31–40<small>40%</small></button>
+          <button class="chip" data-ccc="41" aria-pressed="false">41+<small>35%</small></button>
+        </div>
+        <div class="hint">Don't count the grounding wire. Don't count a neutral that only carries unbalanced current. Do count a neutral feeding mostly electronic or LED loads (310.15(E)).</div>
+
+        <div class="grp">Parallel sets</div>
+        <div class="stepper">
+          <button id="setMinus" aria-label="Fewer sets">−</button>
+          <output id="setsOut">1</output>
+          <button id="setPlus" aria-label="More sets">+</button>
+        </div>
+        <div class="hint">Each set must be 1/0 or larger, same length, material and insulation (310.10(G)).</div>
+
+        <div class="grp">Round up to next breaker size</div>
+        <div class="seg" id="rbSeg">
+          <button class="chip" data-rb="0" aria-pressed="true"><b>Off (default)</b><small>Wire ≥ breaker</small></button>
+          <button class="chip" data-rb="1" aria-pressed="false"><b>Allow</b><small>240.4(B) · up to 800A</small></button>
+        </div>
+        <div class="hint">240.4(B) lets a wire use the next standard breaker above its ampacity, for example 4/0 Al (180A) on a 200A breaker. Off by default, so the wire is always at least the breaker size. Never use it on receptacle branch circuits with cord-and-plug loads.</div>
       </div>
+    </details>
 
-      <div class="field">
-        <label>Ambient Temperature (310.15(B)(1))</label>
-        <select id="ambient">
-          <option value="10">10&deg;C or less / 50&deg;F or less</option>
-          <option value="15">11&ndash;15&deg;C / 51&ndash;59&deg;F</option>
-          <option value="20">16&ndash;20&deg;C / 60&ndash;68&deg;F</option>
-          <option value="25">21&ndash;25&deg;C / 69&ndash;77&deg;F</option>
-          <option value="30" selected>26&ndash;30&deg;C / 78&ndash;86&deg;F (standard)</option>
-          <option value="35">31&ndash;35&deg;C / 87&ndash;95&deg;F</option>
-          <option value="40">36&ndash;40&deg;C / 96&ndash;104&deg;F</option>
-          <option value="45">41&ndash;45&deg;C / 105&ndash;113&deg;F</option>
-          <option value="50">46&ndash;50&deg;C / 114&ndash;122&deg;F</option>
-          <option value="55">51&ndash;55&deg;C / 123&ndash;131&deg;F</option>
-          <option value="60">56&ndash;60&deg;C / 132&ndash;140&deg;F</option>
-          <option value="65">61&ndash;65&deg;C / 141&ndash;149&deg;F</option>
-          <option value="70">66&ndash;70&deg;C / 150&ndash;158&deg;F</option>
-          <option value="75">71&ndash;75&deg;C / 159&ndash;167&deg;F</option>
-          <option value="80">76&ndash;80&deg;C / 168&ndash;176&deg;F</option>
-          <option value="85">81&ndash;85&deg;C / 177&ndash;185&deg;F</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label>Current-Carrying Conductors in Raceway</label>
-        <select id="ccc">
-          <option value="3">1&#x2013;3 (no derating)</option>
-          <option value="4">4&#x2013;6 conductors (80%)</option>
-          <option value="7">7&#x2013;9 conductors (70%)</option>
-          <option value="10">10&#x2013;20 conductors (50%)</option>
-          <option value="21">21&#x2013;30 conductors (45%)</option>
-          <option value="31">31&#x2013;40 conductors (40%)</option>
-          <option value="41">41+ conductors (35%)</option>
-        </select>
-      </div>
-
-    </div>
-
-    <!-- Neutral note — shown only when >3 CCC selected -->
-    <div id="neutralNote" style="display:none;margin-top:14px;padding:10px 14px;background:var(--note-bg);border-left:2px solid var(--blue-electric);border-radius:0 var(--radius) var(--radius) 0;font-family:var(--font-mono);font-size:0.68rem;line-height:1.65;color:var(--text-dim);">
-      <strong style="display:block;font-size:0.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--text);margin-bottom:3px;">&#9432; Neutral Conductors &mdash; 310.15(E)</strong>
-      A neutral that carries only the unbalanced load from other conductors in the same circuit is <em>not</em> counted as a current-carrying conductor for derating purposes. A neutral supplying predominantly non-linear loads (e.g. electric discharge lighting, harmonics-producing equipment) <em>is</em> counted per 310.15(E).
-    </div>
+    <p class="fine">NEC 2023: 240.4, 240.6, 310.12, Table 310.16, Table 310.15(B)(1), Table 310.15(C)(1), 310.10(G), 110.14(C), Table 250.122. Check voltage drop on long runs. Always verify with the AHJ.</p>
   </div>
-
-  <!-- RESULT -->
-  <div class="result-panel" id="result"></div>
 
   <!-- FOOTER -->
   <div class="footer">
     <div class="footer-text">Always On Generators &middot; Field Operations Portal</div>
-    <div class="footer-version">NEC <span>2023</span> &middot; 240.6 &middot; 240.4 &middot; 310.16 &middot; 310.12 &middot; 310.15(B)(1) &middot; 310.15(C)(1) &middot; 250.122</div>
+    <div class="footer-version">NEC <span>2023</span> &middot; 240.4 &middot; 310.16 &middot; 310.12 &middot; 250.122</div>
   </div>
-
 </div>
+<div class="mini" id="mini"><div class="t"><div class="w" id="miniW"></div><div class="s" id="miniS"></div></div><button onclick="document.querySelector('.ans').scrollIntoView({behavior:'smooth',block:'center'})">Details</button></div>
+<div class="toast" id="toast">Copied</div>
 <script>
 /* ════════════════════════════════════════════════════
-   NEC TABLE 310.16 — 60 / 75 / 90 °C columns
+   NEC 2023 TABLE 310.16 — 60 / 75 / 90 °C (verified)
    ════════════════════════════════════════════════════ */
 var cuTable=[
-  {size:'14 AWG',    a60:15, a75:20, a90:25},
-  {size:'12 AWG',    a60:20, a75:25, a90:30},
-  {size:'10 AWG',    a60:30, a75:35, a90:40},
-  {size:'8 AWG',     a60:40, a75:50, a90:55},
-  {size:'6 AWG',     a60:55, a75:65, a90:75},
-  {size:'4 AWG',     a60:70, a75:85, a90:95},
-  {size:'3 AWG',     a60:85, a75:100,a90:110},
-  {size:'2 AWG',     a60:95, a75:115,a90:130},
-  {size:'1 AWG',     a60:110,a75:130,a90:150},
-  {size:'1/0 AWG',   a60:125,a75:150,a90:170},
-  {size:'2/0 AWG',   a60:145,a75:175,a90:195},
-  {size:'3/0 AWG',   a60:165,a75:200,a90:225},
-  {size:'4/0 AWG',   a60:195,a75:230,a90:260},
-  {size:'250 kcmil', a60:215,a75:255,a90:290},
-  {size:'300 kcmil', a60:240,a75:285,a90:320},
-  {size:'350 kcmil', a60:260,a75:310,a90:350},
-  {size:'400 kcmil', a60:280,a75:335,a90:380},
-  {size:'500 kcmil', a60:320,a75:380,a90:430},
-  {size:'600 kcmil', a60:350,a75:420,a90:475},
-  {size:'700 kcmil', a60:385,a75:460,a90:520},
-  {size:'750 kcmil', a60:400,a75:475,a90:535},
-  {size:'800 kcmil', a60:410,a75:490,a90:555},
-  {size:'900 kcmil', a60:435,a75:520,a90:585},
-  {size:'1000 kcmil',a60:455,a75:545,a90:615},
-  {size:'1250 kcmil',a60:495,a75:590,a90:665},
-  {size:'1500 kcmil',a60:525,a75:625,a90:705},
-  {size:'1750 kcmil',a60:545,a75:650,a90:735},
+  {size:'14 AWG',a60:15,a75:20,a90:25},{size:'12 AWG',a60:20,a75:25,a90:30},{size:'10 AWG',a60:30,a75:35,a90:40},
+  {size:'8 AWG',a60:40,a75:50,a90:55},{size:'6 AWG',a60:55,a75:65,a90:75},{size:'4 AWG',a60:70,a75:85,a90:95},
+  {size:'3 AWG',a60:85,a75:100,a90:115},{size:'2 AWG',a60:95,a75:115,a90:130},{size:'1 AWG',a60:110,a75:130,a90:145},
+  {size:'1/0 AWG',a60:125,a75:150,a90:170},{size:'2/0 AWG',a60:145,a75:175,a90:195},{size:'3/0 AWG',a60:165,a75:200,a90:225},
+  {size:'4/0 AWG',a60:195,a75:230,a90:260},{size:'250 kcmil',a60:215,a75:255,a90:290},{size:'300 kcmil',a60:240,a75:285,a90:320},
+  {size:'350 kcmil',a60:260,a75:310,a90:350},{size:'400 kcmil',a60:280,a75:335,a90:380},{size:'500 kcmil',a60:320,a75:380,a90:430},
+  {size:'600 kcmil',a60:350,a75:420,a90:475},{size:'700 kcmil',a60:385,a75:460,a90:520},{size:'750 kcmil',a60:400,a75:475,a90:535},
+  {size:'800 kcmil',a60:410,a75:490,a90:555},{size:'900 kcmil',a60:435,a75:520,a90:585},{size:'1000 kcmil',a60:455,a75:545,a90:615},
+  {size:'1250 kcmil',a60:495,a75:590,a90:665},{size:'1500 kcmil',a60:525,a75:625,a90:705},{size:'1750 kcmil',a60:545,a75:650,a90:735},
   {size:'2000 kcmil',a60:555,a75:665,a90:750}
 ];
 var alTable=[
-  {size:'12 AWG',    a60:15, a75:20, a90:25},
-  {size:'10 AWG',    a60:25, a75:30, a90:35},
-  {size:'8 AWG',     a60:30, a75:40, a90:45},
-  {size:'6 AWG',     a60:40, a75:50, a90:55},
-  {size:'4 AWG',     a60:55, a75:65, a90:75},
-  {size:'3 AWG',     a60:65, a75:75, a90:85},
-  {size:'2 AWG',     a60:75, a75:90, a90:100},
-  {size:'1 AWG',     a60:85, a75:100,a90:115},
-  {size:'1/0 AWG',   a60:100,a75:120,a90:135},
-  {size:'2/0 AWG',   a60:115,a75:135,a90:150},
-  {size:'3/0 AWG',   a60:130,a75:155,a90:175},
-  {size:'4/0 AWG',   a60:150,a75:180,a90:205},
-  {size:'250 kcmil', a60:170,a75:205,a90:230},
-  {size:'300 kcmil', a60:190,a75:230,a90:255},
-  {size:'350 kcmil', a60:210,a75:250,a90:280},
-  {size:'400 kcmil', a60:225,a75:270,a90:305},
-  {size:'500 kcmil', a60:260,a75:310,a90:350},
-  {size:'600 kcmil', a60:285,a75:340,a90:385},
-  {size:'700 kcmil', a60:315,a75:375,a90:420},
-  {size:'750 kcmil', a60:320,a75:385,a90:435},
-  {size:'800 kcmil', a60:330,a75:395,a90:450},
-  {size:'900 kcmil', a60:355,a75:425,a90:480},
-  {size:'1000 kcmil',a60:375,a75:445,a90:500},
-  {size:'1250 kcmil',a60:405,a75:485,a90:545},
-  {size:'1500 kcmil',a60:435,a75:520,a90:585},
-  {size:'1750 kcmil',a60:455,a75:545,a90:615},
-  {size:'2000 kcmil',a60:470,a75:560,a90:630}
+  {size:'12 AWG',a60:15,a75:20,a90:25},{size:'10 AWG',a60:25,a75:30,a90:35},{size:'8 AWG',a60:35,a75:40,a90:45},
+  {size:'6 AWG',a60:40,a75:50,a90:55},{size:'4 AWG',a60:55,a75:65,a90:75},{size:'3 AWG',a60:65,a75:75,a90:85},
+  {size:'2 AWG',a60:75,a75:90,a90:100},{size:'1 AWG',a60:85,a75:100,a90:115},{size:'1/0 AWG',a60:100,a75:120,a90:135},
+  {size:'2/0 AWG',a60:115,a75:135,a90:150},{size:'3/0 AWG',a60:130,a75:155,a90:175},{size:'4/0 AWG',a60:150,a75:180,a90:205},
+  {size:'250 kcmil',a60:170,a75:205,a90:230},{size:'300 kcmil',a60:195,a75:230,a90:260},{size:'350 kcmil',a60:210,a75:250,a90:280},
+  {size:'400 kcmil',a60:225,a75:270,a90:305},{size:'500 kcmil',a60:260,a75:310,a90:350},{size:'600 kcmil',a60:285,a75:340,a90:385},
+  {size:'700 kcmil',a60:315,a75:375,a90:425},{size:'750 kcmil',a60:320,a75:385,a90:435},{size:'800 kcmil',a60:330,a75:395,a90:445},
+  {size:'900 kcmil',a60:355,a75:425,a90:480},{size:'1000 kcmil',a60:375,a75:445,a90:500},{size:'1250 kcmil',a60:405,a75:485,a90:545},
+  {size:'1500 kcmil',a60:435,a75:520,a90:585},{size:'1750 kcmil',a60:455,a75:545,a90:615},{size:'2000 kcmil',a60:470,a75:560,a90:630}
 ];
-
-/* Flat 75°C arrays for 310.12 lookup */
-var cu75=cuTable.map(function(r){return{size:r.size,amps:r.a75};});
-var al75=alTable.map(function(r){return{size:r.size,amps:r.a75};});
-
-/* NEC Table 250.122 */
+/* 240.4(D) small-conductor maximum OCPD */
+var SMALL_MAX={copper:{'14 AWG':15,'12 AWG':20,'10 AWG':30},aluminum:{'12 AWG':15,'10 AWG':25}};
+/* NEC Table 250.122 — "not exceeding" ratings */
 var egcTable=[
-  {ocpd:15,  cu:'14 AWG',    al:'12 AWG'},
-  {ocpd:20,  cu:'12 AWG',    al:'10 AWG'},
-  {ocpd:60,  cu:'10 AWG',    al:'8 AWG'},
-  {ocpd:100, cu:'8 AWG',     al:'6 AWG'},
-  {ocpd:200, cu:'6 AWG',     al:'4 AWG'},
-  {ocpd:300, cu:'4 AWG',     al:'2 AWG'},
-  {ocpd:400, cu:'3 AWG',     al:'1 AWG'},
-  {ocpd:450, cu:'3 AWG',     al:'1 AWG'},
-  {ocpd:500, cu:'2 AWG',     al:'1/0 AWG'},
-  {ocpd:600, cu:'1 AWG',     al:'2/0 AWG'},
-  {ocpd:700, cu:'1 AWG',     al:'2/0 AWG'},
-  {ocpd:800, cu:'1/0 AWG',   al:'3/0 AWG'},
-  {ocpd:1000,cu:'2/0 AWG',   al:'4/0 AWG'},
-  {ocpd:1200,cu:'3/0 AWG',   al:'250 kcmil'},
-  {ocpd:1600,cu:'4/0 AWG',   al:'350 kcmil'},
-  {ocpd:2000,cu:'250 kcmil', al:'400 kcmil'},
-  {ocpd:2500,cu:'350 kcmil', al:'600 kcmil'},
-  {ocpd:3000,cu:'400 kcmil', al:'600 kcmil'},
-  {ocpd:4000,cu:'500 kcmil', al:'750 kcmil'},
-  {ocpd:5000,cu:'700 kcmil', al:'1250 kcmil'},
-  {ocpd:6000,cu:'800 kcmil', al:'1250 kcmil'}
+  {ocpd:15,cu:'14 AWG',al:'12 AWG'},{ocpd:20,cu:'12 AWG',al:'10 AWG'},{ocpd:60,cu:'10 AWG',al:'8 AWG'},
+  {ocpd:100,cu:'8 AWG',al:'6 AWG'},{ocpd:200,cu:'6 AWG',al:'4 AWG'},{ocpd:300,cu:'4 AWG',al:'2 AWG'},
+  {ocpd:400,cu:'3 AWG',al:'1 AWG'},{ocpd:500,cu:'2 AWG',al:'1/0 AWG'},{ocpd:600,cu:'1 AWG',al:'2/0 AWG'},
+  {ocpd:800,cu:'1/0 AWG',al:'3/0 AWG'},{ocpd:1000,cu:'2/0 AWG',al:'4/0 AWG'},{ocpd:1200,cu:'3/0 AWG',al:'250 kcmil'},
+  {ocpd:1600,cu:'4/0 AWG',al:'350 kcmil'},{ocpd:2000,cu:'250 kcmil',al:'400 kcmil'},{ocpd:2500,cu:'350 kcmil',al:'600 kcmil'},
+  {ocpd:3000,cu:'400 kcmil',al:'600 kcmil'},{ocpd:4000,cu:'500 kcmil',al:'750 kcmil'},{ocpd:5000,cu:'700 kcmil',al:'1250 kcmil'},
+  {ocpd:6000,cu:'800 kcmil',al:'1250 kcmil'}
 ];
+/* 240.6(A) standard ratings */
+var STD=[15,20,25,30,35,40,45,50,60,70,80,90,100,110,125,150,175,200,225,250,300,350,400,450,500,600,700,800,1000,1200,1600,2000,2500,3000,4000,5000,6000];
+/* Table 310.15(B)(1) — 30°C basis [60,75,90] */
+var AMB={10:[1.29,1.20,1.15],15:[1.22,1.15,1.12],20:[1.15,1.11,1.08],25:[1.08,1.05,1.04],30:[1,1,1],35:[0.91,0.94,0.96],40:[0.82,0.88,0.91],45:[0.71,0.82,0.87],50:[0.58,0.75,0.82],55:[0.41,0.67,0.76],60:[0,0.58,0.71],65:[0,0.47,0.65],70:[0,0.33,0.58],75:[0,0,0.50],80:[0,0,0.41],85:[0,0,0.29]};
+var AMB_LBL={10:'50°F or less',15:'51–59°F',20:'60–68°F',25:'69–77°F',30:'78–86°F (standard)',35:'87–95°F',40:'96–104°F',45:'105–113°F',50:'114–122°F',55:'123–131°F',60:'132–140°F',65:'141–149°F',70:'150–158°F',75:'159–167°F',80:'168–176°F',85:'177–185°F'};
+var AMB_C={10:'≤10°C',15:'11–15°C',20:'16–20°C',25:'21–25°C',30:'26–30°C',35:'31–35°C',40:'36–40°C',45:'41–45°C',50:'46–50°C',55:'51–55°C',60:'56–60°C',65:'61–65°C',70:'66–70°C',75:'71–75°C',80:'76–80°C',85:'81–85°C'};
+/* Generator main breakers — verified vs Generac spec sheets (NextGen Rev. D, XG Rev. B / Rev. F) */
+/* a = main breaker · lp/ng = rated max load current @ 240V 1-ph (spec sheet nameplate) */
+var GENS=[
+  {g:'Guardian',kw:10,a:45,lp:42,ng:38},{g:'Guardian',kw:14,a:60,lp:58,ng:58},{g:'Guardian',kw:18,a:80,lp:75,ng:71},{g:'Guardian',kw:22,a:100,lp:92,ng:88},
+  {g:'Guardian',kw:24,a:100,lp:100,ng:94},{g:'Guardian',kw:26,a:110,lp:108,ng:100},{g:'Guardian',kw:28,a:125,lp:116,ng:104},
+  {g:'Protector XG',kw:25,a:125,lp:104,ng:104},{g:'Protector XG',kw:30,a:150,lp:125,ng:125},{g:'Protector XG',kw:32,a:150,lp:133,ng:133},{g:'Protector XG',kw:40,a:200,lp:167,ng:167},
+  {g:'Protector XG',kw:48,a:200,lp:200,ng:200},{g:'Protector XG',kw:60,a:300,lp:250,ng:250},{g:'Protector XG',kw:80,a:400,lp:312,ng:333}
+];
+var COMMON=[15,20,30,40,50,60,70,100,125,150,200,225,300,400,600,800,1000,1200];
+var CCC={3:[1,'1–3'],4:[0.8,'4–6'],7:[0.7,'7–9'],10:[0.5,'10–20'],21:[0.45,'21–30'],31:[0.4,'31–40'],41:[0.35,'41+']};
 
-/* ════════════════════════════════════════════════════
-   HELPERS
-   ════════════════════════════════════════════════════ */
-function getAmpacity(row,tc){
-  return tc===60?row.a60:tc===90?row.a90:row.a75;
-}
+var S={breaker:100,gen:null,mat:'copper',app:'general',tc:75,amb:30,ccc:3,sets:1,rb:false,gmode:'np',gpct:100};
+var $=function(id){return document.getElementById(id);};
+var idxOf=function(tbl,size){for(var i=0;i<tbl.length;i++)if(tbl[i].size===size)return i;return -1;};
+function nextStd(a){for(var i=0;i<STD.length;i++)if(STD[i]>=a)return STD[i];return Infinity;}
+function egc(ocpd,mat){var r=egcTable[egcTable.length-1];for(var i=0;i<egcTable.length;i++){if(egcTable[i].ocpd>=ocpd){r=egcTable[i];break;}}return mat==='copper'?r.cu:r.al;}
+function amp(row,tc){return tc===60?row.a60:tc===90?row.a90:row.a75;}
 
-/* NEC Table 310.15(B)(1) — Ambient temperature correction factors
-   Based on 30°C reference. Returns factor for given ambient and conductor temp rating. */
-function ambientFactor(ambientC, tc){
-  if(ambientC===30) return 1.00; /* reference temp, no correction */
-  /* Table 310.15(B)(1) values */
-  var table={
-    /* ambient: [f60, f75, f90] */
-    10: [1.29, 1.20, 1.15],
-    15: [1.22, 1.15, 1.12],
-    20: [1.15, 1.11, 1.08],
-    25: [1.08, 1.05, 1.04],
-    30: [1.00, 1.00, 1.00],
-    35: [0.91, 0.94, 0.96],
-    40: [0.82, 0.88, 0.91],
-    45: [0.71, 0.82, 0.87],
-    50: [0.58, 0.75, 0.82],
-    55: [0.41, 0.67, 0.76],
-    60: [0.00, 0.58, 0.71],
-    65: [0.00, 0.47, 0.65],
-    70: [0.00, 0.33, 0.58],
-    75: [0.00, 0.00, 0.50],
-    80: [0.00, 0.00, 0.41],
-    85: [0.00, 0.00, 0.29]
-  };
-  var row=table[ambientC];
-  if(!row) return 1.00;
-  var idx=tc===60?0:tc===90?2:1;
-  return row[idx];
-}
-function derateFactor(v){
-  v=parseInt(v);
-  if(v<=3) return{factor:1.00,label:'No derating',    pct:'100%'};
-  if(v<=6) return{factor:0.80,label:'4\u20136 CCC',   pct:'80%'};
-  if(v<=9) return{factor:0.70,label:'7\u20139 CCC',   pct:'70%'};
-  if(v<=20)return{factor:0.50,label:'10\u201320 CCC', pct:'50%'};
-  if(v<=30)return{factor:0.45,label:'21\u201330 CCC', pct:'45%'};
-  if(v<=40)return{factor:0.40,label:'31\u201340 CCC', pct:'40%'};
-  return   {factor:0.35,label:'41+ CCC',              pct:'35%'};
-}
-function pickConductor75(tbl,min){
-  for(var i=0;i<tbl.length;i++){if(tbl[i].amps>=min)return tbl[i];}
-  return null;
-}
-/* Find smallest conductor where:
-   ampacity(tempCol) × ambientFactor × cccFactor >= required
-   Final usable value capped at 75°C column per 110.14(C)          */
-function pickDerated(base,tc,combinedFactor,required){
-  for(var i=0;i<base.length;i++){
-    if(Math.floor(getAmpacity(base[i],tc)*combinedFactor)>=required)return base[i];
+/* ════ ENGINE ════ */
+function solve(){
+  var tbl=S.mat==='copper'?cuTable:alTable, B=S.breaker, n=S.sets;
+  var ti=S.tc===60?0:S.tc===90?2:1, af=AMB[S.amb][ti], cf=CCC[S.ccc][0], k=+(af*cf).toFixed(4);
+  var R={tbl:tbl,af:af,cf:cf,k:k,errs:[],warns:[],info:[]};
+  if(S.app==='dwelling'){
+    if(B<100||B>400){R.errs.push(['310.12 doesn’t apply','The 83% rule only covers 120/240V whole-home services and feeders rated 100A to 400A. Switch to “General” or change the breaker size.']);return R;}
+    if(n>1){R.errs.push(['310.12 — single set only','This tool sizes 310.12 conductors as a single set. Set parallel sets to 1, or switch to “General”.']);return R;}
+    var req=Math.ceil(B*0.83);
+    for(var i=0;i<tbl.length;i++){if(tbl[i].a75>=req){R.row=tbl[i];R.usable=tbl[i].a75;R.need=req;R.rule='310.12 · 83% rule';R.how=B+'A × 83% = '+req+'A minimum, from the 75°C column. Only for conductors carrying the entire load of a one- or two-family dwelling. No derating applied.';return R;}}
+    R.errs.push(['Too big for one set','Nothing in Table 310.16 is big enough for one set.']);return R;
   }
-  return null;
-}
-function pickEGC(ocpd,mat){
-  var row=null;
-  for(var i=0;i<egcTable.length;i++){if(egcTable[i].ocpd>=ocpd){row=egcTable[i];break;}}
-  if(!row)row=egcTable[egcTable.length-1];
-  return mat==='copper'?row.cu:row.al;
-}
-
-/* ════════════════════════════════════════════════════
-   CALC
-   ════════════════════════════════════════════════════ */
-function calc(){
-  var breaker = parseInt(document.getElementById('breaker').value);
-  var mat     = document.getElementById('material').value;
-  var app     = document.getElementById('application').value;
-  var sets    = parseInt(document.getElementById('sets').value);
-  var tc      = parseInt(document.getElementById('tempCol').value);
-  var ambC    = parseInt(document.getElementById('ambient').value);
-  var cccVal  = document.getElementById('ccc').value;
-
-  var isDwelling   = app==='dwelling';
-  var baseTable    = mat==='copper'?cuTable:alTable;
-  var table75      = mat==='copper'?cu75:al75;
-  var df           = derateFactor(cccVal);
-  var af           = ambientFactor(ambC, tc);
-  var isDerating   = df.factor<1.0;
-  var isTempCorr   = ambC!==30;
-  /* Both factors stack — multiply together */
-  var combinedFactor = parseFloat((df.factor * af).toFixed(4));
-  var matLabel     = mat==='copper'?'Copper':'Aluminum / CU-clad AL';
-  var tcLabel      = tc===60?'60\u00b0C':tc===90?'90\u00b0C':'75\u00b0C';
-  var ambLabels={
-    10:'10\u00b0C or less / 50\u00b0F or less',
-    15:'11\u201315\u00b0C / 51\u201359\u00b0F',
-    20:'16\u201320\u00b0C / 60\u201368\u00b0F',
-    25:'21\u201325\u00b0C / 69\u201377\u00b0F',
-    30:'26\u201330\u00b0C / 78\u201386\u00b0F',
-    35:'31\u201335\u00b0C / 87\u201395\u00b0F',
-    40:'36\u201340\u00b0C / 96\u2013104\u00b0F',
-    45:'41\u201345\u00b0C / 105\u2013113\u00b0F',
-    50:'46\u201350\u00b0C / 114\u2013122\u00b0F',
-    55:'51\u201355\u00b0C / 123\u2013131\u00b0F',
-    60:'56\u201360\u00b0C / 132\u2013140\u00b0F',
-    65:'61\u201365\u00b0C / 141\u2013149\u00b0F',
-    70:'66\u201370\u00b0C / 150\u2013158\u00b0F',
-    75:'71\u201375\u00b0C / 159\u2013167\u00b0F',
-    80:'76\u201380\u00b0C / 168\u2013176\u00b0F',
-    85:'81\u201385\u00b0C / 177\u2013185\u00b0F'
-  };
-  var ambLabel = ambLabels[ambC]||ambC+'\u00b0C';
-  var ampPerSet    = Math.ceil(breaker/sets);
-
-  var dwellingRange    = isDwelling&&(breaker<100||breaker>400);
-  var dwellingParallel = isDwelling&&sets>1;
-
-  var conductor=null,method='',ruleNote='',tableUsed='',exceeded=false;
-
-  if(!dwellingRange&&!dwellingParallel){
-    if(isDwelling){
-      /* 310.12 — 83% rule, always 75°C column, no derating */
-      var req83=breaker*0.83;
-      var entry=pickConductor75(table75,Math.ceil(req83/sets));
-      conductor=entry?entry.size:null;
-      if(!conductor)exceeded=true;
-      method   ='310.12 Dwelling (83% rule)';
-      tableUsed='Table 310.16, 75\u00b0C col. (via 310.12)';
-      ruleNote ='83% rule: '+breaker+'A \u00d7 83% = '+Math.round(req83)+'A minimum ampacity. '+
-                'Conductor selected from Table 310.16, 75\u00b0C column. '+
-                'Applies only when conductors supply the entire load of a 1 or 2 family dwelling.';
-    } else {
-      /* General — temp column × ambient correction × CCC derating, capped at 75°C */
-      var row2=pickDerated(baseTable,tc,combinedFactor,ampPerSet);
-      if(!row2){exceeded=true;}else{conductor=row2.size;}
-      var tcNote=tc===90
-        ?' Starting from 90\u00b0C column, capped at 75\u00b0C per 110.14(C).'
-        :tc===60?' Using 60\u00b0C column ampacity as starting point.':'';
-      var ambNote=isTempCorr
-        ?' Ambient correction factor: '+af.toFixed(2)+' ('+ambLabel+').':'';
-      if(breaker<=800){
-        method   ='240.4(B) \u2014 Next standard size \u2264 800A';
-        tableUsed='Table 310.16, '+tcLabel+' col.';
-        ruleNote ='Breaker '+breaker+'A'+(sets>1?' \u00f7 '+sets+' sets = '+ampPerSet+'A/set':'')+
-                  ((isDerating||isTempCorr)
-                    ?' \u2192 combined factor '+combinedFactor.toFixed(2)+
-                      (isDerating?' (CCC: '+df.pct+')':'')+
-                      (isTempCorr?' (ambient: '+af.toFixed(2)+')':'')+
-                      ' \u2265 '+ampPerSet+'A/set required.':'.')+
-                  tcNote+ambNote+' Next standard size up permitted per 240.4(B).';
-      }else{
-        method   ='240.4(C) \u2014 Exact ampacity required > 800A';
-        tableUsed='Table 310.16, '+tcLabel+' col.';
-        ruleNote ='Over 800A \u2014 derated ampacity must equal or exceed '+ampPerSet+'A/set.'+
-                  tcNote+ambNote+' Next standard size NOT allowed per 240.4(C).';
-      }
+  if(af<=0){R.errs.push(['Too hot for this wire','The air temperature is at or above this wire’s rating. Pick a higher temperature wire or a cooler route.']);return R;}
+  /* 90°C column with nothing to correct or adjust -> violation (original rule, 110.14(C)) */
+  if(S.tc===90&&af===1&&cf===1){R.errs.push(['90\u00b0C column not allowed here','The 90\u00b0C column is only a starting point for temperature correction and fill adjustment on 90\u00b0C wire. With 1\u20133 current-carrying wires and standard air temperature there is nothing to apply, so use the 75\u00b0C column (110.14(C)). Pick 75\u00b0C, or add a temperature or conduit-fill condition.']);return R;}
+  var G=S.gen&&S.gmode==='np'?S.gen:null, maxI=G?Math.max(G.lp,G.ng):0, target=G?Math.ceil(maxI*S.gpct/100):B;
+  R.G=G;R.maxI=maxI;R.target=target;
+  var start=0, roundOK=!G&&S.rb&&B<=800, perSet=Math.ceil(target/n);
+  for(var j=start;j<tbl.length;j++){
+    var row=tbl[j];
+    var cap=S.tc===60?row.a60:row.a75;              /* terminals: 75°C max (110.14(C)); 60°C wire stays at 60 */
+    var usable=Math.min(Math.floor(amp(row,S.tc)*k),cap);
+    var total=usable*n;
+    var lim=SMALL_MAX[S.mat][row.size];
+    if(lim&&B>lim) continue;                         /* 240.4(D) */
+    var direct=usable>=perSet, viaB=!direct&&roundOK&&nextStd(total)>=B&&STD.indexOf(total)===-1;
+    if(direct||viaB){
+      if(n>1&&j<idxOf(tbl,'1/0 AWG')){R.errs.push(['Parallel violation \u2014 310.10(G)','This needs '+row.size+' per set, which is smaller than 1/0 AWG. Conductors smaller than 1/0 can\u2019t be paralleled. Use fewer sets or a larger breaker, or check whether the load really needs paralleling.']);return R;}
+      R.row=row;R.usable=usable;R.total=total;R.need=target;R.viaB=viaB;
+      R.rule=G?'445.13 \u00b7 '+S.gpct+'% nameplate':B>800?'240.4(C) \u00b7 exact, over 800A':viaB?'240.4(B) \u00b7 next size up':'Table 310.16 \u00b7 '+S.tc+'\u00b0C col.';
+      var parts=amp(row,S.tc)+'A ('+S.tc+'°C column)';
+      if(af!==1) parts+=' × '+af.toFixed(2)+' temp';
+      if(cf!==1) parts+=' × '+Math.round(cf*100)+'% fill';
+      if(af!==1||cf!==1) parts+=' = '+Math.floor(amp(row,S.tc)*k)+'A';
+      if(usable<Math.floor(amp(row,S.tc)*k)) parts+=', limited to '+cap+'A at '+(S.tc===60?'60':'75')+'°C terminals';
+      R.how=(G?'Nameplate '+maxI+'A (larger of LP '+G.lp+'A / NG '+G.ng+'A) \u00d7 '+S.gpct+'% = '+target+'A required':'Breaker '+B+'A')+(n>1?' \u00f7 '+n+' sets = '+perSet+'A per set':'')+'. '+parts+(n>1?' per set \u00b7 \u00d7 '+n+' sets = '+total+'A':'')+(viaB?' → next standard breaker is '+nextStd(total)+'A, so '+B+'A is allowed (240.4(B)).':'.');
+      if(lim&&B<=lim&&amp(row,S.tc)*k>=B) R.info.push(['Small wire rule — 240.4(D)',row.size+' '+(S.mat==='copper'?'copper':'aluminum')+' is limited to a '+lim+'A breaker, no matter the table value.']);
+      return R;
     }
   }
+  R.errs.push(['Table exceeded','The required ampacity per set ('+perSet+'A) is more than the largest wire in Table 310.16. Add parallel sets under Installation conditions.']);
+  return R;
+}
 
-  /* derated ampacity of selected conductor */
-  var deratedAmpacity=null,baseAmpacity=null;
-  if(!exceeded&&conductor&&!isDwelling){
-    for(var j=0;j<baseTable.length;j++){
-      if(baseTable[j].size===conductor){
-        baseAmpacity=getAmpacity(baseTable[j],tc);
-        var raw=Math.floor(baseAmpacity*combinedFactor);
-        deratedAmpacity=Math.min(raw,baseTable[j].a75); /* cap at 75°C per 110.14(C) */
-        break;
-      }
-    }
-  }
-
-  /* parallel size violation */
-  var lt1_0=['14 AWG','12 AWG','10 AWG','8 AWG','6 AWG','4 AWG','3 AWG','2 AWG','1 AWG'];
-  var parallelViol=sets>1&&!exceeded&&conductor&&lt1_0.indexOf(conductor)!==-1;
-
-  /* 90°C column misuse — the 90°C column is only a starting point for ambient
-     temperature correction and conductor-bundle adjustment. When CCC is 1–3
-     (no derating) AND ambient is standard (no temp correction), there is nothing
-     to apply, so it must be used at the 75°C column. */
-  var ninetyMisuse = tc===90 && df.factor===1.00 && !isTempCorr && !isDwelling && !exceeded;
-
-  /* whether any actionable note (warning/violation/derating) will render below */
-  var hasNotes = (af<=0) || (df.factor<1.0) || (ambC!==30) ||
-                 (sets>1) || dwellingRange || dwellingParallel ||
-                 parallelViol || ninetyMisuse || (tc===90) || exceeded;
-
-  var egcSize=pickEGC(breaker,mat);
-  var egcCu=pickEGC(breaker,'copper');
-  var egcAl=pickEGC(breaker,'aluminum');
-
-  /* ════ BUILD HTML ════ */
+/* ════ RENDER ════ */
+var summary='';
+function render(){
+  var R=solve(), matN=S.mat==='copper'?'Copper':'Aluminum', B=S.breaker, n=S.sets;
+  var e=egc(B,S.mat), eCu=egc(B,'copper'), eAl=egc(B,'aluminum');
+  $('v1').textContent=(S.gen?S.gen.kw+'kW '+S.gen.g+' · ':'')+B+'A';
+  var cond=[];if(S.tc!==75)cond.push(S.tc+'°C wire');if(S.amb!==30)cond.push(AMB_LBL[S.amb].replace(' (standard)',''));if(S.ccc!==3)cond.push(CCC[S.ccc][1]+' in conduit');if(n>1)cond.push(n+' sets');if(S.rb)cond.push('240.4(B) round-up on');
+  $('condSum').textContent=cond.length?cond.join(' · '):'Standard';
+  $('genMode').hidden=!(S.gen&&S.app==='general');
+  $('gpSeg').style.display=S.gmode==='np'?'':'none';
+  $('gmHint').textContent=S.gen?(S.gmode==='np'?'Nameplate: LP '+S.gen.lp+'A / NG '+S.gen.ng+'A at 240V. Sizes to the larger one.':'Wire sized to the '+S.gen.a+'A generator breaker.'):'';
+  $('appHint').textContent=S.app==='dwelling'?'Only for service or feeder conductors that carry the whole home’s load. Generator feeders and branch circuits use General.':'Use this for generator output feeders, transfer switch feeders, sub-panels and branch circuits.';
   var h='';
-
-  /* invalid ambient check — factor of 0 means ambient >= conductor rating */
-  var invalidAmbient = af<=0;
-
-  /* derating / temp banner */
-  var anyDerating = isDerating||isTempCorr;
-  h+='<div class="derate-flag '+(anyDerating?'active':'inactive')+'">' +
-     '<span class="derate-dot"></span><span>';
-  if(invalidAmbient){
-    h+='INVALID \u2014 ambient temperature meets or exceeds conductor temp rating. Select a higher-rated conductor.';
-  }else if(anyDerating){
-    h+='Derating active \u2014 combined factor: '+combinedFactor.toFixed(2);
-    if(isDerating) h+=' | CCC: '+df.pct+' ('+df.label+')';
-    if(isTempCorr) h+=' | Ambient: '+af.toFixed(2)+' ('+ambLabel+', '+tcLabel+' rated)';
-    h+=' | Table 310.15(B)(1)+(C)(1)';
+  if(R.errs.length){
+    $('ansTag').textContent='Check settings';
+    h+='<div class="big"><div class="lbl">Wire per set</div><div class="wire bad">Not allowed</div></div>';
+    h+='<div class="notes">'+R.errs.map(function(x){return '<div class="note err"><strong>'+x[0]+'</strong>'+x[1]+'</div>';}).join('')+'</div>';
+    summary='';
   }else{
-    h+='No derating \u2014 1\u20133 CCC, 30\u00b0C standard ambient. '+tcLabel+' column.';
+    var pct=Math.min(100,Math.round((R.G?R.target:B)/(R.total||R.usable)*100));
+    $('ansTag').textContent=R.rule;
+    h+='<div class="big"><div class="lbl">Wire'+(n>1?' — '+n+' parallel sets':'')+'</div>'+
+       '<div class="wire">'+(n>1?n+' × ':'')+R.row.size+' <small>'+matN+'</small></div>'+
+       (S.app==='dwelling'?'<div class="cap">Needs <b>'+R.need+'A</b> (83% of '+B+'A) · this wire is <b>'+R.usable+'A</b></div>'
+        :'<div class="meter"><i style="width:'+pct+'%"></i></div><div class="cap">'+(R.G?'Needs <b>'+R.target+'A</b> ('+S.gpct+'% of '+R.maxI+'A nameplate)':'Breaker <b>'+B+'A</b>')+' · wire carries <b>'+R.total+'A</b>'+(n>1?' ('+R.usable+'A per set)':'')+(R.viaB?' · rounds up to '+nextStd(R.total)+'A':'')+'</div>')+
+       '<span class="pill'+(R.viaB?' warn':S.app==='dwelling'?' info':'')+'">'+R.rule+'</span></div>';
+    h+='<div class="facts">'+
+       '<div><span>Ground (EGC)</span><b>'+e+' '+(S.mat==='copper'?'Cu':'Al')+'</b></div>'+
+       '<div><span>EGC other metal</span><b>'+(S.mat==='copper'?eAl+' Al':eCu+' Cu')+'</b></div>'+
+       '<div><span>Breaker</span><b>'+B+'A</b></div>'+
+       '<div><span>Temp column</span><b>'+(S.app==='dwelling'?'75':S.tc)+'°C</b></div>'+
+       '<div><span>Derate</span><b>'+(S.app==='dwelling'?'none':'×'+R.k.toFixed(2))+'</b></div>'+
+       '<div><span>Sets</span><b>'+n+'</b></div></div>';
+    var notes=[];
+    notes.push(['','How it was sized',R.how]);
+    if(R.G) notes.push(['','Generator conductors \u2014 445.13 / 240.21(G)','Sized from the generator\u2019s rated max load current ('+S.gen.kw+'kW '+S.gen.g+': LP '+S.gen.lp+'A / NG '+S.gen.ng+'A at 240V). '+(S.gpct===100?'445.13(A) Exception allows 100% where the generator\u2019s design and operation prevent overloading (built-in main breaker).':'115% per 445.13(A).')+' Conductors meeting 445.13 may be protected by the generator\u2019s own overload protection (240.21(G)). The ground is still sized to the '+B+'A generator breaker (250.122).']);
+    R.info.forEach(function(x){notes.push(['warn',x[0],x[1]]);});
+    if(B>800) notes.push(['warn','Over 800A \u2014 240.4(C)','The derated ampacity must equal or exceed the breaker rating. Rounding up to the next standard size is NOT allowed over 800A.']);
+    if(S.tc===90&&S.app!=='dwelling') notes.push(['','90\u00b0C column \u2014 110.14(C)','Derating started from the 90\u00b0C column. The final usable ampacity is capped at the 75\u00b0C column value.']);
+    if(S.tc===60) notes.push(['','60°C terminals','NM-B (Romex) is limited to the 60°C column (334.80). Equipment rated 100A or less with 14–1 AWG wire defaults to 60°C terminals unless marked 75°C (110.14(C)(1)(a)).']);
+    if(n>1){notes.push(['','Parallel sets \u2014 310.10(G)','Each of the '+n+' sets must use '+R.row.size+'. All conductors in each set must be the same size, insulation type and length. Minimum parallel size is 1/0 AWG. Run a full-size EGC ('+e+') in each raceway (250.122(F)).']);
+      notes.push(['warn','75\u00b0C column \u2014 multiple sets / raceways','With more than one set in more than one raceway, the ampacity must come from the 75\u00b0C column. The 90\u00b0C column may only be used as a starting point for temperature correction and fill adjustment. The final usable ampacity is limited to the 75\u00b0C value (110.14(C)).']);}
+    if(S.ccc!==3){notes.push(['','Conduit fill \u2014 310.15(C)(1)','Derated '+Math.round(R.cf*100)+'% for '+CCC[S.ccc][1]+' current-carrying wires in one raceway. Temperature and fill factors are multiplied together: combined \u00d7'+R.k.toFixed(2)+'.']);
+      notes.push(['','Neutral conductors \u2014 310.15(E)','A neutral that carries only the unbalanced load from other conductors in the same circuit is not counted. A neutral supplying mostly non-linear loads (electric discharge lighting, harmonics-producing equipment) is counted.']);}
+    if(S.amb!==30&&S.app!=='dwelling') notes.push(['','Temperature — 310.15(B)(1)','×'+R.af.toFixed(2)+' for '+AMB_LBL[S.amb]+' ('+AMB_C[S.amb]+'). Add 60°F if the conduit is in direct sun on a rooftop within 7/8" of the roof (310.15(B)(2)).']);
+    if(R.viaB) notes.push(['warn','Round-up used — 240.4(B)','Not allowed on multi-outlet branch circuits feeding receptacles for cord-and-plug loads. Set \u201cRound up\u201d back to Off under Installation conditions to size the wire at or above the breaker.']);
+    notes.push(['','Ground — Table 250.122','Minimum '+eCu+' copper or '+eAl+' aluminum for a '+B+'A breaker. If you upsize the hot wires, upsize the ground by the same ratio (250.122(B)).']);
+    h+='<div class="notes">'+notes.map(function(x){return '<div class="note '+x[0]+'"><strong>'+x[1]+'</strong>'+x[2]+'</div>';}).join('')+'</div>';
+    summary=['AOG breaker & conductor sizing',
+      (S.gen?S.gen.kw+'kW '+S.gen.g+' — ':'')+B+'A breaker'+(R.G?' · sized to '+R.target+'A ('+S.gpct+'% of '+R.maxI+'A nameplate, 445.13)':''),
+      'Wire: '+(n>1?n+' sets of ':'')+R.row.size+' '+matN+' ('+R.rule+')',
+      'EGC: '+e+' '+(S.mat==='copper'?'Cu':'Al'),
+      'Conditions: '+(S.app==='dwelling'?'310.12 dwelling service/feeder':S.tc+'°C wire, '+AMB_LBL[S.amb].replace(' (standard)','')+', '+CCC[S.ccc][1]+' CCC, derate ×'+R.k.toFixed(2))
+    ].join('\n');
   }
-  h+='</span></div>';
-
-  h+='<div class="metrics">';
-
-  /* conductor card */
-  if(dwellingRange){
-    var rsn=breaker<100?(breaker+'A is below the 100A minimum for 310.12'):(breaker+'A exceeds the 400A maximum for 310.12');
-    h+='<div class="metric" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.5);grid-column:span 2;">'+
-       '<div class="metric-label" style="color:#F87171;">Conductor / Set \u2014 Not Applicable</div>'+
-       '<div class="metric-value" style="color:#F87171;font-size:clamp(1rem,3vw,1.5rem);">Not Allowed</div>'+
-       '<div class="metric-sub" style="color:#FCA5A5;margin-top:6px;">'+rsn+'</div>'+
-       '<div class="metric-sub" style="color:#FCA5A5;">310.12 only applies to 100A\u2013400A single-phase dwelling services and feeders</div>'+
-       '<span class="tag tag-err" style="margin-top:8px;">310.12 \u2014 select General (310.16) or change breaker size</span></div>';
-  }else if(dwellingParallel){
-    h+='<div class="metric" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.5);grid-column:span 2;">'+
-       '<div class="metric-label" style="color:#F87171;">Conductor / Set \u2014 Not Applicable</div>'+
-       '<div class="metric-value" style="color:#F87171;font-size:clamp(1rem,3vw,1.5rem);">Not Allowed</div>'+
-       '<div class="metric-sub" style="color:#FCA5A5;margin-top:6px;">310.12 does not permit parallel conductor sets</div>'+
-       '<div class="metric-sub" style="color:#FCA5A5;">Set parallel sets to 1, or switch to General (310.16)</div>'+
-       '<span class="tag tag-err" style="margin-top:8px;">310.12 \u2014 paralleling not permitted under this section</span></div>';
-  }else if(parallelViol){
-    h+='<div class="metric" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.5);grid-column:span 2;">'+
-       '<div class="metric-label" style="color:#F87171;">Conductor / Set \u2014 Violation</div>'+
-       '<div class="metric-value" style="color:#F87171;font-size:clamp(1rem,3vw,1.5rem);">Not Allowed</div>'+
-       '<div class="metric-sub" style="color:#FCA5A5;margin-top:6px;">Selected conductor ('+conductor+') is smaller than 1/0 AWG</div>'+
-       '<div class="metric-sub" style="color:#FCA5A5;">Paralleling prohibited \u2014 check 310.10(H)</div>'+
-       '<span class="tag tag-err" style="margin-top:8px;">310.10(H) Violation \u2014 increase sets or use larger breaker</span></div>';
-  }else if(ninetyMisuse){
-    h+='<div class="metric" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.5);grid-column:span 2;">'+
-       '<div class="metric-label" style="color:#F87171;">Conductor / Set \u2014 Violation</div>'+
-       '<div class="metric-value" style="color:#F87171;font-size:clamp(1rem,3vw,1.5rem);">Not Allowed</div>'+
-       '<div class="metric-sub" style="color:#FCA5A5;margin-top:6px;">The 90\u00b0C column is only for corrections and adjustments based on conductors that are rated 90\u00b0C and applied at the 75\u00b0C column.</div>'+
-       '<div class="metric-sub" style="color:#FCA5A5;">With 1\u20133 current-carrying conductors (no derating) and standard ambient temperature, there is no correction or adjustment to apply \u2014 use the 75\u00b0C column.</div>'+
-       '<span class="tag tag-err" style="margin-top:8px;">NEC 110.14(C) \u2014 add temperature correction / 4+ CCC derating or select 75\u00b0C column</span></div>';
-  }else{
-    h+='<div class="metric">'+
-       '<div class="metric-label">Conductor / Set</div>'+
-       '<div class="metric-value">'+(exceeded?'\u2014':conductor)+'</div>'+
-       '<div class="metric-sub">'+matLabel+'</div>'+
-       '<div class="metric-sub">'+tableUsed+'</div>'+
-       '<span class="tag '+(isDwelling?'tag-info':breaker>800?'tag-warn':'tag-ok')+'">'+method+'</span>'+
-       (hasNotes?'<div class="see-notes" onclick="document.getElementById(\'noteBlocks\').scrollIntoView({behavior:\'smooth\'});">\u26A0 See notes below \u2193</div>':'')+
-       '</div>';
-  }
-
-  /* OCPD card */
-  h+='<div class="metric">'+
-    '<div class="metric-label">OCPD Rating</div>'+
-    '<div class="metric-value">'+breaker+'A</div>'+
-    '<div class="metric-sub">'+(sets>1?ampPerSet+'A min per set ('+sets+' sets)':'Single conductor set')+'</div>'+
-    (isTempCorr&&!isDwelling?'<div class="metric-sub">Ambient factor: '+af.toFixed(2)+' ('+ambLabel+')</div>':'')+
-    (isDerating&&!isDwelling?'<div class="metric-sub">CCC factor: '+df.pct+'</div>':'')+
-    ((isTempCorr||isDerating)&&!isDwelling?'<div class="metric-sub">Combined: \u00d7'+combinedFactor.toFixed(2)+'</div>':'')+
-    '</div>';
-
-  /* derated ampacity card */
-  if(!isDwelling&&!exceeded&&deratedAmpacity!==null){
-    var ok=deratedAmpacity>=ampPerSet;
-    var mathStr=baseAmpacity+'A ('+tcLabel+')';
-    if(isTempCorr) mathStr+=' \u00d7 '+af.toFixed(2)+' (ambient)';
-    if(isDerating) mathStr+=' \u00d7 '+df.pct+' (CCC)';
-    mathStr+=' = '+Math.floor(baseAmpacity*combinedFactor)+'A';
-    if(tc===90||isTempCorr) mathStr+=', capped at 75\u00b0C';
-    h+='<div class="metric">'+
-       '<div class="metric-label">Derated Ampacity</div>'+
-       '<div class="metric-value">'+deratedAmpacity+'A</div>'+
-       '<div class="metric-sub">'+mathStr+'</div>'+
-       '<span class="tag '+(ok?'tag-ok':'tag-err')+'">'+(ok?'Adequate':'Insufficient')+'</span></div>';
-  }
-
-  /* EGC card */
-  h+='<div class="metric">'+
-     '<div class="metric-label">Min EGC Size</div>'+
-     '<div class="metric-value" style="font-size:clamp(1rem,3vw,1.4rem)">'+egcCu+'</div>'+
-     '<div class="metric-sub">Copper</div>'+
-     '<div class="metric-value" style="font-size:clamp(1rem,3vw,1.4rem);margin-top:.35rem">'+egcAl+'</div>'+
-     '<div class="metric-sub">Aluminum / CU-clad AL</div>'+
-     '<span class="tag tag-info">250.122</span></div>';
-
-  h+='</div><div class="hr"></div>';
-
-  /* note blocks */
-  h+='<div id="noteBlocks">';
-  if(!dwellingRange&&!dwellingParallel&&!parallelViol){
-    h+='<div class="note-block"><strong>Code basis \u2014 conductor sizing</strong>'+ruleNote+'</div>';
-  }
-  if(invalidAmbient){
-    h+='<div class="note-block err"><strong>Invalid \u2014 Ambient Temperature Exceeds Conductor Rating</strong>'+
-       'The selected ambient temperature ('+ambLabel+') meets or exceeds the '+tcLabel+' conductor temperature rating. '+
-       'The correction factor is 0. Select a conductor with a higher temperature rating (e.g. 90\u00b0C) or reduce the ambient temperature classification.</div>';
-  } else if(anyDerating){
-    h+='<div class="note-block warn"><strong>Derating \u2014 Table 310.15(B)(1) + (C)(1)</strong>'+
-       'Both correction factors are applied and multiplied together per 310.15: ';
-    if(isTempCorr) h+='Ambient correction: '+af.toFixed(2)+' ('+ambLabel+' at '+tcLabel+' rating). ';
-    if(isDerating) h+='CCC adjustment: '+df.pct+' ('+df.label+'). ';
-    h+='Combined factor: '+combinedFactor.toFixed(2)+'.';
-    if(tc===90) h+=' Per 110.14(C), the final usable ampacity is capped at the 75\u00b0C column value.';
-    h+='</div>';
-  }
-  if(sets>1){
-    if(dwellingParallel){
-      h+='<div class="note-block err"><strong>310.12 \u2014 Paralleling not permitted</strong>'+
-         'NEC 310.12 applies to single conductors supplying the entire load of a dwelling. '+
-         'Parallel sets are not recognized under this section. Set parallel sets to 1, '+
-         'or switch to the General (310.16 75\u00b0C) application.</div>';
-    }else if(parallelViol){
-      h+='<div class="note-block err"><strong>310.10(H) \u2014 Parallel conductor violation</strong>'+
-         'Conductors smaller than 1/0 AWG cannot be paralleled. The selected '+conductor+
-         ' per set does not meet the minimum size requirement. Increase the number of parallel sets, '+
-         'select a larger breaker, or verify the load requires paralleling.</div>';
-    }else if(!exceeded){
-      h+='<div class="note-block"><strong>Paralleling \u2014 310.10(H)</strong>'+
-         'Each of the '+sets+' sets must use '+conductor+' conductors. '+
-         'All conductors in each parallel set must be the same size, insulation type, and length. '+
-         'Minimum parallel size is 1/0 AWG.</div>';
-      h+='<div class="note-block warn"><strong>75\u00b0C Column \u2014 Multiple Sets / Raceways</strong>'+
-         'With more than one set installed in more than one raceway, the conductor ampacity '+
-         'must be taken from the 75\u00b0C column. The 90\u00b0C column may only be used as a starting '+
-         'point for ambient temperature correction and conductor-bundle adjustment; the final '+
-         'usable ampacity is limited to the 75\u00b0C value per NEC 110.14(C).</div>';
-    }
-  }
-  if(dwellingRange){
-    h+='<div class="note-block err"><strong>310.12 \u2014 Out of range</strong>'+
-       'NEC 310.12 and its 83% rule apply only to single-phase 120/240V services and feeders '+
-       'rated 100A through 400A supplying the entire load of a one- or two-family dwelling. '+
-       'For this breaker size, switch to the General (310.16 75\u00b0C) application '+
-       'or adjust the breaker rating.</div>';
-  }
-  h+='<div class="note-block"><strong>Equipment grounding conductor \u2014 250.122</strong>'+
-     'Minimum '+egcCu+' (Copper) or '+egcAl+' (Aluminum / CU-clad AL) based on '+breaker+'A OCPD. '+
-     'If circuit conductors are upsized for any reason, the EGC must be proportionally '+
-     'increased per 250.122(B).</div>';
-  if(exceeded){
-    h+='<div class="note-block err"><strong>Table exceeded</strong>'+
-       'The required ampacity per set exceeds the largest conductor in NEC 310.16. '+
-       'Consider increasing the number of parallel sets.</div>';
-  }
-  h+='</div>'; /* end #noteBlocks */
-
-  document.getElementById('result').innerHTML=h;
+  h+='<div class="acts"><button class="primary" onclick="copyNotes()"'+(summary?'':' disabled style="opacity:.5"')+'>Copy for job notes</button><button onclick="resetAll()">Start over</button></div>';
+  $('ansBody').innerHTML=h;
+  var mw=$('miniW'), ms=$('miniS'), prev=mw.textContent;
+  if(R.errs.length){mw.textContent='Not allowed';mw.className='w bad';ms.textContent=R.errs[0][0];}
+  else{mw.textContent=(n>1?n+' \u00d7 ':'')+R.row.size+' '+(S.mat==='copper'?'Cu':'Al');mw.className='w';ms.textContent='Ground '+e+' '+(S.mat==='copper'?'Cu':'Al')+' \u00b7 '+(R.G?R.target+'A nameplate':B+'A breaker')+(n>1?' \u00b7 '+n+' sets':'');}
+  if(prev&&prev!==mw.textContent){var m=$('mini');m.classList.remove('pulse');void m.offsetWidth;m.classList.add('pulse');}
+  markChips();
 }
+
+/* ════ UI ════ */
+function markChips(){
+  document.querySelectorAll('#ampChips .chip').forEach(function(c){c.setAttribute('aria-pressed',!S.gen&&+c.dataset.a===S.breaker);});
+  document.querySelectorAll('#genChips .chip').forEach(function(c){c.setAttribute('aria-pressed',!!S.gen&&c.dataset.i==String(GENS.indexOf(S.gen)));});
+  $('otherAmp').value=String(S.breaker);
+  [['matSeg','mat'],['appSeg','app'],['tcSeg','tc'],['cccSeg','ccc'],['rbSeg','rb'],['gmSeg','gmode'],['gpSeg','gpct']].forEach(function(p){
+    document.querySelectorAll('#'+p[0]+' .chip').forEach(function(c){var v=c.dataset[p[1]==='gmode'?'gm':p[1]==='gpct'?'gp':p[1]];var cur=p[1]==='rb'?(S.rb?'1':'0'):String(S[p[1]]);c.setAttribute('aria-pressed',v===cur);});
+  });
+  var rbOff=S.breaker>800||(S.gen&&S.gmode==='np'&&S.app==='general')||S.app==='dwelling';
+  var al=document.querySelector('#rbSeg [data-rb="1"]'); al.disabled=rbOff;
+  al.querySelector('small').textContent=S.breaker>800?'Not allowed over 800A · 240.4(C)':S.app==='dwelling'?'Not used for 310.12':(S.gen&&S.gmode==='np')?'Not used for nameplate sizing':'240.4(B) · up to 800A';
+  $('setsOut').textContent=S.sets;$('ambient').value=String(S.amb);
+}
+function build(){
+  var last='';
+  $('genChips').innerHTML=GENS.map(function(g,i){var br=(i>0&&GENS[i-1].g!==g.g)?'<div style="flex-basis:100%;height:2px"></div>':'';return br+'<button class="chip" data-i="'+i+'"><b>'+g.kw+'kW</b><small>'+(g.g==='Guardian'?'Guardian':'XG')+' · '+g.a+'A</small></button>';}).join('');
+  $('ampChips').innerHTML=COMMON.map(function(a){return '<button class="chip" data-a="'+a+'">'+a+'A</button>';}).join('');
+  $('otherAmp').innerHTML=STD.map(function(a){return '<option value="'+a+'">'+a+' A</option>';}).join('');
+  $('ambient').innerHTML=Object.keys(AMB).map(function(k){return '<option value="'+k+'">'+AMB_LBL[k]+' · '+AMB_C[k]+'</option>';}).join('');
+}
+function on(id,attr,fn){$(id).addEventListener('click',function(e){var b=e.target.closest('[data-'+attr+']');if(b){fn(b.dataset[attr]);render();}});}
+on('genChips','i',function(v){S.gen=GENS[+v];S.breaker=S.gen.a;});
+on('ampChips','a',function(v){S.gen=null;S.breaker=+v;});
+on('matSeg','mat',function(v){S.mat=v;});
+on('appSeg','app',function(v){S.app=v;});
+on('tcSeg','tc',function(v){S.tc=+v;});
+on('cccSeg','ccc',function(v){S.ccc=+v;});
+on('rbSeg','rb',function(v){S.rb=v==='1';});
+on('gmSeg','gm',function(v){S.gmode=v;});
+on('gpSeg','gp',function(v){S.gpct=+v;});
+$('otherAmp').addEventListener('change',function(e){S.gen=null;S.breaker=+e.target.value;render();});
+$('ambient').addEventListener('change',function(e){S.amb=+e.target.value;render();});
+$('setMinus').addEventListener('click',function(){S.sets=Math.max(1,S.sets-1);render();});
+$('setPlus').addEventListener('click',function(){S.sets=Math.min(10,S.sets+1);render();});
+function copyNotes(){
+  if(!summary)return;
+  var done=function(){var t=$('toast');t.classList.add('show');setTimeout(function(){t.classList.remove('show');},1400);};
+  function fb(){var ta=document.createElement('textarea');ta.value=summary;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done();}catch(e){}ta.remove();}
+  if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(summary).then(done,fb);else fb();
+}
+function resetAll(){S={breaker:100,gen:null,mat:'copper',app:'general',tc:75,amb:30,ccc:3,sets:1,rb:false,gmode:'np',gpct:100};render();window.scrollTo({top:0,behavior:'smooth'});}
 
 /* ════ THEME ════ */
 function toggleTheme(){
-  var el=document.documentElement;
-  var dark=el.getAttribute('data-theme')==='dark';
+  var el=document.documentElement, dark=el.getAttribute('data-theme')==='dark';
   el.setAttribute('data-theme',dark?'light':'dark');
-  var btn=document.getElementById('themeBtn');
-  if(btn) btn.textContent=dark?'🌙':'☀️';
+  var btn=$('themeBtn'); if(btn) btn.textContent=dark?'☀️':'🌙';
   try{localStorage.setItem('aog_breaker_theme',dark?'light':'dark');}catch(e){}
-  document.getElementById('themeIcon').textContent =dark?'\ud83c\udf19':'\u2600\ufe0f';
-  document.getElementById('themeLabel').textContent=dark?'Dark Mode':'Light Mode';
 }
-
-/* ════ INIT ════ */
-function updateNeutralNote(){
-  var ccc=parseInt(document.getElementById('ccc').value);
-  document.getElementById('neutralNote').style.display=ccc>3?'block':'none';
-}
-
-['breaker','material','application','sets','tempCol','ambient','ccc'].forEach(function(id){
-  document.getElementById(id).addEventListener('change',calc);
-});
-document.getElementById('ccc').addEventListener('change',updateNeutralNote);
-calc();
-updateNeutralNote();
+build(); render();
+(function(){var a=document.querySelector('.ans'),m=$('mini');
+  if('IntersectionObserver' in window){new IntersectionObserver(function(es){m.classList.toggle('show',!es[0].isIntersecting);},{threshold:0.15}).observe(a);} else m.classList.add('show');
+  var bar=$('action-bar'); if(bar) document.documentElement.style.setProperty('--barH',bar.offsetHeight+'px');})();
 </script>
 
 <script>
-if('serviceWorker' in navigator){
-  window.addEventListener('load',function(){
-    navigator.serviceWorker.register('../sw.js',{scope:'../'})
-      .then(function(reg){
-        console.log('[SW] Registered, scope:',reg.scope);
-        reg.addEventListener('updatefound',function(){
-          var nw=reg.installing;
-          nw.addEventListener('statechange',function(){
-            if(nw.state==='installed'&&navigator.serviceWorker.controller){
-              console.log('[AOG SW] Update available \u2014 reload to apply.');
-            }
-          });
-        });
-      })
-      .catch(function(err){console.warn('[AOG SW] Registration failed:',err);});
-  });
+if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
+  window.addEventListener('load',function(){navigator.serviceWorker.register('../sw.js',{scope:'../'}).catch(function(){});});
 }
-</script>
-<script>
 (function(){
   try{
     var t=localStorage.getItem('aog_breaker_theme');
     if(t) document.documentElement.setAttribute('data-theme',t);
-    var btn=document.getElementById('themeBtn');
-    if(btn) btn.textContent=(document.documentElement.getAttribute('data-theme')==='dark')?'🌙':'☀️';
   }catch(e){}
+  var btn=document.getElementById('themeBtn');
+  if(btn) btn.textContent=(document.documentElement.getAttribute('data-theme')==='dark')?'🌙':'☀️';
 })();
 function adjustTopPadding(){
-  var bar=document.getElementById('action-bar');
-  var page=document.getElementById('page');
+  var bar=document.getElementById('action-bar'), page=document.getElementById('page');
   if(bar&&page) page.style.marginTop=bar.offsetHeight+'px';
 }
 window.addEventListener('resize',adjustTopPadding);
