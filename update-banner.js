@@ -107,7 +107,7 @@
     '#aog-update-banner {',
     '  position: fixed;',
     '  top: 0; left: 0; right: 0;',
-    '  z-index: 9999;',
+    '  z-index: 100000;',   /* above the tool pages\' fixed action bar (z-index 99999) */
     '  background: var(--panel, var(--bg2, #1a1a2e));',
     '  color: var(--text, #fff);',
     '  font-family: var(--font-body, sans-serif);',
@@ -131,7 +131,7 @@
     '#aog-update-banner .aog-list {',
     '  margin: 0;',
     '  padding-left: 18px;',
-    '  color: var(--text-muted, #ccc);',
+    '  color: var(--text-muted, var(--text2, #ccc));',   /* tool pages define --text2, not --text-muted */
     '}',
     '#aog-update-banner .aog-list li { margin: 2px 0; }',
     '#aog-update-banner .aog-btn {',
@@ -148,7 +148,7 @@
     '}',
     '#aog-update-banner .aog-btn:hover { filter: brightness(1.15); }',
     '#aog-repair-bar {',
-    '  position: fixed; top: 0; left: 0; right: 0; z-index: 9998;',
+    '  position: fixed; top: 0; left: 0; right: 0; z-index: 100000;',
     '  background: #4a2c00; color: #ffd79a;',
     '  font-family: var(--font-body, sans-serif); font-size: 13px;',
     '  padding: 10px 14px; display: flex; align-items: center; gap: 10px;',

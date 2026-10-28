@@ -548,12 +548,87 @@ uit  border-radius: 12px; font-size: 10px;
 @media (max-width: 480px) {
   .action-bar { padding: 4px 4px; padding-top: max(4px, env(safe-area-inset-top, 4px)); gap: 3px; }
 }
+/* ===== QUICK REFERENCE TABLES MODAL ===== */
+.ref-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.ref-btn {
+  flex: 1; min-width: 140px;
+  background: var(--bg3); color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 8px;
+  padding: 10px; cursor: pointer;
+  font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  text-decoration: none; text-align: center; transition: all 0.2s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.ref-btn:hover { background: var(--accent); color: #000; }
+.modal-bg {
+  position: fixed; inset: 0; z-index: 100000;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(2px);
+  display: none; align-items: flex-start; justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 16px)) 12px 16px;
+  overflow-y: auto;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: var(--bg2); border: 2px solid var(--accent);
+  border-radius: var(--radius); width: 100%; max-width: 820px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+  margin: auto 0;
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--bg2); border-radius: var(--radius) var(--radius) 0 0; z-index: 1;
+}
+.modal-title { font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 1.5px; }
+.modal-close {
+  background: none; border: 1px solid var(--border); color: var(--text2);
+  border-radius: 6px; width: 32px; height: 32px; font-size: 18px; cursor: pointer; flex-shrink: 0;
+}
+.modal-close:hover { border-color: var(--danger); color: var(--danger); }
+.modal-tabs { display: flex; gap: 6px; padding: 10px 14px 0; flex-wrap: wrap; }
+.modal-tab {
+  flex: 1; min-width: 100px; padding: 8px; border: 2px solid var(--border); border-radius: 8px;
+  background: none; color: var(--text2); cursor: pointer;
+  font-family: 'Orbitron', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 1px;
+}
+.modal-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(217,119,6,0.08); }
+.dark .modal-tab.active { background: rgba(0,255,200,0.07); }
+.modal-body { padding: 14px; }
+.modal-pane { display: none; }
+.modal-pane.active { display: block; }
+.modal .conduit-table td.grp {
+  background: var(--bg3); color: var(--accent);
+  font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 1px;
+}
+.modal .conduit-table td.num, .modal .conduit-table th.num { text-align: center; }
+.rule-list { display: grid; gap: 8px; }
+.rule {
+  background: var(--bg3); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 8px; padding: 10px;
+}
+.rule-ref { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--accent); margin-bottom: 3px; }
+.rule-txt { font-size: 13px; color: var(--text); line-height: 1.45; }
+.rule-txt b { font-weight: 600; }
+.modal-foot { padding: 0 14px 14px; }
+body.modal-open { overflow: hidden; }
+@media print { .modal-bg, .ref-btns { display: none !important; } }
+.cf-ref-select { margin-bottom: 10px; }
+.modal .conduit-table td.num, .modal .conduit-table th.num { text-align: center; }
+@media (max-width: 520px) {
+  .modal .conduit-table { font-size: 11px; }
+  .modal .conduit-table th { padding: 7px 4px; font-size: 8px; white-space: normal; }
+  .modal .conduit-table td { padding: 7px 4px; }
+  .modal-bg { padding-left: 6px; padding-right: 6px; }
+  .modal-body { padding: 10px; }
+  .cf-ref-select select { font-size: 16px; }
+}
 </style>
 <script src="../update-banner.js"></script>
 </head>
 <body>
 <div class="action-bar" id="action-bar">
   <a class="ab-btn" href="../">🏠 HOME</a>
+  <button class="ab-btn" onclick="cfOpenRef('t1')">📋 TABLES</button>
   <button class="theme-toggle-ab" id="themeBtn" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
 </div>
 
@@ -610,7 +685,7 @@ uit  border-radius: 12px; font-size: 10px;
             <option value="LFNC-B">LFNC-B — Liquidtight Flex NM (B)</option>
           </optgroup>
           <optgroup label="Rigid PVC Conduit">
-            <option value="PVC-40">PVC Schedule 40</option>
+            <option value="PVC-40" selected>PVC Schedule 40</option>
             <option value="PVC-80">PVC Schedule 80</option>
           </optgroup>
           <optgroup label="High Density Polyethylene">
@@ -750,6 +825,12 @@ uit  border-radius: 12px; font-size: 10px;
   <!-- REFERENCE CARD -->
   <div class="card">
     <div class="card-title">NEC Chapter 9 Reference</div>
+    <div class="ref-btns">
+      <button class="ref-btn" onclick="cfOpenRef('t1')">📊 Table 1 — Fill %</button>
+      <button class="ref-btn" onclick="cfOpenRef('t4')">📐 Table 4 — Conduit</button>
+      <button class="ref-btn" onclick="cfOpenRef('t5')">🔌 Table 5 — Wire</button>
+      <button class="ref-btn" onclick="cfOpenRef('n')">📖 Chapter 9 Notes</button>
+    </div>
     <div style="display:grid;gap:6px;">
       <div class="info-row"><div class="info-dot"></div>Table 1 — Percent Conduit Fill Rules</div>
       <div class="info-row"><div class="info-dot"></div>1 Conductor: 53% max fill</div>
@@ -765,6 +846,92 @@ uit  border-radius: 12px; font-size: 10px;
 
 </div>
 
+
+<!-- QUICK REFERENCE MODAL (reference only — reads the same tables the calculator uses) -->
+<div class="modal-bg" id="cfRefModal" onclick="if(event.target===this)cfCloseRef()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cfRefTitle">
+    <div class="modal-head">
+      <div class="modal-title" id="cfRefTitle">📋 NEC 2023 — Chapter 9 Quick Reference</div>
+      <button class="modal-close" onclick="cfCloseRef()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab" data-tab="t1" onclick="cfRefTab('t1')">TABLE 1</button>
+      <button class="modal-tab" data-tab="t4" onclick="cfRefTab('t4')">TABLE 4</button>
+      <button class="modal-tab" data-tab="t5" onclick="cfRefTab('t5')">TABLE 5</button>
+      <button class="modal-tab" data-tab="n" onclick="cfRefTab('n')">NOTES</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-pane" id="cfpane-t1">
+        <div class="info-row" style="margin:0 0 10px;"><div class="info-dot"></div>
+          <span>Percent of cross section of conduit &amp; tubing for conductors and cables</span>
+        </div>
+        <div class="table-wrap">
+          <table class="conduit-table">
+            <thead><tr><th>NUMBER OF CONDUCTORS / CABLES</th><th class="num">MAX FILL</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td class="num">53%</td></tr>
+              <tr><td>2</td><td class="num">31%</td></tr>
+              <tr><td>Over 2</td><td class="num">40%</td></tr>
+              <tr><td>Nipple 24" or shorter (Note 4)</td><td class="num">60%</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="rule-list" style="margin-top:12px;">
+          <div class="rule"><div class="rule-ref">INFORMATIONAL NOTE — PULLING</div><div class="rule-txt">Table 1 assumes common conditions: proper cabling and alignment of conductors, with reasonable pull lengths and number of bends. Some conditions may need a larger raceway or a lower fill.</div></div>
+          <div class="rule"><div class="rule-ref">INFORMATIONAL NOTE — JAM RATIO</div><div class="rule-txt">Pulling <b>three</b> conductors or cables: if conduit ID ÷ conductor OD is between <b>2.8 and 3.2</b>, the conductors can jam. With four or more, jamming is very unlikely. This is the jam check this calculator already shows.</div></div>
+        </div>
+      </div>
+      <div class="modal-pane" id="cfpane-t4">
+        <div class="cf-ref-select">
+          <label>Conduit / Tubing Type</label>
+          <select id="cfRefConduit" onchange="cfBuildT4()"></select>
+        </div>
+        <div class="info-row" style="margin:0 0 10px;"><div class="info-dot"></div>
+          <span>Internal diameter &amp; usable area (in²) — the same values this calculator uses.</span>
+        </div>
+        <div class="table-wrap">
+          <table class="conduit-table">
+            <thead><tr><th>TRADE SIZE</th><th class="num">ID (in)</th><th class="num">100%</th><th class="num">60%</th><th class="num">1 WIRE 53%</th><th class="num">2 WIRES 31%</th><th class="num">OVER 2 40%</th></tr></thead>
+            <tbody id="cfT4"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-pane" id="cfpane-t5">
+        <div class="cf-ref-select">
+          <label>Conductor Type</label>
+          <select id="cfRefWire" onchange="cfBuildT5()"></select>
+        </div>
+        <div class="info-row" style="margin:0 0 10px;"><div class="info-dot"></div>
+          <span>Approximate area &amp; diameter — the same values this calculator uses. <b id="cfT5Note"></b></span>
+        </div>
+        <div class="table-wrap">
+          <table class="conduit-table">
+            <thead><tr><th>SIZE</th><th class="num">AREA (in²)</th><th class="num">APPROX. DIA. (in)</th></tr></thead>
+            <tbody id="cfT5"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-pane" id="cfpane-n">
+        <div class="info-row" style="margin:0 0 10px;"><div class="info-dot"></div>
+          <span>Plain-language summary of the Notes to Chapter 9 tables, checked against NEC 2023 — not the official code text. Verify with the adopted code &amp; AHJ.</span>
+        </div>
+        <div class="rule-list">
+          <div class="rule"><div class="rule-ref">NOTE 1 — SAME-SIZE CONDUCTORS</div><div class="rule-txt">For conductors all the same size, Informative Annex C lists the maximum number allowed in each conduit type and size.</div></div>
+          <div class="rule"><div class="rule-ref">NOTE 2 — WHERE TABLE 1 APPLIES</div><div class="rule-txt">Table 1 applies to <b>complete conduit or tubing systems</b>, not to short sleeves used only to protect exposed wiring from physical damage.</div></div>
+          <div class="rule"><div class="rule-ref">NOTE 3 — GROUNDS COUNT</div><div class="rule-txt">Equipment grounding and bonding conductors <b>must be included</b> in the fill, using their actual dimensions (insulated or bare).</div></div>
+          <div class="rule"><div class="rule-ref">NOTE 4 — NIPPLES</div><div class="rule-txt">A nipple <b>24" or shorter</b> (connectors not counted in the length) between boxes, cabinets or similar enclosures may be filled to <b>60%</b>, and the 310.15(C)(1) adjustment factors for more than three current-carrying conductors don't apply to it.</div></div>
+          <div class="rule"><div class="rule-ref">NOTE 5 — CONDUCTORS NOT IN THE TABLES</div><div class="rule-txt">For conductors not covered in Chapter 9 — such as <b>multiconductor cables</b> and <b>optical fiber cables</b> — use their <b>actual dimensions</b>.</div></div>
+          <div class="rule"><div class="rule-ref">NOTE 6 — MIXED SIZES</div><div class="rule-txt">For a combination of conductor sizes, use the <b>actual dimensions</b> or <b>Table 5 / 5A</b> for the conductors, and <b>Table 4</b> for the conduit — which is how this calculator works.</div></div>
+          <div class="rule"><div class="rule-ref">NOTE 7 — ROUNDING UP</div><div class="rule-txt">When figuring the max number of <b>same-size</b> conductors or cables, if the result's decimal is <b>0.8 or more</b>, round up to the next whole number. Same idea for sizing conduit for a <b>single conductor</b>: a result of 0.8 or more counts as one conductor.</div></div>
+          <div class="rule"><div class="rule-ref">NOTE 8 — BARE CONDUCTORS</div><div class="rule-txt">Where bare conductors are allowed, their dimensions from <b>Table 8</b> may be used.</div></div>
+          <div class="rule"><div class="rule-ref">NOTE 9 — CABLES &amp; CORDS</div><div class="rule-txt">A multiconductor cable, optical fiber cable, or cord with two or more conductors counts as <b>one conductor</b> for Table 1. For an oval (elliptical) cable, use its <b>major diameter</b> as the circle diameter.<br><b>But:</b> single insulated conductors bundled together <b>without an overall jacket</b> are <b>not</b> a cable — count <b>each conductor</b> individually.</div></div>
+          <div class="rule"><div class="rule-ref">NOTE 10 — TABLE 5 VALUES</div><div class="rule-txt">Table 5 diameters and areas are worst-case values for round, concentric-lay stranded conductors; solid and stranded share values. Round compact-stranded values are in <b>Table 5A</b>. If the <b>actual</b> diameter and area are known (e.g. from the manufacturer), you may use them.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="footer">
   AOG FIELD OPERATIONS HUB — CONDUIT FILL CALCULATOR<br>
   NEC 2023 CHAPTER 9 — TABLES 1, 4 &amp; 5 — BUILT BY BRANDON @BrandonAOG
@@ -773,10 +940,10 @@ uit  border-radius: 12px; font-size: 10px;
 <script>
 // ============================================================
 // NEC CHAPTER 9 — TABLE 4 — CONDUIT INTERNAL DIMENSIONS
+// Verified against NEC 2023 Ch. 9 Table 4 (NFPA LiNK).
 // ============================================================
 const CONDUIT_DATA = {
   RMC: {
-    "3/8":  { id: 0.493, total: 0.191 },
     "1/2":  { id: 0.632, total: 0.314 },
     "3/4":  { id: 0.836, total: 0.549 },
     "1":    { id: 1.063, total: 0.887 },
@@ -800,7 +967,9 @@ const CONDUIT_DATA = {
     "2-1/2":{ id: 2.557, total: 5.135 },
     "3":    { id: 3.176, total: 7.922 },
     "3-1/2":{ id: 3.671, total: 10.584 },
-    "4":    { id: 4.166, total: 13.631 }
+    "4":    { id: 4.166, total: 13.631 },
+    "5":    { id: 5.210, total: 21.320 },
+    "6":    { id: 6.258, total: 30.760 }
   },
   EMT: {
     "1/2":  { id: 0.622, total: 0.304 },
@@ -812,7 +981,9 @@ const CONDUIT_DATA = {
     "2-1/2":{ id: 2.731, total: 5.858 },
     "3":    { id: 3.356, total: 8.846 },
     "3-1/2":{ id: 3.834, total: 11.545 },
-    "4":    { id: 4.334, total: 14.753 }
+    "4":    { id: 4.334, total: 14.753 },
+    "5":    { id: 5.073, total: 20.212 },
+    "6":    { id: 6.093, total: 29.158 }
   },
   FMC: {
     "3/8":  { id: 0.384, total: 0.116 },
@@ -887,16 +1058,18 @@ const CONDUIT_DATA = {
     "6":    { id: 5.709, total: 25.598 }
   },
   HDPE: {
-    "1/2":  { id: 0.622, total: 0.304 },
-    "3/4":  { id: 0.824, total: 0.533 },
-    "1":    { id: 1.049, total: 0.864 },
-    "1-1/4":{ id: 1.380, total: 1.496 },
-    "1-1/2":{ id: 1.610, total: 2.036 },
-    "2":    { id: 2.067, total: 3.356 },
-    "2-1/2":{ id: 2.469, total: 4.788 },
-    "3":    { id: 3.068, total: 7.393 },
-    "3-1/2":{ id: 3.548, total: 9.893 },
-    "4":    { id: 4.026, total: 12.730 }
+    "1/2":  { id: 0.602, total: 0.285 },
+    "3/4":  { id: 0.804, total: 0.508 },
+    "1":    { id: 1.029, total: 0.832 },
+    "1-1/4":{ id: 1.360, total: 1.453 },
+    "1-1/2":{ id: 1.590, total: 1.986 },
+    "2":    { id: 2.047, total: 3.291 },
+    "2-1/2":{ id: 2.445, total: 4.695 },
+    "3":    { id: 3.042, total: 7.268 },
+    "3-1/2":{ id: 3.521, total: 9.737 },
+    "4":    { id: 3.998, total: 12.554 },
+    "5":    { id: 5.016, total: 19.761 },
+    "6":    { id: 6.031, total: 28.567 }
   },
   ENT: {
     "1/2":  { id: 0.602, total: 0.285 },
@@ -910,11 +1083,67 @@ const CONDUIT_DATA = {
 
 // ============================================================
 // NEC CHAPTER 9 — TABLE 5 — CONDUCTOR AREAS (in²)
+// Verified against NEC 2023 Ch. 9 Tables 5 & 8 (NFPA LiNK). USE-2 and MTW are not in Table 5 — unchanged.
+// Bare solid #6–4/0 are not in Table 8: standard AWG solid diameters used (actual dimensions, Ch. 9 Note 5).
 // ============================================================
 const WIRE_DATA = {
   "THHN/THWN-2": {
-    "18 AWG":    { area: 0.0097,  od: 0.111 },
-    "16 AWG":    { area: 0.0117,  od: 0.122 },
+    "14 AWG":    { area: 0.0097,  od: 0.111 },
+    "12 AWG":    { area: 0.0133,  od: 0.130 },
+    "10 AWG":    { area: 0.0211,  od: 0.164 },
+    "8 AWG":     { area: 0.0366,  od: 0.216 },
+    "6 AWG":     { area: 0.0507,  od: 0.254 },
+    "4 AWG":     { area: 0.0824,  od: 0.324 },
+    "3 AWG":     { area: 0.0973,  od: 0.352 },
+    "2 AWG":     { area: 0.1158,  od: 0.384 },
+    "1 AWG":     { area: 0.1562,  od: 0.446 },
+    "1/0 AWG":   { area: 0.1855,  od: 0.486 },
+    "2/0 AWG":   { area: 0.2223,  od: 0.532 },
+    "3/0 AWG":   { area: 0.2679,  od: 0.584 },
+    "4/0 AWG":   { area: 0.3237,  od: 0.642 },
+    "250 kcmil": { area: 0.3970,  od: 0.711 },
+    "300 kcmil": { area: 0.4608,  od: 0.766 },
+    "350 kcmil": { area: 0.5242,  od: 0.817 },
+    "400 kcmil": { area: 0.5863,  od: 0.864 },
+    "500 kcmil": { area: 0.7073,  od: 0.949 },
+    "600 kcmil": { area: 0.8676,  od: 1.051 },
+    "700 kcmil": { area: 0.9887,  od: 1.122 },
+    "750 kcmil": { area: 1.0496,  od: 1.156 },
+    "800 kcmil": { area: 1.1085,  od: 1.188 },
+    "900 kcmil": { area: 1.2311,  od: 1.252 },
+    "1000 kcmil": { area: 1.3478,  od: 1.310 }
+  },
+  "TW/THW/THW-2": {
+    "14 AWG":    { area: 0.0139,  od: 0.133 },
+    "12 AWG":    { area: 0.0181,  od: 0.152 },
+    "10 AWG":    { area: 0.0243,  od: 0.176 },
+    "8 AWG":     { area: 0.0437,  od: 0.236 },
+    "6 AWG":     { area: 0.0726,  od: 0.304 },
+    "4 AWG":     { area: 0.0973,  od: 0.352 },
+    "3 AWG":     { area: 0.1134,  od: 0.380 },
+    "2 AWG":     { area: 0.1333,  od: 0.412 },
+    "1 AWG":     { area: 0.1901,  od: 0.492 },
+    "1/0 AWG":   { area: 0.2223,  od: 0.532 },
+    "2/0 AWG":   { area: 0.2624,  od: 0.578 },
+    "3/0 AWG":   { area: 0.3117,  od: 0.630 },
+    "4/0 AWG":   { area: 0.3718,  od: 0.688 },
+    "250 kcmil": { area: 0.4596,  od: 0.765 },
+    "300 kcmil": { area: 0.5281,  od: 0.820 },
+    "350 kcmil": { area: 0.5958,  od: 0.871 },
+    "400 kcmil": { area: 0.6619,  od: 0.918 },
+    "500 kcmil": { area: 0.7901,  od: 1.003 },
+    "600 kcmil": { area: 0.9729,  od: 1.113 },
+    "700 kcmil": { area: 1.1010,  od: 1.184 },
+    "750 kcmil": { area: 1.1652,  od: 1.218 },
+    "800 kcmil": { area: 1.2272,  od: 1.250 },
+    "900 kcmil": { area: 1.3561,  od: 1.314 },
+    "1000 kcmil": { area: 1.4784,  od: 1.372 },
+    "1250 kcmil": { area: 1.8602,  od: 1.539 },
+    "1500 kcmil": { area: 2.1695,  od: 1.662 },
+    "1750 kcmil": { area: 2.4773,  od: 1.776 },
+    "2000 kcmil": { area: 2.7818,  od: 1.882 }
+  },
+  "XHHW/XHHW-2": {
     "14 AWG":    { area: 0.0139,  od: 0.133 },
     "12 AWG":    { area: 0.0181,  od: 0.152 },
     "10 AWG":    { area: 0.0243,  od: 0.176 },
@@ -926,23 +1155,29 @@ const WIRE_DATA = {
     "1 AWG":     { area: 0.1534,  od: 0.442 },
     "1/0 AWG":   { area: 0.1825,  od: 0.482 },
     "2/0 AWG":   { area: 0.2190,  od: 0.528 },
-    "3/0 AWG":   { area: 0.2640,  od: 0.580 },
-    "4/0 AWG":   { area: 0.3237,  od: 0.642 },
-    "250 kcmil": { area: 0.3970,  od: 0.711 },
-    "300 kcmil": { area: 0.4608,  od: 0.766 },
-    "350 kcmil": { area: 0.5281,  od: 0.820 },
-    "400 kcmil": { area: 0.5958,  od: 0.871 },
-    "500 kcmil": { area: 0.7073,  od: 0.949 },
-    "600 kcmil": { area: 0.8676,  od: 1.051 },
-    "700 kcmil": { area: 0.9887,  od: 1.122 },
-    "750 kcmil": { area: 1.0496,  od: 1.156 },
-    "1000 kcmil":{ area: 1.3478,  od: 1.310 }
+    "3/0 AWG":   { area: 0.2642,  od: 0.580 },
+    "4/0 AWG":   { area: 0.3197,  od: 0.638 },
+    "250 kcmil": { area: 0.3904,  od: 0.705 },
+    "300 kcmil": { area: 0.4536,  od: 0.760 },
+    "350 kcmil": { area: 0.5166,  od: 0.811 },
+    "400 kcmil": { area: 0.5782,  od: 0.858 },
+    "500 kcmil": { area: 0.6984,  od: 0.943 },
+    "600 kcmil": { area: 0.8709,  od: 1.053 },
+    "700 kcmil": { area: 0.9923,  od: 1.124 },
+    "750 kcmil": { area: 1.0532,  od: 1.158 },
+    "800 kcmil": { area: 1.1122,  od: 1.190 },
+    "900 kcmil": { area: 1.2351,  od: 1.254 },
+    "1000 kcmil": { area: 1.3519,  od: 1.312 },
+    "1250 kcmil": { area: 1.7180,  od: 1.479 },
+    "1500 kcmil": { area: 2.0156,  od: 1.602 },
+    "1750 kcmil": { area: 2.3127,  od: 1.716 },
+    "2000 kcmil": { area: 2.6073,  od: 1.822 }
   },
-  "TW/THW/THW-2": {
+  "RHH/RHW/RHW-2": {
     "14 AWG":    { area: 0.0293,  od: 0.193 },
     "12 AWG":    { area: 0.0353,  od: 0.212 },
-    "10 AWG":    { area: 0.0507,  od: 0.254 },
-    "8 AWG":     { area: 0.0836,  od: 0.326 },
+    "10 AWG":    { area: 0.0437,  od: 0.236 },
+    "8 AWG":     { area: 0.0835,  od: 0.326 },
     "6 AWG":     { area: 0.1041,  od: 0.364 },
     "4 AWG":     { area: 0.1333,  od: 0.412 },
     "3 AWG":     { area: 0.1521,  od: 0.440 },
@@ -957,36 +1192,18 @@ const WIRE_DATA = {
     "350 kcmil": { area: 0.7870,  od: 1.001 },
     "400 kcmil": { area: 0.8626,  od: 1.048 },
     "500 kcmil": { area: 1.0082,  od: 1.133 },
-    "600 kcmil": { area: 1.1882,  od: 1.229 },
-    "700 kcmil": { area: 1.3561,  od: 1.313 },
+    "600 kcmil": { area: 1.2135,  od: 1.243 },
+    "700 kcmil": { area: 1.3561,  od: 1.314 },
     "750 kcmil": { area: 1.4272,  od: 1.348 },
-    "1000 kcmil":{ area: 1.8242,  od: 1.524 }
+    "800 kcmil": { area: 1.4957,  od: 1.380 },
+    "900 kcmil": { area: 1.6377,  od: 1.444 },
+    "1000 kcmil": { area: 1.7719,  od: 1.502 },
+    "1250 kcmil": { area: 2.3479,  od: 1.729 },
+    "1500 kcmil": { area: 2.6938,  od: 1.852 },
+    "1750 kcmil": { area: 3.0357,  od: 1.966 },
+    "2000 kcmil": { area: 3.3719,  od: 2.072 }
   },
-  "XHHW/XHHW-2": {
-    "14 AWG":    { area: 0.0139,  od: 0.133 },
-    "12 AWG":    { area: 0.0181,  od: 0.152 },
-    "10 AWG":    { area: 0.0243,  od: 0.176 },
-    "8 AWG":     { area: 0.0437,  od: 0.236 },
-    "6 AWG":     { area: 0.0590,  od: 0.274 },
-    "4 AWG":     { area: 0.0814,  od: 0.322 },
-    "3 AWG":     { area: 0.0962,  od: 0.350 },
-    "2 AWG":     { area: 0.1146,  od: 0.382 },
-    "1 AWG":     { area: 0.1534,  od: 0.442 },
-    "1/0 AWG":   { area: 0.1825,  od: 0.482 },
-    "2/0 AWG":   { area: 0.2190,  od: 0.528 },
-    "3/0 AWG":   { area: 0.2640,  od: 0.580 },
-    "4/0 AWG":   { area: 0.3237,  od: 0.642 },
-    "250 kcmil": { area: 0.3970,  od: 0.711 },
-    "300 kcmil": { area: 0.4608,  od: 0.766 },
-    "350 kcmil": { area: 0.5281,  od: 0.820 },
-    "400 kcmil": { area: 0.5958,  od: 0.871 },
-    "500 kcmil": { area: 0.7073,  od: 0.949 },
-    "600 kcmil": { area: 0.8676,  od: 1.051 },
-    "700 kcmil": { area: 0.9887,  od: 1.122 },
-    "750 kcmil": { area: 1.0496,  od: 1.156 },
-    "1000 kcmil":{ area: 1.3478,  od: 1.310 }
-  },
-  "RHH/RHW/RHW-2": {
+  "RHH/RHW/RHW-2 (no outer covering)": {
     "14 AWG":    { area: 0.0209,  od: 0.163 },
     "12 AWG":    { area: 0.0260,  od: 0.182 },
     "10 AWG":    { area: 0.0333,  od: 0.206 },
@@ -1003,12 +1220,18 @@ const WIRE_DATA = {
     "250 kcmil": { area: 0.4596,  od: 0.765 },
     "300 kcmil": { area: 0.5281,  od: 0.820 },
     "350 kcmil": { area: 0.5958,  od: 0.871 },
-    "400 kcmil": { area: 0.6648,  od: 0.920 },
-    "500 kcmil": { area: 0.7854,  od: 1.000 },
-    "600 kcmil": { area: 0.9503,  od: 1.100 },
-    "700 kcmil": { area: 1.0755,  od: 1.170 },
-    "750 kcmil": { area: 1.1410,  od: 1.205 },
-    "1000 kcmil":{ area: 1.4784,  od: 1.372 }
+    "400 kcmil": { area: 0.6619,  od: 0.918 },
+    "500 kcmil": { area: 0.7901,  od: 1.003 },
+    "600 kcmil": { area: 0.9729,  od: 1.113 },
+    "700 kcmil": { area: 1.1010,  od: 1.184 },
+    "750 kcmil": { area: 1.1652,  od: 1.218 },
+    "800 kcmil": { area: 1.2272,  od: 1.250 },
+    "900 kcmil": { area: 1.3561,  od: 1.314 },
+    "1000 kcmil": { area: 1.4784,  od: 1.372 },
+    "1250 kcmil": { area: 1.8602,  od: 1.539 },
+    "1500 kcmil": { area: 2.1695,  od: 1.662 },
+    "1750 kcmil": { area: 2.4773,  od: 1.776 },
+    "2000 kcmil": { area: 2.7818,  od: 1.882 }
   },
   "USE-2": {
     "14 AWG":    { area: 0.0139,  od: 0.133 },
@@ -1033,14 +1256,30 @@ const WIRE_DATA = {
     "12 AWG":    { area: 0.0181,  od: 0.152 },
     "10 AWG":    { area: 0.0243,  od: 0.176 },
     "8 AWG":     { area: 0.0437,  od: 0.236 },
-    "6 AWG":     { area: 0.0590,  od: 0.274 },
-    "4 AWG":     { area: 0.0814,  od: 0.322 },
-    "2 AWG":     { area: 0.1146,  od: 0.382 },
-    "1/0 AWG":   { area: 0.1825,  od: 0.482 },
-    "2/0 AWG":   { area: 0.2190,  od: 0.528 },
-    "4/0 AWG":   { area: 0.3237,  od: 0.642 },
-    "250 kcmil": { area: 0.3970,  od: 0.711 },
-    "500 kcmil": { area: 0.7073,  od: 0.949 }
+    "6 AWG":     { area: 0.0726,  od: 0.304 },
+    "4 AWG":     { area: 0.0973,  od: 0.352 },
+    "3 AWG":     { area: 0.1134,  od: 0.380 },
+    "2 AWG":     { area: 0.1333,  od: 0.412 },
+    "1 AWG":     { area: 0.1901,  od: 0.492 },
+    "1/0 AWG":   { area: 0.2223,  od: 0.532 },
+    "2/0 AWG":   { area: 0.2624,  od: 0.578 },
+    "3/0 AWG":   { area: 0.3117,  od: 0.630 },
+    "4/0 AWG":   { area: 0.3718,  od: 0.688 },
+    "250 kcmil": { area: 0.4596,  od: 0.765 },
+    "300 kcmil": { area: 0.5281,  od: 0.820 },
+    "350 kcmil": { area: 0.5958,  od: 0.871 },
+    "400 kcmil": { area: 0.6619,  od: 0.918 },
+    "500 kcmil": { area: 0.7901,  od: 1.003 },
+    "600 kcmil": { area: 0.9729,  od: 1.113 },
+    "700 kcmil": { area: 1.1010,  od: 1.184 },
+    "750 kcmil": { area: 1.1652,  od: 1.218 },
+    "800 kcmil": { area: 1.2272,  od: 1.250 },
+    "900 kcmil": { area: 1.3561,  od: 1.314 },
+    "1000 kcmil": { area: 1.4784,  od: 1.372 },
+    "1250 kcmil": { area: 1.8602,  od: 1.539 },
+    "1500 kcmil": { area: 2.1695,  od: 1.662 },
+    "1750 kcmil": { area: 2.4773,  od: 1.776 },
+    "2000 kcmil": { area: 2.7818,  od: 1.882 }
   },
   "MTW": {
     "22 AWG":    { area: 0.0031,  od: 0.063 },
@@ -1059,61 +1298,72 @@ const WIRE_DATA = {
     "2/0 AWG":   { area: 0.1901,  od: 0.492 }
   },
   "PFA/PFAH": {
-    "18 AWG":    { area: 0.0060,  od: 0.087 },
-    "16 AWG":    { area: 0.0075,  od: 0.098 },
     "14 AWG":    { area: 0.0100,  od: 0.113 },
-    "12 AWG":    { area: 0.0133,  od: 0.130 },
-    "10 AWG":    { area: 0.0172,  od: 0.148 },
+    "12 AWG":    { area: 0.0137,  od: 0.132 },
+    "10 AWG":    { area: 0.0191,  od: 0.156 },
     "8 AWG":     { area: 0.0333,  od: 0.206 },
     "6 AWG":     { area: 0.0468,  od: 0.244 },
-    "4 AWG":     { area: 0.0660,  od: 0.290 },
+    "4 AWG":     { area: 0.0670,  od: 0.292 },
+    "3 AWG":     { area: 0.0804,  od: 0.320 },
     "2 AWG":     { area: 0.0973,  od: 0.352 },
-    "1/0 AWG":   { area: 0.1590,  od: 0.450 }
+    "1 AWG":     { area: 0.1399,  od: 0.422 },
+    "1/0 AWG":   { area: 0.1676,  od: 0.462 },
+    "2/0 AWG":   { area: 0.2027,  od: 0.508 },
+    "3/0 AWG":   { area: 0.2463,  od: 0.560 },
+    "4/0 AWG":   { area: 0.3000,  od: 0.618 }
   },
   "TFN/TFFN": {
     "18 AWG":    { area: 0.0055,  od: 0.084 },
     "16 AWG":    { area: 0.0072,  od: 0.096 }
   },
   "ZW/ZW-2": {
-    "18 AWG":    { area: 0.0045,  od: 0.076 },
-    "16 AWG":    { area: 0.0059,  od: 0.087 },
-    "14 AWG":    { area: 0.0075,  od: 0.098 },
-    "12 AWG":    { area: 0.0100,  od: 0.113 },
-    "10 AWG":    { area: 0.0142,  od: 0.135 }
+    "14 AWG":    { area: 0.0139,  od: 0.133 },
+    "12 AWG":    { area: 0.0181,  od: 0.152 },
+    "10 AWG":    { area: 0.0243,  od: 0.176 },
+    "8 AWG":     { area: 0.0437,  od: 0.236 },
+    "6 AWG":     { area: 0.0590,  od: 0.274 },
+    "4 AWG":     { area: 0.0814,  od: 0.322 },
+    "3 AWG":     { area: 0.0962,  od: 0.350 },
+    "2 AWG":     { area: 0.1146,  od: 0.382 }
   },
   "Bare Conductor (Solid)": {
     "14 AWG":    { area: 0.0030,  od: 0.064 },
-    "12 AWG":    { area: 0.0040,  od: 0.072 },
-    "10 AWG":    { area: 0.0066,  od: 0.092 },
-    "8 AWG":     { area: 0.0104,  od: 0.115 },
-    "6 AWG":     { area: 0.0166,  od: 0.145 },
-    "4 AWG":     { area: 0.0264,  od: 0.183 },
-    "2 AWG":     { area: 0.0421,  od: 0.232 },
-    "1 AWG":     { area: 0.0530,  od: 0.260 },
-    "1/0 AWG":   { area: 0.0670,  od: 0.292 },
-    "2/0 AWG":   { area: 0.0843,  od: 0.328 },
-    "3/0 AWG":   { area: 0.1063,  od: 0.368 },
-    "4/0 AWG":   { area: 0.1134,  od: 0.380 },
-    "250 kcmil": { area: 0.1963,  od: 0.500 },
-    "350 kcmil": { area: 0.2749,  od: 0.592 },
-    "500 kcmil": { area: 0.3927,  od: 0.707 }
+    "12 AWG":    { area: 0.0050,  od: 0.081 },
+    "10 AWG":    { area: 0.0080,  od: 0.102 },
+    "8 AWG":     { area: 0.0130,  od: 0.128 },
+    "6 AWG":     { area: 0.0206,  od: 0.162 },
+    "4 AWG":     { area: 0.0328,  od: 0.204 },
+    "3 AWG":     { area: 0.0413,  od: 0.229 },
+    "2 AWG":     { area: 0.0521,  od: 0.258 },
+    "1 AWG":     { area: 0.0657,  od: 0.289 },
+    "1/0 AWG":   { area: 0.0829,  od: 0.325 },
+    "2/0 AWG":   { area: 0.1045,  od: 0.365 },
+    "3/0 AWG":   { area: 0.1318,  od: 0.410 },
+    "4/0 AWG":   { area: 0.1662,  od: 0.460 }
   },
   "Bare Conductor (Stranded)": {
-    "14 AWG":    { area: 0.0030,  od: 0.064 },
-    "12 AWG":    { area: 0.0040,  od: 0.072 },
-    "10 AWG":    { area: 0.0066,  od: 0.092 },
-    "8 AWG":     { area: 0.0109,  od: 0.118 },
-    "6 AWG":     { area: 0.0173,  od: 0.149 },
-    "4 AWG":     { area: 0.0275,  od: 0.187 },
-    "2 AWG":     { area: 0.0437,  od: 0.236 },
-    "1 AWG":     { area: 0.0552,  od: 0.265 },
-    "1/0 AWG":   { area: 0.0695,  od: 0.298 },
-    "2/0 AWG":   { area: 0.0877,  od: 0.334 },
-    "3/0 AWG":   { area: 0.1104,  od: 0.375 },
-    "4/0 AWG":   { area: 0.1393,  od: 0.421 },
-    "250 kcmil": { area: 0.2042,  od: 0.510 },
-    "350 kcmil": { area: 0.2856,  od: 0.603 },
-    "500 kcmil": { area: 0.4071,  od: 0.720 }
+    "14 AWG":    { area: 0.0040,  od: 0.073 },
+    "12 AWG":    { area: 0.0060,  od: 0.092 },
+    "10 AWG":    { area: 0.0110,  od: 0.116 },
+    "8 AWG":     { area: 0.0170,  od: 0.146 },
+    "6 AWG":     { area: 0.0270,  od: 0.184 },
+    "4 AWG":     { area: 0.0420,  od: 0.232 },
+    "3 AWG":     { area: 0.0530,  od: 0.260 },
+    "2 AWG":     { area: 0.0670,  od: 0.292 },
+    "1 AWG":     { area: 0.0870,  od: 0.332 },
+    "1/0 AWG":   { area: 0.1090,  od: 0.372 },
+    "2/0 AWG":   { area: 0.1370,  od: 0.418 },
+    "3/0 AWG":   { area: 0.1730,  od: 0.470 },
+    "4/0 AWG":   { area: 0.2190,  od: 0.528 },
+    "250 kcmil": { area: 0.2600,  od: 0.575 },
+    "300 kcmil": { area: 0.3120,  od: 0.630 },
+    "350 kcmil": { area: 0.3640,  od: 0.681 },
+    "400 kcmil": { area: 0.4160,  od: 0.728 },
+    "500 kcmil": { area: 0.5190,  od: 0.813 },
+    "600 kcmil": { area: 0.6260,  od: 0.893 },
+    "700 kcmil": { area: 0.7300,  od: 0.964 },
+    "750 kcmil": { area: 0.7820,  od: 0.998 },
+    "1000 kcmil": { area: 1.0420,  od: 1.152 }
   }
 };
 
@@ -1255,6 +1505,163 @@ function addWire() {
 window.addEventListener('load', function() { addWire(); });
 
 // ── CALCULATE ──────────────────────────────────────────────
+// ── CIRCULAR CONDUIT VISUAL ────────────────────────────────
+// Real non-overlapping circle packing. Places circles (each with its own
+// radius) largest-first; each new circle spirals outward from center until it
+// finds a spot that collides with none already placed. Conductors are drawn at
+// TRUE size and never overlap. When the wire fits (wallR given and fits=true)
+// the relaxation also keeps every conductor INSIDE the wall; when it doesn't
+// fit, conductors are allowed to spill past the wall so overfill shows.
+function packConductors(radii, wallR, fits) {
+  var placed = [];
+  radii.forEach(function (r) {
+    if (placed.length === 0) { placed.push({ x: 0, y: 0, r: r }); return; }
+    // Spiral search: expanding radius, sweeping angle, first gap that fits.
+    var step = Math.max(r * 0.35, 0.4);
+    var best = null;
+    for (var dist = 0; dist < 400 && !best; dist += step) {
+      var aStep = dist === 0 ? 2 * Math.PI : (step / dist);
+      for (var a = 0; a < 2 * Math.PI; a += aStep) {
+        var x = Math.cos(a) * dist, y = Math.sin(a) * dist;
+        var ok = true;
+        for (var i = 0; i < placed.length; i++) {
+          var p = placed[i];
+          var dx = x - p.x, dy = y - p.y;
+          if (dx * dx + dy * dy < (r + p.r) * (r + p.r) - 0.01) { ok = false; break; }
+        }
+        if (ok) { best = { x: x, y: y, r: r }; break; }
+      }
+    }
+    placed.push(best || { x: 0, y: 0, r: r });
+  });
+
+  // Relaxation. Each pass: (1) gather toward center, (2) hard-contain inside the
+  // wall when the wire fits, (3) resolve overlaps. Ending each pass on overlap
+  // resolution means the final state is non-overlapping; the contain step earlier
+  // in the pass keeps the outermost conductors resting against the wall. A tiny
+  // spacing margin between conductors lets a dense-but-legal fill settle cleanly
+  // against the wall instead of being crushed (which would force overlaps).
+  var margin = 0.15;   // px of breathing room between conductor edges
+  for (var pass = 0; pass < 240; pass++) {
+    var pullK = pass < 50 ? 0.6 : 0.12;
+    // (1) gather toward center
+    placed.forEach(function (p) {
+      var d = Math.sqrt(p.x * p.x + p.y * p.y);
+      if (d > 0.001) { var pull = Math.min(pullK, d); p.x -= (p.x / d) * pull; p.y -= (p.y / d) * pull; }
+    });
+    // (2) contain inside the wall (hard) when the wire fits
+    if (fits && wallR) {
+      placed.forEach(function (p) {
+        var d = Math.sqrt(p.x * p.x + p.y * p.y);
+        var maxD = wallR - p.r;
+        if (d > maxD && d > 0.001) { p.x = (p.x / d) * maxD; p.y = (p.y / d) * maxD; }
+      });
+    }
+    // (3) resolve overlaps (with a small margin so packing stays comfortable)
+    for (var s = 0; s < 6; s++) {
+      for (var i = 0; i < placed.length; i++) {
+        for (var j = i + 1; j < placed.length; j++) {
+          var a = placed[i], b = placed[j];
+          var dx = b.x - a.x, dy = b.y - a.y;
+          var dist = Math.sqrt(dx * dx + dy * dy) || 0.001;
+          var need = a.r + b.r + margin;
+          if (dist < need) {
+            var overlap = (need - dist) / 2;
+            var ux = dx / dist, uy = dy / dist;
+            a.x -= ux * overlap; a.y -= uy * overlap;
+            b.x += ux * overlap; b.y += uy * overlap;
+          }
+        }
+      }
+    }
+  }
+  // Final pass: nothing may cross the wall when the wire fits. Containment is the
+  // hard guarantee (a legal fill must never LOOK like it's spilling), so this
+  // ends on a wall clamp. At very high but legal fills (~85%+), the conductors
+  // may visibly press together — that's honest: wire crammed near max fill really
+  // is squeezed tight. Touching neighbours reads fine; poking outside would not.
+  for (var s2 = 0; s2 < 14; s2++) {
+    // resolve overlaps
+    for (var i2 = 0; i2 < placed.length; i2++) {
+      for (var j2 = i2 + 1; j2 < placed.length; j2++) {
+        var a2 = placed[i2], b2 = placed[j2];
+        var dx2 = b2.x - a2.x, dy2 = b2.y - a2.y;
+        var dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2) || 0.001;
+        var need2 = a2.r + b2.r;
+        if (dist2 < need2) {
+          var ov2 = (need2 - dist2) / 2;
+          var ux2 = dx2 / dist2, uy2 = dy2 / dist2;
+          a2.x -= ux2 * ov2; a2.y -= uy2 * ov2;
+          b2.x += ux2 * ov2; b2.y += uy2 * ov2;
+        }
+      }
+    }
+    // then re-contain (clamp wins — this is the last thing each iteration does)
+    if (fits && wallR) {
+      placed.forEach(function (p) {
+        var d = Math.sqrt(p.x * p.x + p.y * p.y);
+        var maxD = wallR - p.r;
+        if (d > maxD && d > 0.001) { p.x = (p.x / d) * maxD; p.y = (p.y / d) * maxD; }
+      });
+    }
+  }
+  return placed;
+}
+
+// Build an SVG cross-section: conduit wall + each conductor drawn to real OD.
+// conductors: array of {od, qty, type} · ringColor · (fillFrac kept for signature
+// compatibility but no longer used for sizing — packing is fully physical now).
+// A conductor renders OUTSIDE the wall only when the tight pack physically can't
+// fit it inside — i.e. real overfill. Failing the NEC 40% code limit is shown by
+// ring COLOR, not by spilling, because the wire still fits in the pipe.
+function conduitSVG(conduitID, conductors, ringColor, fillFrac) {
+  var cx = 40, cy = 40, R = 27;          // wall radius, in an 80x80 canvas
+  var pxPerIn = R / (conduitID / 2);
+
+  // Flat list of conductor radii (px), largest first so big wires take center.
+  var items = [];
+  conductors.forEach(function (c) {
+    for (var i = 0; i < c.qty; i++) items.push((c.od / 2) * pxPerIn);
+  });
+  items.sort(function (a, b) { return b - a; });
+
+  var packed = packConductors(items, R, fillFrac <= 1.0);   // contained if it fits
+
+  // Canvas grows only if the tight pack genuinely reaches past the wall.
+  var reach = R;
+  packed.forEach(function (d) {
+    var far = Math.sqrt(d.x * d.x + d.y * d.y) + d.r;
+    if (far > reach) reach = far;
+  });
+  var half = reach + 3;
+  var minX = cx - half, minY = cy - half, size = half * 2;
+
+  var dots = '';
+  packed.forEach(function (d) {
+    var center = Math.sqrt(d.x * d.x + d.y * d.y);
+    // A conductor counts as "spilling out" only when its CENTER has crossed the
+    // wall — i.e. more than half of it is outside. A conductor merely grazing
+    // the wall (packing gaps push its edge a hair past R) still reads as inside,
+    // which matches reality: tight-packed circles never hit 100% density, so a
+    // legal fill can lightly touch the wall without actually overflowing.
+    var outside = center > R;
+    dots += '<circle cx="' + (cx + d.x).toFixed(2) + '" cy="' + (cy + d.y).toFixed(2) +
+            '" r="' + d.r.toFixed(2) + '" fill="' + ringColor +
+            '" fill-opacity="' + (outside ? '0.45' : '0.85') +
+            '" stroke="#0A0E27" stroke-width="0.35"' +
+            (outside ? ' stroke-dasharray="1.2 1"' : '') + '/>';
+  });
+
+  return '<svg viewBox="' + minX.toFixed(1) + ' ' + minY.toFixed(1) + ' ' +
+             size.toFixed(1) + ' ' + size.toFixed(1) + '" ' +
+         'style="width:56px;height:56px;display:block;margin:0 auto;overflow:visible;">' +
+           // conductors first, then the wall on top so the boundary stays crisp
+           dots +
+           '<circle cx="' + cx + '" cy="' + cy + '" r="' + R +
+             '" fill="none" stroke="' + ringColor + '" stroke-width="2"/>' +
+         '</svg>';
+}
+
 function calculate(auto) {
   const conduitType = document.getElementById('conduitType').value;
   const selectedSize = document.getElementById('tradeSize').value;
@@ -1363,10 +1770,13 @@ function calculate(auto) {
 
     if (passes && bestSize === null) bestSize = size;
 
-    var barWidth  = Math.min(fillPct, 100);
     var barClass  = fillPct <= allowedPct * 100 * 0.8 ? 'fill-green'
                   : fillPct <= allowedPct * 100       ? 'fill-yellow'
                   : 'fill-red';
+    var ringColor = fillPct <= allowedPct * 100 * 0.8 ? 'var(--success)'
+                  : fillPct <= allowedPct * 100       ? 'var(--warn)'
+                  : 'var(--danger)';
+    var visualHtml = conduitSVG(d.id, conductors, ringColor, fillPct / 100);
 
     var statusHtml = passes
       ? '<span class="status-pass">\u2713 PASS</span>'
@@ -1384,10 +1794,7 @@ function calculate(auto) {
       '<td>' + allowed.toFixed(4) + '</td>' +
       '<td>' + totalWireArea.toFixed(4) + '</td>' +
       '<td style="font-weight:700">' + fillPct.toFixed(1) + '%</td>' +
-      '<td style="min-width:80px;">' +
-        '<div class="fill-bar-wrap">' +
-          '<div class="fill-bar ' + barClass + '" style="width:' + barWidth + '%"></div>' +
-        '</div></td>' +
+      '<td style="min-width:64px;">' + visualHtml + '</td>' +
       '<td>' + statusHtml + '</td>';
     tbody.appendChild(tr);
   });
@@ -1473,6 +1880,57 @@ function renderJamRatios(conduitType, largestOD, numConductors) {
 }
 </script>
 
+<script>
+// ── QUICK REFERENCE MODAL — reference only; reads CONDUIT_DATA / WIRE_DATA, changes nothing ──
+function cfFmt(n, d) { return n == null ? '—' : Number(n).toFixed(d); }
+function cfBuildSelects() {
+  const cs = document.getElementById('cfRefConduit'), ws = document.getElementById('cfRefWire');
+  if (!cs.options.length) {
+    const main = document.getElementById('conduitType');
+    cs.innerHTML = Object.keys(CONDUIT_DATA).map(k => {
+      const opt = main ? [...main.options].find(o => o.value === k) : null;
+      return `<option value="${k}">${opt ? opt.textContent : k}</option>`;
+    }).join('');
+  }
+  if (!ws.options.length) ws.innerHTML = Object.keys(WIRE_DATA).map(k => `<option value="${k}">${k}</option>`).join('');
+  const cur = document.getElementById('conduitType');
+  if (cur && CONDUIT_DATA[cur.value]) cs.value = cur.value;     // follow what's picked in the calculator
+}
+function cfBuildT4() {
+  const type = document.getElementById('cfRefConduit').value, data = CONDUIT_DATA[type] || {};
+  const sel = (document.getElementById('tradeSize') || {}).value;
+  const sizes = (typeof TRADE_SIZES_ORDER !== 'undefined' ? TRADE_SIZES_ORDER : Object.keys(data)).filter(t => data[t]);
+  document.getElementById('cfT4').innerHTML = sizes.map(t => {
+    const d = data[t], hl = t === sel ? ' class="current-row"' : '';
+    return `<tr${hl}><td style="white-space:nowrap;">${t}"${t === sel ? ' ◀' : ''}</td><td class="num">${cfFmt(d.id, 3)}</td><td class="num">${cfFmt(d.total, 3)}</td><td class="num">${cfFmt(d.total * 0.60, 3)}</td><td class="num">${cfFmt(d.total * 0.53, 3)}</td><td class="num">${cfFmt(d.total * 0.31, 3)}</td><td class="num">${cfFmt(d.total * 0.40, 3)}</td></tr>`;
+  }).join('');
+}
+function cfBuildT5() {
+  const type = document.getElementById('cfRefWire').value, data = WIRE_DATA[type] || {};
+  const nb = { 'USE-2': 'USE-2 is not listed in NEC Table 5 — confirm dimensions with the manufacturer.', 'MTW': 'MTW is not listed in NEC Table 5 — confirm dimensions with the manufacturer.',
+    'Bare Conductor (Solid)': '14–8 AWG from NEC Table 8. #6–4/0 solid are not in Table 8 — standard solid-wire diameters used (actual dimensions, Note 5).',
+    'Bare Conductor (Stranded)': 'NEC Table 8 overall area & diameter (Note 8).' };
+  document.getElementById('cfT5Note').textContent = nb[type] || 'NEC 2023 Chapter 9, Table 5.';
+  document.getElementById('cfT5').innerHTML = Object.entries(data).map(([sz, d]) =>
+    `<tr><td style="white-space:nowrap;">${sz}</td><td class="num">${cfFmt(d.area, 4)}</td><td class="num">${cfFmt(d.od, 3)}</td></tr>`).join('');
+}
+function cfRefTab(t) {
+  document.querySelectorAll('#cfRefModal .modal-tab').forEach(x => x.classList.toggle('active', x.dataset.tab === t));
+  document.querySelectorAll('#cfRefModal .modal-pane').forEach(x => x.classList.toggle('active', x.id === 'cfpane-' + t));
+}
+function cfOpenRef(t) {
+  cfBuildSelects(); cfBuildT4(); cfBuildT5();
+  cfRefTab(t || 't1');
+  document.getElementById('cfRefModal').classList.add('open');
+  document.body.classList.add('modal-open');
+  if (window.AOGSound) AOGSound.play('tink');
+}
+function cfCloseRef() {
+  document.getElementById('cfRefModal').classList.remove('open');
+  document.body.classList.remove('modal-open');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cfCloseRef(); });
+</script>
 <!-- SERVICE WORKER — single registration pointing to ../sw.js -->
 <script>
 if ('serviceWorker' in navigator) {

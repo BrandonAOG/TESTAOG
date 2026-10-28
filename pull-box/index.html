@@ -1,0 +1,2114 @@
+<!DOCTYPE html>
+<!--
+© 2026 Brandon Keilholz — All rights reserved.
+Created by Brandon Keilholz. Licensed for use by Always On Generators.
+This form, its code, layout, and content are proprietary.
+Unauthorized copying, reproduction, or distribution is prohibited and
+may result in liability for statutory damages of up to $150,000 per work
+for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>AOG Pull Box Sizing — NEC 314.28</title>
+<script src="../sounds.js" defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="../manifest.json">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="theme-color" content="#FBBF24">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AOG Forms">
+
+<style>
+:root {
+  --bg: #f8f9fa;
+  --bg2: #ffffff;
+  --bg3: #f1f3f5;
+  --border: #dee2e6;
+  --text: #1F2937;
+  --text2: #4b5563;
+  --accent: #D97706;
+  --accent2: #B45309;
+  --cyan: #0891b2;
+  --success: #059669;
+  --danger: #DC2626;
+  --warn: #d97706;
+  --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --radius: 12px;
+  --header-bg: #1a1a2e;
+  --header-text: #D97706;
+}
+.dark {
+  --bg: #0A0E27;
+  --bg2: #0f1535;
+  --bg3: #141a3a;
+  --border: #1e2a4a;
+  --text: #E0F7FF;
+  --text2: #94a3b8;
+  --accent: #00FFC8;
+  --accent2: #06B6D4;
+  --cyan: #00FFC8;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warn: #f59e0b;
+  --shadow: 0 2px 8px rgba(0,255,200,0.06);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Exo 2', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* HEADER — spec-viewer style: pulsing logo left of company name + scanline flashes */
+.header {
+  text-align: center;
+  padding: 26px 16px 20px;
+  margin-bottom: 8px;
+  position: relative;
+}
+.header::before,.header::after{content:'';position:absolute;height:2px;width:80%;left:10%;background:linear-gradient(90deg,transparent,#FBBF24,#F97316,#00D4FF,transparent);}
+.header::before{top:0;animation:scanline 4s linear infinite;}
+.header::after{bottom:0;animation:scanline 4s linear infinite reverse;}
+@keyframes scanline{0%,100%{opacity:0;transform:scaleX(0)}50%{opacity:1;transform:scaleX(1)}}
+.logo-wrap{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:nowrap;margin-bottom:10px;}
+.logo-img{width:70px;height:70px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 0 12px rgba(251,191,36,.6));animation:logoPulse 3s ease-in-out infinite;}
+@media(min-width:480px){.logo-img{width:90px;height:90px}}
+@keyframes logoPulse{0%,100%{filter:drop-shadow(0 0 12px rgba(251,191,36,.6))}50%{filter:drop-shadow(0 0 22px rgba(251,191,36,.9)) drop-shadow(0 0 36px rgba(249,115,22,.6))}}
+.title-block{text-align:left;min-width:0;}
+.company-name{font-family:'Orbitron',monospace;font-size:clamp(1.05rem,4.5vw,1.4rem);font-weight:900;letter-spacing:2px;line-height:1.1;background:linear-gradient(135deg,#FBBF24 0%,#F97316 50%,#EA580C 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;}
+@media(min-width:480px){.company-name{font-size:1.8rem;letter-spacing:3px}}
+.tagline{font-family:'Share Tech Mono',monospace;font-size:.65rem;letter-spacing:4px;color:var(--cyan);text-transform:uppercase;}
+.tool-title{font-family:'Orbitron',monospace;font-size:.7rem;letter-spacing:5px;color:var(--text2);margin-top:8px;text-transform:uppercase;}
+.tool-title span{color:#F97316;}
+.header .nec-badge{margin-top:8px;display:inline-block;}
+.home-btn {
+  background: none; border: 1px solid #D97706;
+  color: #D97706; border-radius: 8px;
+  padding: 6px 10px; font-size: 11px;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.2s;
+  text-decoration: none; display: inline-flex;
+  align-items: center; gap: 4px;
+}
+.home-btn:hover { background: #D97706; color: #000; }
+.theme-btn {
+  background: none; border: 1px solid #D97706;
+  color: #D97706; border-radius: 8px;
+  padding: 6px 10px; font-size: 14px; cursor: pointer;
+  transition: all 0.2s;
+}
+.theme-btn:hover { background: #D97706; color: #000; }
+.nec-badge {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8px; background: #D97706;
+  color: #000; padding: 3px 7px;
+  border-radius: 4px; font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* MAIN */
+.main { padding: 16px; max-width: 900px; margin: 0 auto; }
+
+/* SECTION CARDS */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+  transition: background 0.3s, border 0.3s;
+}
+.card-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px; font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title::before {
+  content: ''; display: inline-block;
+  width: 3px; height: 14px;
+  background: var(--accent); border-radius: 2px;
+}
+
+/* FORM ELEMENTS */
+label {
+  font-size: 11px; font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  display: block; margin-bottom: 5px;
+}
+select, input[type="number"], input[type="text"] {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: 'Exo 2', sans-serif;
+  outline: none;
+  transition: border 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none;
+}
+select:focus, input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(217,119,6,0.2);
+}
+.dark select:focus, .dark input:focus {
+  box-shadow: 0 0 0 2px rgba(0,255,200,0.15);
+}
+
+/* GRID LAYOUTS */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+@media(max-width:520px) {
+  .grid-2 { grid-template-columns: 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+}
+
+/* WIRE ROWS */
+.wire-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+  padding: 10px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  transition: background 0.3s;
+}
+.wire-row:hover { border-color: var(--accent); }
+.remove-btn {
+  background: var(--danger);
+  color: white; border: none;
+  border-radius: 6px; width: 32px; height: 32px;
+  font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: opacity 0.2s;
+  align-self: flex-end; margin-bottom: 0;
+}
+.remove-btn:hover { opacity: 0.8; }
+.add-btn {
+  background: var(--accent);
+  color: #000; border: none;
+  border-radius: 8px; padding: 10px 16px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  transition: opacity 0.2s, transform 0.1s;
+  width: 100%; justify-content: center;
+  margin-top: 8px;
+}
+.add-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+.add-btn:active { transform: translateY(0); }
+
+/* CALCULATE BUTTON */
+.calc-btn {
+  width: 100%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000; border: none;
+  border-radius: 10px; padding: 14px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 2px; cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(217,119,6,0.3);
+  margin-top: 4px;
+}
+.calc-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(217,119,6,0.4);
+}
+.calc-btn:active { transform: translateY(0); }
+.dark .calc-btn {
+  background: linear-gradient(135deg, #00FFC8, #06B6D4);
+  box-shadow: 0 4px 15px rgba(0,255,200,0.25);
+}
+
+/* RESULTS */
+.result-card {
+  background: var(--bg2);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 0 20px rgba(217,119,6,0.1);
+}
+.dark .result-card {
+  box-shadow: 0 0 20px rgba(0,255,200,0.08);
+}
+.result-header {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px; color: var(--accent);
+  letter-spacing: 1.5px; margin-bottom: 14px;
+  text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* CONDUIT TABLE */
+.conduit-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 12px; font-family: 'Share Tech Mono', monospace;
+}
+.conduit-table th {
+  background: var(--bg3);
+  color: var(--accent);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px; letter-spacing: 1px;
+  padding: 8px 10px; text-align: left;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+.conduit-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+.conduit-table tr:last-child td { border-bottom: none; }
+.conduit-table tr:hover td { background: var(--bg3); }
+
+/* STATUS PILLS */
+.status-pass {
+  background: var(--success);
+  color: white; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+.status-fail {
+  background: var(--danger);
+  color: white; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+.status-warn {
+  background: var(--warn);
+  color: #000; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+.status-best {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+
+/* FILL BAR */
+.fill-bar-wrap {
+  background: var(--bg3);
+  border-radius: 6px; height: 10px;
+  overflow: hidden; min-width: 60px;
+}
+.fill-bar {
+  height: 100%; border-radius: 6px;
+  transition: width 0.6s ease;
+}
+.fill-green { background: var(--success); }
+.fill-yellow { background: var(--warn); }
+.fill-red { background: var(--danger); }
+
+/* JAM SECTION */
+.jam-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+}
+.jam-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px; color: var(--accent);
+  letter-spacing: 1px; margin-bottom: 8px;
+}
+.jam-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.jam-item {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px;
+  text-align: center;
+}
+.jam-size {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px; font-weight: 700;
+  color: var(--text);
+}
+.jam-ratio {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--text2);
+  margin: 2px 0;
+}
+.jam-status {
+  font-size: 10px; font-weight: 700;
+  margin-top: 4px;
+}
+.jam-ok  { color: var(--success); }
+.jam-risk { color: var(--warn); }
+.jam-high { color: var(--danger); }
+
+/* WIRE SUMMARY */
+.wire-summary {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-bottom: 12px;
+}
+.wire-chip {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--text);
+}
+
+/* RECOMMENDATION */
+.rec-box {
+  background: linear-gradient(135deg, rgba(217,119,6,0.1), rgba(180,83,9,0.05));
+  border: 1px solid var(--accent);
+  border-radius: 8px; padding: 12px;
+  margin-top: 12px;
+}
+.dark .rec-box {
+  background: linear-gradient(135deg, rgba(0,255,200,0.05), rgba(6,182,212,0.03));
+  border-color: var(--accent);
+}
+.rec-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px; color: var(--accent);
+  letter-spacing: 1.5px; margin-bottom: 6px;
+}
+.rec-size {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px; font-weight: 900;
+  color: var(--accent);
+}
+.rec-detail {
+  font-size: 12px; color: var(--text2);
+  margin-top: 4px; font-family: 'Share Tech Mono', monospace;
+}
+
+/* STATS ROW */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px; margin-bottom: 12px;
+}
+.stat-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px;
+  text-align: center;
+}
+.stat-val {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px; font-weight: 700;
+  color: var(--accent);
+}
+.stat-lbl {
+  font-size: 9px; color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.8px; margin-top: 2px;
+}
+
+/* NIPPLE/RACEWAY TOGGLE */
+.toggle-row {
+  display: flex; gap: 8px;
+  margin-bottom: 14px;
+}
+.toggle-opt {
+  flex: 1; padding: 10px;
+  border: 2px solid var(--border);
+  border-radius: 8px; text-align: center;
+  cursor: pointer; font-family: 'Orbitron', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; color: var(--text2);
+  transition: all 0.2s;
+}
+.toggle-opt.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(217,119,6,0.08);
+}
+.dark .toggle-opt.active {
+  background: rgba(0,255,200,0.07);
+}
+
+/* OVERFLOW TABLE */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center; padding: 40px 20px;
+  color: var(--text2);
+}
+.empty-icon { font-size: 48px; margin-bottom: 8px; }
+.empty-text {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px; letter-spacing: 1px;
+}
+
+/* DIVIDER */
+.divider {
+  border: none; border-top: 1px solid var(--border);
+  margin: 12px 0;
+}
+
+/* INFO ROW */
+.info-row {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text2);
+  margin-top: 6px;
+  font-family: 'Share Tech Mono', monospace;
+}
+.info-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%; background: var(--accent);
+  flex-shrink: 0;
+}
+
+
+/* ===== QUICK REFERENCE TABLES MODAL ===== */
+.ref-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.ref-btn {
+  flex: 1; min-width: 140px;
+  background: var(--bg3); color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 8px;
+  padding: 10px; cursor: pointer;
+  font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  text-decoration: none; text-align: center; transition: all 0.2s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.ref-btn:hover { background: var(--accent); color: #000; }
+.modal-bg {
+  position: fixed; inset: 0; z-index: 100000;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(2px);
+  display: none; align-items: flex-start; justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 16px)) 12px 16px;
+  overflow-y: auto;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: var(--bg2); border: 2px solid var(--accent);
+  border-radius: var(--radius); width: 100%; max-width: 820px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+  margin: auto 0;
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--bg2); border-radius: var(--radius) var(--radius) 0 0; z-index: 1;
+}
+.modal-title { font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 1.5px; }
+.modal-close {
+  background: none; border: 1px solid var(--border); color: var(--text2);
+  border-radius: 6px; width: 32px; height: 32px; font-size: 18px; cursor: pointer; flex-shrink: 0;
+}
+.modal-close:hover { border-color: var(--danger); color: var(--danger); }
+.modal-tabs { display: flex; gap: 6px; padding: 10px 14px 0; flex-wrap: wrap; }
+.modal-tab {
+  flex: 1; min-width: 100px; padding: 8px; border: 2px solid var(--border); border-radius: 8px;
+  background: none; color: var(--text2); cursor: pointer;
+  font-family: 'Orbitron', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 1px;
+}
+.modal-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(217,119,6,0.08); }
+.dark .modal-tab.active { background: rgba(0,255,200,0.07); }
+.modal-body { padding: 14px; }
+.modal-pane { display: none; }
+.modal-pane.active { display: block; }
+.modal .conduit-table td.grp {
+  background: var(--bg3); color: var(--accent);
+  font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 1px;
+}
+.modal .conduit-table td.num, .modal .conduit-table th.num { text-align: center; }
+.rule-list { display: grid; gap: 8px; }
+.rule {
+  background: var(--bg3); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 8px; padding: 10px;
+}
+.rule-ref { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--accent); margin-bottom: 3px; }
+.rule-txt { font-size: 13px; color: var(--text); line-height: 1.45; }
+.rule-txt b { font-weight: 600; }
+.modal-foot { padding: 0 14px 14px; }
+body.modal-open { overflow: hidden; }
+@media print { .modal-bg, .ref-btns { display: none !important; } }
+
+
+/* ===== MOBILE TABLE TUNING ===== */
+.m-only { display: none; }
+@media (max-width: 520px) {
+  /* stop iOS auto-zoom on focus */
+  select, input[type="number"], input[type="text"] { font-size: 16px; }
+  .conduit-table { font-size: 11px; }
+  .conduit-table th { padding: 7px 5px; font-size: 8px; }
+  .conduit-table td { padding: 7px 5px; }
+  .hide-m { display: none; }
+  .m-only { display: inline; }
+  .wrap-m { white-space: normal !important; min-width: 96px; }
+  /* first column stays put if a table still needs to scroll */
+  .sticky-1 td:first-child, .sticky-1 th:first-child {
+    position: sticky; left: 0; z-index: 1; background: var(--bg2);
+    box-shadow: 1px 0 0 var(--border);
+  }
+  .sticky-1 thead th:first-child { background: var(--bg3); }
+  .sticky-1 tr.current-row td:first-child { background: linear-gradient(rgba(217,119,6,0.08), rgba(217,119,6,0.08)), var(--bg2); }
+  .dark .sticky-1 tr.current-row td:first-child { background: linear-gradient(rgba(0,255,200,0.06), rgba(0,255,200,0.06)), var(--bg2); }
+  .modal-bg { padding-left: 6px; padding-right: 6px; }
+  .modal-body { padding: 10px; }
+  .modal .conduit-table td.num, .modal .conduit-table th.num { padding: 7px 3px; }
+  .modal .conduit-table td.grp { position: static; box-shadow: none; }
+  .stats-row { gap: 6px; }
+  .stat-val { font-size: 14px; }
+}
+
+
+.check-detail {
+  margin-top: -9px;
+  padding: 12px 10px 10px;
+  background: var(--bg3);
+  border: 1px solid var(--accent);
+  border-top: 1px dashed var(--border);
+  border-radius: 0 0 8px 8px;
+}
+.check-row:has(input:checked) { border-color: var(--accent); }
+.check-row:has(+ .check-detail[style*="display: none"]), .check-row:has(+ .check-detail[style*="display:none"]) { border-radius: 8px; }
+.check-row:has(input:checked):has(+ .check-detail:not([style*="none"])) { border-radius: 8px 8px 0 0; border-bottom-color: transparent; }
+
+
+/* ===== RUN CARDS (IN → OUT) ===== */
+.run-card {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px; margin-bottom: 8px; transition: border 0.2s;
+}
+.run-card:hover { border-color: var(--accent); }
+.run-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.run-head .entry-tag { height: 28px; padding: 0 10px; align-self: center; }
+.run-head .remove-btn { margin-left: auto; }
+.pull-badge {
+  font-family: 'Share Tech Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 1px;
+  padding: 4px 10px; border-radius: 12px; background: var(--bg2); border: 1px solid var(--border); color: var(--text2);
+}
+.pull-badge.k-straight { color: var(--cyan); border-color: var(--cyan); }
+.pull-badge.k-angle, .pull-badge.k-u { color: var(--accent); border-color: var(--accent); }
+.pull-badge.k-splice { color: var(--warn); border-color: var(--warn); }
+.run-line { display: grid; grid-template-columns: 44px 1.2fr 0.9fr 1fr; gap: 8px; align-items: end; }
+.run-side {
+  height: 40px; display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  color: #000; background: var(--accent); border-radius: 8px;
+}
+.run-side.out { background: var(--cyan); }
+.dark .run-side.out { background: var(--accent2); }
+.run-arrow { text-align: left; padding-left: 16px; color: var(--text2); font-size: 14px; line-height: 1; margin: 2px 0; }
+.run-card.in-none .r-in-row, .run-card.in-none .r-in-size,
+.run-card.out-none .r-out-row, .run-card.out-none .r-out-size { opacity: 0.35; }
+.splice-tog {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0 0 0 auto; cursor: pointer;
+  font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text2);
+}
+.splice-tog input { position: absolute; opacity: 0; pointer-events: none; }
+.splice-tog .check-box { width: 16px; height: 16px; }
+.splice-tog input:checked + .check-box { background: var(--warn); border-color: var(--warn); }
+.splice-tog input:checked + .check-box::after { content: '✓'; color: #000; font-size: 11px; font-weight: 900; }
+.splice-tog input:disabled + .check-box { opacity: .6; }
+.splice-tog:has(input:checked) { color: var(--warn); }
+.run-head .splice-tog + .remove-btn { margin-left: 4px; }
+select:disabled { cursor: not-allowed; }
+@media (max-width: 520px) {
+  .run-line { grid-template-columns: 36px 1.25fr 0.95fr 1fr; gap: 5px; }
+  .run-line label { font-size: 9px; letter-spacing: .4px; }
+  .run-line select { padding: 9px 6px; }
+  .run-side { height: 38px; font-size: 9px; }
+}
+
+
+/* ===== WALL ROWS SIDE VIEW ===== */
+.rows-view { display: grid; gap: 14px; }
+.row-wall { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+.row-calcs { display: grid; gap: 4px; margin-top: 8px; }
+.row-calc { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--text2); padding: 4px 6px; border-radius: 6px; }
+.row-calc b { color: var(--text); font-weight: 700; }
+.row-calc.gov { color: var(--text); background: rgba(217,119,6,0.08); }
+.dark .row-calc.gov { background: rgba(0,255,200,0.07); }
+
+
+.pull-badge { white-space: nowrap; }
+@media (max-width: 520px) {
+  .run-head { gap: 6px; }
+  .pull-badge { font-size: 10px; padding: 3px 8px; letter-spacing: .5px; }
+  .splice-tog { font-size: 11px; white-space: nowrap; }
+  .splice-tog .sp-txt::before { content: 'Spliced'; }
+  .splice-tog .sp-txt { font-size: 0; }
+  .splice-tog .sp-txt::before { font-size: 11px; }
+}
+
+
+@media (max-width: 520px) { #fitCard .conduit-table td, #fitCard .conduit-table th { padding-left: 4px; padding-right: 4px; } #fitCard .status-pass, #fitCard .status-warn, #fitCard .status-fail { font-size: 9px; padding: 3px 6px; } }
+.rec-box.warn { border-color: var(--warn); background: linear-gradient(135deg, rgba(217,119,6,0.10), rgba(217,119,6,0.03)); }
+.rec-box.warn .rec-size, .rec-box.warn .rec-label { color: var(--warn); }
+
+/* ===== TOUCH & SMALL-PHONE TUNING ===== */
+.splice-tog { min-height: 40px; padding: 0 6px; border-radius: 8px; }
+.splice-tog:active { background: var(--bg2); }
+@media (max-width: 360px) {
+  .conduit-table { font-size: 10px; }
+  .conduit-table th { font-size: 7.5px; padding: 6px 3px; letter-spacing: .5px; }
+  .conduit-table td { padding: 6px 3px; }
+  .wrap-m { min-width: 78px; }
+  .modal .conduit-table th { white-space: normal; }
+  .run-line { grid-template-columns: 32px 1.2fr 0.95fr 1fr; gap: 4px; }
+  .run-line select { padding: 9px 4px; }
+}
+.run-head > * { flex-shrink: 0; }
+.run-head .pull-badge { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 360px) { .bd-spl { display: none; } .run-head .pull-badge { font-size: 9px; padding: 3px 6px; letter-spacing: .3px; } .run-head { gap: 4px; } }
+/* PRINT */
+@media print {
+  .header, .add-btn, .remove-btn, .calc-btn,
+  .theme-btn, .home-btn, .toggle-row { display: none !important; }
+  body { background: white; color: black; }
+  .card, .result-card { box-shadow: none; border: 1px solid #ccc; }
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+
+/* FOOTER */
+.footer {
+  text-align: center; padding: 20px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--text2);
+  letter-spacing: 1px;
+}
+
+
+/* ===== FIXED ACTION BAR ===== */
+.action-bar {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  z-index: 99999;
+  width: 100%;
+  background: var(--header-bg, #1e293b);
+  padding: 4px 8px;
+  padding-top: max(4px, env(safe-area-inset-top, 4px));
+  display: flex; justify-content: flex-start; gap: 4px; flex-wrap: nowrap; align-items: center;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  
+  box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+  border-bottom: 1px solid rgba(217,119,6,0.3);
+  box-sizing: border-box;
+}
+/* Center the buttons when they fit; auto-margins collapse safely when the
+   bar overflows and scrolls, so nothing gets clipped off the left edge. */
+.action-bar > :first-child { margin-left: auto; }
+.action-bar > :last-child { margin-right: auto; }
+.action-bar .ab-btn {
+  padding: 6px 8px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.07);
+  border-radius: 0; cursor: pointer; color: #D97706; text-transform: uppercase;
+  font-family: Arial, sans-serif; white-space: nowrap; flex: 1; min-width: 0;
+  text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+  clip-path: polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  overflow: hidden; text-overflow: ellipsis; transition: all 0.15s ease;
+}
+.action-bar .ab-btn:hover { border-color: #D97706; box-shadow: 0 0 8px rgba(217,119,6,0.3); }
+.action-bar .theme-toggle-ab {
+  width: 36px; height: 36px; padding: 6px; flex-shrink: 0;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.07);
+  border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: #D97706; font-size: 16px; transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.action-bar .theme-toggle-ab:hover { border-color: #D97706; box-shadow: 0 0 8px rgba(217,119,6,0.3); }
+@media (max-width: 480px) {
+  .action-bar { padding: 4px 4px; padding-top: max(4px, env(safe-area-inset-top, 4px)); gap: 3px; }
+}
+
+/* ===== BOX FILL ADDITIONS (same tokens as conduit fill) ===== */
+.wire-row.w4 { grid-template-columns: 1fr 0.7fr 1.6fr auto; }
+.wire-row.w3 { grid-template-columns: 1.6fr 1fr auto; }
+.wire-row.wd { grid-template-columns: 1.4fr 1fr 0.7fr auto; }
+@media(max-width:520px) {
+  .wire-row.w4, .wire-row.wd { grid-template-columns: 1fr 1fr; }
+  .wire-row.w4 .remove-btn, .wire-row.wd .remove-btn { grid-column: 2; justify-self: end; }
+  .wire-row.w4 .span-m, .wire-row.wd .span-m { grid-column: 1 / -1; }
+}
+.row-note {
+  grid-column: 1 / -1;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--text2);
+  letter-spacing: .5px;
+}
+.row-note b { color: var(--accent); font-weight: 400; }
+
+.check-list { display: grid; gap: 8px; }
+.check-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px; margin: 0;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer;
+  text-transform: none; letter-spacing: 0;
+  font-weight: 400; transition: border 0.2s;
+}
+.check-row:hover { border-color: var(--accent); }
+.check-row input { position: absolute; opacity: 0; pointer-events: none; }
+.check-box {
+  width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px;
+  border: 2px solid var(--border); border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; background: var(--bg2);
+}
+.check-row input:checked + .check-box { background: var(--accent); border-color: var(--accent); }
+.check-row input:checked + .check-box::after { content: '✓'; color: #000; font-size: 12px; font-weight: 900; }
+.check-row input:focus-visible + .check-box { box-shadow: 0 0 0 2px rgba(217,119,6,0.3); }
+.check-text { font-size: 13px; color: var(--text); line-height: 1.4; }
+.check-text b { font-weight: 600; }
+.check-text em {
+  font-style: normal; font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--text2); letter-spacing: .5px;
+}
+
+.total-row td {
+  font-family: 'Orbitron', sans-serif !important;
+  font-weight: 700; font-size: 11px;
+  color: var(--accent) !important;
+  border-top: 2px solid var(--border);
+  background: var(--bg3);
+}
+.ref-tag { color: var(--text2); }
+
+.warn-box {
+  display: flex; gap: 8px; align-items: flex-start;
+  background: var(--bg3);
+  border: 1px solid var(--warn);
+  border-left: 3px solid var(--warn);
+  border-radius: 8px; padding: 10px; margin-bottom: 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--text);
+}
+.warn-box.err { border-color: var(--danger); }
+.rec-box.fail { border-color: var(--danger); background: linear-gradient(135deg, rgba(220,38,38,0.10), rgba(220,38,38,0.03)); }
+.rec-box.fail .rec-size, .rec-box.fail .rec-label { color: var(--danger); }
+.rec-box.pass .rec-size { color: var(--success); }
+.current-row td { background: rgba(217,119,6,0.08); }
+.dark .current-row td { background: rgba(0,255,200,0.06); }
+
+/* ===== PULL BOX ADDITIONS ===== */
+.wire-row.we { grid-template-columns: 34px 1fr 0.8fr 0.9fr 1.1fr 1.2fr auto; }
+.entry-tag {
+  align-self: end; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700;
+  color: var(--accent); border: 1px solid var(--accent); border-radius: 8px;
+  background: var(--bg2);
+}
+@media (max-width: 720px) {
+  .wire-row.we { grid-template-columns: 1fr 1fr; }
+  .wire-row.we .entry-tag { grid-column: 1 / -1; height: 26px; justify-content: flex-start; padding: 0 10px; align-self: start; }
+  .wire-row.we .remove-btn { grid-column: 2; justify-self: end; }
+}
+.diagram-wrap { padding: 4px 0; overflow: hidden; }
+.grid-3 > div { min-width: 0; }
+@media (max-width: 520px) { .grid-3 { grid-template-columns: 1fr 1fr 1fr; gap: 6px; } }
+</style>
+<script src="../update-banner.js"></script>
+</head>
+<body>
+<div class="action-bar" id="action-bar">
+  <a class="ab-btn" href="../">🏠 HOME</a>
+  <button class="ab-btn" onclick="openRef('r')">📋 CODE</button>
+  <button class="theme-toggle-ab" id="themeBtn" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo-wrap">
+    <img src="../logo.png" alt="Always On Generators Logo" class="logo-img" onerror="this.style.display='none'">
+    <div class="title-block">
+      <div class="company-name">Always On<br>Generators</div>
+      <div class="tagline">// Power When You Need It //</div>
+    </div>
+  </div>
+  <div class="tool-title">Pull &amp; Junction <span>Box</span> Sizing &mdash; NEC 314.28</div>
+  <span class="nec-badge">NEC 2023</span>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="main">
+
+  <!-- CONDUCTORS -->
+  <div class="card">
+    <div class="card-title">Conductors — 314.28(A)</div>
+    <div class="grid-2">
+      <div>
+        <label>Largest Conductor in Box</label>
+        <select id="condSize" onchange="calculate(true)"></select>
+      </div>
+      <div>
+        <label>Conductor Type (for 312.6(A) bending space)</label>
+        <select id="condType" onchange="calculate(true)">
+          <option value="std">Copper / all other conductors</option>
+          <option value="aa">Compact stranded AA-8000 aluminum</option>
+        </select>
+      </div>
+    </div>
+    <div id="sizeNote" class="info-row" style="margin-top:8px;"><div class="info-dot"></div><span></span></div>
+  </div>
+
+  <!-- ENTRIES -->
+  <div class="card">
+    <div class="card-title">Conductor Runs — In → Out</div>
+    <div class="info-row" style="margin:-6px 0 6px;"><div class="info-dot"></div>
+      <span>Facing the cover: LEFT · RIGHT · TOP · BOTTOM walls, BACK = wall opposite the cover.</span>
+    </div>
+    <div class="info-row" style="margin:0 0 10px;"><div class="info-dot"></div>
+      <span>Cables: enter the smallest trade size raceway that would hold that cable's conductors.</span>
+    </div>
+    <div class="info-row" style="margin:-4px 0 10px;"><div class="info-dot"></div>
+      <span>Pull type is set automatically: same wall = U · opposite = straight · adjacent = angle. Check "Spliced in box" when conductors are spliced — 314.28(A)(2) then uses the 6× rule, even for opposite walls. Taps: set the side already listed in another run to "None".</span>
+    </div>
+    <div id="entryList"></div>
+    <button class="add-btn" onclick="addRun()">＋ ADD CONDUCTOR RUN</button>
+  </div>
+
+  <!-- OPTIONS -->
+  <div class="card">
+    <div class="card-title">Box Options</div>
+    <div class="check-list">
+      <label class="check-row">
+        <input type="checkbox" id="chkCover" checked onchange="calculate(true)">
+        <span class="check-box"></span>
+        <span class="check-text"><b>Removable cover opposite the back wall</b><br><em>314.28(A)(2) Ex. · back-wall entries may use Table 312.6(A) one-wire bending space for depth</em></span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" id="chkInclStraight" checked onchange="calculate(true)">
+        <span class="check-box"></span>
+        <span class="check-text"><b>Include straight-pull raceways in angle/U row sums</b><br><em>Code says "all other raceway entries in the same row" · uncheck only if your AHJ allows</em></span>
+      </label>
+    </div>
+
+    <hr class="divider">
+    <label style="margin-bottom:8px;">Actual Box Size to Check (optional, inches)</label>
+    <div class="grid-3">
+      <div><label>Width (L↔R)</label><input type="number" id="actW" min="0" step="0.5" placeholder="—" oninput="calculate(true)"></div>
+      <div><label>Height (T↕B)</label><input type="number" id="actH" min="0" step="0.5" placeholder="—" oninput="calculate(true)"></div>
+      <div><label>Depth</label><input type="number" id="actD" min="0" step="0.5" placeholder="—" oninput="calculate(true)"></div>
+    </div>
+
+    <hr class="divider">
+    <label style="margin-bottom:8px;">Physical Wall-Fit Check (approx.)</label>
+    <div class="grid-2">
+      <div><label>Gap Between Fittings (in)</label><input type="number" id="fitGap" min="0" step="0.125" value="0.25" oninput="calculate(true)"></div>
+      <div><label>Clearance at Each Corner (in)</label><input type="number" id="fitEnd" min="0" step="0.125" value="0.5" oninput="calculate(true)"></div>
+    </div>
+    <div class="info-row"><div class="info-dot"></div><span>Uses typical locknut sizes — <a href="#" onclick="openRef('s');return false;" style="color:var(--accent);">edit fitting sizes</a> to match yours.</span></div>
+    <div style="margin-top:10px;">
+      <label>Same-Conductor Spacing Measured</label>
+      <select id="measMode" onchange="calculate(true)">
+        <option value="center" selected>Center to center</option>
+        <option value="edge">Nearest edge to nearest edge (conservative)</option>
+      </select>
+    </div>
+    <label class="check-row" style="margin-top:10px;">
+      <input type="checkbox" id="chkCross" onchange="calculate(true)">
+      <span class="check-box"></span>
+      <span class="check-text"><b>Allow conductors to cross in the layout</b><br><em>Off = runs must stay nested (realistic). Not an NEC rule.</em></span>
+    </label>
+    <div class="info-row"><div class="info-dot"></div><span>The NEC doesn't say how the 6× spacing is measured. Switch to nearest edges if your AHJ requires it.</span></div>
+  </div>
+
+  <!-- CALCULATE -->
+  <button class="calc-btn" onclick="calculate()">⚡ CALCULATE BOX SIZE</button>
+
+  <!-- RESULTS -->
+  <div id="results" style="display:none;margin-top:14px;">
+
+    <div class="result-card">
+      <div class="result-header">📐 Minimum Box Dimensions</div>
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-val" id="r-w">—</div>
+          <div class="stat-lbl">Width L↔R (in)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="r-h">—</div>
+          <div class="stat-lbl">Height T↕B (in)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="r-d">—</div>
+          <div class="stat-lbl">Depth (in)</div>
+        </div>
+      </div>
+
+      <div id="r-warnings"></div>
+
+      <div class="rec-box" id="r-rec">
+        <div class="rec-label">◆ RESULT</div>
+        <div class="rec-size" id="r-verdict">—</div>
+        <div class="rec-detail" id="r-verdict-detail">—</div>
+      </div>
+    </div>
+
+    <!-- DIAGRAM -->
+    <div class="result-card">
+      <div class="result-header">🗺️ Box Layout — Facing Cover</div>
+      <div id="diagram" class="diagram-wrap"></div>
+      <div class="info-row" style="margin-top:6px;"><div class="info-dot"></div>
+        <span>Drawn to scale at the box W × H. When pairs exist, knockouts are placed at the true-scale positions from the Knockout Placement check. Arrows connect the two raceways carrying the same conductors; min 12" means they must be at least that far apart (6 × the larger raceway).</span>
+      </div>
+    </div>
+
+    <!-- WALL ROWS -->
+    <div class="result-card" id="rowsCard" style="display:none;">
+      <div class="result-header">🧱 Wall Rows — Side View</div>
+      <div class="info-row" style="margin-bottom:10px;"><div class="info-dot"></div>
+        <span>Each wall with more than one row, seen from inside the box. 314.28(A)(2): each row is calculated individually — the largest row governs.</span>
+      </div>
+      <div id="rowsView" class="rows-view"></div>
+    </div>
+
+    <!-- WALL FIT -->
+    <div class="result-card" id="fitCard" style="display:none;">
+      <div class="result-header">📏 Wall Fit — Physical Check</div>
+      <div class="info-row" style="margin-bottom:10px;"><div class="info-dot"></div>
+        <span>Not an NEC rule — checks that the fittings physically fit along each wall: Σ fitting widths + gaps + corner clearance.</span>
+      </div>
+      <div class="table-wrap">
+        <table class="conduit-table sticky-1">
+          <thead><tr><th>WALL · ROW</th><th class="hide-m">RACEWAYS</th><th>NEEDED</th><th>AVAIL.</th><th>STATUS</th></tr></thead>
+          <tbody id="fitTbody"></tbody>
+        </table>
+      </div>
+      <div class="info-row" style="margin-top:8px;"><div class="info-dot"></div>
+        <span id="fitNote">Available length = actual box size if entered, otherwise the calculated minimum.</span>
+      </div>
+    </div>
+
+    <!-- PLACEMENT -->
+    <div class="result-card" id="placeCard" style="display:none;">
+      <div class="result-header">📍 Knockout Placement — True Scale</div>
+      <div class="info-row" style="margin-bottom:10px;"><div class="info-dot"></div>
+        <span>Finds knockout positions where every same-conductor pair meets 6 × the larger raceway and fittings don't overlap. Positions: side walls = inches up from the bottom; top/bottom = inches from the left (L) wall, inside the box.</span>
+      </div>
+      <div class="rec-box" id="placeRec" style="margin:0 0 12px;">
+        <div class="rec-label">◆ PLACEMENT</div>
+        <div class="rec-size" id="placeVerdict">—</div>
+        <div class="rec-detail" id="placeDetail">—</div>
+      </div>
+      <div class="table-wrap">
+        <table class="conduit-table sticky-1">
+          <thead><tr><th>PAIR</th><th>KNOCKOUT POSITIONS</th><th class="hide-m">REQ'D</th><th>LAYOUT</th></tr></thead>
+          <tbody id="placeTbody"></tbody>
+        </table>
+      </div>
+      <div class="info-row" style="margin-top:8px;" id="placeFoot"><div class="info-dot"></div><span></span></div>
+    </div>
+
+    <!-- BREAKDOWN -->
+    <div class="result-card">
+      <div class="result-header">🧮 Calculation Breakdown</div>
+      <div class="table-wrap">
+        <table class="conduit-table sticky-1">
+          <thead><tr><th>DIMENSION</th><th class="hide-m">RULE</th><th>CALCULATION</th><th>REQ'D (in)</th></tr></thead>
+          <tbody id="breakdownTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PAIR SPACING -->
+    <div class="result-card" id="pairCard">
+      <div class="result-header">↔️ Spacing Between Entries — Same Conductors</div>
+      <div class="info-row" style="margin-bottom:10px;"><div class="info-dot"></div>
+        <span>314.28(A)(2): raceway entries enclosing the same conductor ≥ 6 × the larger raceway apart. Spliced/tapped runs are different conductors — no spacing required.</span>
+      </div>
+      <div class="table-wrap">
+        <table class="conduit-table sticky-1">
+          <thead><tr><th>ENTRIES</th><th>PULL</th><th>CALCULATION</th><th>MIN (in)</th></tr></thead>
+          <tbody id="pairTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- REFERENCE -->
+  <div class="card">
+    <div class="card-title">NEC 314.28 Reference</div>
+    <div class="ref-btns">
+      <button class="ref-btn" onclick="openRef('r')">📖 Code Summary — 314.28</button>
+      <button class="ref-btn" onclick="openRef('t')">📏 Table 312.6(A)</button>
+      <button class="ref-btn" onclick="openRef('f')">🧮 Formulas &amp; Example</button>
+      <button class="ref-btn" onclick="openRef('s')">🔩 Fitting Sizes</button>
+    </div>
+    <div style="display:grid;gap:6px;">
+      <div class="info-row"><div class="info-dot"></div>Applies to 4 AWG &amp; larger conductors (smaller → 314.16)</div>
+      <div class="info-row"><div class="info-dot"></div>Straight pull: length ≥ 8 × largest raceway</div>
+      <div class="info-row"><div class="info-dot"></div>Angle / U / splice: to opposite wall ≥ 6 × largest in row + sum of others in that row</div>
+      <div class="info-row"><div class="info-dot"></div>Same-conductor entries: ≥ 6 × larger raceway apart</div>
+      <div class="info-row"><div class="info-dot"></div>Entry opposite removable cover: Table 312.6(A) one-wire distance permitted</div>
+      <div class="info-row"><div class="info-dot"></div>Any dimension over 6 ft: conductors must be cabled or racked</div>
+    </div>
+  </div>
+</div>
+
+<!-- QUICK REFERENCE MODAL -->
+<div class="modal-bg" id="refModal" onclick="if(event.target===this)closeRef()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="refTitle">
+    <div class="modal-head">
+      <div class="modal-title" id="refTitle">📋 NEC 2023 — 314.28 Quick Reference</div>
+      <button class="modal-close" onclick="closeRef()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab" data-tab="r" onclick="refTab('r')">CODE SUMMARY</button>
+      <button class="modal-tab" data-tab="t" onclick="refTab('t')">TABLE 312.6(A)</button>
+      <button class="modal-tab" data-tab="f" onclick="refTab('f')">FORMULAS</button>
+      <button class="modal-tab" data-tab="s" onclick="refTab('s')">FITTING SIZES</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-pane" id="pane-r">
+        <div class="info-row" style="margin:0 0 10px;"><div class="info-dot"></div>
+          <span>Plain-language summary of NEC 2023 314.28 — not the official code text. Verify with the adopted code &amp; AHJ.</span>
+        </div>
+        <div class="rule-list">
+          <div class="rule"><div class="rule-ref">314.28 — GENERAL</div><div class="rule-txt">Boxes and conduit bodies used as <b>pull or junction boxes</b> must meet (A) through (E). <i>Exception:</i> terminal housings that come with <b>motors</b> follow 430.12 instead.</div></div>
+          <div class="rule"><div class="rule-ref">314.28(A) — MINIMUM SIZE</div><div class="rule-txt">Applies to raceways with insulated conductors <b>4 AWG or larger</b>, and cables with conductors 4 AWG or larger. When a dimension is based on raceway diameter, use the <b>trade size</b> as the number (e.g. 2" conduit = 2 in.).</div></div>
+          <div class="rule"><div class="rule-ref">314.28(A)(1) — STRAIGHT PULLS</div><div class="rule-txt">Box (or conduit body) length must be at least <b>8 × the trade size of the largest raceway</b>.</div></div>
+          <div class="rule"><div class="rule-ref">314.28(A)(2) — ANGLE OR U PULLS, OR SPLICES</div><div class="rule-txt">
+            • Distance from each raceway entry to the <b>opposite wall</b> ≥ <b>6 × the largest raceway in a row</b>, <b>plus</b> the sum of the diameters of all the <b>other raceway entries in that same row on the same wall</b>.<br>
+            • Figure <b>each row separately</b>; the row giving the <b>largest</b> distance governs.<br>
+            • Raceway entries that enclose the <b>same conductor</b> must be at least <b>6 × the larger raceway</b> apart. Conductors <b>spliced or tapped</b> in the box are not the same conductor in and out, so this spacing doesn't apply to them (the wall-to-wall rule still does).<br>
+            • <b>Cables:</b> use the smallest trade size raceway that would be required for the number and size of conductors in the cable.<br>
+            <i>Exception:</i> an entry in the wall <b>opposite a removable cover</b> may use the <b>one-wire-per-terminal</b> distance from Table 312.6(A) for the wall-to-cover distance.</div></div>
+          <div class="rule"><div class="rule-ref">314.28(A)(3) — SMALLER DIMENSIONS</div><div class="rule-txt"><b>Listed</b> boxes or conduit bodies smaller than (A)(1)/(A)(2) are allowed when the conductor fill is less than Chapter 9, Table 1 allows. Listed conduit bodies with a curve radius per Chapter 9, Table 2 (one-shot / full-shoe bender) may be used and must be <b>marked</b> as evaluated for this. If the listing limits conductors, the box is <b>permanently marked</b> with the max number and size; other combinations can't exceed that marked conductor area (product standards assume <b>XHHW</b> unless stated).</div></div>
+          <div class="rule"><div class="rule-ref">314.28(B) — CONDUCTORS IN LARGE BOXES</div><div class="rule-txt">If <b>any dimension is over 6 ft</b>, all conductors must be <b>cabled or racked</b> in an approved manner.</div></div>
+          <div class="rule"><div class="rule-ref">314.28(C) — COVERS</div><div class="rule-txt">Every pull box, junction box and conduit body needs a <b>cover</b> that fits its construction and conditions. Metal covers must be grounded per <b>250.110</b>.</div></div>
+          <div class="rule"><div class="rule-ref">314.28(D) — PERMANENT BARRIERS</div><div class="rule-txt">With permanent barriers installed, <b>each section is treated as a separate box</b>.</div></div>
+          <div class="rule"><div class="rule-ref">314.28(E) — POWER DISTRIBUTION BLOCKS</div><div class="rule-txt">Allowed only in boxes <b>over 100 in³</b> (EGC terminal bars are allowed in smaller boxes). Blocks must be <b>listed</b>; box must also meet the block's <b>installation instructions</b> for size; terminal bending space per <b>312.6</b>; <b>no exposed uninsulated live parts</b> (cover on or off); through-conductors must leave the block terminals <b>unobstructed</b>.</div></div>
+        </div>
+      </div>
+      <div class="modal-pane" id="pane-t">
+        <div class="info-row" style="margin:0 0 10px;"><div class="info-dot"></div>
+          <span>Minimum wire-bending space — <b>1 wire per terminal</b> column (used by the 314.28(A)(2) exception).</span>
+        </div>
+        <div class="table-wrap">
+          <table class="conduit-table">
+            <thead><tr><th style="white-space:normal;">ALL OTHER CONDUCTORS</th><th style="white-space:normal;">COMPACT AA-8000 AL</th><th class="num">mm</th><th class="num">in.</th></tr></thead>
+            <tbody>
+              <tr><td>14–10</td><td>12–8</td><td class="num" colspan="2">Not specified</td></tr>
+              <tr><td>8–6</td><td>6–4</td><td class="num">38.1</td><td class="num">1-1/2</td></tr>
+              <tr><td>4–3</td><td>2–1</td><td class="num">50.8</td><td class="num">2</td></tr>
+              <tr><td>2</td><td>1/0</td><td class="num">63.5</td><td class="num">2-1/2</td></tr>
+              <tr><td>1</td><td>2/0</td><td class="num">76.2</td><td class="num">3</td></tr>
+              <tr><td>1/0–2/0</td><td>3/0–4/0</td><td class="num">88.9</td><td class="num">3-1/2</td></tr>
+              <tr><td>3/0–4/0</td><td>250–300</td><td class="num">102</td><td class="num">4</td></tr>
+              <tr><td>250</td><td>350</td><td class="num">114</td><td class="num">4-1/2</td></tr>
+              <tr><td>300–350</td><td>400–500</td><td class="num">127</td><td class="num">5</td></tr>
+              <tr><td>400–500</td><td>600–750</td><td class="num">152</td><td class="num">6</td></tr>
+              <tr><td>600–700</td><td>800–1000</td><td class="num">203</td><td class="num">8</td></tr>
+              <tr><td>750–900</td><td>—</td><td class="num">203</td><td class="num">8</td></tr>
+              <tr><td>1000–1250</td><td>—</td><td class="num">254</td><td class="num">10</td></tr>
+              <tr><td>1500–2000</td><td>—</td><td class="num">305</td><td class="num">12</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="info-row" style="margin-top:10px;"><div class="info-dot"></div><span>Sizes in AWG or kcmil. Compact AA-8000 column applies up to 1000 kcmil.</span></div>
+      </div>
+      <div class="modal-pane" id="pane-s">
+        <div class="info-row" style="margin:0 0 10px;"><div class="info-dot"></div>
+          <span>Width each fitting takes along the wall (≈ locknut outside size). Typical values — sizes vary by manufacturer &amp; fitting type. Edit to match your fittings; saved on this device.</span>
+        </div>
+        <div class="table-wrap">
+          <table class="conduit-table">
+            <thead><tr><th>TRADE SIZE</th><th>FITTING WIDTH (in)</th><th>DEFAULT</th></tr></thead>
+            <tbody id="fitSizeTbody"></tbody>
+          </table>
+        </div>
+        <button class="add-btn" onclick="resetFitSizes()">↺ RESET TO TYPICAL VALUES</button>
+      </div>
+      <div class="modal-pane" id="pane-f">
+        <div class="rule-list">
+          <div class="rule"><div class="rule-ref">STRAIGHT PULL</div><div class="rule-txt">Length = <b>8 × largest raceway</b><br><i>Ex:</i> 3" in, 3" out → 8 × 3 = <b>24 in</b></div></div>
+          <div class="rule"><div class="rule-ref">ANGLE / U PULL OR SPLICE — PER ROW</div><div class="rule-txt">Distance = <b>6 × largest in row + sum of all others in that row</b><br><i>Ex:</i> Left wall row: 3", 2", 2" → (6 × 3) + 2 + 2 = <b>22 in</b> to the right wall</div></div>
+          <div class="rule"><div class="rule-ref">SPLICES — EVEN ON OPPOSITE WALLS</div><div class="rule-txt">When conductors are spliced in the box, the angle/U/splice rule applies, not the straight-pull rule<br><i>Ex:</i> 3" left → 3" right, spliced → 6 × 3 = <b>18 in</b> (not 8 × 3 = 24 in)</div></div>
+          <div class="rule"><div class="rule-ref">MULTIPLE ROWS</div><div class="rule-txt">Do the math for each row; the <b>largest</b> row result is the requirement for that wall.<br><i>Ex:</i> Row 1 = 22 in, Row 2 = (6 × 2) + 1.5 = 13.5 in → use <b>22 in</b></div></div>
+          <div class="rule"><div class="rule-ref">SAME-CONDUCTOR ENTRIES</div><div class="rule-txt">Spacing between the two raceways the conductors pass through = <b>6 × the larger</b><br><i>Ex:</i> 3" left ↔ 3" top → 6 × 3 = <b>18 in</b> apart<br><i>Spliced or tapped in the box:</i> not the same conductor → no spacing requirement between those entries</div></div>
+          <div class="rule"><div class="rule-ref">BACK WALL OPPOSITE REMOVABLE COVER</div><div class="rule-txt">Depth may use Table 312.6(A), 1 wire per terminal<br><i>Ex:</i> 4/0 Cu → <b>4 in</b> instead of 6 × raceway</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  AOG FIELD OPERATIONS HUB — PULL &amp; JUNCTION BOX SIZING<br>
+  NEC 2023 ARTICLE 314.28 &amp; TABLE 312.6(A) — BUILT BY BRANDON @BrandonAOG
+</div>
+
+<script>
+// ============================================================
+// NEC 2023 — 314.28 PULL & JUNCTION BOX SIZING
+// ============================================================
+const TRADE = [
+  ['1/2', 0.5], ['3/4', 0.75], ['1', 1], ['1-1/4', 1.25], ['1-1/2', 1.5], ['2', 2],
+  ['2-1/2', 2.5], ['3', 3], ['3-1/2', 3.5], ['4', 4], ['5', 5], ['6', 6],
+];
+const TRADE_VAL = Object.fromEntries(TRADE);
+const COND = ['14','12','10','8','6','4','3','2','1','1/0','2/0','3/0','4/0','250','300','350','400','500','600','700','750','800','900','1000','1250','1500','1750','2000'];
+const condIdx = c => COND.indexOf(c);
+
+// Table 312.6(A) — 1 wire per terminal, inches (null = not specified)
+const BEND_STD = {
+  '14':null,'12':null,'10':null,'8':1.5,'6':1.5,'4':2,'3':2,'2':2.5,'1':3,'1/0':3.5,'2/0':3.5,'3/0':4,'4/0':4,
+  '250':4.5,'300':5,'350':5,'400':6,'500':6,'600':8,'700':8,'750':8,'800':8,'900':8,'1000':10,'1250':10,
+  '1500':12,'1750':12,'2000':12,
+};
+// Compact stranded AA-8000 aluminum column (up to 1000 kcmil). 3 AWG not listed → next larger row used.
+const BEND_AA = {
+  '14':null,'12':null,'10':null,'8':null,'6':1.5,'4':1.5,'3':2,'2':2,'1':2,'1/0':2.5,'2/0':3,'3/0':3.5,'4/0':3.5,
+  '250':4,'300':4,'350':4.5,'400':5,'500':5,'600':6,'700':6,'750':6,'800':8,'900':8,'1000':8,
+};
+
+const WALLS = { L:'Left', R:'Right', T:'Top', B:'Bottom', K:'Back' };
+const OPP = { L:'R', R:'L', T:'B', B:'T' };
+const PULLS = { straight:'Straight', angle:'Angle', u:'U pull', splice:'Splice / junction' };
+const COMMON = [4,6,8,10,12,14,16,18,20,24,30,36,42,48,60,72];
+const COMMON_D = [4,6,8,10,12];
+
+let darkMode = false;
+let entryCounter = 0;
+
+// ── THEME ──────────────────────────────────────────────────
+function toggleTheme() {
+  darkMode = !darkMode;
+  document.body.classList.toggle('dark', darkMode);
+  document.getElementById('themeBtn').textContent = darkMode ? '☀️' : '🌙';
+  try { localStorage.setItem('aog-theme', darkMode ? 'dark' : 'light'); } catch (e) {}
+  if ($('results').style.display !== 'none') calculate(true);
+}
+(function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem('aog-theme'); } catch (e) {}
+  const prefer = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (saved === 'dark' || (!saved && prefer)) {
+    darkMode = true;
+    document.body.classList.add('dark');
+    document.getElementById('themeBtn').textContent = '☀️';
+  }
+})();
+
+// ── HELPERS ────────────────────────────────────────────────
+function $(id) { return document.getElementById(id); }
+const fmt = n => { const r = Math.round(n * 100) / 100; return Number.isInteger(r) ? String(r) : r.toFixed(2).replace(/0$/, ''); };
+const condLabel = c => /^\d{3,4}$/.test(c) ? c + ' kcmil' : c + ' AWG';
+const tsLabel = t => t + '"';
+const roundUp = (v, list) => list.find(x => x >= v - 1e-9) || null;
+
+// ── RUNS (IN → OUT) ────────────────────────────────────────
+// Each run = conductors entering one raceway and leaving another.
+// Geometry from the two walls: same = U, opposite = straight, adjacent = angle.
+// "Spliced in box" → 314.28(A)(2) splice rule (6×) applies even when the geometry is straight.
+// Either side may be "None" (e.g. a tap whose feeder raceway is already listed in another run).
+const NONE = 'N';
+function geoOf(a, b) {
+  if (a === NONE || b === NONE) return 'none';
+  if (a === b) return 'u';
+  if (OPP[a] === b) return 'straight';
+  return 'angle';
+}
+const GEO_LABEL = { straight: 'STRAIGHT', angle: 'ANGLE', u: 'U', none: '' };
+
+function wallOptions(sel) {
+  return Object.entries(WALLS).map(([k, v]) => `<option value="${k}"${k === sel ? ' selected' : ''}>${v}</option>`).join('') +
+    `<option value="${NONE}"${sel === NONE ? ' selected' : ''}>None</option>`;
+}
+function rowOptions(sel) { return [1,2,3,4].map(r => `<option value="${r}"${r === (sel || 1) ? ' selected' : ''}>Row ${r}</option>`).join(''); }
+function sizeOptions(sel) { return '<option value="">— Size —</option>' + TRADE.map(([t]) => `<option value="${t}"${t === sel ? ' selected' : ''}>${tsLabel(t)}</option>`).join(''); }
+
+function addRun(inWall, inRow, inSize, outWall, outRow, outSize, spliced) {
+  const id = ++entryCounter;
+  const el = document.createElement('div');
+  el.className = 'run-card'; el.id = 'run-' + id; el.dataset.id = id;
+  el.innerHTML = `
+    <div class="run-head">
+      <span class="entry-tag run-tag">P?</span>
+      <span class="pull-badge">—</span>
+      <label class="splice-tog"><input type="checkbox" class="r-splice"${spliced ? ' checked' : ''} onchange="calculate(true)"><span class="check-box"></span><span class="sp-txt">Spliced in box</span></label>
+      <button class="remove-btn" onclick="removeRun(${id})" title="Remove">×</button>
+    </div>
+    <div class="run-line">
+      <div class="run-side">IN</div>
+      <div><label>Enters Wall</label><select class="r-in-wall" onchange="calculate(true)">${wallOptions(inWall || 'L')}</select></div>
+      <div><label>Row</label><select class="r-in-row" onchange="calculate(true)">${rowOptions(inRow)}</select></div>
+      <div><label>Trade Size</label><select class="r-in-size" onchange="calculate(true)">${sizeOptions(inSize || '')}</select></div>
+    </div>
+    <div class="run-arrow">↓</div>
+    <div class="run-line">
+      <div class="run-side out">OUT</div>
+      <div><label>Exits Wall</label><select class="r-out-wall" onchange="calculate(true)">${wallOptions(outWall || 'T')}</select></div>
+      <div><label>Row</label><select class="r-out-row" onchange="calculate(true)">${rowOptions(outRow)}</select></div>
+      <div><label>Trade Size</label><select class="r-out-size" onchange="calculate(true)">${sizeOptions(outSize || '')}</select></div>
+    </div>`;
+  $('entryList').appendChild(el);
+  if (window.AOGSound && inWall === undefined) AOGSound.play('tink');
+  calculate(true);
+  return id;
+}
+function removeRun(id) {
+  const el = $('run-' + id); if (el) el.remove();
+  if (window.AOGSound) AOGSound.play('tink');
+  calculate(true);
+}
+
+// ── STATE ──────────────────────────────────────────────────
+function readState() {
+  const entries = [], runWarn = [];
+  [...document.querySelectorAll('#entryList .run-card')].forEach((r, i) => {
+    const n = i + 1;
+    const q = c => r.querySelector(c).value;
+    const inWall = q('.r-in-wall'), outWall = q('.r-out-wall');
+    const geo = geoOf(inWall, outWall);
+    const splChk = r.querySelector('.r-splice');
+    // a run with only one raceway can't be a pull-through — conductors must be spliced/tapped here
+    if (geo === 'none') { splChk.checked = true; splChk.disabled = true; } else splChk.disabled = false;
+    const spliced = splChk.checked;
+    const pull = spliced ? 'splice' : geo;
+
+    r.querySelector('.run-tag').textContent = 'P' + n;
+    const badge = r.querySelector('.pull-badge');
+    badge.innerHTML = spliced ? (GEO_LABEL[geo] ? `<span class="bd-spl">SPLICE · </span>${GEO_LABEL[geo]}` : 'SPLICE') : GEO_LABEL[geo] + ' PULL';
+    badge.className = 'pull-badge k-' + pull;
+    r.querySelectorAll('.r-in-row, .r-in-size').forEach(x => { x.disabled = inWall === NONE; });
+    r.querySelectorAll('.r-out-row, .r-out-size').forEach(x => { x.disabled = outWall === NONE; });
+    r.classList.toggle('in-none', inWall === NONE);
+    r.classList.toggle('out-none', outWall === NONE);
+
+    const rid = side => r.dataset.id + side;
+    const mk = (side, wall, row, ts, pairId) => ({
+      id: rid(side), label: `P${n}-${side}`, run: n,
+      wall, row: +row, ts, size: TRADE_VAL[ts] || 0, pull, geo, spliced, pair: pairId,
+    });
+    const both = geo !== 'none';
+    if (inWall === NONE && outWall === NONE) { runWarn.push({ err: true, msg: `P${n}: both sides set to None — pick at least one wall.` }); return; }
+    let inE = null, outE = null;
+    if (inWall !== NONE) { inE = mk('in', inWall, q('.r-in-row'), q('.r-in-size'), both ? rid('out') : ''); entries.push(inE); }
+    if (outWall !== NONE) { outE = mk('out', outWall, q('.r-out-row'), q('.r-out-size'), both ? rid('in') : ''); entries.push(outE); }
+    if (inE && !inE.size) runWarn.push({ err: false, msg: `P${n}: entry trade size not selected — entry raceway skipped.` });
+    if (outE && !outE.size) runWarn.push({ err: false, msg: `P${n}: exit trade size not selected — exit raceway skipped.` });
+  });
+  const num = k => { const v = parseFloat($(k).value); return v > 0 ? v : null; };
+  return {
+    entries, runWarn,
+    valid: entries.filter(e => e.size > 0),
+    cond: $('condSize').value, condType: $('condType').value,
+    cover: $('chkCover').checked, inclStraight: $('chkInclStraight').checked,
+    actW: num('actW'), actH: num('actH'), actD: num('actD'),
+  };
+}
+
+// ── CORE 314.28 CALC ───────────────────────────────────────
+const isAU = e => e.pull !== 'straight';
+
+// 314.28(A)(2): per wall, per row: 6 × largest + sum of others; max row governs
+function angleForWall(st, wall) {
+  const onWall = st.valid.filter(e => e.wall === wall);
+  if (!onWall.some(isAU)) return null;
+  let best = null;
+  const rows = [...new Set(onWall.map(e => e.row))].sort();
+  rows.forEach(rw => {
+    const inRow = onWall.filter(e => e.row === rw);
+    if (!inRow.some(isAU)) return;                      // row has no angle/U/splice entry
+    const used = st.inclStraight ? inRow : inRow.filter(isAU);
+    const sorted = used.slice().sort((a, b) => b.size - a.size);
+    const big = sorted[0], rest = sorted.slice(1);
+    const val = 6 * big.size + rest.reduce((s, e) => s + e.size, 0);
+    const txt = `(6 × ${fmt(big.size)})` + rest.map(e => ` + ${fmt(e.size)}`).join('') + ` = ${fmt(val)}`;
+    const who = `${WALLS[wall]} row ${rw}: ` + used.map(e => `${e.label} ${tsLabel(e.ts)}`).join(', ');
+    if (!best || val > best.val) best = { val, txt, who, wall, row: rw };
+  });
+  return best;
+}
+
+function straightForAxis(st, a, b) {
+  const s = st.valid.filter(e => e.pull === 'straight' && (e.wall === a || e.wall === b));
+  if (!s.length) return null;
+  const big = s.reduce((m, e) => e.size > m.size ? e : m);
+  return { val: 8 * big.size, txt: `8 × ${fmt(big.size)} = ${fmt(8 * big.size)}`, who: `Largest straight: ${big.label} ${tsLabel(big.ts)} (${WALLS[big.wall]})` };
+}
+
+function compute(st) {
+  const lines = [], warnings = [], pairs = [];
+
+  // Axis: width (L↔R), height (T↕B)
+  const axes = [
+    { key: 'w', name: 'Width (L↔R)', a: 'L', b: 'R' },
+    { key: 'h', name: 'Height (T↕B)', a: 'T', b: 'B' },
+  ];
+  const req = { w: 0, h: 0, d: 0 };
+  axes.forEach(ax => {
+    const sp = straightForAxis(st, ax.a, ax.b);
+    if (sp) { lines.push({ dim: ax.name, rule: '314.28(A)(1) Straight', who: sp.who, calc: sp.txt, val: sp.val }); req[ax.key] = Math.max(req[ax.key], sp.val); }
+    [ax.a, ax.b].forEach(w => {
+      const an = angleForWall(st, w);
+      if (an) { lines.push({ dim: ax.name, rule: '314.28(A)(2) Angle/U/Splice', who: an.who, calc: an.txt, val: an.val }); req[ax.key] = Math.max(req[ax.key], an.val); }
+    });
+  });
+
+  // Depth: back-wall entries (opposite cover)
+  const back = st.valid.filter(e => e.wall === 'K');
+  if (back.length) {
+    const tbl = (st.condType === 'aa' ? BEND_AA : BEND_STD)[st.cond];
+    const an = angleForWall(st, 'K') || (() => {
+      // back-wall entries marked straight are not a valid straight pull — size as angle so depth is still covered
+      const big = back.reduce((m, e) => e.size > m.size ? e : m);
+      return { val: 6 * big.size, txt: `(6 × ${fmt(big.size)}) = ${fmt(6 * big.size)}`, who: `Back: ${big.label}` };
+    })();
+    if (st.cover && tbl != null) {
+      lines.push({ dim: 'Depth', rule: '314.28(A)(2) Ex. → Table 312.6(A)', who: `Back-wall entries, removable cover · ${condLabel(st.cond)}${st.condType === 'aa' ? ' compact AA-8000' : ''}, 1 wire/terminal`, calc: `Table value = ${fmt(tbl)}  (vs 6× rule ${fmt(an.val)})`, val: tbl });
+      req.d = tbl;
+    } else {
+      if (st.cover && tbl == null) warnings.push({ err: false, msg: `Table 312.6(A) does not specify bending space for ${condLabel(st.cond)}${st.condType === 'aa' ? ' (compact AA-8000)' : ''} — depth sized by the 6× rule.` });
+      lines.push({ dim: 'Depth', rule: '314.28(A)(2) Back wall', who: an.who, calc: an.txt, val: an.val });
+      req.d = an.val;
+    }
+  }
+
+  // Same-conductor pairs
+  const seen = new Set();
+  st.valid.forEach(e => {
+    if (!e.pair) return;
+    const o = st.valid.find(x => x.id === e.pair);
+    if (!o) return;
+    const key = [e.id, o.id].sort().join('-');
+    if (seen.has(key)) return; seen.add(key);
+    const big = Math.max(e.size, o.size);
+    if (e.spliced) {
+      // spliced/tapped: the conductor leaving is not the same conductor that entered → same-conductor spacing doesn't apply
+      pairs.push({ a: e, b: o, kind: 'Splice · ' + (e.geo === 'u' ? 'U' : e.geo === 'straight' ? 'straight' : 'angle'),
+        calc: 'Spliced — different conductors, spacing between entries not required (wall-to-wall 6× rule still applies)', val: null });
+    } else if (e.geo === 'straight') {
+      pairs.push({ a: e, b: o, kind: 'Straight', calc: `Box length 8 × ${fmt(big)} = ${fmt(8 * big)} (see width/height)`, val: null });
+    } else {
+      pairs.push({ a: e, b: o, kind: e.geo === 'u' ? 'U pull' : 'Angle', calc: `6 × ${fmt(big)} = ${fmt(6 * big)}`, val: 6 * big });
+    }
+  });
+
+  // Applicability & notes
+  if (condIdx(st.cond) < condIdx('4')) warnings.unshift({ err: false, msg: `314.28(A) sizing applies to conductors 4 AWG and larger. With ${condLabel(st.cond)} as the largest, size the box by 314.16 (box fill) — results shown for reference only.` });
+  warnings.push(...st.runWarn);
+  return { lines, req, pairs, warnings };
+}
+
+// ── DIAGRAM (original isometric-style drawing, theme-aware) ─────────────
+function drawDiagram(st, W, H, pairs, place) {
+  if (!st.valid.length) { $('diagram').innerHTML = '<div class="empty-state"><div class="empty-text">ADD CONDUCTOR RUNS TO SEE THE LAYOUT</div></div>'; return; }
+  const cs = getComputedStyle(document.body);
+  const col = v => cs.getPropertyValue(v).trim();
+  const acc = col('--accent'), txt = col('--text'), t2 = col('--text2'), bg2 = col('--bg2'), bg3 = col('--bg3'), bd = col('--border');
+  const dark = document.body.classList.contains('dark');
+
+  const w = Math.max(W, 6), h = Math.max(H, 6);
+  const BOX = 300, sc = BOX / Math.max(w, h);
+  const bw = w * sc, bh = h * sc;
+  const PIPE = 38;                         // pipe stub length (px)
+  const has = k => st.valid.some(e => e.wall === k);
+  const TAG = 40;                          // room for outside tags
+  const padL = (has('L') ? PIPE + TAG : 14), padR = (has('R') ? PIPE + TAG : 14) + 34;
+  const padT = (has('T') ? PIPE + 22 : 14), padB = (has('B') ? PIPE + 22 : 14) + 30;
+  const x0 = padL, y0 = padT, x1 = x0 + bw, y1 = y0 + bh;
+  const vw = padL + bw + padR, vh = padT + bh + padB;
+  const k = Math.min(26, Math.min(bw, bh) * 0.09);  // wall depth inset (3D look)
+  const ix0 = x0 + k, iy0 = y0 + k, ix1 = x1 - k, iy1 = y1 - k;
+  const dia = e => Math.max(9, e.size * sc * 0.9);   // drawn raceway diameter
+
+  // entry positions — evenly spaced per wall, ordered by row
+  const pos = {};
+  ['L', 'R', 'T', 'B', 'K'].forEach(wall => {
+    const list = st.valid.filter(e => e.wall === wall).sort((a, b) => a.row - b.row || a.run - b.run);
+    list.forEach((e, i) => {
+      const f = (i + 1) / (list.length + 1);
+      let x, y, inx, iny;
+      if (wall === 'L') { x = x0; y = iy0 + (iy1 - iy0) * f; inx = ix0; iny = y; }
+      if (wall === 'R') { x = x1; y = iy0 + (iy1 - iy0) * f; inx = ix1; iny = y; }
+      if (wall === 'T') { x = ix0 + (ix1 - ix0) * f; y = y0; inx = x; iny = iy0; }
+      if (wall === 'B') { x = ix0 + (ix1 - ix0) * f; y = y1; inx = x; iny = iy1; }
+      if (wall === 'K') { x = ix0 + (ix1 - ix0) * (0.25 + 0.5 * f); y = iy0 + (iy1 - iy0) * 0.55; inx = x; iny = y; }
+      // true-scale position from the placement solver (side walls measured up from bottom, top/bottom from left)
+      if (place && wall !== 'K') {
+        const pi = place.P.ents.findIndex(z => z.id === e.id);
+        if (pi >= 0) {
+          const v = place.x[pi] * sc;
+          if (wall === 'L' || wall === 'R') { y = y1 - v; iny = y; }
+          else { x = x0 + v; inx = x; }
+        }
+      }
+      // deeper rows sit further back on the wall face (toward the back panel)
+      const nRows = Math.max(...list.map(z => z.row));
+      if (nRows > 1 && wall !== 'K') {
+        const t = (e.row - 1) / (nRows - 1) * 0.8;
+        if (wall === 'L') x += (ix0 - x0) * t;
+        if (wall === 'R') x -= (x1 - ix1) * t;
+        if (wall === 'T') y += (iy0 - y0) * t;
+        if (wall === 'B') y -= (y1 - iy1) * t;
+      }
+      pos[e.id] = { x, y, inx, iny, d: dia(e), e };
+    });
+  });
+
+  const metalA = dark ? '#cbd5e1' : '#e5e7eb', metalB = dark ? '#64748b' : '#9ca3af', metalC = dark ? '#334155' : '#6b7280';
+  let g = `<svg viewBox="0 0 ${vw.toFixed(0)} ${vh.toFixed(0)}" width="100%" style="max-width:${Math.round(vw * 1.35)}px;display:block;margin:0 auto;" role="img" aria-label="Pull box layout drawing">
+  <defs>
+    <linearGradient id="pipeH" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${metalC}"/><stop offset=".3" stop-color="${metalA}"/><stop offset=".55" stop-color="${metalB}"/><stop offset="1" stop-color="${metalC}"/></linearGradient>
+    <linearGradient id="pipeV" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${metalC}"/><stop offset=".3" stop-color="${metalA}"/><stop offset=".55" stop-color="${metalB}"/><stop offset="1" stop-color="${metalC}"/></linearGradient>
+    <radialGradient id="pipeEnd"><stop offset="0" stop-color="${dark ? '#0b1020' : '#374151'}"/><stop offset=".72" stop-color="${dark ? '#1e293b' : '#4b5563'}"/><stop offset=".73" stop-color="${metalB}"/><stop offset="1" stop-color="${metalA}"/></radialGradient>
+    <linearGradient id="backG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${bg3}"/><stop offset="1" stop-color="${bg2}"/></linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${t2}"/></marker>
+    <marker id="arrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${txt}"/></marker>
+  </defs>`;
+
+  // box shell: back panel + 4 wall faces (shaded) + front rim
+  const sh = (o) => dark ? `rgba(255,255,255,${o})` : `rgba(0,0,0,${o})`;
+  g += `<rect x="${ix0}" y="${iy0}" width="${ix1 - ix0}" height="${iy1 - iy0}" fill="url(#backG)"/>`;
+  g += `<polygon points="${x0},${y0} ${x1},${y0} ${ix1},${iy0} ${ix0},${iy0}" fill="${sh(0.10)}"/>`;
+  g += `<polygon points="${x0},${y0} ${ix0},${iy0} ${ix0},${iy1} ${x0},${y1}" fill="${sh(0.06)}"/>`;
+  g += `<polygon points="${x1},${y0} ${x1},${y1} ${ix1},${iy1} ${ix1},${iy0}" fill="${sh(0.03)}"/>`;
+  g += `<polygon points="${x0},${y1} ${ix0},${iy1} ${ix1},${iy1} ${x1},${y1}" fill="${sh(0.08)}"/>`;
+  [[x0,y0,ix0,iy0],[x1,y0,ix1,iy0],[x0,y1,ix0,iy1],[x1,y1,ix1,iy1]].forEach(([a,b,c,d]) => { g += `<line x1="${a}" y1="${b}" x2="${c}" y2="${d}" stroke="${bd}" stroke-width="1"/>`; });
+  g += `<rect x="${ix0}" y="${iy0}" width="${ix1 - ix0}" height="${iy1 - iy0}" fill="none" stroke="${bd}" stroke-width="1" stroke-dasharray="4 3"/>`;
+
+  // raceway stubs with locknuts
+  Object.values(pos).forEach(p => {
+    const d = p.d, ln = 5, lo = d + 8;
+    if (p.e.wall === 'L') {
+      g += `<rect x="${p.x - PIPE}" y="${p.y - d / 2}" width="${PIPE - 2}" height="${d}" fill="url(#pipeH)"/>`;
+      g += `<rect x="${p.x - ln - 2}" y="${p.y - lo / 2}" width="${ln}" height="${lo}" rx="1.5" fill="${metalB}" stroke="${metalC}"/>`;
+    } else if (p.e.wall === 'R') {
+      g += `<rect x="${p.x + 2}" y="${p.y - d / 2}" width="${PIPE - 2}" height="${d}" fill="url(#pipeH)"/>`;
+      g += `<rect x="${p.x + 2}" y="${p.y - lo / 2}" width="${ln}" height="${lo}" rx="1.5" fill="${metalB}" stroke="${metalC}"/>`;
+    } else if (p.e.wall === 'T') {
+      g += `<rect x="${p.x - d / 2}" y="${p.y - PIPE}" width="${d}" height="${PIPE - 2}" fill="url(#pipeV)"/>`;
+      g += `<rect x="${p.x - lo / 2}" y="${p.y - ln - 2}" width="${lo}" height="${ln}" rx="1.5" fill="${metalB}" stroke="${metalC}"/>`;
+    } else if (p.e.wall === 'B') {
+      g += `<rect x="${p.x - d / 2}" y="${p.y + 2}" width="${d}" height="${PIPE - 2}" fill="url(#pipeV)"/>`;
+      g += `<rect x="${p.x - lo / 2}" y="${p.y + 2}" width="${lo}" height="${ln}" rx="1.5" fill="${metalB}" stroke="${metalC}"/>`;
+    } else {
+      g += `<circle cx="${p.x}" cy="${p.y}" r="${d / 2 + 4}" fill="${metalB}" stroke="${metalC}"/>`;
+      g += `<circle cx="${p.x}" cy="${p.y}" r="${d / 2}" fill="url(#pipeEnd)"/>`;
+    }
+  });
+
+  // conductor paths (dashed curves)
+  const splices = [];
+  const runs = {};
+  st.valid.forEach(e => { (runs[e.run] = runs[e.run] || []).push(e); });
+  const runLists = Object.values(runs).sort((x, y) => (y.length - x.length));   // two-sided runs first → their splice points exist for taps
+  runLists.forEach(list => {
+    const a = pos[list[0].id], b = list[1] ? pos[list[1].id] : null;
+    const kind = list[0].geo;
+    let path, mid;
+    if (!b) {                                   // single raceway: conductors end at a splice in the box
+      const cx = (ix0 + ix1) / 2, cy = (iy0 + iy1) / 2;
+      let ex = a.inx + (cx - a.inx) * 0.45, ey = a.iny + (cy - a.iny) * 0.45;
+      if (splices.length) {                     // tap: tie into the nearest splice already drawn
+        const near = splices.reduce((m, q) => Math.hypot(q[0] - a.inx, q[1] - a.iny) < Math.hypot(m[0] - a.inx, m[1] - a.iny) ? q : m);
+        ex = near[0]; ey = near[1];
+      }
+      path = `M${a.inx},${a.iny} Q${(a.inx + ex) / 2 + (a.e.wall === 'T' || a.e.wall === 'B' ? 10 : 0)},${(a.iny + ey) / 2 + (a.e.wall === 'L' || a.e.wall === 'R' ? 10 : 0)} ${ex},${ey}`;
+      g += `<path d="${path}" fill="none" stroke="${acc}" stroke-width="2" stroke-dasharray="6 4"/>`;
+      g += `<circle cx="${ex}" cy="${ey}" r="5" fill="${col('--warn')}" stroke="${bg2}" stroke-width="1.5"/>`;
+      return;
+    }
+    if (kind === 'straight') {
+      path = `M${a.inx},${a.iny} L${b.inx},${b.iny}`;
+      mid = [(a.inx + b.inx) / 2, (a.iny + b.iny) / 2];
+    } else if (kind === 'u') {
+      const depth = 0.55 * (a.e.wall === 'L' || a.e.wall === 'R' ? (ix1 - ix0) : (iy1 - iy0));
+      const dx = a.e.wall === 'L' ? depth : a.e.wall === 'R' ? -depth : 0;
+      const dy = a.e.wall === 'T' ? depth : a.e.wall === 'B' ? -depth : 0;
+      const c1 = [a.inx + dx, a.iny + dy], c2 = [b.inx + dx, b.iny + dy];
+      path = `M${a.inx},${a.iny} C${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${b.inx},${b.iny}`;
+      mid = [0.125 * a.inx + 0.375 * c1[0] + 0.375 * c2[0] + 0.125 * b.inx, 0.125 * a.iny + 0.375 * c1[1] + 0.375 * c2[1] + 0.125 * b.iny];
+    } else {
+      // angle: curve that turns the corner — control point aligns with both entries
+      const side = e => e.wall === 'L' || e.wall === 'R';
+      let cx, cy;
+      if (a.e.wall === 'K' || b.e.wall === 'K') { cx = (a.inx + b.inx) / 2; cy = (a.iny + b.iny) / 2; }
+      else if (side(a.e)) { cx = b.inx; cy = a.iny; } else { cx = a.inx; cy = b.iny; }
+      path = `M${a.inx},${a.iny} Q${cx},${cy} ${b.inx},${b.iny}`;
+      mid = [0.25 * a.inx + 0.5 * cx + 0.25 * b.inx, 0.25 * a.iny + 0.5 * cy + 0.25 * b.iny];
+    }
+    if (list[0].spliced) splices.push(mid);
+    g += `<path d="${path}" fill="none" stroke="${acc}" stroke-width="2" stroke-dasharray="6 4"/>`;
+  });
+  splices.forEach(([x, y]) => { g += `<circle cx="${x}" cy="${y}" r="5" fill="${col('--warn')}" stroke="${bg2}" stroke-width="1.5"/>`; });
+
+  // required spacing arrows between same-conductor entries (angle / U)
+  const STAG = [0.5, 0.62, 0.38, 0.7, 0.3, 0.56, 0.44];
+  (pairs || []).forEach((pr, pi) => {
+    if (pr.val == null) return;
+    const a = pos[pr.a.id], b = pos[pr.b.id]; if (!a || !b) return;
+    const sx = a.inx, sy = a.iny, ex = b.inx, ey = b.iny;
+    const len = Math.hypot(ex - sx, ey - sy); if (len < 20) return;
+    const ux = (ex - sx) / len, uy = (ey - sy) / len, inset = 6;
+    g += `<line x1="${sx + ux * inset}" y1="${sy + uy * inset}" x2="${ex - ux * inset}" y2="${ey - uy * inset}" stroke="${txt}" stroke-width="1.1" marker-start="url(#arrA)" marker-end="url(#arrA)"/>`;
+    const tt = STAG[pi % STAG.length];
+    const mx = sx + (ex - sx) * tt, my = sy + (ey - sy) * tt, lbl = `min ${fmt(pr.val)}"`;
+    g += `<rect x="${mx - lbl.length * 3.6 - 4}" y="${my - 9}" width="${lbl.length * 7.2 + 8}" height="16" rx="3" fill="${bg2}" stroke="${bd}"/>`;
+    g += `<text x="${mx}" y="${my + 3}" fill="${txt}" font-size="11" font-family="Share Tech Mono, monospace" text-anchor="middle">${lbl}</text>`;
+  });
+
+  // short tags at the outer end of each pipe (full details in the legend below the drawing)
+  Object.values(pos).forEach(p => {
+    const multi = new Set(st.valid.filter(x => x.wall === p.e.wall).map(x => x.row)).size > 1;
+    const tag = `P${p.e.run}${multi ? '·R' + p.e.row : ''}`;
+    const base = `fill="${txt}" font-size="11" font-weight="700" font-family="Share Tech Mono, monospace"`;
+    if (p.e.wall === 'L') g += `<text x="${p.x - PIPE - 4}" y="${p.y + 4}" ${base} text-anchor="end">${tag}</text>`;
+    else if (p.e.wall === 'R') g += `<text x="${p.x + PIPE + 4}" y="${p.y + 4}" ${base} text-anchor="start">${tag}</text>`;
+    else if (p.e.wall === 'T') g += `<text x="${p.x}" y="${p.y - PIPE - 5}" ${base} text-anchor="middle">${tag}</text>`;
+    else if (p.e.wall === 'B') g += `<text x="${p.x}" y="${p.y + PIPE + 14}" ${base} text-anchor="middle">${tag}</text>`;
+    else g += `<text x="${p.x}" y="${p.y + p.d / 2 + 17}" ${base} text-anchor="middle">${tag}</text>`;
+  });
+
+  // front rim
+  g += `<rect x="${x0}" y="${y0}" width="${bw}" height="${bh}" fill="none" stroke="${acc}" stroke-width="2.5" rx="2"/>`;
+
+  // overall dimensions (A = height, B = width)
+  const ax = x1 + (has('R') ? PIPE + TAG - 6 : 10) + 14, by = y1 + (has('B') ? PIPE + 22 : 10) + 12;
+  g += `<line x1="${ax - 6}" y1="${y0}" x2="${ax + 6}" y2="${y0}" stroke="${t2}"/><line x1="${ax - 6}" y1="${y1}" x2="${ax + 6}" y2="${y1}" stroke="${t2}"/>`;
+  g += `<line x1="${ax}" y1="${y0 + 1}" x2="${ax}" y2="${y1 - 1}" stroke="${t2}" stroke-width="1.2" marker-start="url(#arr)" marker-end="url(#arr)"/>`;
+  g += `<rect x="${ax - 13}" y="${(y0 + y1) / 2 - 22}" width="26" height="44" fill="${bg2}"/>`;
+  g += `<text x="${ax}" y="${(y0 + y1) / 2 + 4}" fill="${txt}" font-size="12" font-family="Share Tech Mono, monospace" text-anchor="middle" transform="rotate(-90 ${ax} ${(y0 + y1) / 2})">H ${fmt(H)}"</text>`;
+  g += `<line x1="${x0}" y1="${by - 6}" x2="${x0}" y2="${by + 6}" stroke="${t2}"/><line x1="${x1}" y1="${by - 6}" x2="${x1}" y2="${by + 6}" stroke="${t2}"/>`;
+  g += `<line x1="${x0 + 1}" y1="${by}" x2="${x1 - 1}" y2="${by}" stroke="${t2}" stroke-width="1.2" marker-start="url(#arr)" marker-end="url(#arr)"/>`;
+  g += `<rect x="${(x0 + x1) / 2 - 26}" y="${by - 9}" width="52" height="18" fill="${bg2}"/>`;
+  g += `<text x="${(x0 + x1) / 2}" y="${by + 4}" fill="${txt}" font-size="12" font-family="Share Tech Mono, monospace" text-anchor="middle">W ${fmt(W)}"</text>`;
+  g += `</svg>`;
+  // legend: one line per run
+  const runsL = {};
+  st.valid.forEach(e => { (runsL[e.run] = runsL[e.run] || []).push(e); });
+  const side = e => `${e.ts}" ${WALLS[e.wall]}${new Set(st.valid.filter(x => x.wall === e.wall).map(x => x.row)).size > 1 ? ' R' + e.row : ''}`;
+  const legend = Object.keys(runsL).sort((a, b) => a - b).map(n => {
+    const [a, b] = runsL[n];
+    const kind = ({ straight: 'straight', angle: 'angle', u: 'U pull' }[a.geo] || '');
+    const from = a.label.endsWith('-in') ? side(a) : 'None', to = b ? side(b) : (a.label.endsWith('-out') ? side(a) : 'None');
+    return `<span class="wire-chip"><b>P${n}</b> ${from} → ${to}${kind ? ' · ' + kind : ''}${a.spliced ? ' · <span style="color:var(--warn)">spliced</span>' : ''}</span>`;
+  }).join('');
+  $('diagram').innerHTML = g + `<div class="wire-summary" style="margin:10px 0 0;justify-content:center;">${legend}</div>`;
+}
+
+// ── WALL ROWS SIDE VIEW ────────────────────────────────────
+function rowCalcs(st, wall) {
+  const onWall = st.valid.filter(e => e.wall === wall);
+  const rows = [...new Set(onWall.map(e => e.row))].sort((a, b) => a - b);
+  const wallHasAU = onWall.some(isAU);
+  return rows.map(rw => {
+    const inRow = onWall.filter(e => e.row === rw);
+    const au = inRow.some(isAU);
+    if (!au) return { row: rw, entries: inRow, val: null, txt: 'straight pulls only — 8× rule applies, not row sum' };
+    const used = st.inclStraight ? inRow : inRow.filter(isAU);
+    const sorted = used.slice().sort((a, b) => b.size - a.size);
+    const val = 6 * sorted[0].size + sorted.slice(1).reduce((t, e) => t + e.size, 0);
+    const txt = `(6 × ${fmt(sorted[0].size)})` + sorted.slice(1).map(e => ` + ${fmt(e.size)}`).join('') + ` = ${fmt(val)}"`;
+    return { row: rw, entries: inRow, val, txt, used };
+  });
+}
+function drawRows(st) {
+  const cs = getComputedStyle(document.body);
+  const col = v => cs.getPropertyValue(v).trim();
+  const acc = col('--accent'), txt = col('--text'), t2 = col('--text2'), bg2 = col('--bg2'), bg3 = col('--bg3'), bd = col('--border'), ok = col('--success');
+  const dark = document.body.classList.contains('dark');
+  const metalA = dark ? '#cbd5e1' : '#e5e7eb', metalB = dark ? '#64748b' : '#9ca3af', metalC = dark ? '#334155' : '#6b7280';
+  const walls = ['L', 'R', 'T', 'B', 'K'].filter(wl => new Set(st.valid.filter(e => e.wall === wl).map(e => e.row)).size > 1);
+  $('rowsCard').style.display = walls.length ? '' : 'none';
+  if (!walls.length) { $('rowsView').innerHTML = ''; return; }
+  let html = '';
+  walls.forEach(wl => {
+    const rc = rowCalcs(st, wl);
+    const gov = rc.filter(r => r.val != null).reduce((m, r) => (!m || r.val > m.val) ? r : m, null);
+    const W = 340, bandH = 58, top = 26, padX = 14;
+    const H = top + rc.length * bandH + 24;
+    const maxTS = Math.max(...st.valid.filter(e => e.wall === wl).map(e => e.size));
+    const scale = Math.min(9, 40 / maxTS);
+    let g = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:520px;display:block;" role="img" aria-label="${WALLS[wl]} wall rows">`;
+    g += `<defs><radialGradient id="pe${wl}"><stop offset="0" stop-color="${dark ? '#0b1020' : '#374151'}"/><stop offset=".7" stop-color="${dark ? '#1e293b' : '#4b5563'}"/><stop offset=".71" stop-color="${metalB}"/><stop offset="1" stop-color="${metalA}"/></radialGradient></defs>`;
+    g += `<text x="${padX}" y="15" fill="${acc}" font-size="11" font-family="Orbitron, sans-serif" font-weight="700" letter-spacing="1">${WALLS[wl].toUpperCase()} WALL</text>`;
+    g += `<text x="${W - padX}" y="15" fill="${t2}" font-size="9.5" font-family="Share Tech Mono, monospace" text-anchor="end">${wl === 'K' ? 'BACK PANEL' : '▲ COVER SIDE'}</text>`;
+    g += `<rect x="${padX}" y="${top}" width="${W - padX * 2}" height="${rc.length * bandH}" fill="${bg3}" stroke="${acc}" stroke-width="2" rx="3"/>`;
+    rc.forEach((r, i) => {
+      const y = top + i * bandH, isGov = gov && r.row === gov.row;
+      if (isGov) g += `<rect x="${padX + 2}" y="${y + 2}" width="${W - padX * 2 - 4}" height="${bandH - 4}" fill="${acc}" fill-opacity="${dark ? 0.10 : 0.08}" rx="2"/>`;
+      if (i) g += `<line x1="${padX}" y1="${y}" x2="${W - padX}" y2="${y}" stroke="${bd}" stroke-dasharray="4 3"/>`;
+      g += `<text x="${padX + 6}" y="${y + 14}" fill="${isGov ? acc : t2}" font-size="10" font-family="Share Tech Mono, monospace" font-weight="700">ROW ${r.row}${isGov ? ' · GOVERNS' : ''}</text>`;
+      const n = r.entries.length, x0 = padX + 92, x1 = W - padX - 34;
+      r.entries.forEach((e, j) => {
+        const cx = n === 1 ? (x0 + x1) / 2 : x0 + (x1 - x0) * (j / (n - 1)) * 0.92 + 8, cy = y + 30;
+        const rr = Math.max(5, e.size * scale / 2);
+        const excluded = r.used && !r.used.includes(e);
+        g += `<circle cx="${cx}" cy="${cy}" r="${rr + 3}" fill="${metalB}" stroke="${metalC}"${excluded ? ' opacity=".35"' : ''}/>`;
+        g += `<circle cx="${cx}" cy="${cy}" r="${rr}" fill="url(#pe${wl})"${excluded ? ' opacity=".35"' : ''}/>`;
+        g += `<text x="${cx}" y="${cy + rr + 13}" fill="${txt}" fill-opacity=".8" font-size="9" font-family="Share Tech Mono, monospace" text-anchor="middle">${e.label.replace('-', ' ').toUpperCase()} ${e.ts}"</text>`;
+      });
+    });
+    g += `<text x="${W - padX}" y="${H - 6}" fill="${t2}" font-size="9.5" font-family="Share Tech Mono, monospace" text-anchor="end">${wl === 'K' ? '' : '▼ BACK OF BOX'}</text>`;
+    g += `</svg>`;
+    const calcs = rc.map(r => {
+      const isGov = gov && r.row === gov.row;
+      return `<div class="row-calc${isGov ? ' gov' : ''}"><b>Row ${r.row}:</b> ${r.txt}${isGov ? ' <span class="status-best">GOVERNS</span>' : ''}</div>`;
+    }).join('');
+    html += `<div class="row-wall">${g}<div class="row-calcs">${calcs}</div></div>`;
+  });
+  $('rowsView').innerHTML = html;
+}
+
+// ── PHYSICAL WALL-FIT CHECK (not an NEC rule) ─────────────
+// Typical locknut outside size per trade size (approx., inches). Editable in the Fitting Sizes tab.
+const FIT_DEFAULT = { '1/2':1.25, '3/4':1.5, '1':1.88, '1-1/4':2.25, '1-1/2':2.5, '2':3, '2-1/2':3.63, '3':4.25, '3-1/2':4.88, '4':5.38, '5':6.5, '6':7.75 };
+let fitOverride = {};
+try { fitOverride = JSON.parse(localStorage.getItem('aog-pullbox-fit') || '{}') || {}; } catch (e) { fitOverride = {}; }
+const fitW = ts => (fitOverride[ts] > 0 ? fitOverride[ts] : FIT_DEFAULT[ts]) || 0;
+function saveFit() { try { localStorage.setItem('aog-pullbox-fit', JSON.stringify(fitOverride)); } catch (e) {} }
+function buildFitTable() {
+  $('fitSizeTbody').innerHTML = TRADE.map(([t]) => `
+    <tr><td>${tsLabel(t)}</td>
+      <td><input type="number" min="0" step="0.05" value="${fitW(t)}" style="max-width:110px;padding:6px 8px;" oninput="setFit('${t}', this.value)"></td>
+      <td class="ref-tag">${FIT_DEFAULT[t]}</td></tr>`).join('');
+}
+function setFit(t, v) { const n = parseFloat(v); if (n > 0) fitOverride[t] = n; else delete fitOverride[t]; saveFit(); calculate(true); }
+function resetFitSizes() { fitOverride = {}; saveFit(); buildFitTable(); calculate(true); }
+
+function computeFit(st, req) {
+  const gap = Math.max(0, parseFloat($('fitGap').value) || 0);
+  const end = Math.max(0, parseFloat($('fitEnd').value) || 0);
+  const Wd = st.actW || req.w || 0, Hd = st.actH || req.h || 0, Dd = st.actD || req.d || 0;
+  const along = { L: Hd, R: Hd, T: Wd, B: Wd, K: Wd };
+  const rows = [];
+  ['L', 'R', 'T', 'B', 'K'].forEach(wl => {
+    const onWall = st.valid.filter(e => e.wall === wl);
+    if (!onWall.length) return;
+    const rws = [...new Set(onWall.map(e => e.row))].sort((a, b) => a - b);
+    rws.forEach(rw => {
+      const list = onWall.filter(e => e.row === rw);
+      const sum = list.reduce((t, e) => t + fitW(e.ts), 0);
+      const need = sum + gap * (list.length - 1) + 2 * end;
+      const avail = along[wl] || null;
+      rows.push({ wall: wl, row: rw, multi: rws.length > 1, list, sum, need, avail, axis: (wl === 'L' || wl === 'R') ? 'Height' : 'Width' });
+    });
+    // stacked rows on a side wall also need depth (rows sit one behind the other)
+    if (rws.length > 1 && wl !== 'K') {
+      const stack = rws.reduce((t, rw) => t + Math.max(...onWall.filter(e => e.row === rw).map(e => fitW(e.ts))), 0);
+      const need = stack + gap * (rws.length - 1) + 2 * end;
+      rows.push({ wall: wl, row: 'depth', multi: true, list: [], sum: stack, need, avail: Dd || null, axis: 'Depth', rowsN: rws.length });
+    }
+  });
+  rows.forEach(r => {
+    r.status = !r.avail ? 'unknown' : r.need > r.avail + 1e-9 ? 'fail' : (r.avail - r.need < 0.5 ? 'tight' : 'ok');
+  });
+  return { rows, gap, end };
+}
+
+// ── TRUE-SCALE KNOCKOUT PLACEMENT (search) ───────────────
+// Variables: position of each side-wall entry along its wall.
+// Constraints: (1) same-row fittings don't overlap & clear corners (physical);
+//              (2) same-conductor pairs ≥ 6 × larger raceway (314.28(A)(2)), edge-to-edge or center-to-center.
+// Distances are measured in the face plane (depth difference between rows ignored → conservative).
+function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+function buildProblem(st, pairs, gap, end, edge) {
+  const ents = st.valid.filter(e => e.wall !== 'K');
+  const idx = {}; ents.forEach((e, i) => { idx[e.id] = i; });
+  const over = [];
+  for (let i = 0; i < ents.length; i++) for (let j = i + 1; j < ents.length; j++) {
+    const a = ents[i], b = ents[j];
+    if (a.wall === b.wall && a.row === b.row) over.push([i, j, (fitW(a.ts) + fitW(b.ts)) / 2 + gap]);
+  }
+  const prs = [];
+  pairs.forEach(p => {
+    if (p.val == null || p.a.wall === 'K' || p.b.wall === 'K') return;
+    if (!(p.a.id in idx) || !(p.b.id in idx)) return;
+    prs.push({ i: idx[p.a.id], j: idx[p.b.id], need: p.val + (edge ? (p.a.size + p.b.size) / 2 : 0), p });
+  });
+  return { ents, over, prs, end, allowCross: $('chkCross').checked, skippedBack: pairs.some(p => p.val != null && (p.a.wall === 'K' || p.b.wall === 'K')) };
+}
+function ptOf(e, v, W, H) {
+  if (e.wall === 'L') return [0, v];
+  if (e.wall === 'R') return [W, v];
+  if (e.wall === 'B') return [v, 0];
+  return [v, H];                                            // T
+}
+function pairDist(P, k, x, W, H) {
+  const a = P.ents[k.i], b = P.ents[k.j];
+  if (a.wall === b.wall) return Math.abs(x[k.i] - x[k.j]);  // U pull: along the wall
+  const pa = ptOf(a, x[k.i], W, H), pb = ptOf(b, x[k.j], W, H);
+  return Math.hypot(pa[0] - pb[0], pa[1] - pb[1]);
+}
+// crossings between angle-pull runs: chord a→b of one run intersects chord of another
+function segX(p1, p2, p3, p4) {
+  const d = (p2[0] - p1[0]) * (p4[1] - p3[1]) - (p2[1] - p1[1]) * (p4[0] - p3[0]);
+  if (Math.abs(d) < 1e-9) return false;
+  const u = ((p3[0] - p1[0]) * (p4[1] - p3[1]) - (p3[1] - p1[1]) * (p4[0] - p3[0])) / d;
+  const v = ((p3[0] - p1[0]) * (p2[1] - p1[1]) - (p3[1] - p1[1]) * (p2[0] - p1[0])) / d;
+  return u > 1e-6 && u < 1 - 1e-6 && v > 1e-6 && v < 1 - 1e-6;
+}
+function crossings(P, x, W, H) {
+  const ang = P.prs.filter(k => { const a = P.ents[k.i], b = P.ents[k.j]; return a.wall !== b.wall && OPP[a.wall] !== b.wall; });
+  let c = 0;
+  for (let m = 0; m < ang.length; m++) for (let n = m + 1; n < ang.length; n++) {
+    const k1 = ang[m], k2 = ang[n];
+    if (segX(ptOf(P.ents[k1.i], x[k1.i], W, H), ptOf(P.ents[k1.j], x[k1.j], W, H), ptOf(P.ents[k2.i], x[k2.i], W, H), ptOf(P.ents[k2.j], x[k2.j], W, H))) c++;
+  }
+  return c;
+}
+function solvePlacement(P, W, H, opts) {
+  opts = opts || {};
+  const n = P.ents.length;
+  const len = e => (e.wall === 'L' || e.wall === 'R') ? H : W;
+  const lo = P.ents.map(e => fitW(e.ts) / 2 + P.end), hi = P.ents.map(e => len(e) - fitW(e.ts) / 2 - P.end);
+  if (lo.some((l, i) => l > hi[i] + 1e-9)) return { ok: false, maxV: 99, x: P.ents.map(e => len(e) / 2) };
+  const noCross = !P.allowCross;
+  const viol = x => {
+    let c = 0, m = 0;
+    P.over.forEach(([i, j, need]) => { const v = Math.max(0, need - Math.abs(x[i] - x[j])); c += v * v; if (v > m) m = v; });
+    P.prs.forEach(k => { const v = Math.max(0, k.need - pairDist(P, k, x, W, H)); c += v * v; if (v > m) m = v; });
+    if (noCross) { const xc = crossings(P, x, W, H); if (xc) { c += 4 * xc; m = Math.max(m, 1); } }
+    return [c, m];
+  };
+  // groups = entries sharing a wall & row (they must be packed side by side)
+  const groups = {};
+  P.ents.forEach((e, i) => { (groups[e.wall + e.row] = groups[e.wall + e.row] || []).push(i); });
+  const R = rng(9137);
+  const shuffle = arr => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  // packed start: each wall-row gets fittings in a random order, spaced evenly from end to end
+  const packedInit = () => {
+    const x = new Array(n);
+    Object.values(groups).forEach(g => {
+      const order = shuffle(g);
+      if (order.length === 1) { const i = order[0]; x[i] = lo[i] + (hi[i] - lo[i]) * R(); return; }
+      const first = order[0], last = order[order.length - 1];
+      const a = lo[first], z = hi[last];
+      order.forEach((i, k) => { x[i] = Math.min(hi[i], Math.max(lo[i], a + (z - a) * k / (order.length - 1))); });
+    });
+    return x;
+  };
+  const polish = x => {
+    let [c] = viol(x);
+    for (const step of [0.5, 0.25, 0.125, 0.0625, 0.03125]) {
+      let improved = true, guard = 0;
+      while (improved && guard++ < 60) {
+        improved = false;
+        for (let i = 0; i < n; i++) for (const d of [step, -step]) {
+          const old = x[i]; x[i] = Math.min(hi[i], Math.max(lo[i], old + d));
+          const [c2] = viol(x);
+          if (c2 < c - 1e-12) { c = c2; improved = true; } else x[i] = old;
+        }
+      }
+    }
+    return x;
+  };
+  const restarts = opts.fast ? 5 : 10, iters = opts.fast ? 1400 : 2400;
+  let bestFeas = null, bestAny = null;
+  for (let rs = 0; rs < restarts; rs++) {
+    let x = rs % 2 === 0 ? packedInit() : lo.map((l, i) => l + (hi[i] - l) * R());
+    let [c] = viol(x);
+    for (let t = 0; t < iters && c > 1e-10; t++) {
+      const T = 2.5 * Math.pow(0.002, t / iters);
+      const i = Math.floor(R() * n), span = hi[i] - lo[i], old = x[i];
+      x[i] = R() < 0.15 ? lo[i] + span * R() : Math.min(hi[i], Math.max(lo[i], old + (R() - 0.5) * span * Math.max(0.03, T / 2.5)));
+      const [c2] = viol(x);
+      if (c2 <= c || R() < Math.exp((c - c2) / Math.max(T, 1e-6))) c = c2; else x[i] = old;
+    }
+    x = polish(x);
+    // snap to 1/8" when it stays valid
+    const sn = x.map((v, i) => Math.min(hi[i], Math.max(lo[i], Math.round(v * 8) / 8)));
+    if (viol(sn)[1] <= 1e-3) x = sn;
+    const [cf, mf] = viol(x);
+    const cand = { x, c: cf, m: mf, cross: mf <= 1e-3 ? crossings(P, x, W, H) : 99 };
+    if (mf <= 1e-3) {
+      if (!bestFeas || cand.cross < bestFeas.cross) bestFeas = cand;
+      if (opts.fast || bestFeas.cross === 0) break;
+    }
+    if (!bestAny || cand.m < bestAny.m) bestAny = cand;
+  }
+  const pick = bestFeas || bestAny;
+  return { ok: !!bestFeas, maxV: pick.m, x: pick.x, cross: pick.cross };
+}
+let PLACE_CACHE = { key: '', val: null };
+function runPlacement(st, req, pairs) {
+  const gap = Math.max(0, parseFloat($('fitGap').value) || 0);
+  const end = Math.max(0, parseFloat($('fitEnd').value) || 0);
+  const edge = $('measMode').value === 'edge';
+  const P = buildProblem(st, pairs, gap, end, edge);
+  if (!P.prs.length) return null;
+  // box to check: actual if entered, else calculated minimum (at least what the fittings physically need)
+  const physNeed = wl => { const rows = {}; P.ents.filter(e => e.wall === wl).forEach(e => { rows[e.row] = (rows[e.row] || []).concat(e); });
+    return Math.max(0, ...Object.values(rows).map(l => l.reduce((t, e) => t + fitW(e.ts), 0) + gap * (l.length - 1) + 2 * end)); };
+  const W0 = st.actW || Math.max(req.w || 0, physNeed('T'), physNeed('B'), 1);
+  const H0 = st.actH || Math.max(req.h || 0, physNeed('L'), physNeed('R'), 1);
+  const key = JSON.stringify([P.ents.map(e => [e.wall, e.row, e.ts]), P.prs.map(k => [k.i, k.j, k.need]), W0, H0, gap, end, edge, fitOverride, P.allowCross]);
+  if (PLACE_CACHE.key === key) return PLACE_CACHE.val;
+  const sol = solvePlacement(P, W0, H0);
+  let suggest = null;
+  if (!sol.ok) {
+    // grow in ½" steps from the larger of (box checked, code minimum): wider, taller, then both
+    const W1 = Math.max(W0, req.w || 0), H1 = Math.max(H0, req.h || 0);
+    outer: for (let k = 0; k <= 36; k += 0.5) {
+      for (const [w, h] of [[W1 + k, H1], [W1, H1 + k], [W1 + k, H1 + k]]) {
+        if (k === 0 && w === W0 && h === H0) continue;
+        const s2 = solvePlacement(P, w, h, { fast: true });
+        if (s2.ok) { suggest = { W: w, H: h, sol: solvePlacement(P, w, h) }; if (!suggest.sol.ok) suggest.sol = s2; break outer; }
+      }
+    }
+  }
+  const val = { P, W: W0, H: H0, sol, suggest, edge, usingActual: !!(st.actW || st.actH) };
+  PLACE_CACHE = { key, val };
+  return val;
+}
+function posText(e, v) {
+  return (e.wall === 'L' || e.wall === 'R') ? `${fmt(v)}" up` : `${fmt(v)}" from L`;
+}
+function renderPlacement(pl) {
+  $('placeCard').style.display = pl ? '' : 'none';
+  if (!pl) return;
+  const show = { W: pl.W, H: pl.H, sol: pl.sol };   // table shows the closest layout in YOUR box; ⚠ marks pairs that fall short
+  const rec = $('placeRec');
+  rec.classList.remove('pass', 'fail');
+  rec.classList.add(pl.sol.ok ? 'pass' : 'warn');
+  const box = `${fmt(pl.W)}" W × ${fmt(pl.H)}" H`;
+  if (pl.sol.ok) {
+    $('placeVerdict').textContent = '✔ SPACING ACHIEVABLE';
+    $('placeDetail').innerHTML = `Every pair meets 6× (${pl.edge ? 'nearest edges' : 'center to center'})${pl.P.allowCross ? '' : ', runs nested (no crossing),'} in ${box}${pl.usingActual ? ' (your box)' : ' (calculated minimum)'}.<br>Use the knockout positions below.`;
+  } else {
+    $('placeVerdict').textContent = '⚠ SPACING TIGHT — ADVISORY';
+    const opts = [];
+    if (pl.P.ents.some(e => e.wall === 'L' || e.wall === 'R' || e.wall === 'T' || e.wall === 'B')) opts.push('put crowded side-wall knockouts in <b>Row 2</b> (stacked front-to-back instead of up the wall)');
+    if (pl.edge) opts.push('measure <b>center to center</b> if your AHJ accepts it');
+    if (!pl.P.allowCross) opts.push('<b>allow runs to cross</b>');
+    if (pl.suggest) opts.push(`use a <b>${fmt(pl.suggest.W)}" × ${fmt(pl.suggest.H)}"</b> box (next common ${roundUp(pl.suggest.W, COMMON) || '—'}" × ${roundUp(pl.suggest.H, COMMON) || '—'}")`);
+    $('placeDetail').innerHTML = `Not a code failure — ${box} still meets the 314.28 minimum. With the current settings (${pl.edge ? 'nearest edges' : 'center to center'}${pl.P.allowCross ? '' : ', no crossing'}), no knockout layout keeps every same-conductor pair 6× apart without fittings overlapping.` +
+      (opts.length ? `<br>Options: ${opts.join('; ')}.` : '') +
+      '';
+  }
+  const x = show.sol.x;
+  $('placeTbody').innerHTML = pl.P.prs.map(k => {
+    const a = pl.P.ents[k.i], b = pl.P.ents[k.j];
+    const dc = pairDist(pl.P, k, x, show.W, show.H);
+    const got = dc - (pl.edge ? (a.size + b.size) / 2 : 0);
+    const reqd = k.p.val;
+    const good = got + 1e-3 >= reqd;
+    return `<tr>
+      <td class="wrap-m"><b>P${a.run}</b><br><span class="ref-tag">${k.p.kind}</span></td>
+      <td class="wrap-m">${tsLabel(a.ts)} ${WALLS[a.wall]}: <b style="white-space:nowrap;">${posText(a, x[k.i])}</b><br>${tsLabel(b.ts)} ${WALLS[b.wall]}: <b style="white-space:nowrap;">${posText(b, x[k.j])}</b></td>
+      <td class="hide-m">${fmt(reqd)}"</td>
+      <td style="white-space:nowrap;"><b style="color:${good ? 'var(--success)' : 'var(--warn)'};">${fmt(got)}" ${good ? '✔' : '⚠'}</b><span class="m-only ref-tag"><br>need ${fmt(reqd)}"</span></td></tr>`;
+  }).join('');
+  $('placeFoot').querySelector('span').textContent =
+    `Layout = ${pl.edge ? 'nearest-edge' : 'center-to-center'} distance between the paired raceways (trade size used as raceway diameter). Positions are to fitting centers, inside the box.` +
+    (pl.P.skippedBack ? ' Pairs using a back-wall entry are not placed.' : '');
+}
+
+// ── RENDER ─────────────────────────────────────────────────
+function calculate(auto) {
+  const st = readState();
+  const tbl = (st.condType === 'aa' ? BEND_AA : BEND_STD)[st.cond];
+  const big = condIdx(st.cond) >= condIdx('4');
+  $('sizeNote').querySelector('span').textContent = big
+    ? `314.28(A) applies (4 AWG or larger). Table 312.6(A) 1-wire bending space: ${tbl != null ? fmt(tbl) + ' in' : (st.condType === 'aa' && condIdx(st.cond) > condIdx('1000') ? 'n/a — compact AA-8000 column ends at 1000 kcmil' : 'not specified')}.`
+    : 'Smaller than 4 AWG — 314.28(A) sizing does not apply. Use 314.16 box fill.';
+
+  const res = $('results');
+  if (auto && res.style.display === 'none') return;
+  if (!auto && window.AOGSound) AOGSound.play('clunk');
+  res.style.display = 'block';
+
+  const r = compute(st);
+  const { w, h, d } = r.req;
+  $('r-w').textContent = w ? fmt(w) : '—';
+  $('r-h').textContent = h ? fmt(h) : '—';
+  $('r-d').textContent = d ? fmt(d) : '—';
+
+  // warnings
+  const warns = r.warnings.slice();
+  const fit = computeFit(st, r.req);
+  const place = runPlacement(st, r.req, r.pairs);
+  if (place && !place.sol.ok) warns.push({ err: false, msg: `Advisory — knockout spacing is tight in ${fmt(place.W)}" × ${fmt(place.H)}" with the current layout settings. Box still meets the 314.28 minimum. See Knockout Placement for options.` });
+  fit.rows.filter(x => x.status === 'fail').forEach(x => warns.push({ err: true,
+    msg: `Wall fit: ${WALLS[x.wall]} ${x.row === 'depth' ? `wall's ${x.rowsN} stacked rows need ≈ ${fmt(x.need)}" of depth` : `wall${x.multi ? ' row ' + x.row : ''} needs ≈ ${fmt(x.need)}" for ${x.list.length} fitting${x.list.length > 1 ? 's' : ''}`} — only ${fmt(x.avail)}" available. Use a larger box${x.row === 'depth' ? '' : ' or split into rows'}.` }));
+  if (!st.valid.length) warns.unshift({ err: false, msg: 'Add raceway entries with a trade size to calculate.' });
+  const dims = [w, h, d, st.actW, st.actH, st.actD].filter(Boolean);
+  if (dims.some(v => v > 72)) warns.push({ err: false, msg: '314.28(B): a dimension is over 6 ft — all conductors must be cabled or racked in an approved manner.' });
+  $('r-warnings').innerHTML = warns.map(x => `<div class="warn-box${x.err ? ' err' : ''}">⚠️ <span>${x.msg}</span></div>`).join('');
+
+  // verdict
+  const rec = $('r-rec');
+  rec.classList.remove('pass', 'fail');
+  const hasAct = st.actW || st.actH || st.actD;
+  if (!st.valid.length) {
+    $('r-verdict').textContent = '—';
+    $('r-verdict-detail').textContent = 'No entries yet.';
+  } else if (hasAct) {
+    const checks = [['Width', w, st.actW], ['Height', h, st.actH], ['Depth', d, st.actD]];
+    const fails = checks.filter(([, rq, ac]) => rq && (!ac || ac + 1e-9 < rq));
+    const ok = !fails.length;
+    rec.classList.add(ok ? 'pass' : 'fail');
+    $('r-verdict').textContent = ok ? '✔ BOX SIZE OK' : '✖ BOX TOO SMALL';
+    $('r-verdict-detail').innerHTML = checks.map(([n, rq, ac]) => {
+      if (!rq) return `${n}: no requirement${ac ? ` (${fmt(ac)}")` : ''}`;
+      if (!ac) return `<span style="color:var(--danger)">${n}: enter actual (need ≥ ${fmt(rq)}")</span>`;
+      const good = ac + 1e-9 >= rq;
+      return `<span style="color:${good ? 'var(--success)' : 'var(--danger)'}">${n}: ${fmt(ac)}" ${good ? '≥' : '<'} ${fmt(rq)}" ${good ? '✔' : '✖'}</span>`;
+    }).join('<br>') + fitLine(fit) + placeLine(place) + volNote(st.actW, st.actH, st.actD);
+  } else {
+    const cw = w ? roundUp(w, COMMON) : null, ch = h ? roundUp(h, COMMON) : null, cd = d ? roundUp(d, COMMON_D) : null;
+    $('r-verdict').textContent = `${w ? fmt(w) : '—'}" × ${h ? fmt(h) : '—'}" × ${d ? fmt(d) : '—'}"`;
+    $('r-verdict-detail').innerHTML = `Minimum W × H × D per 314.28(A)` +
+      (cw || ch || cd ? `<br>Next common size: <b style="color:var(--accent)">${cw || '—'}" × ${ch || '—'}"${cd ? ' × ' + cd + '"' : ''}</b> — verify with manufacturer` : '') +
+      (!d ? '<br>Depth: no back-wall entries — box must still physically fit the largest raceway &amp; fittings.' : '') +
+      fitLine(fit) + placeLine(place) + volNote(cw, ch, cd);
+  }
+
+  // breakdown
+  $('breakdownTbody').innerHTML = r.lines.length ? r.lines.map(l => `
+    <tr>
+      <td class="wrap-m">${l.dim}<br><span class="ref-tag">${l.who}</span><span class="m-only ref-tag"><br>${l.rule}</span></td>
+      <td class="ref-tag hide-m">${l.rule}</td>
+      <td>${l.calc}</td>
+      <td style="font-weight:700;">${fmt(l.val)}</td>
+    </tr>`).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text2);">No requirements yet</td></tr>`;
+
+  // pairs
+  $('pairCard').style.display = r.pairs.length ? '' : 'none';
+  $('pairTbody').innerHTML = r.pairs.map(p => `
+    <tr>
+      <td class="wrap-m">${p.a.label} ↔ ${p.b.label}<br><span class="ref-tag">${tsLabel(p.a.ts)} ${WALLS[p.a.wall]} · ${tsLabel(p.b.ts)} ${WALLS[p.b.wall]}</span></td>
+      <td>${p.kind}</td>
+      <td>${p.calc}</td>
+      <td style="font-weight:700;">${p.val != null ? fmt(p.val) : '—'}</td>
+    </tr>`).join('');
+
+  // drawing always stays at the box being checked (code minimum or your actual box); when spacing is tight it shows the closest layout found
+  const pv = place ? { W: place.W, H: place.H, sol: place.sol } : null;
+  drawDiagram(st, pv ? pv.W : Math.max(w, st.actW || 0), pv ? pv.H : Math.max(h, st.actH || 0), r.pairs, pv ? { P: place.P, x: pv.sol.x, W: pv.W, H: pv.H } : null);
+  renderPlacement(place);
+  drawRows(st);
+  renderFit(fit, st);
+  if (!auto) res.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function placeLine(pl) {
+  if (!pl) return '';
+  return pl.sol.ok ? `<br><span style="color:var(--success)">Knockout placement: every pair can meet 6× ✔</span>`
+    : `<br><span style="color:var(--warn)">Knockout placement: ⚠ advisory — spacing tight with current settings (see Knockout Placement)</span>`;
+}
+function fitLine(fit) {
+  const bad = fit.rows.filter(x => x.status === 'fail'), tight = fit.rows.filter(x => x.status === 'tight');
+  if (!fit.rows.length) return '';
+  if (bad.length) return `<br><span style="color:var(--danger)">Wall fit: ✖ ${bad.length} wall${bad.length > 1 ? 's' : ''} too crowded for the fittings — see Wall Fit check</span>`;
+  if (tight.length) return `<br><span style="color:var(--warn)">Wall fit: tight on ${tight.map(x => WALLS[x.wall]).join(', ')} — verify fitting sizes</span>`;
+  if (fit.rows.some(x => x.status === 'unknown')) return '';
+  return `<br><span style="color:var(--success)">Wall fit: fittings fit on all walls ✔</span>`;
+}
+function renderFit(fit, st) {
+  $('fitCard').style.display = fit.rows.length ? '' : 'none';
+  const pill = { ok: '<span class="status-pass">FITS</span>', tight: '<span class="status-warn">TIGHT</span>', fail: '<span class="status-fail">WON\'T FIT</span>', unknown: '<span class="ref-tag">SET BOX SIZE</span>' };
+  $('fitTbody').innerHTML = fit.rows.map(x => {
+    const name = x.row === 'depth' ? `${WALLS[x.wall]} · stacked rows` : `${WALLS[x.wall]}${x.multi ? ' · R' + x.row : ''}`;
+    const what = x.row === 'depth'
+      ? `${x.rowsN} rows deep`
+      : (() => { const g = {}; x.list.forEach(e => { g[e.ts] = (g[e.ts] || 0) + 1; }); return Object.entries(g).map(([t, n]) => `${n} × ${t}"`).join(' + '); })();
+    const how = x.row === 'depth'
+      ? `${fmt(x.sum)}" rows + gaps + corners`
+      : `${fmt(x.sum)}" fittings + ${fmt(fit.gap * Math.max(0, x.list.length - 1))}" gaps + ${fmt(2 * fit.end)}" corners`;
+    return `<tr${x.status === 'fail' ? ' class="current-row"' : ''}>
+      <td class="wrap-m">${name}<br><span class="ref-tag">along ${x.axis.toLowerCase()}</span><span class="m-only"><br>${what}</span></td>
+      <td class="wrap-m hide-m">${what}</td>
+      <td><b>≈ ${fmt(x.need)}"</b><br><span class="ref-tag hide-m">${how}</span></td>
+      <td>${x.avail ? fmt(x.avail) + '"' : '—'}${x.avail ? `<br><span class="ref-tag">${x.avail >= x.need ? fmt(x.avail - x.need) + '" spare' : fmt(x.need - x.avail) + '" short'}</span>` : ''}</td>
+      <td>${pill[x.status]}</td></tr>`;
+  }).join('');
+  $('fitNote').textContent = (st.actW || st.actH || st.actD)
+    ? 'Available length = the actual box size you entered (calculated minimum where left blank).'
+    : 'Available length = the calculated minimum box size. Enter an actual box size above to check a specific box.';
+}
+function volNote(W, H, D) {
+  if (!(W && H && D)) return '';
+  const v = W * H * D;
+  return `<br>Volume ≈ ${fmt(v)} in³ — ${v > 100 ? 'power distribution blocks permitted per 314.28(E)' : 'too small for power distribution blocks (314.28(E) needs > 100 in³)'}`;
+}
+
+// ── QUICK REFERENCE MODAL ──────────────────────────────────
+function refTab(t) {
+  document.querySelectorAll('.modal-tab').forEach(x => x.classList.toggle('active', x.dataset.tab === t));
+  document.querySelectorAll('.modal-pane').forEach(x => x.classList.toggle('active', x.id === 'pane-' + t));
+}
+function openRef(t) {
+  buildFitTable();
+  refTab(t || 'r');
+  $('refModal').classList.add('open');
+  document.body.classList.add('modal-open');
+  if (window.AOGSound) AOGSound.play('tink');
+}
+function closeRef() {
+  $('refModal').classList.remove('open');
+  document.body.classList.remove('modal-open');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRef(); });
+
+// ── INIT ───────────────────────────────────────────────────
+$('condSize').innerHTML = COND.map(c => `<option value="${c}"${c === '4' ? ' selected' : ''}>${condLabel(c)}</option>`).join('');
+addRun('L', 1, '', 'T', 1, '');
+calculate(true);
+</script>
+<!-- SERVICE WORKER — single registration pointing to ../sw.js -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('../sw.js', { scope: '../' })
+      .then(function(reg) {
+        console.log('[SW] Registered, scope:', reg.scope);
+        reg.addEventListener('updatefound', function() {
+          var nw = reg.installing;
+          nw.addEventListener('statechange', function() {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('[AOG SW] Update available — reload to apply.');
+            }
+          });
+        });
+      })
+      .catch(function(err) {
+        console.warn('[SW] Registration failed:', err);
+      });
+  });
+}
+</script>
+
+<script>
+function adjustTopPadding() {
+  var bar = document.getElementById('action-bar');
+  var header = document.querySelector('.header');
+  var main = document.getElementById('main');
+  if (bar && header) header.style.marginTop = bar.offsetHeight + 'px';
+}
+window.addEventListener('resize', adjustTopPadding);
+window.addEventListener('load', adjustTopPadding);
+setTimeout(adjustTopPadding, 100);
+</script>
+</body>
+</html>

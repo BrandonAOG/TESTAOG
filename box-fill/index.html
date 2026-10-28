@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<!--
+© 2026 Brandon Keilholz — All rights reserved.
+Created by Brandon Keilholz. Licensed for use by Always On Generators.
+This form, its code, layout, and content are proprietary.
+Unauthorized copying, reproduction, or distribution is prohibited and
+may result in liability for statutory damages of up to $150,000 per work
+for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>AOG Box Fill Calculator — NEC 314.16</title>
+<script src="../sounds.js" defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="../manifest.json">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="theme-color" content="#FBBF24">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AOG Forms">
+
+<style>
+:root {
+  --bg: #f8f9fa;
+  --bg2: #ffffff;
+  --bg3: #f1f3f5;
+  --border: #dee2e6;
+  --text: #1F2937;
+  --text2: #4b5563;
+  --accent: #D97706;
+  --accent2: #B45309;
+  --cyan: #0891b2;
+  --success: #059669;
+  --danger: #DC2626;
+  --warn: #d97706;
+  --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --radius: 12px;
+  --header-bg: #1a1a2e;
+  --header-text: #D97706;
+}
+.dark {
+  --bg: #0A0E27;
+  --bg2: #0f1535;
+  --bg3: #141a3a;
+  --border: #1e2a4a;
+  --text: #E0F7FF;
+  --text2: #94a3b8;
+  --accent: #00FFC8;
+  --accent2: #06B6D4;
+  --cyan: #00FFC8;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warn: #f59e0b;
+  --shadow: 0 2px 8px rgba(0,255,200,0.06);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Exo 2', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* HEADER — spec-viewer style: pulsing logo left of company name + scanline flashes */
+.header {
+  text-align: center;
+  padding: 26px 16px 20px;
+  margin-bottom: 8px;
+  position: relative;
+}
+.header::before,.header::after{content:'';position:absolute;height:2px;width:80%;left:10%;background:linear-gradient(90deg,transparent,#FBBF24,#F97316,#00D4FF,transparent);}
+.header::before{top:0;animation:scanline 4s linear infinite;}
+.header::after{bottom:0;animation:scanline 4s linear infinite reverse;}
+@keyframes scanline{0%,100%{opacity:0;transform:scaleX(0)}50%{opacity:1;transform:scaleX(1)}}
+.logo-wrap{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:nowrap;margin-bottom:10px;}
+.logo-img{width:70px;height:70px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 0 12px rgba(251,191,36,.6));animation:logoPulse 3s ease-in-out infinite;}
+@media(min-width:480px){.logo-img{width:90px;height:90px}}
+@keyframes logoPulse{0%,100%{filter:drop-shadow(0 0 12px rgba(251,191,36,.6))}50%{filter:drop-shadow(0 0 22px rgba(251,191,36,.9)) drop-shadow(0 0 36px rgba(249,115,22,.6))}}
+.title-block{text-align:left;min-width:0;}
+.company-name{font-family:'Orbitron',monospace;font-size:clamp(1.05rem,4.5vw,1.4rem);font-weight:900;letter-spacing:2px;line-height:1.1;background:linear-gradient(135deg,#FBBF24 0%,#F97316 50%,#EA580C 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;}
+@media(min-width:480px){.company-name{font-size:1.8rem;letter-spacing:3px}}
+.tagline{font-family:'Share Tech Mono',monospace;font-size:.65rem;letter-spacing:4px;color:var(--cyan);text-transform:uppercase;}
+.tool-title{font-family:'Orbitron',monospace;font-size:.7rem;letter-spacing:5px;color:var(--text2);margin-top:8px;text-transform:uppercase;}
+.tool-title span{color:#F97316;}
+.header .nec-badge{margin-top:8px;display:inline-block;}
+.home-btn {
+  background: none; border: 1px solid #D97706;
+  color: #D97706; border-radius: 8px;
+  padding: 6px 10px; font-size: 11px;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.2s;
+  text-decoration: none; display: inline-flex;
+  align-items: center; gap: 4px;
+}
+.home-btn:hover { background: #D97706; color: #000; }
+.theme-btn {
+  background: none; border: 1px solid #D97706;
+  color: #D97706; border-radius: 8px;
+  padding: 6px 10px; font-size: 14px; cursor: pointer;
+  transition: all 0.2s;
+}
+.theme-btn:hover { background: #D97706; color: #000; }
+.nec-badge {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8px; background: #D97706;
+  color: #000; padding: 3px 7px;
+  border-radius: 4px; font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* MAIN */
+.main { padding: 16px; max-width: 900px; margin: 0 auto; }
+
+/* SECTION CARDS */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+  transition: background 0.3s, border 0.3s;
+}
+.card-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px; font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title::before {
+  content: ''; display: inline-block;
+  width: 3px; height: 14px;
+  background: var(--accent); border-radius: 2px;
+}
+
+/* FORM ELEMENTS */
+label {
+  font-size: 11px; font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  display: block; margin-bottom: 5px;
+}
+select, input[type="number"], input[type="text"] {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: 'Exo 2', sans-serif;
+  outline: none;
+  transition: border 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none;
+}
+select:focus, input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(217,119,6,0.2);
+}
+.dark select:focus, .dark input:focus {
+  box-shadow: 0 0 0 2px rgba(0,255,200,0.15);
+}
+
+/* GRID LAYOUTS */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+@media(max-width:520px) {
+  .grid-2 { grid-template-columns: 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+}
+
+/* WIRE ROWS */
+.wire-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+  padding: 10px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  transition: background 0.3s;
+}
+.wire-row:hover { border-color: var(--accent); }
+.remove-btn {
+  background: var(--danger);
+  color: white; border: none;
+  border-radius: 6px; width: 32px; height: 32px;
+  font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: opacity 0.2s;
+  align-self: flex-end; margin-bottom: 0;
+}
+.remove-btn:hover { opacity: 0.8; }
+.add-btn {
+  background: var(--accent);
+  color: #000; border: none;
+  border-radius: 8px; padding: 10px 16px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  transition: opacity 0.2s, transform 0.1s;
+  width: 100%; justify-content: center;
+  margin-top: 8px;
+}
+.add-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+.add-btn:active { transform: translateY(0); }
+
+/* CALCULATE BUTTON */
+.calc-btn {
+  width: 100%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000; border: none;
+  border-radius: 10px; padding: 14px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 2px; cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(217,119,6,0.3);
+  margin-top: 4px;
+}
+.calc-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(217,119,6,0.4);
+}
+.calc-btn:active { transform: translateY(0); }
+.dark .calc-btn {
+  background: linear-gradient(135deg, #00FFC8, #06B6D4);
+  box-shadow: 0 4px 15px rgba(0,255,200,0.25);
+}
+
+/* RESULTS */
+.result-card {
+  background: var(--bg2);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 0 20px rgba(217,119,6,0.1);
+}
+.dark .result-card {
+  box-shadow: 0 0 20px rgba(0,255,200,0.08);
+}
+.result-header {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px; color: var(--accent);
+  letter-spacing: 1.5px; margin-bottom: 14px;
+  text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* CONDUIT TABLE */
+.conduit-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 12px; font-family: 'Share Tech Mono', monospace;
+}
+.conduit-table th {
+  background: var(--bg3);
+  color: var(--accent);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px; letter-spacing: 1px;
+  padding: 8px 10px; text-align: left;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+.conduit-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+.conduit-table tr:last-child td { border-bottom: none; }
+.conduit-table tr:hover td { background: var(--bg3); }
+
+/* STATUS PILLS */
+.status-pass {
+  background: var(--success);
+  color: white; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+.status-fail {
+  background: var(--danger);
+  color: white; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+.status-warn {
+  background: var(--warn);
+  color: #000; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+.status-best {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+
+/* FILL BAR */
+.fill-bar-wrap {
+  background: var(--bg3);
+  border-radius: 6px; height: 10px;
+  overflow: hidden; min-width: 60px;
+}
+.fill-bar {
+  height: 100%; border-radius: 6px;
+  transition: width 0.6s ease;
+}
+.fill-green { background: var(--success); }
+.fill-yellow { background: var(--warn); }
+.fill-red { background: var(--danger); }
+
+/* JAM SECTION */
+.jam-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+}
+.jam-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px; color: var(--accent);
+  letter-spacing: 1px; margin-bottom: 8px;
+}
+.jam-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.jam-item {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px;
+  text-align: center;
+}
+.jam-size {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px; font-weight: 700;
+  color: var(--text);
+}
+.jam-ratio {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--text2);
+  margin: 2px 0;
+}
+.jam-status {
+  font-size: 10px; font-weight: 700;
+  margin-top: 4px;
+}
+.jam-ok  { color: var(--success); }
+.jam-risk { color: var(--warn); }
+.jam-high { color: var(--danger); }
+
+/* WIRE SUMMARY */
+.wire-summary {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-bottom: 12px;
+}
+.wire-chip {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--text);
+}
+
+/* RECOMMENDATION */
+.rec-box {
+  background: linear-gradient(135deg, rgba(217,119,6,0.1), rgba(180,83,9,0.05));
+  border: 1px solid var(--accent);
+  border-radius: 8px; padding: 12px;
+  margin-top: 12px;
+}
+.dark .rec-box {
+  background: linear-gradient(135deg, rgba(0,255,200,0.05), rgba(6,182,212,0.03));
+  border-color: var(--accent);
+}
+.rec-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px; color: var(--accent);
+  letter-spacing: 1.5px; margin-bottom: 6px;
+}
+.rec-size {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px; font-weight: 900;
+  color: var(--accent);
+}
+.rec-detail {
+  font-size: 12px; color: var(--text2);
+  margin-top: 4px; font-family: 'Share Tech Mono', monospace;
+}
+
+/* STATS ROW */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px; margin-bottom: 12px;
+}
+.stat-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px;
+  text-align: center;
+}
+.stat-val {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px; font-weight: 700;
+  color: var(--accent);
+}
+.stat-lbl {
+  font-size: 9px; color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.8px; margin-top: 2px;
+}
+
+/* NIPPLE/RACEWAY TOGGLE */
+.toggle-row {
+  display: flex; gap: 8px;
+  margin-bottom: 14px;
+}
+.toggle-opt {
+  flex: 1; padding: 10px;
+  border: 2px solid var(--border);
+  border-radius: 8px; text-align: center;
+  cursor: pointer; font-family: 'Orbitron', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; color: var(--text2);
+  transition: all 0.2s;
+}
+.toggle-opt.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(217,119,6,0.08);
+}
+.dark .toggle-opt.active {
+  background: rgba(0,255,200,0.07);
+}
+
+/* OVERFLOW TABLE */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center; padding: 40px 20px;
+  color: var(--text2);
+}
+.empty-icon { font-size: 48px; margin-bottom: 8px; }
+.empty-text {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px; letter-spacing: 1px;
+}
+
+/* DIVIDER */
+.divider {
+  border: none; border-top: 1px solid var(--border);
+  margin: 12px 0;
+}
+
+/* INFO ROW */
+.info-row {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text2);
+  margin-top: 6px;
+  font-family: 'Share Tech Mono', monospace;
+}
+.info-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%; background: var(--accent);
+  flex-shrink: 0;
+}
+
+
+/* ===== QUICK REFERENCE TABLES MODAL ===== */
+.ref-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.ref-btn {
+  flex: 1; min-width: 140px;
+  background: var(--bg3); color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 8px;
+  padding: 10px; cursor: pointer;
+  font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  text-decoration: none; text-align: center; transition: all 0.2s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.ref-btn:hover { background: var(--accent); color: #000; }
+.modal-bg {
+  position: fixed; inset: 0; z-index: 100000;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(2px);
+  display: none; align-items: flex-start; justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 16px)) 12px 16px;
+  overflow-y: auto;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: var(--bg2); border: 2px solid var(--accent);
+  border-radius: var(--radius); width: 100%; max-width: 820px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+  margin: auto 0;
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--bg2); border-radius: var(--radius) var(--radius) 0 0; z-index: 1;
+}
+.modal-title { font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 1.5px; }
+.modal-close {
+  background: none; border: 1px solid var(--border); color: var(--text2);
+  border-radius: 6px; width: 32px; height: 32px; font-size: 18px; cursor: pointer; flex-shrink: 0;
+}
+.modal-close:hover { border-color: var(--danger); color: var(--danger); }
+.modal-tabs { display: flex; gap: 6px; padding: 10px 14px 0; flex-wrap: wrap; }
+.modal-tab {
+  flex: 1; min-width: 100px; padding: 8px; border: 2px solid var(--border); border-radius: 8px;
+  background: none; color: var(--text2); cursor: pointer;
+  font-family: 'Orbitron', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 1px;
+}
+.modal-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(217,119,6,0.08); }
+.dark .modal-tab.active { background: rgba(0,255,200,0.07); }
+.modal-body { padding: 14px; }
+.modal-pane { display: none; }
+.modal-pane.active { display: block; }
+.modal .conduit-table td.grp {
+  background: var(--bg3); color: var(--accent);
+  font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 1px;
+}
+.modal .conduit-table td.num, .modal .conduit-table th.num { text-align: center; }
+.rule-list { display: grid; gap: 8px; }
+.rule {
+  background: var(--bg3); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 8px; padding: 10px;
+}
+.rule-ref { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--accent); margin-bottom: 3px; }
+.rule-txt { font-size: 13px; color: var(--text); line-height: 1.45; }
+.rule-txt b { font-weight: 600; }
+.modal-foot { padding: 0 14px 14px; }
+body.modal-open { overflow: hidden; }
+@media print { .modal-bg, .ref-btns { display: none !important; } }
+
+
+/* ===== MOBILE TABLE TUNING ===== */
+.m-only { display: none; }
+@media (max-width: 520px) {
+  /* stop iOS auto-zoom on focus */
+  select, input[type="number"], input[type="text"] { font-size: 16px; }
+  .conduit-table { font-size: 11px; }
+  .conduit-table th { padding: 7px 5px; font-size: 8px; }
+  .conduit-table td { padding: 7px 5px; }
+  .hide-m { display: none; }
+  .m-only { display: inline; }
+  .wrap-m { white-space: normal !important; min-width: 96px; }
+  /* first column stays put if a table still needs to scroll */
+  .sticky-1 td:first-child, .sticky-1 th:first-child {
+    position: sticky; left: 0; z-index: 1; background: var(--bg2);
+    box-shadow: 1px 0 0 var(--border);
+  }
+  .sticky-1 thead th:first-child { background: var(--bg3); }
+  .sticky-1 tr.current-row td:first-child { background: linear-gradient(rgba(217,119,6,0.08), rgba(217,119,6,0.08)), var(--bg2); }
+  .dark .sticky-1 tr.current-row td:first-child { background: linear-gradient(rgba(0,255,200,0.06), rgba(0,255,200,0.06)), var(--bg2); }
+  .modal-bg { padding-left: 6px; padding-right: 6px; }
+  .modal-body { padding: 10px; }
+  .modal .conduit-table td.num, .modal .conduit-table th.num { padding: 7px 3px; }
+  .modal .conduit-table td.grp { position: static; box-shadow: none; }
+  .stats-row { gap: 6px; }
+  .stat-val { font-size: 14px; }
+}
+
+
+.check-detail {
+  margin-top: -9px;
+  padding: 12px 10px 10px;
+  background: var(--bg3);
+  border: 1px solid var(--accent);
+  border-top: 1px dashed var(--border);
+  border-radius: 0 0 8px 8px;
+}
+.check-row:has(input:checked) { border-color: var(--accent); }
+.check-row:has(+ .check-detail[style*="display: none"]), .check-row:has(+ .check-detail[style*="display:none"]) { border-radius: 8px; }
+.check-row:has(input:checked):has(+ .check-detail:not([style*="none"])) { border-radius: 8px 8px 0 0; border-bottom-color: transparent; }
+
+/* PRINT */
+@media print {
+  .header, .add-btn, .remove-btn, .calc-btn,
+  .theme-btn, .home-btn, .toggle-row { display: none !important; }
+  body { background: white; color: black; }
+  .card, .result-card { box-shadow: none; border: 1px solid #ccc; }
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+
+/* FOOTER */
+.footer {
+  text-align: center; padding: 20px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--text2);
+  letter-spacing: 1px;
+}
+
+
+/* ===== FIXED ACTION BAR ===== */
+.action-bar {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  z-index: 99999;
+  width: 100%;
+  background: var(--header-bg, #1e293b);
+  padding: 4px 8px;
+  padding-top: max(4px, env(safe-area-inset-top, 4px));
+  display: flex; justify-content: flex-start; gap: 4px; flex-wrap: nowrap; align-items: center;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  
+  box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+  border-bottom: 1px solid rgba(217,119,6,0.3);
+  box-sizing: border-box;
+}
+/* Center the buttons when they fit; auto-margins collapse safely when the
+   bar overflows and scrolls, so nothing gets clipped off the left edge. */
+.action-bar > :first-child { margin-left: auto; }
+.action-bar > :last-child { margin-right: auto; }
+.action-bar .ab-btn {
+  padding: 6px 8px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.07);
+  border-radius: 0; cursor: pointer; color: #D97706; text-transform: uppercase;
+  font-family: Arial, sans-serif; white-space: nowrap; flex: 1; min-width: 0;
+  text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+  clip-path: polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  overflow: hidden; text-overflow: ellipsis; transition: all 0.15s ease;
+}
+.action-bar .ab-btn:hover { border-color: #D97706; box-shadow: 0 0 8px rgba(217,119,6,0.3); }
+.action-bar .theme-toggle-ab {
+  width: 36px; height: 36px; padding: 6px; flex-shrink: 0;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.07);
+  border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: #D97706; font-size: 16px; transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.action-bar .theme-toggle-ab:hover { border-color: #D97706; box-shadow: 0 0 8px rgba(217,119,6,0.3); }
+@media (max-width: 480px) {
+  .action-bar { padding: 4px 4px; padding-top: max(4px, env(safe-area-inset-top, 4px)); gap: 3px; }
+}
+
+/* ===== BOX FILL ADDITIONS (same tokens as conduit fill) ===== */
+.wire-row.w4 { grid-template-columns: 1fr 0.7fr 1.6fr auto; }
+.wire-row.w3 { grid-template-columns: 1.6fr 1fr auto; }
+.wire-row.wd { grid-template-columns: 1.4fr 1fr 0.7fr auto; }
+@media(max-width:520px) {
+  .wire-row.w4, .wire-row.wd { grid-template-columns: 1fr 1fr; }
+  .wire-row.w4 .remove-btn, .wire-row.wd .remove-btn { grid-column: 2; justify-self: end; }
+  .wire-row.w4 .span-m, .wire-row.wd .span-m { grid-column: 1 / -1; }
+}
+.row-note {
+  grid-column: 1 / -1;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--text2);
+  letter-spacing: .5px;
+}
+.row-note b { color: var(--accent); font-weight: 400; }
+
+.check-list { display: grid; gap: 8px; }
+.check-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px; margin: 0;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer;
+  text-transform: none; letter-spacing: 0;
+  font-weight: 400; transition: border 0.2s;
+}
+.check-row:hover { border-color: var(--accent); }
+.check-row input { position: absolute; opacity: 0; pointer-events: none; }
+.check-box {
+  width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px;
+  border: 2px solid var(--border); border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; background: var(--bg2);
+}
+.check-row input:checked + .check-box { background: var(--accent); border-color: var(--accent); }
+.check-row input:checked + .check-box::after { content: '✓'; color: #000; font-size: 12px; font-weight: 900; }
+.check-row input:focus-visible + .check-box { box-shadow: 0 0 0 2px rgba(217,119,6,0.3); }
+.check-text { font-size: 13px; color: var(--text); line-height: 1.4; }
+.check-text b { font-weight: 600; }
+.check-text em {
+  font-style: normal; font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--text2); letter-spacing: .5px;
+}
+
+.total-row td {
+  font-family: 'Orbitron', sans-serif !important;
+  font-weight: 700; font-size: 11px;
+  color: var(--accent) !important;
+  border-top: 2px solid var(--border);
+  background: var(--bg3);
+}
+.ref-tag { color: var(--text2); }
+
+.warn-box {
+  display: flex; gap: 8px; align-items: flex-start;
+  background: var(--bg3);
+  border: 1px solid var(--warn);
+  border-left: 3px solid var(--warn);
+  border-radius: 8px; padding: 10px; margin-bottom: 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--text);
+}
+.warn-box.err { border-color: var(--danger); }
+.rec-box.fail { border-color: var(--danger); background: linear-gradient(135deg, rgba(220,38,38,0.10), rgba(220,38,38,0.03)); }
+.rec-box.fail .rec-size, .rec-box.fail .rec-label { color: var(--danger); }
+.rec-box.pass .rec-size { color: var(--success); }
+.current-row td { background: rgba(217,119,6,0.08); }
+.dark .current-row td { background: rgba(0,255,200,0.06); }
+</style>
+<script src="../update-banner.js"></script>
+</head>
+<body>
+<div class="action-bar" id="action-bar">
+  <a class="ab-btn" href="../">🏠 HOME</a>
+  <button class="ab-btn" onclick="openRef('a')">📋 TABLES</button>
+  <button class="theme-toggle-ab" id="themeBtn" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo-wrap">
+    <img src="../logo.png" alt="Always On Generators Logo" class="logo-img" onerror="this.style.display='none'">
+    <div class="title-block">
+      <div class="company-name">Always On<br>Generators</div>
+      <div class="tagline">// Power When You Need It //</div>
+    </div>
+  </div>
+  <div class="tool-title">Box <span>Fill</span> Calculator &mdash; NEC 314.16, Tables 314.16(A) &amp; (B)(1)</div>
+  <span class="nec-badge">NEC 2023</span>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="main">
+
+  <!-- BOX -->
+  <div class="card">
+    <div class="card-title">Box Selection</div>
+
+    <div class="toggle-row">
+      <div class="toggle-opt active" id="tog-std" onclick="setBoxMode('std')">
+        📦 STANDARD METAL<br><span style="font-size:8px;font-weight:400;letter-spacing:0">Table 314.16(A)</span>
+      </div>
+      <div class="toggle-opt" id="tog-custom" onclick="setBoxMode('custom')">
+        🏷️ MARKED VOLUME<br><span style="font-size:8px;font-weight:400;letter-spacing:0">314.16(A)(2) — NM / listed</span>
+      </div>
+    </div>
+
+    <div id="stdBoxWrap" class="grid-2">
+      <div>
+        <label>Box (Trade Size)</label>
+        <select id="boxSelect" onchange="calculate(true)"></select>
+      </div>
+      <div>
+        <label>Ganged Boxes (Qty)</label>
+        <input type="number" id="gangQty" min="1" max="10" value="1" oninput="calculate(true)">
+      </div>
+    </div>
+
+    <div id="customBoxWrap" class="grid-2" style="display:none;">
+      <div>
+        <label>Box Description</label>
+        <input type="text" id="customName" placeholder="e.g. 2-gang PVC old-work" oninput="calculate(true)">
+      </div>
+      <div>
+        <label>Marked Volume (in³)</label>
+        <input type="number" id="customVol" min="0" step="0.1" placeholder="e.g. 32.0" oninput="calculate(true)">
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-top:12px;">
+      <div>
+        <label>Barriers in Box (Qty)</label>
+        <input type="number" id="barQty" min="0" max="10" value="0" oninput="calculate(true)">
+      </div>
+      <div>
+        <label>Barrier Type (unmarked)</label>
+        <select id="barType" onchange="calculate(true)">
+          <option value="0.5">Metal — 0.5 in³ each</option>
+          <option value="1.0">Nonmetallic — 1.0 in³ each</option>
+          <option value="0">Marked with volume — enter as negative add-on</option>
+        </select>
+      </div>
+    </div>
+    <div class="info-row"><div class="info-dot"></div><span>314.16(A): barrier volume is deducted. Each space must be calculated separately — run this once per space.</span></div>
+
+    <hr class="divider">
+    <label style="margin-bottom:8px;">Added Volume — Plaster Rings, Extension Rings, Domed Covers (marked in³)</label>
+    <div id="addonList"></div>
+    <button class="add-btn" onclick="addAddon()">＋ ADD RING / COVER VOLUME</button>
+
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
+      <div class="stat-box" style="flex:1;min-width:120px;">
+        <div class="stat-val" id="bi-box">—</div>
+        <div class="stat-lbl">Box Volume (in³)</div>
+      </div>
+      <div class="stat-box" style="flex:1;min-width:120px;">
+        <div class="stat-val" id="bi-addon">—</div>
+        <div class="stat-lbl">Added − Barriers (in³)</div>
+      </div>
+      <div class="stat-box" style="flex:1;min-width:120px;">
+        <div class="stat-val" id="bi-total">—</div>
+        <div class="stat-lbl">Total Available (in³)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONDUCTORS -->
+  <div class="card">
+    <div class="card-title">Conductors — 314.16(B)(1)</div>
+    <div class="info-row" style="margin:-6px 0 10px;"><div class="info-dot"></div>
+      <span>Count ungrounded &amp; grounded (neutral) conductors here. Grounds go in the EGC section below.</span>
+    </div>
+    <div id="wireList"></div>
+    <button class="add-btn" onclick="addWire()">＋ ADD CONDUCTOR GROUP</button>
+  </div>
+
+  <!-- DEVICES -->
+  <div class="card">
+    <div class="card-title">Devices / Yokes — 314.16(B)(4)</div>
+    <div class="info-row" style="margin:-6px 0 10px;"><div class="info-dot"></div>
+      <span>Each yoke/strap = 2× allowance of largest conductor on that device. Wider than 2" = 2× per gang.</span>
+    </div>
+    <div id="deviceList"></div>
+    <button class="add-btn" onclick="addDevice()">＋ ADD DEVICE / YOKE</button>
+  </div>
+
+  <!-- OTHER ALLOWANCES -->
+  <div class="card">
+    <div class="card-title">Other Allowances</div>
+    <div class="check-list">
+      <label class="check-row">
+        <input type="checkbox" id="chkClamp" onchange="calculate(true)">
+        <span class="check-box"></span>
+        <span class="check-text"><b>Internal cable clamps</b> — one or more present<br><em>314.16(B)(2) · 1× largest conductor in box · connectors clamping outside the box = no allowance</em></span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" id="chkStud" onchange="calculate(true)">
+        <span class="check-box"></span>
+        <span class="check-text"><b>Luminaire stud(s)</b> — one or more present<br><em>314.16(B)(3) · 1× largest conductor in box</em></span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" id="chkHickey" onchange="calculate(true)">
+        <span class="check-box"></span>
+        <span class="check-text"><b>Hickey(s)</b> — one or more present<br><em>314.16(B)(3) · 1× largest conductor in box</em></span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" id="chkEgc" onchange="toggleEgc()">
+        <span class="check-box"></span>
+        <span class="check-text"><b>Equipment grounding conductors</b> — one or more enter box<br><em>314.16(B)(5) · up to 4 = 1× largest EGC · each additional = ¼×</em></span>
+      </label>
+      <div id="egcWrap" class="check-detail" style="display:none;">
+        <div class="grid-2">
+          <div>
+            <label>Largest EGC Entering Box</label>
+            <select id="egcSize" onchange="calculate(true)"></select>
+          </div>
+          <div>
+            <label>EGCs Entering Box (Qty)</label>
+            <input type="number" id="egcQty" min="1" max="99" value="1" oninput="calculate(true)">
+          </div>
+        </div>
+        <div class="info-row"><div class="info-dot"></div>
+          <span>Up to 4 EGCs = 1 allowance. Each EGC beyond 4 adds ¼ allowance — 314.16(B)(5).</span>
+        </div>
+      </div>
+      <label class="check-row">
+        <input type="checkbox" id="chkTb" onchange="toggleTb()">
+        <span class="check-box"></span>
+        <span class="check-text"><b>Terminal block(s)</b> — present in box<br><em>314.16(B)(6) · 1× largest conductor terminated, per assembly</em></span>
+      </label>
+      <div id="tbWrap" class="check-detail" style="display:none;">
+        <div class="grid-2">
+          <div>
+            <label>Terminal Block Assemblies (Qty)</label>
+            <input type="number" id="tbQty" min="1" max="20" value="1" oninput="calculate(true)">
+          </div>
+          <div>
+            <label>Largest Conductor Terminated</label>
+            <select id="tbSize" onchange="calculate(true)"></select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CALCULATE -->
+  <button class="calc-btn" onclick="calculate()">⚡ CALCULATE BOX FILL</button>
+
+  <!-- RESULTS -->
+  <div id="results" style="display:none;margin-top:14px;">
+
+    <div class="result-card">
+      <div class="result-header">📊 Fill Summary</div>
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-val" id="r-req">—</div>
+          <div class="stat-lbl">Required Volume (in³)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="r-pct">—</div>
+          <div class="stat-lbl">Fill %</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="r-avail">—</div>
+          <div class="stat-lbl">Available Volume (in³)</div>
+        </div>
+      </div>
+
+      <div id="r-chips" class="wire-summary"></div>
+
+      <div style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-size:11px;color:var(--text2);font-family:'Share Tech Mono',monospace;">VOLUME UTILIZATION</span>
+          <span id="r-fill-label" style="font-size:11px;font-weight:700;font-family:'Share Tech Mono',monospace;"></span>
+        </div>
+        <div class="fill-bar-wrap" style="height:14px;">
+          <div id="r-fill-bar" class="fill-bar" style="width:0%;"></div>
+        </div>
+      </div>
+
+      <div id="r-warnings"></div>
+
+      <div class="rec-box">
+        <div class="rec-label">◆ RESULT</div>
+        <div class="rec-size" id="r-verdict">—</div>
+        <div class="rec-detail" id="r-verdict-detail">—</div>
+      </div>
+    </div>
+
+    <!-- BREAKDOWN -->
+    <div class="result-card">
+      <div class="result-header">🧮 Volume Allowance Breakdown — Table 314.16(B)(1)</div>
+      <div class="table-wrap">
+        <table class="conduit-table sticky-1">
+          <thead>
+            <tr><th>ITEM</th><th class="hide-m">NEC REF</th><th>SIZE</th><th>COUNT</th><th>in³ EACH</th><th>VOLUME</th></tr>
+          </thead>
+          <tbody id="breakdownTbody"></tbody>
+          <tfoot>
+            <tr class="total-row"><td class="hide-m">TOTAL REQUIRED</td><td colspan="2"><span class="hide-m"></span><span class="m-only">TOTAL</span></td><td id="bd-count">—</td><td></td><td id="bd-vol">—</td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- ALL BOXES -->
+    <div class="result-card">
+      <div class="result-header">📋 Standard Metal Boxes — Table 314.16(A)</div>
+      <div class="info-row" style="margin-bottom:10px;"><div class="info-dot"></div>
+        <span>Single box, same contents, plus any ring/cover volume entered above.</span>
+      </div>
+      <div class="table-wrap">
+        <table class="conduit-table sticky-1">
+          <thead>
+            <tr><th>BOX</th><th class="hide-m">BOX in³</th><th>AVAIL.</th><th class="hide-m">REQUIRED</th><th>FILL %</th><th class="hide-m">VISUAL</th><th>STATUS</th></tr>
+          </thead>
+          <tbody id="allBoxesTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- REFERENCE -->
+  <div class="card">
+    <div class="card-title">NEC 314.16 Reference</div>
+    <div class="ref-btns">
+      <button class="ref-btn" onclick="openRef('a')">📦 Table 314.16(A)</button>
+      <button class="ref-btn" onclick="openRef('b')">🔢 Table 314.16(B)(1)</button>
+      <button class="ref-btn" onclick="openRef('r')">📖 Code Summary — 314.16</button>
+    </div>
+    <div class="table-wrap" style="margin-bottom:12px;">
+      <table class="conduit-table">
+        <thead><tr><th class="wrap-m" style="min-width:64px;">AWG</th><th>18</th><th>16</th><th>14</th><th>12</th><th>10</th><th>8</th><th>6</th></tr></thead>
+        <tbody><tr><td class="wrap-m" style="min-width:64px;">in³ each</td><td>1.50</td><td>1.75</td><td>2.00</td><td>2.25</td><td>2.50</td><td>3.00</td><td>5.00</td></tr></tbody>
+      </table>
+    </div>
+    <div style="display:grid;gap:6px;">
+      <div class="info-row"><div class="info-dot"></div>(B)(1) Each conductor from outside the box, terminated or spliced inside = 1</div>
+      <div class="info-row"><div class="info-dot"></div>(B)(1) Each conductor passing through unspliced = 1</div>
+      <div class="info-row"><div class="info-dot"></div>(B)(1) Unbroken loop ≥ 2× the 300.14 free length (12") = 2</div>
+      <div class="info-row"><div class="info-dot"></div>(B)(1) Pigtails &amp; jumpers wholly inside the box = 0</div>
+      <div class="info-row"><div class="info-dot"></div>(B)(1) Ex: EGC &amp; ≤4 fixture wires smaller than 14 AWG from a domed luminaire canopy may be omitted</div>
+      <div class="info-row"><div class="info-dot"></div>(B)(2) Internal cable clamps (one or more) = 1 × largest conductor</div>
+      <div class="info-row"><div class="info-dot"></div>(B)(3) Luminaire studs / hickeys = 1 × largest conductor, each type</div>
+      <div class="info-row"><div class="info-dot"></div>(B)(4) Each yoke or strap = 2 × largest conductor on that device</div>
+      <div class="info-row"><div class="info-dot"></div>(B)(5) Up to 4 EGCs = 1 × largest EGC; each additional EGC = ¼ × largest EGC</div>
+      <div class="info-row"><div class="info-dot"></div>(B)(6) Each terminal block assembly = 1 × largest conductor terminated to it</div>
+      <div class="info-row"><div class="info-dot"></div>(A) Unmarked barriers: 0.5 in³ metal, 1.0 in³ nonmetallic — calculate each space separately</div>
+      <div class="info-row"><div class="info-dot"></div>(A)(2) Marked ring, extension &amp; cover volumes add to box volume</div>
+      <div class="info-row"><div class="info-dot"></div>314.16 covers 6 AWG &amp; smaller — 4 AWG &amp; larger: size per 314.28</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- QUICK REFERENCE MODAL -->
+<div class="modal-bg" id="refModal" onclick="if(event.target===this)closeRef()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="refTitle">
+    <div class="modal-head">
+      <div class="modal-title" id="refTitle">📋 NEC 2023 — 314.16 Quick Reference</div>
+      <button class="modal-close" onclick="closeRef()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab" data-tab="a" onclick="refTab('a')">TABLE 314.16(A)</button>
+      <button class="modal-tab" data-tab="b" onclick="refTab('b')">TABLE 314.16(B)(1)</button>
+      <button class="modal-tab" data-tab="r" onclick="refTab('r')">CODE SUMMARY</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-pane" id="pane-a">
+        <div class="info-row" style="margin:0 0 10px;"><div class="info-dot"></div>
+          <span>Metal Boxes — min. volume &amp; max. conductors of one size, with no other allowances (clamps, devices, EGCs, etc.)</span>
+        </div>
+        <div class="table-wrap">
+          <table class="conduit-table sticky-1">
+            <thead><tr><th>BOX TRADE SIZE</th><th class="num">in³</th><th class="num">#18</th><th class="num">#16</th><th class="num">#14</th><th class="num">#12</th><th class="num">#10</th><th class="num">#8</th><th class="num">#6</th></tr></thead>
+            <tbody id="refTableA"></tbody>
+          </table>
+        </div>
+        <div class="info-row" style="margin-top:10px;"><div class="info-dot"></div><span>◀ marks the box currently selected in the calculator.</span></div>
+      </div>
+      <div class="modal-pane" id="pane-b">
+        <div class="info-row" style="margin:0 0 10px;"><div class="info-dot"></div>
+          <span>Volume Allowance Required per Conductor</span>
+        </div>
+        <div class="table-wrap">
+          <table class="conduit-table">
+            <thead><tr><th>CONDUCTOR (AWG)</th><th class="num">cm³</th><th class="num">in³</th></tr></thead>
+            <tbody>
+              <tr><td>18</td><td class="num">24.6</td><td class="num">1.50</td></tr>
+              <tr><td>16</td><td class="num">28.7</td><td class="num">1.75</td></tr>
+              <tr><td>14</td><td class="num">32.8</td><td class="num">2.00</td></tr>
+              <tr><td>12</td><td class="num">36.9</td><td class="num">2.25</td></tr>
+              <tr><td>10</td><td class="num">41.0</td><td class="num">2.50</td></tr>
+              <tr><td>8</td><td class="num">49.2</td><td class="num">3.00</td></tr>
+              <tr><td>6</td><td class="num">81.9</td><td class="num">5.00</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="info-row" style="margin-top:10px;"><div class="info-dot"></div><span>4 AWG &amp; larger: box must also comply with 314.28.</span></div>
+      </div>
+      <div class="modal-pane" id="pane-r">
+        <div class="info-row" style="margin:0 0 10px;"><div class="info-dot"></div>
+          <span>Plain-language summary of NEC 2023 314.16 — not the official code text. Verify with the adopted code &amp; AHJ.</span>
+        </div>
+        <div class="rule-list">
+          <div class="rule"><div class="rule-ref">314.16 — GENERAL REQUIREMENT</div><div class="rule-txt">Boxes and conduit bodies must be an approved size with free space for every conductor inside. The box volume from <b>(A)</b> can <b>never be less</b> than the fill total from <b>(B)</b>. Conduit bodies are sized by <b>(C)</b>.</div></div>
+          <div class="rule"><div class="rule-ref">314.16 — WHAT IT DOESN'T COVER</div><div class="rule-txt">Does not apply to terminal housings that come with <b>motors or generators</b> (see 430.12). Boxes with <b>4 AWG or larger</b> conductors must <b>also</b> meet 314.28. Outlet and device boxes must <b>also</b> meet the depth rules in 314.24.</div></div>
+          <div class="rule"><div class="rule-ref">314.16(A) — BOX VOLUME</div><div class="rule-txt">Volume = all assembled sections <b>plus</b> plaster rings, domed covers, extension rings, etc. — but only if they're <b>marked</b> with their volume or made from boxes listed in Table 314.16(A).<br><b>Barriers:</b> the volume is split between the spaces they create. An unmarked barrier uses <b>0.5 in³ if metal</b>, <b>1.0 in³ if nonmetallic</b>.</div></div>
+          <div class="rule"><div class="rule-ref">314.16(A)(1) — STANDARD BOXES</div><div class="rule-txt">Standard boxes that aren't marked with a volume use the volume in <b>Table 314.16(A)</b>.</div></div>
+          <div class="rule"><div class="rule-ref">314.16(A)(2) — OTHER BOXES</div><div class="rule-txt">Boxes of <b>100 in³ or less</b> that aren't in the table, and <b>all nonmetallic boxes</b>, must be durably and legibly <b>marked</b> with their volume by the manufacturer. A table box that's actually larger than the table volume may be marked with its larger volume.</div></div>
+          <div class="rule"><div class="rule-ref">314.16(B) — FILL CALCULATION</div><div class="rule-txt"><b>Add together</b> every allowance from (B)(1) through (B)(6) that applies. <b>No allowance</b> for small fittings like locknuts and bushings. With a barrier, figure each space <b>separately</b>.</div></div>
+          <div class="rule"><div class="rule-ref">314.16(B)(1) — CONDUCTOR FILL</div><div class="rule-txt">
+            • Comes from <b>outside</b> the box and is <b>spliced or terminated</b> inside → <b>1</b><br>
+            • <b>Passes through</b> with no splice or termination → <b>1</b><br>
+            • Unbroken <b>loop or coil</b> at least <b>twice</b> the 300.14 free-conductor length (≥12") → <b>2</b><br>
+            • Conductor with <b>no part leaving</b> the box (pigtail, internal jumper) → <b>0</b><br>
+            Use Table 314.16(B)(1) for the volume of each.<br>
+            <i>Exception:</i> EGCs, and/or <b>up to four</b> fixture wires <b>smaller than 14 AWG</b>, may be left out when they come into the box from a <b>domed luminaire or similar canopy</b> and terminate in that box.</div></div>
+          <div class="rule"><div class="rule-ref">314.16(B)(2) — CLAMP FILL</div><div class="rule-txt">One or more <b>internal</b> cable clamps (factory or field supplied) → <b>one</b> allowance based on the <b>largest conductor present in the box</b>. A cable connector whose clamp is <b>outside</b> the box → no allowance.</div></div>
+          <div class="rule"><div class="rule-ref">314.16(B)(3) — SUPPORT FITTINGS FILL</div><div class="rule-txt">One or more <b>luminaire studs</b> or <b>hickeys</b> → <b>one</b> allowance <b>for each type</b> of fitting, based on the largest conductor present in the box. (Stud + hickey = 2 allowances.)</div></div>
+          <div class="rule"><div class="rule-ref">314.16(B)(4) — DEVICE OR EQUIPMENT FILL</div><div class="rule-txt">Each <b>yoke or strap</b> holding one or more devices → <b>double</b> allowance, based on the largest conductor <b>connected to the device(s) on that yoke</b>. A device or utilization equipment <b>wider than a single 2" device box</b> → double allowance <b>for each gang</b> needed to mount it.</div></div>
+          <div class="rule"><div class="rule-ref">314.16(B)(5) — EQUIPMENT GROUNDING CONDUCTOR FILL</div><div class="rule-txt"><b>Up to four</b> EGCs entering the box → <b>one</b> allowance based on the largest EGC entering. <b>Each additional</b> EGC beyond four → <b>¼</b> allowance, based on the largest EGC entering.<br><i>Example:</i> 6 × #12 EGCs = 1 + ¼ + ¼ = 1.5 × 2.25 = <b>3.375 in³</b>.</div></div>
+          <div class="rule"><div class="rule-ref">314.16(B)(6) — TERMINAL BLOCK FILL</div><div class="rule-txt">Each <b>terminal block assembly</b> → <b>one</b> allowance based on the largest conductor(s) terminated to that assembly.</div></div>
+          <div class="rule"><div class="rule-ref">314.16(C)(1) — CONDUIT BODIES, GENERAL</div><div class="rule-txt">Conduit bodies with <b>6 AWG or smaller</b> (other than short-radius bodies) need a cross-section <b>at least twice</b> that of the largest conduit/tubing they can attach to. Max conductors = what <b>Chapter 9, Table 1</b> allows for that conduit.</div></div>
+          <div class="rule"><div class="rule-ref">314.16(C)(2) — CONDUIT BODIES WITH SPLICES / DEVICES</div><div class="rule-txt">Only conduit bodies <b>marked with their volume</b> may contain splices, taps, or devices. Max conductors are figured using <b>314.16(B)</b>. The body must be rigidly and securely <b>supported</b>.</div></div>
+          <div class="rule"><div class="rule-ref">314.16(C)(3) — SHORT-RADIUS CONDUIT BODIES</div><div class="rule-txt">Capped elbows, service-entrance elbows, etc. (6 AWG or smaller) are only for pulling — <b>no splices, taps, or devices</b>. Must be an approved size with free space for all conductors.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  AOG FIELD OPERATIONS HUB — BOX FILL CALCULATOR<br>
+  NEC 2023 ARTICLE 314.16 — TABLES 314.16(A) &amp; (B) — BUILT BY BRANDON @BrandonAOG
+</div>
+
+<script>
+// ============================================================
+// NEC 2023 — 314.16 BOX FILL
+// Table 314.16(B) — volume allowance per conductor (in³)
+// ============================================================
+const SIZES = ['18','16','14','12','10','8','6'];
+const ALLOW = { '18':1.50, '16':1.75, '14':2.00, '12':2.25, '10':2.50, '8':3.00, '6':5.00 };
+
+// Table 314.16(A) — metal boxes, minimum volume (in³)
+const BOXES = [
+  { g:'Round / Octagonal', id:'oct-114',  name:'4" × 1-1/4" Round/Oct',        vol:12.5 },
+  { g:'Round / Octagonal', id:'oct-112',  name:'4" × 1-1/2" Round/Oct',        vol:15.5 },
+  { g:'Round / Octagonal', id:'oct-218',  name:'4" × 2-1/8" Round/Oct',        vol:21.5 },
+  { g:'Square',            id:'sq4-114',  name:'4" × 1-1/4" Square',           vol:18.0 },
+  { g:'Square',            id:'sq4-112',  name:'4" × 1-1/2" Square',           vol:21.0 },
+  { g:'Square',            id:'sq4-218',  name:'4" × 2-1/8" Square',           vol:30.3 },
+  { g:'Square',            id:'sq411-114',name:'4-11/16" × 1-1/4" Square',     vol:25.5 },
+  { g:'Square',            id:'sq411-112',name:'4-11/16" × 1-1/2" Square',     vol:29.5 },
+  { g:'Square',            id:'sq411-218',name:'4-11/16" × 2-1/8" Square',     vol:42.0 },
+  { g:'Device',            id:'dev-112',  name:'3" × 2" × 1-1/2" Device',      vol:7.5  },
+  { g:'Device',            id:'dev-2',    name:'3" × 2" × 2" Device',          vol:10.0 },
+  { g:'Device',            id:'dev-214',  name:'3" × 2" × 2-1/4" Device',      vol:10.5 },
+  { g:'Device',            id:'dev-212',  name:'3" × 2" × 2-1/2" Device',      vol:12.5 },
+  { g:'Device',            id:'dev-234',  name:'3" × 2" × 2-3/4" Device',      vol:14.0 },
+  { g:'Device',            id:'dev-312',  name:'3" × 2" × 3-1/2" Device',      vol:18.0 },
+  { g:'Device',            id:'hs-112',   name:'4" × 2-1/8" × 1-1/2" Device',  vol:10.3 },
+  { g:'Device',            id:'hs-178',   name:'4" × 2-1/8" × 1-7/8" Device',  vol:13.0 },
+  { g:'Device',            id:'hs-218',   name:'4" × 2-1/8" × 2-1/8" Device',  vol:14.5 },
+  { g:'Masonry Box / Gang',id:'mas-212',  name:'3-3/4" × 2" × 2-1/2" Masonry', vol:14.0 },
+  { g:'Masonry Box / Gang',id:'mas-312',  name:'3-3/4" × 2" × 3-1/2" Masonry', vol:21.0 },
+  { g:'FS / FD Boxes',     id:'fs-1',     name:'FS — 1-3/4" deep, single cover/gang',   vol:13.5 },
+  { g:'FS / FD Boxes',     id:'fd-1',     name:'FD — 2-3/8" deep, single cover/gang',   vol:18.0 },
+  { g:'FS / FD Boxes',     id:'fs-m',     name:'FS — 1-3/4" deep, multiple cover/gang', vol:18.0 },
+  { g:'FS / FD Boxes',     id:'fd-m',     name:'FD — 2-3/8" deep, multiple cover/gang', vol:24.0 },
+];
+
+const WIRE_TYPES = {
+  term:    { label:'Terminated / spliced in box', mult:1 },
+  pass:    { label:'Pass-through, unspliced',     mult:1 },
+  loop:    { label:'Unbroken loop ≥ 12" (counts 2)', mult:2 },
+  inside:  { label:'Pigtail / jumper — inside box only', mult:0 },
+  fixture: { label:'Fixture wire from domed canopy (≤4, <14 AWG exempt)', mult:0 },
+};
+const DEVICE_TYPES = ['Receptacle','Switch','GFCI / AFCI','Combo device','Dimmer / timer','Other equipment'];
+
+let boxMode = 'std';
+let darkMode = false;
+let wireCounter = 0, deviceCounter = 0, addonCounter = 0;
+
+// ── THEME ──────────────────────────────────────────────────
+function toggleTheme() {
+  darkMode = !darkMode;
+  document.body.classList.toggle('dark', darkMode);
+  document.getElementById('themeBtn').textContent = darkMode ? '☀️' : '🌙';
+  try { localStorage.setItem('aog-theme', darkMode ? 'dark' : 'light'); } catch (e) {}
+}
+(function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem('aog-theme'); } catch (e) {}
+  const prefer = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (saved === 'dark' || (!saved && prefer)) {
+    darkMode = true;
+    document.body.classList.add('dark');
+    document.getElementById('themeBtn').textContent = '☀️';
+  }
+})();
+
+// ── HELPERS ────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const fmt = n => (Math.round(n * 100) / 100).toFixed(2);
+const sizeLabel = s => s + ' AWG';
+const sizeIdx = s => SIZES.indexOf(s);
+function sizeOptions(selected) {
+  return SIZES.map(s => `<option value="${s}"${s === selected ? ' selected' : ''}>${s} AWG — ${fmt(ALLOW[s])} in³</option>`).join('');
+}
+function largerSize(a, b) { if (!a) return b; if (!b) return a; return sizeIdx(a) >= sizeIdx(b) ? a : b; }
+
+// ── BOX MODE ───────────────────────────────────────────────
+function setBoxMode(mode) {
+  if (mode !== boxMode && window.AOGSound) AOGSound.play(mode === 'std' ? 'clunk' : 'tink');
+  boxMode = mode;
+  $('tog-std').classList.toggle('active', mode === 'std');
+  $('tog-custom').classList.toggle('active', mode === 'custom');
+  $('stdBoxWrap').style.display = mode === 'std' ? '' : 'none';
+  $('customBoxWrap').style.display = mode === 'custom' ? '' : 'none';
+  calculate(true);
+}
+function buildBoxSelect() {
+  let html = '', grp = null;
+  BOXES.forEach(b => {
+    if (b.g !== grp) { if (grp) html += '</optgroup>'; html += `<optgroup label="${b.g}">`; grp = b.g; }
+    html += `<option value="${b.id}"${b.id === 'sq4-218' ? ' selected' : ''}>${b.name} — ${b.vol.toFixed(1)} in³</option>`;
+  });
+  $('boxSelect').innerHTML = html + '</optgroup>';
+  $('egcSize').innerHTML = sizeOptions('12');
+  $('tbSize').innerHTML = sizeOptions('12');
+}
+
+// ── ROWS: ADD-ON VOLUME ────────────────────────────────────
+function addAddon(name, vol) {
+  const id = ++addonCounter;
+  const row = document.createElement('div');
+  row.className = 'wire-row w3'; row.id = 'addon-' + id;
+  row.innerHTML = `
+    <div><label>Ring / Cover</label><input type="text" class="ad-name" placeholder="e.g. 4&quot; sq. raised ring" value="${name || ''}" oninput="calculate(true)"></div>
+    <div><label>Marked in³</label><input type="number" class="ad-vol" min="0" step="0.1" value="${vol || ''}" placeholder="0.0" oninput="calculate(true)"></div>
+    <button class="remove-btn" onclick="removeRow('addon-${id}')" title="Remove">×</button>`;
+  $('addonList').appendChild(row);
+  calculate(true);
+}
+
+// ── ROWS: CONDUCTORS ───────────────────────────────────────
+function addWire(size, qty, type) {
+  const id = ++wireCounter;
+  const row = document.createElement('div');
+  row.className = 'wire-row w4'; row.id = 'wire-' + id;
+  const typeOpts = Object.entries(WIRE_TYPES).map(([k, v]) =>
+    `<option value="${k}"${k === (type || 'term') ? ' selected' : ''}>${v.label}</option>`).join('');
+  row.innerHTML = `
+    <div><label>Size</label><select class="w-size" onchange="calculate(true)">${sizeOptions(size || '12')}</select></div>
+    <div><label>Qty</label><input type="number" class="w-qty" min="0" max="99" value="${qty != null ? qty : ''}" placeholder="0" oninput="calculate(true)"></div>
+    <div class="span-m"><label>How It's Counted</label><select class="w-type" onchange="calculate(true)">${typeOpts}</select></div>
+    <button class="remove-btn" onclick="removeRow('wire-${id}')" title="Remove">×</button>`;
+  $('wireList').appendChild(row);
+  if (window.AOGSound && size === undefined) AOGSound.play('tink');
+  calculate(true);
+}
+
+// ── ROWS: DEVICES ──────────────────────────────────────────
+function addDevice(type, size, gangs) {
+  const id = ++deviceCounter;
+  const row = document.createElement('div');
+  row.className = 'wire-row wd'; row.id = 'dev-' + id;
+  const typeOpts = DEVICE_TYPES.map(t => `<option${t === (type || 'Receptacle') ? ' selected' : ''}>${t}</option>`).join('');
+  row.innerHTML = `
+    <div class="span-m"><label>Device on Yoke</label><select class="d-type" onchange="calculate(true)">${typeOpts}</select></div>
+    <div><label>Largest Conductor on It</label><select class="d-size" onchange="calculate(true)">${sizeOptions(size || '12')}</select></div>
+    <div><label>Gangs Wide</label><input type="number" class="d-gangs" min="1" max="6" value="${gangs || 1}" oninput="calculate(true)"></div>
+    <button class="remove-btn" onclick="removeRow('dev-${id}')" title="Remove">×</button>`;
+  $('deviceList').appendChild(row);
+  calculate(true);
+}
+
+function removeRow(id) {
+  const el = $(id); if (el) el.remove();
+  if (window.AOGSound) AOGSound.play('tink');
+  calculate(true);
+}
+
+function toggleTb() {
+  $('tbWrap').style.display = $('chkTb').checked ? '' : 'none';
+  calculate(true);
+}
+function toggleEgc() {
+  $('egcWrap').style.display = $('chkEgc').checked ? '' : 'none';
+  calculate(true);
+}
+
+// ── GATHER ─────────────────────────────────────────────────
+function readState() {
+  const wires = [...document.querySelectorAll('#wireList .wire-row')].map(r => ({
+    size: r.querySelector('.w-size').value,
+    qty: Math.max(0, parseInt(r.querySelector('.w-qty').value, 10) || 0),
+    type: r.querySelector('.w-type').value,
+  }));
+  const devices = [...document.querySelectorAll('#deviceList .wire-row')].map(r => ({
+    type: r.querySelector('.d-type').value,
+    size: r.querySelector('.d-size').value,
+    gangs: Math.max(1, parseInt(r.querySelector('.d-gangs').value, 10) || 1),
+  }));
+  const addons = [...document.querySelectorAll('#addonList .wire-row')].map(r => ({
+    name: r.querySelector('.ad-name').value.trim() || 'Ring / cover',
+    vol: parseFloat(r.querySelector('.ad-vol').value) || 0,
+  }));
+  let boxVol = 0, boxName = '';
+  if (boxMode === 'std') {
+    const b = BOXES.find(x => x.id === $('boxSelect').value);
+    const g = Math.max(1, parseInt($('gangQty').value, 10) || 1);
+    boxVol = b.vol * g;
+    boxName = (g > 1 ? g + '× ' : '') + b.name;
+  } else {
+    boxVol = Math.max(0, parseFloat($('customVol').value) || 0);
+    boxName = $('customName').value.trim() || 'Marked-volume box';
+  }
+  const barrierVol = (Math.max(0, parseInt($('barQty').value, 10) || 0)) * parseFloat($('barType').value);
+  const addonVol = addons.reduce((s, a) => s + a.vol, 0) - barrierVol;
+  return {
+    wires, devices, addons, boxVol, boxName, addonVol,
+    clamp: $('chkClamp').checked, stud: $('chkStud').checked, hickey: $('chkHickey').checked,
+    egc: $('chkEgc').checked ? $('egcSize').value : null,
+    egcQty: Math.max(1, parseInt($('egcQty').value, 10) || 1),
+    tb: $('chkTb').checked ? { qty: Math.max(1, parseInt($('tbQty').value, 10) || 1), size: $('tbSize').value } : null,
+    barrierVol,
+  };
+}
+
+// ── CORE 314.16(B) CALC ────────────────────────────────────
+function computeRequired(st) {
+  const lines = [];
+  const warnings = [];
+  let largest = null;
+
+  // (B)(1) conductors — group by size + rule
+  let fixtureUsed = 0;
+  st.wires.forEach(w => {
+    if (!w.qty) return;
+    largest = largerSize(largest, w.size);
+    const t = WIRE_TYPES[w.type];
+    let count = w.qty * t.mult;
+    let fxNote = null;
+    if (w.type === 'fixture') {
+      // Exception to 314.16(B)(1): not over four fixture wires smaller than 14 AWG
+      if (sizeIdx(w.size) >= sizeIdx('14')) { count = w.qty; fxNote = 'not exempt (14 AWG+) — counted'; }
+      else {
+        const exempt = Math.min(w.qty, Math.max(0, 4 - fixtureUsed));
+        fixtureUsed += exempt;
+        count = w.qty - exempt;
+        fxNote = count ? `${exempt} exempt, ${count} over the 4-wire limit — counted` : `${exempt} exempt`;
+      }
+    }
+    lines.push({
+      item: t.label, ref: '314.16(B)(1)', size: w.size,
+      count, each: ALLOW[w.size], vol: count * ALLOW[w.size],
+      note: w.type === 'loop' ? `${w.qty} loop${w.qty > 1 ? 's' : ''} × 2` : fxNote,
+    });
+  });
+  if (st.egc) largest = largerSize(largest, st.egc);
+  if (st.tb) largest = largerSize(largest, st.tb.size);
+  st.devices.forEach(d => { largest = largerSize(largest, d.size); });
+
+  // Fixture-wire exception check
+  const fixtures = st.wires.filter(w => w.type === 'fixture' && w.qty);
+  const fixtureQty = fixtures.reduce((s, w) => s + w.qty, 0);
+  if (fixtureQty > 4) warnings.push({ err: true, msg: `314.16(B)(1) Ex. only exempts up to four fixture wires — ${fixtureQty} entered. Extras have been counted.` });
+  if (fixtures.some(w => sizeIdx(w.size) >= sizeIdx('14'))) warnings.push({ err: true, msg: 'Fixture-wire exemption applies only to wires smaller than 14 AWG — 14 AWG+ fixture wires have been counted.' });
+
+  // (B)(2) clamps
+  if (st.clamp && largest) lines.push({ item: 'Internal cable clamps (one or more)', ref: '314.16(B)(2)', size: largest, count: 1, each: ALLOW[largest], vol: ALLOW[largest] });
+  // (B)(3) support fittings
+  if (st.stud && largest) lines.push({ item: 'Luminaire stud(s)', ref: '314.16(B)(3)', size: largest, count: 1, each: ALLOW[largest], vol: ALLOW[largest] });
+  if (st.hickey && largest) lines.push({ item: 'Hickey(s)', ref: '314.16(B)(3)', size: largest, count: 1, each: ALLOW[largest], vol: ALLOW[largest] });
+  // (B)(4) devices
+  st.devices.forEach(d => {
+    const count = 2 * d.gangs;
+    lines.push({ item: `${d.type} — yoke${d.gangs > 1 ? ` (${d.gangs} gangs wide)` : ''}`, ref: '314.16(B)(4)', size: d.size, count, each: ALLOW[d.size], vol: count * ALLOW[d.size] });
+  });
+  // (B)(5) EGC
+  if (st.egc) {
+    const extra = Math.max(0, st.egcQty - 4);
+    const cnt = 1 + extra * 0.25;
+    lines.push({ item: 'Equipment grounding conductors', ref: '314.16(B)(5)', size: st.egc, count: cnt, each: ALLOW[st.egc], vol: cnt * ALLOW[st.egc],
+      note: extra ? `${st.egcQty} EGCs: first 4 = 1, +${extra} × ¼` : `${st.egcQty} EGC${st.egcQty > 1 ? 's' : ''} (≤4) = 1 allowance` });
+  }
+  // (B)(6) terminal blocks
+  if (st.tb) lines.push({ item: 'Terminal block assemblies', ref: '314.16(B)(6)', size: st.tb.size, count: st.tb.qty, each: ALLOW[st.tb.size], vol: st.tb.qty * ALLOW[st.tb.size] });
+
+  if ((st.clamp || st.stud || st.hickey) && !largest) warnings.push({ err: false, msg: 'Clamp / stud / hickey allowances are based on the largest conductor — add conductors to count them.' });
+  if (st.devices.length) {
+    const maxCond = st.wires.filter(w => w.qty && WIRE_TYPES[w.type].mult > 0).reduce((m, w) => largerSize(m, w.size), null);
+    st.devices.forEach(d => { if (maxCond && sizeIdx(d.size) > sizeIdx(maxCond)) warnings.push({ err: false, msg: `${d.type} lists ${d.size} AWG but no counted conductor that large is entered — verify device conductor size.` }); });
+  }
+
+  const total = lines.reduce((s, l) => s + l.vol, 0);
+  const count = lines.reduce((s, l) => s + l.count, 0);
+  return { lines, total, count, largest, warnings };
+}
+
+// ── RENDER ─────────────────────────────────────────────────
+function fillClass(p) { return p <= 80 ? 'fill-green' : p <= 100 ? 'fill-yellow' : 'fill-red'; }
+function fillColor(p) { return p <= 80 ? 'var(--success)' : p <= 100 ? 'var(--warn)' : 'var(--danger)'; }
+
+function calculate(auto) {
+  const st = readState();
+  const avail = st.boxVol + st.addonVol;
+  $('bi-box').textContent = st.boxVol ? fmt(st.boxVol) : '—';
+  $('bi-addon').textContent = fmt(st.addonVol);
+  $('bi-total').textContent = avail ? fmt(avail) : '—';
+
+  const res = $('results');
+  if (auto && res.style.display === 'none') return;
+  if (!auto && window.AOGSound) AOGSound.play('clunk');
+
+  const r = computeRequired(st);
+  const pct = avail > 0 ? (r.total / avail) * 100 : 0;
+  const pass = avail > 0 && r.total <= avail + 1e-9;
+
+  res.style.display = 'block';
+  $('r-req').textContent = fmt(r.total);
+  $('r-avail').textContent = avail ? fmt(avail) : '—';
+  $('r-pct').textContent = avail ? pct.toFixed(1) + '%' : '—';
+
+  const bar = $('r-fill-bar');
+  bar.className = 'fill-bar ' + fillClass(pct);
+  bar.style.width = Math.min(pct, 100) + '%';
+  const lbl = $('r-fill-label');
+  lbl.textContent = avail ? `${fmt(r.total)} / ${fmt(avail)} in³` : 'NO BOX VOLUME';
+  lbl.style.color = fillColor(pct);
+
+  // chips
+  const chips = [];
+  st.wires.filter(w => w.qty).forEach(w => chips.push(`${w.qty}× #${w.size} ${w.type === 'term' ? '' : '· ' + WIRE_TYPES[w.type].label.split(' ')[0].replace(',', '').toLowerCase()}`));
+  st.devices.forEach(d => chips.push(`${d.type}${d.gangs > 1 ? ' ×' + d.gangs + 'g' : ''}`));
+  if (st.egc) chips.push(`${st.egcQty}× EGC #${st.egc}`);
+  if (st.clamp) chips.push('Int. clamps');
+  if (st.stud) chips.push('Lum. stud');
+  if (st.hickey) chips.push('Hickey');
+  if (st.tb) chips.push(`${st.tb.qty}× Term. block`);
+  if (st.barrierVol) chips.push(`Barriers −${fmt(st.barrierVol)} in³`);
+  $('r-chips').innerHTML = chips.map(c => `<span class="wire-chip">${c}</span>`).join('');
+
+  // warnings
+  const w = r.warnings.slice();
+  if (!avail) w.unshift({ err: true, msg: boxMode === 'custom' ? 'Enter the volume marked on the box (314.16(A)(2)).' : 'Select a box.' });
+  if (!r.lines.length) w.unshift({ err: false, msg: 'Nothing to count yet — add conductors, devices or allowances.' });
+  $('r-warnings').innerHTML = w.map(x => `<div class="warn-box${x.err ? ' err' : ''}">⚠️ <span>${x.msg}</span></div>`).join('');
+
+  // verdict
+  const rec = document.querySelector('#results .rec-box');
+  rec.classList.toggle('pass', pass);
+  rec.classList.toggle('fail', !pass && avail > 0);
+  if (!avail) {
+    $('r-verdict').textContent = '—';
+    $('r-verdict-detail').textContent = 'Box volume required.';
+  } else if (pass) {
+    $('r-verdict').textContent = '✔ BOX FILL OK';
+    $('r-verdict-detail').innerHTML = `${st.boxName}${st.addonVol ? ' + ' + fmt(st.addonVol) + ' in³ added' : ''}<br>${fmt(avail - r.total)} in³ spare · ${+r.count.toFixed(2)} conductor equivalents`;
+  } else {
+    const best = BOXES.filter(b => b.vol + st.addonVol + 1e-9 >= r.total).sort((a, b) => a.vol - b.vol)[0];
+    $('r-verdict').textContent = '✖ OVERFILLED';
+    $('r-verdict-detail').innerHTML = `Short ${fmt(r.total - avail)} in³ in ${st.boxName}.<br>` +
+      (best ? `Smallest single standard box that fits: <b style="color:var(--accent)">${best.name}</b> (${best.vol.toFixed(1)} in³)` : 'No single standard metal box fits — add a ring/extension, gang boxes, or use a larger marked box. Check 314.28 for pull/junction box sizing.');
+  }
+
+  // breakdown
+  $('breakdownTbody').innerHTML = r.lines.length ? r.lines.map(l => `
+    <tr>
+      <td class="wrap-m">${l.item}<span class="m-only ref-tag"><br>${l.ref}</span>${l.note ? `<br><span class="ref-tag">${l.note}</span>` : ''}</td>
+      <td class="ref-tag hide-m">${l.ref}</td>
+      <td>#${l.size}</td>
+      <td>${+l.count.toFixed(2)}</td>
+      <td>${fmt(l.each)}</td>
+      <td>${fmt(l.vol)}</td>
+    </tr>`).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--text2);">No items counted</td></tr>`;
+  $('bd-count').textContent = +r.count.toFixed(2);
+  $('bd-vol').textContent = fmt(r.total) + ' in³';
+
+  // all boxes
+  const fits = BOXES.filter(b => b.vol + st.addonVol + 1e-9 >= r.total);
+  const smallest = fits.length ? Math.min(...fits.map(b => b.vol)) : null;
+  const curId = boxMode === 'std' && (parseInt($('gangQty').value, 10) || 1) === 1 ? $('boxSelect').value : null;
+  $('allBoxesTbody').innerHTML = BOXES.slice().sort((a, b) => a.vol - b.vol).map(b => {
+    const av = b.vol + st.addonVol;
+    const p = av ? (r.total / av) * 100 : 0;
+    const ok = r.total <= av + 1e-9;
+    const status = ok ? (b.vol === smallest ? '<span class="status-best">SMALLEST FIT</span>' : '<span class="status-pass">PASS</span>') : '<span class="status-fail">FAIL</span>';
+    return `<tr class="${b.id === curId ? 'current-row' : ''}">
+      <td class="wrap-m" style="white-space:nowrap;">${b.name}${b.id === curId ? ' ◀' : ''}</td>
+      <td class="hide-m">${b.vol.toFixed(1)}</td>
+      <td>${fmt(av)}</td>
+      <td class="hide-m">${fmt(r.total)}</td>
+      <td style="color:${fillColor(p)};font-weight:700;">${p.toFixed(1)}%</td>
+      <td class="hide-m"><div class="fill-bar-wrap"><div class="fill-bar ${fillClass(p)}" style="width:${Math.min(p, 100)}%;"></div></div></td>
+      <td>${status}</td>
+    </tr>`;
+  }).join('');
+
+  if (!auto) res.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── QUICK REFERENCE MODAL ──────────────────────────────────
+function buildRefTableA() {
+  const curId = boxMode === 'std' ? $('boxSelect').value : null;
+  let html = '', grp = null;
+  BOXES.forEach(b => {
+    if (b.g !== grp) { html += `<tr><td class="grp" colspan="9">${b.g.toUpperCase()}</td></tr>`; grp = b.g; }
+    const cells = SIZES.map(sz => `<td class="num">${Math.floor(b.vol / ALLOW[sz] + 1e-9)}</td>`).join('');
+    html += `<tr class="${b.id === curId ? 'current-row' : ''}"><td class="wrap-m" style="white-space:nowrap;">${b.name}${b.id === curId ? ' ◀' : ''}</td><td class="num">${b.vol.toFixed(1)}</td>${cells}</tr>`;
+  });
+  $('refTableA').innerHTML = html;
+}
+function refTab(t) {
+  document.querySelectorAll('.modal-tab').forEach(x => x.classList.toggle('active', x.dataset.tab === t));
+  document.querySelectorAll('.modal-pane').forEach(x => x.classList.toggle('active', x.id === 'pane-' + t));
+}
+function openRef(t) {
+  buildRefTableA();
+  refTab(t || 'a');
+  $('refModal').classList.add('open');
+  document.body.classList.add('modal-open');
+  if (window.AOGSound) AOGSound.play('tink');
+}
+function closeRef() {
+  $('refModal').classList.remove('open');
+  document.body.classList.remove('modal-open');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRef(); });
+
+// ── INIT ───────────────────────────────────────────────────
+buildBoxSelect();
+addWire('12', '', 'term');
+calculate(true);
+</script>
+<!-- SERVICE WORKER — single registration pointing to ../sw.js -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('../sw.js', { scope: '../' })
+      .then(function(reg) {
+        console.log('[SW] Registered, scope:', reg.scope);
+        reg.addEventListener('updatefound', function() {
+          var nw = reg.installing;
+          nw.addEventListener('statechange', function() {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('[AOG SW] Update available — reload to apply.');
+            }
+          });
+        });
+      })
+      .catch(function(err) {
+        console.warn('[SW] Registration failed:', err);
+      });
+  });
+}
+</script>
+
+<script>
+function adjustTopPadding() {
+  var bar = document.getElementById('action-bar');
+  var header = document.querySelector('.header');
+  var main = document.getElementById('main');
+  if (bar && header) header.style.marginTop = bar.offsetHeight + 'px';
+}
+window.addEventListener('resize', adjustTopPadding);
+window.addEventListener('load', adjustTopPadding);
+setTimeout(adjustTopPadding, 100);
+</script>
+</body>
+</html>

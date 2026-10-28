@@ -1,6 +1,6 @@
 // ============================================================
 //  Always On Generators – Field Hub
-//  Service Worker  |  sw.js  |  Version: v2.5.1
+//  Service Worker  |  sw.js  |  Version: v2.7.0
 //
 //  ⚠ WHEN YOU UPDATE ANY TOOL:
 //    1. Bump CACHE_VERSION
@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v2.6.0';
+var CACHE_VERSION = 'v2.7.0';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -76,12 +76,12 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-'📖 PROPERTY LOOKUP — live municipal code lookups, pulled from each city or county’s own code',
-'🗺️ PROPERTY LOOKUP — now live in 60 Florida counties',
-'⛽ GAS CALC — easier steps, propane added, code-accurate pipe sizing',
-'⛽ GAS CALC — house appliances, safety warnings, Copy for Job Notes',
-'📋 SPEC VIEWER — search by model or kW, specs + manual in one place',
-'📋 SPEC VIEWER — fixed XG 25/30kW and NextGen spec data',
+'📦 BOX FILL — new: NEC 314.16 device & outlet box fill calculator',
+'📐 PULL BOX — new: NEC 314.28 pull & junction box sizing with knockout layout',
+'🔌 CONDUIT FILL — wire & conduit data corrected to NEC 2023 Chapter 9',
+'🔌 CONDUIT FILL — Chapter 9 quick-reference tables & notes added',
+'🧰 TOOLS — regrouped into Lookup, Electrical, and Install Planning',
+'🔔 Update banner no longer hidden behind the top bar on tool pages',
 ];
 //
 // ============================================================
@@ -107,6 +107,8 @@ var PRECACHE_URLS = [
   './load-calcs/',
   './breaker-conductor/',
   './conduit-fill/',
+  './box-fill/',
+  './pull-box/',
   './property-lookup/',
   './property-lookup/fl_gas_territories.geojson',
   './property-lookup/fl_electric_territories.geojson',
