@@ -1985,7 +1985,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     </div>
     <div class="kick">Florida Parcel &amp; Flood Instrument</div>
     <h1>Property Lookup</h1>
-    <p class="intro-note noprint">Flood &amp; jurisdiction query official servers in real time. Owner/parcel auto-uses the <b>live county feed</b> for all supported counties (Lee, Collier, Charlotte, Manatee, Sarasota, Glades, Hendry, Hillsborough, Pinellas, Pasco, Polk, Marion, Hernando, Citrus, Sumter, Levy, Orange, Osceola, Brevard, Miami-Dade, Broward, Lake, DeSoto, Hardee, Highlands, Monroe, St. Lucie, Martin, Volusia, Putnam) and the dated state roll elsewhere. Add any county's live URL below. Florida only.</p>
+    <p class="intro-note noprint">Flood &amp; jurisdiction query official servers in real time. Owner/parcel auto-uses the <b>live county feed</b> for <b><span id="live-county-count">62</span> of Florida's 67 counties</b> (full list under Sources at the bottom) and the dated state roll elsewhere. Add any county's live URL below. Florida only.</p>
   </header>
 
   <div class="search">
@@ -4651,6 +4651,9 @@ const COUNTY_LIVE = {
     "https://services9.arcgis.com/M0DpVhTwTZ42jNsw/arcgis/rest/services/IRCPA_Parcels/FeatureServer/0/query"
   ]}
 };
+/* Intro note shows the live-county count straight from this list, so it never goes out of date. */
+try { var _lcc = document.getElementById('live-county-count'); if (_lcc) _lcc.textContent = Object.keys(COUNTY_LIVE).length; } catch (e) {}
+
 
 /* ---------- Building-footprint layers (optional, per county) ----------------------------------
    Used ONLY to nudge the map marker from the parcel CENTROID onto the actual house/structure. We

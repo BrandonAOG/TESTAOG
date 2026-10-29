@@ -77,7 +77,9 @@ var cacheProgress = { percent: 0, label: '', done: false };
 // ============================================================
 var CHANGELOG = [
 '🌓 DARK MODE — your dark/light choice now carries across every tool',
-'⚡ LOAD CALC — now labeled NEC 2023',
+'⚡ LOAD CALC — now labeled NEC 2023 (parallel-wire warning cites 310.10(G))',
+'🐞 REPORT A BUG / SUGGESTIONS — all 21 tools now in the list',
+'🗺️ PROPERTY LOOKUP — intro now shows all 62 live counties',
 '🧹 Behind the scenes — holiday themes & offline setup now shared by all tools (lighter, more consistent)',
 '✅ QC CHECKLIST — "Technician" is now "Project Manager", "Elec. Crew" is now "Install Crew"; Gas Crew field removed',
 '📄 PDF & CAPTURE — holiday themes no longer show up in saved PDFs or images',

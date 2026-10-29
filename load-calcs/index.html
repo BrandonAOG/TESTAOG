@@ -672,7 +672,7 @@ input[type=number][id^="pexva_"]::-webkit-inner-spin-button{-webkit-appearance:n
           </select>
         </div>
           <div id="parallel_warn" style="display:none;margin-top:6px;background:#fff3cd;border:1px solid #f0a500;border-left:4px solid #f0a500;border-radius:4px;padding:7px 10px;font-size:11px;color:#7a4f00;line-height:1.5;">
-            ⚠️ <strong>NEC 310.10(H):</strong> Conductors smaller than 1/0 AWG cannot be paralleled. Increase sets or select a larger single conductor.
+            ⚠️ <strong>NEC 310.10(G):</strong> Conductors smaller than 1/0 AWG cannot be paralleled. Increase sets or select a larger single conductor.
           </div>
       </div>
       <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:10px;">
@@ -2876,7 +2876,7 @@ function calc(){
   if(sizeRank(neutralWire)<sizeRank(_gecCu)){ neutralWire=_gecCu; _n24=true; }
   window.AOG_GEC={base:_gecCu, head:gecHead, area:_gecBase.area, n24:_n24, lines:_gecRows};
 
-  // ── Parallel conductor warning — NEC 310.10(H) min 1/0 AWG ──
+  // ── Parallel conductor warning — NEC 310.10(G) min 1/0 AWG ──
   var PARALLEL_MIN_ORDER = ['14 AWG','12 AWG','10 AWG','8 AWG','6 AWG','4 AWG',
     '3 AWG','2 AWG','1 AWG'];  // sizes SMALLER than 1/0 — not permitted in parallel
   // Feeder table range warning for 310.12
