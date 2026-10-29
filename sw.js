@@ -76,6 +76,7 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
+'📄 PDF & CAPTURE — holiday themes no longer show up in saved PDFs or images',
 '🔊 SOUNDS — every tool now uses the same tap sounds (no more double sounds on calculators)',
 '🔊 CONCRETE CALC — tap sounds added',
 '🔊 ANDROID & COMPUTER — sound can start as soon as the app opens',
@@ -92,6 +93,7 @@ var PRECACHE_URLS = [
   './sw.js',
   './update-banner.js',
   './sounds.js',
+  './clean-capture.js',
   './estimate/',
   './maintenance/',
   './site-visit/',

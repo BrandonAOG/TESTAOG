@@ -23,6 +23,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 
 <title>Always On Generators – Gas Installation Checklist</title>
 <script src="../sounds.js" defer></script>
+<script src="../clean-capture.js"></script>
 <style>
 /* ============================================================
    CSS CUSTOM PROPERTIES
@@ -2390,15 +2391,12 @@ async function saveFillablePdf() {
     const fname = _editPdfFilename();
     const blob = new Blob([bytes], { type: 'application/pdf' });
 
-    // Android: DELIVER BOTH, reliably — auto-download the PDF, then show the
-    // SHARE button (fresh gesture). Auto-share after an async PDF build would
-    // silently fail because the tap's user gesture has expired.
+    // Android: save straight to Downloads, then offer to share — no share-sheet hunting.
     if (/Android/i.test(navigator.userAgent || '')) {
-      var _apdf = new File([blob], fname, { type: 'application/pdf' });
       _downloadBlob(blob, fname);
-      setStatus('Saved to Downloads. Tap SHARE to send or Save to Files.');
-      setTimeout(() => setStatus(''), 5000);
-      try { _androidOfferShare([_apdf], 'pdf'); } catch (e) {}
+      setStatus('Resumable PDF saved — check Files → Downloads.');
+      setTimeout(() => setStatus(''), 4000);
+      try { _androidOfferShare([new File([blob], fname, { type: 'application/pdf' })], 'pdf'); } catch (e) {}
       return;
     }
     // Native share sheet on iOS; download elsewhere.
@@ -3077,9 +3075,8 @@ function _androidOfferShare(files, kind) {
   bar.style.cssText = 'position:fixed;left:10px;right:10px;bottom:14px;z-index:999999;background:#16181d;color:#f0f0f2;border:1px solid rgba(255,255,255,0.18);border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px;box-shadow:0 10px 28px rgba(0,0,0,0.5);font-family:inherit;';
   var msg = document.createElement('div');
   msg.style.cssText = 'flex:1;font-size:13px;line-height:1.45;min-width:0;';
-  msg.innerHTML = '<b style="color:#FBBF24;">Tap SHARE to save or send</b><br><span style="color:#aab;">' +
-    'Choose <b>Save to ' + (kind === 'pdf' ? 'Files' : 'Photos') + '</b> to keep a copy, or pick an app to send it. ' +
-    'A copy may also be in your <b>' + (kind === 'pdf' ? 'Files → Downloads' : 'Photos/Gallery → Download') + '</b>.</span>';
+  msg.innerHTML = '<b style="color:#4ade80;">✓ Saved to your phone</b><br><span style="color:#aab;">' +
+    (kind === 'pdf' ? 'Find it in your <b>Files → Downloads</b>.' : 'Find it in <b>Photos/Gallery → Download</b>.') + '</span>';
   var shareBtn = document.createElement('button');
   shareBtn.textContent = '📤 SHARE IT';
   shareBtn.style.cssText = 'background:#FBBF24;color:#111;border:none;border-radius:8px;padding:11px 14px;font-weight:bold;font-size:12px;cursor:pointer;flex-shrink:0;letter-spacing:0.5px;';
@@ -3094,7 +3091,7 @@ function _androidOfferShare(files, kind) {
   closeBtn.onclick = kill;
   bar.appendChild(msg); bar.appendChild(shareBtn); bar.appendChild(closeBtn);
   document.body.appendChild(bar);
-  timer = setTimeout(kill, 30000);
+  timer = setTimeout(kill, 15000);
 }
 
 function saveSmart() {
@@ -3273,36 +3270,6 @@ function saveForAndroid() {
 
   _updateRenderOverlay('Rendering ' + pages.length + ' page(s)…');
   const _shareFiles = [];
-  const _results = [];   // { fname, dataURL } per page — saved AFTER all render
-  // Android Chrome only honors ONE programmatic download per user gesture, so
-  // clicking a download link per page inside this loop silently dropped page 2.
-  // We now collect every page first, then share both at once (Share Sheet) or
-  // download them sequentially with a delay so none get discarded.
-  function _seqDownload(list, doneMsg, afterDone) {
-    var i = 0;
-    (function next() {
-      if (i >= list.length) {
-        setStatus(doneMsg); setTimeout(() => setStatus(''), 4000);
-        if (typeof afterDone === 'function') afterDone();
-        return;
-      }
-      var r = list[i++];
-      var a = document.createElement('a');
-      a.download = r.fname; a.href = r.dataURL;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(next, 700);
-    })();
-  }
-  function _finishAndroidSave() {
-    var files = _shareFiles.filter(Boolean);
-    // DELIVER BOTH, reliably: auto-download the page(s), then show the SHARE
-    // button. We don't auto-open the share sheet — after render + spaced
-    // downloads the tap's user gesture has expired, so navigator.share() would
-    // silently fail. The SHARE button is a fresh gesture, so the sheet opens.
-    _seqDownload(_results, 'Saved to Downloads. Tap SHARE to send or Save to Files/Photos.', function () {
-      _androidOfferShare(files, 'jpg');
-    });
-  }
   pages.forEach((page, idx) => {
     const oW = page.style.width, oM = page.style.maxWidth, om = page.style.minWidth;
     page.style.width = RENDER_W + 'px';
@@ -3322,23 +3289,24 @@ function saveForAndroid() {
         page.style.width = oW; page.style.maxWidth = oM; page.style.minWidth = om;
         _updateRenderOverlay('Page ' + (idx + 1) + ' of ' + pages.length + ' rendered…');
         const letterCanvas = toLetterCanvas(canvas, captureScale, idx === 1);
-        const _fname = pages.length === 1
+        const a = document.createElement('a');
+        a.download = pages.length === 1
           ? buildFileName('jpg', null)
           : buildFileName('jpg', idx + 1);
         const _durl = letterCanvas.toDataURL('image/jpeg', 0.93);
-        _results[idx] = { fname: _fname, dataURL: _durl };
-        try { _shareFiles[idx] = dataURLtoFile(_durl, _fname); } catch (e) {}
+        a.href = _durl;
+        a.click();
+        try { _shareFiles.push(dataURLtoFile(_durl, a.download)); } catch (e) {}
         done++;
         if (done === pages.length) {
           restorePlaceholders();
-          // Compact any gaps (in case of sparse index assignment) before saving.
-          for (var _i = _results.length - 1; _i >= 0; _i--) { if (!_results[_i]) _results.splice(_i, 1); }
-          for (var _j = _shareFiles.length - 1; _j >= 0; _j--) { if (!_shareFiles[_j]) _shareFiles.splice(_j, 1); }
           if (isAndroidDevice()) {
-            _finishAndroidSave();
+            setStatus('Saved — check Photos/Gallery (Download album).');
+            _androidOfferShare(_shareFiles, 'jpg');
           } else {
-            _seqDownload(_results, 'Images saved to Downloads.');
+            setStatus('Images saved to Downloads.');
           }
+          setTimeout(() => setStatus(''), 4000);
         }
       }).catch(() => {
         page.style.width = oW; page.style.maxWidth = oM; page.style.minWidth = om;
