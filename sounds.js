@@ -1,5 +1,8 @@
 /* ============================================================
    AOG Sound Engine v1.0.9 — drop-in UI + ambient sounds (no files)
+   Pages only include this file. Taps, checkboxes, selects and number inputs are
+   sounded automatically; a button can pick its own sound with data-sound="name".
+   Never call AOGSound.play() for a tap — only for non-tap events (fireworks etc.)
    <script src="./sounds.js"></script>  (../sounds.js from sub-pages)
 
    - Synthesized with Web Audio API → 100% offline in the PWA
@@ -13,8 +16,14 @@
 (function () {
   'use strict';
 
+  // Storage can THROW (Safari with all cookies blocked, private/locked-down
+  // modes). Every read/write goes through these so a blocked store only means
+  // settings don't persist — it must never stop the sound engine from loading.
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
   var ctx = null;
-  var muted = localStorage.getItem('aog-sound-muted') === '1';
+  var muted = lsGet('aog-sound-muted') === '1';
   // Ambient state must exist BEFORE the startup retry loop runs: on desktop
   // revisits the browser grants audio instantly, so goLive() -> applyScene()
   // -> stopAmbient() fires synchronously at load. Defining amb later crashed
@@ -51,10 +60,10 @@
   // Per-category sound preferences (controlled by the hub Sound Panel)
   var DEFAULT_PREFS = { taps: true, animations: true, seasonal: true, forms: true, alerts: true };
   var prefs;
-  try { prefs = JSON.parse(localStorage.getItem('aog-sound-prefs')) || {}; } catch (e) { prefs = {}; }
+  try { prefs = JSON.parse(lsGet('aog-sound-prefs')) || {}; } catch (e) { prefs = {}; }
   for (var pk in DEFAULT_PREFS) if (typeof prefs[pk] !== 'boolean') prefs[pk] = DEFAULT_PREFS[pk];
   // Output mode: 'sound' | 'vibrate' | 'both'
-  var mode = localStorage.getItem('aog-sound-mode') || 'sound';
+  var mode = lsGet('aog-sound-mode') || 'sound';
   if (mode !== 'sound' && mode !== 'vibrate' && mode !== 'both') mode = 'sound';
   var preview = false; // true while the Sound Settings panel is open
   function allowed(cat) {
@@ -66,7 +75,7 @@
   // Selectable tone styles for the most audible sounds (hub Sound Panel)
   var DEFAULT_TONES = { click: 'thock', toast: 'slide', pop: 'bubblepop', success: 'tada', explosion: 'deep', notify: 'gentlealarm', fanfare: 'victory', thunder: 'random' };
   var toneChoice;
-  try { toneChoice = JSON.parse(localStorage.getItem('aog-sound-tones-v4')) || {}; } catch (e) { toneChoice = {}; }
+  try { toneChoice = JSON.parse(lsGet('aog-sound-tones-v4')) || {}; } catch (e) { toneChoice = {}; }
   for (var tk in DEFAULT_TONES) if (!toneChoice[tk]) toneChoice[tk] = DEFAULT_TONES[tk];
 
   // preset name → category
@@ -85,24 +94,11 @@
   };
 
   function getCtx() {
-    // iOS 17+ Audio Session API — HYBRID strategy (see setSession below):
-    // 'playback' is the only type that reliably ACTIVATES the audio session
-    // on a cold standalone-PWA launch (with 'ambient' the whole session —
-    // WebAudio AND <audio> elements — stays frozen until an app-switcher
-    // round-trip). But 'playback' bypasses the ringer/silent switch. So we
-    // use 'playback' only while kick-starting the session, then flip to
-    // 'ambient' the moment the clock is confirmed ticking.
-    // MUSIC-FRIENDLY ESCALATION: default to 'ambient', which MIXES with
-    // whatever the user is already playing (Music, podcasts). 'playback'
-    // is non-mixable — the moment we touch it, iOS PAUSES the user's music
-    // and never resumes it. So 'playback' is now a last resort: only used
-    // (sessionForce=true) after a gesture-driven kick left the clock
-    // frozen, and handed back to 'ambient' the moment the clock ticks.
-    // AMBIENT ONLY — 'playback' escalation removed entirely. 'playback' is
-    // non-mixable and was pausing the user's music (Music/Spotify/Pandora).
-    // 'ambient' mixes with everything and respects the ringer switch. Cost:
-    // on the buggy iOS cold-launch dead-session case, sound may need an
-    // app-switcher round-trip to wake up — acceptable; music is sacred.
+    // iOS 17+ Audio Session: AMBIENT ONLY. 'ambient' mixes with the user's
+    // music/podcasts and respects the ringer switch. 'playback' was tried and
+    // removed — it is non-mixable and paused Music/Spotify/Pandora. Cost: on
+    // the buggy iOS cold-launch case, sound may need an app-switcher
+    // round-trip to wake up. Acceptable; music is sacred.
     if (IS_IOS) setSession('ambient'); // no-op elsewhere — skip the work on desktop/Android
     if (ctx && ctx.state === 'closed') ctx = null; // rebuilt after zombie teardown
     if (!ctx && !hadGesture) {  return null; }
@@ -1722,22 +1718,6 @@
 
   /* ================= PUBLIC API ================= */
 
-
-
-  /* ================= DEBUG OVERLAY v2 ================= */
-  // Goal: pinpoint WHY cold-launch audio is silent until an app-switcher
-  // round-trip. Key diagnostics:
-  //   graphRMS  — analyser on the master bus. >0 means WebAudio IS rendering
-  //               samples. If graphRMS>0 during a beep but you HEAR nothing,
-  //               the block is the OS audio session, not WebAudio.
-  //   EL BEEP   — audible beep via an HTML <audio> element (a totally
-  //               separate audio path). If EL BEEP is audible while TEST
-  //               BEEP is silent, WebAudio specifically is blocked. If BOTH
-  //               are silent, the whole app audio session is dead.
-  //   COPY LOG  — copies the FULL event history to the clipboard so you can
-  //               paste it back for analysis.
-  
-
   // Scene queued by the hub's inline theme script (which runs before this
   // deferred file): MUST be picked up BEFORE the retry loop starts. On
   // desktop with autoplay granted, goLive() fires immediately — grabbing the
@@ -1760,7 +1740,7 @@
     scene: function (name) { amb.scene = name; sceneStarted = false; tryStart(); },
     toggleMute: function () {
       muted = !muted;
-      localStorage.setItem('aog-sound-muted', muted ? '1' : '0');
+      lsSet('aog-sound-muted', muted ? '1' : '0');
       if (muted) stopAmbient();
       else { sceneStarted = false; tryStart(); }
       return muted;
@@ -1775,7 +1755,7 @@
     setMode: function (m) {
       if (m !== 'sound' && m !== 'vibrate' && m !== 'both') return;
       mode = m;
-      localStorage.setItem('aog-sound-mode', mode);
+      lsSet('aog-sound-mode', mode);
       stopAmbient(); sceneStarted = false; tryStart();
     },
     canVibrate: function () { return !!navigator.vibrate; },
@@ -1783,7 +1763,7 @@
     setTone: function (name, variant) {
       if (VARIANTS[name] && VARIANTS[name][variant]) {
         toneChoice[name] = variant;
-        localStorage.setItem('aog-sound-tones-v4', JSON.stringify(toneChoice));
+        lsSet('aog-sound-tones-v4', JSON.stringify(toneChoice));
       }
     },
     getPrefs: function () { var o = { master: !muted }; for (var k in prefs) o[k] = prefs[k]; return o; },
@@ -1791,12 +1771,12 @@
       if (key === 'master') {
         if (!!on === !muted) return;
         muted = !on;
-        localStorage.setItem('aog-sound-muted', muted ? '1' : '0');
+        lsSet('aog-sound-muted', muted ? '1' : '0');
         if (muted) stopAmbient(); else { sceneStarted = false; tryStart(); }
         return;
       }
       prefs[key] = !!on;
-      localStorage.setItem('aog-sound-prefs', JSON.stringify(prefs));
+      lsSet('aog-sound-prefs', JSON.stringify(prefs));
       // restart or stop ambience to reflect animation/seasonal changes
       stopAmbient(); sceneStarted = false; tryStart();
     },
