@@ -12,7 +12,7 @@ A mobile-first Progressive Web App (PWA) built for Always On Generators field te
 
 ## Features
 
-- **14 field tool modules** accessible from a single dashboard
+- **21 field tool modules** accessible from a single dashboard
 - **Offline support** via service worker — works in the field without a connection
 - **Installable PWA** — add to home screen on iOS or Android, works like a native app
 - **Auto-update toast** — notifies technicians when a new version is available, shows changelog
@@ -54,8 +54,11 @@ Service work logging module for capturing field service activity.
 ### 📐 Conduit Fill Calculator
 NEC Chapter 9 conduit fill calculator. Supports 11 raceway types: RMC, IMC, EMT, FMC, LFMC, LFNC-A, LFNC-B, PVC Sch 40, PVC Sch 80, HDPE, and ENT. Trade sizes from 3/8" through 6". Add multiple wire types and quantities; calculates total fill percentage and flags green (under 40%), yellow (at 40%), or red (over limit). Displays a recommendation with conduit type and fill status.
 
+### 📋 Pre-Install Checklist
+Parts and materials checklist for the shop and the install truck before a job: permit, transfer switch type and size, wire, conduit, fittings and mounting hardware, with shop/truck check columns. Exports a PDF and image capture.
+
 ### ⚡ Load Calculation 
-NEC 2020 Article 220.82 Optional Method residential load calculation. Five-step workflow: (1) general lighting, small appliance & laundry by square footage, (2) HVAC loads, (3) fixed appliances, (4) dryers, (5) cooking equipment. Includes a separate pool panel tab. Outputs demand load in VA and amps, conductor sizing per NEC 310.12 (83% 1&2 family) and 310.16 (75°C standard), feeder sets (1–10), copper or aluminum, and neutral demand. Fuel source (NG/LP) and conductor material are configurable.
+NEC 2023 Article 220.82 Optional Method residential load calculation. Five-step workflow: (1) general lighting, small appliance & laundry by square footage, (2) HVAC loads, (3) fixed appliances, (4) dryers, (5) cooking equipment. Includes a separate pool panel tab. Outputs demand load in VA and amps, conductor sizing per NEC 310.12 (83% 1&2 family) and 310.16 (75°C standard), feeder sets (1–10), copper or aluminum, and neutral demand. Fuel source (NG/LP) and conductor material are configurable.
 
 ### 🔥 Gas Calculator
 BTU demand analysis and pipe sizing for Generac generators 7–150kW. Covers the full Generac lineup: Guardian NextGen (10–28kW), Guardian Legacy (7–26kW), Protector QS, Protector RG (22–150kW), and Protector XG (32–80kW). Handles three fuel paths — natural gas low and medium pressure, LP vapor/first-stage, and LP second-stage. Supports four pipe materials: Black Steel/Rigid Sch 40, PE Underground IPS SDR-11, CSST Gastite/Wardflex, and TracPipe CounterStrike. Calculates required CFH/GPH demand, applies elevation derate per Generac spec, and sizes pipe from NFPA 54 / NFPA 58 tables using the pressure-drop method. Includes regulator selection guidance and Generac inlet pressure requirements.
@@ -66,6 +69,24 @@ NEC conductor sizing calculator. Inputs: breaker size (NEC 240.6 standard sizes 
 ### 📄 Spec Viewer
 Full specification lookup for Generac generators and transfer switches. Generator coverage: Guardian NextGen (10–28kW), Guardian Legacy (22–26kW), Protector RG (22–150kW), and Protector XG (32–80kW). Per-model data includes: rated kW and amps by voltage config (1-phase and 3-phase 208/240/480V), engine specs (displacement, compression, cylinders, RPM, oil capacity), fuel consumption at ¼/½/¾/full load (CFH for NG, GPH for LP), BTU/hr at full load, inlet pressure requirements, dimensions and weight, sound level (operating and Quiet-Test dB(A) at 23 ft), battery spec, controller, connectivity, certifications, clearances, warranty, protective functions, and accessories with part numbers. Separate ATS section covers all Generac transfer switch models with full spec grids and dimensions tables.
 
+
+### 🧮 Electrical Formulas
+Quick electrical math: kW ⇄ amps (1- and 3-phase), voltage drop, generator load, motor FLA, Ohm's law and unit conversions.
+
+### 📦 Box Fill
+NEC 314.16 device and outlet box fill: standard or custom boxes, rings/covers, conductor groups and devices, with a pass/fail fill result.
+
+### 🧰 Pull & Junction Box
+NEC 314.28 pull and junction box sizing for straight and angle pulls, with bend and knockout layout.
+
+### 🔗 Gas Pipe Bonding
+NFPA 54 (2024) 7.12 CSST and gas pipe bonding requirements with a job drawing.
+
+### ⛏️ Trench & Burial Depth
+NEC 300.5 minimum cover for electrical runs and NFPA 54/58 gas burial depth, including shared trenches, with a trench drawing.
+
+### 🧱 Concrete Calculator
+Slab, column and footing volume with bag counts and yardage.
 ---
 
 ## Repo Structure
@@ -75,7 +96,10 @@ AOG/
 ├── index.html              # Main hub dashboard (PWA launcher)
 ├── manifest.json           # PWA manifest — icons, shortcuts, theme
 ├── sw.js                   # Service worker: cache-first, background update, changelog
-├── update-banner.js        # Update toast UI helper
+├── update-banner.js        # Shared on every tool: offline setup, update toast, error log, theme setting
+├── sounds.js               # Shared sound engine (taps, holiday ambience) — pages just include it
+├── clean-capture.js        # Shared: keeps holiday themes out of every PDF / print / image capture
+├── seasonal.js             # Shared holiday-theme engine (dates, particles) for the 8 forms
 ├── offline.html            # Fallback page shown when offline and page not cached
 ├── logo.png                # Company logo
 ├── icons/                  # PWA icons (192px, 512px, apple-touch-icon 180px)
@@ -88,7 +112,14 @@ AOG/
 ├── site-annotator/         # Field diagram & site-plan annotation tool
 ├── qc-checklist/           # Quality control checklist
 ├── service-work/           # Service work log
+├── pre-checklist/          # Pre-install parts & materials checklist
 ├── conduit-fill/           # NEC Chapter 9 conduit fill calculator
+├── box-fill/               # NEC 314.16 box fill calculator
+├── pull-box/               # NEC 314.28 pull & junction box sizing
+├── quick-calc/             # Electrical formulas
+├── gas-bonding/            # NFPA 54 7.12 gas pipe bonding
+├── trench-depth/           # NEC 300.5 / NFPA 54/58 burial depth
+├── concrete-calc/          # Concrete volume, bags & yardage
 ├── load-calcs/             # NEC 220.82 residential load calculation
 ├── gas-calc/               # Generac gas BTU & pipe sizing calculator
 ├── breaker-conductor/      # NEC conductor sizing & derating calculator
@@ -116,7 +147,7 @@ AOG/
 1. Open the site in Safari
 2. Tap the Share button → *Add to Home Screen* → *Add*
 
-Once installed the app opens full-screen with no browser chrome, and all 14 tools are available offline after the first load.
+Once installed the app opens full-screen with no browser chrome, and all 21 tools are available offline after the first load.
 
 ---
 
@@ -125,7 +156,7 @@ Once installed the app opens full-screen with no browser chrome, and all 14 tool
 When you push changes, bump the version and update the changelog in `sw.js`:
 
 ```js
-var CACHE_NAME = 'aog-forms-v2.2.0'; // bump this every time
+var CACHE_VERSION = 'v2.8.1'; // bump this every time
 
 var CHANGELOG = [
   'Description of what changed',
@@ -147,7 +178,15 @@ Technicians will see an update toast the next time they open the app. They can t
 3. Add a card in the `forms-grid` section with `data-form="my-tool"`
 4. Add the path to `PRECACHE_URLS` in `sw.js` so it caches offline
 5. Add a shortcut entry in `manifest.json` if you want it in the long-press menu
-6. Bump `CACHE_NAME` in `sw.js` so existing installs pick up the change
+6. In the new page's `<head>`, include the shared files (no per-page copies of their code):
+   ```html
+   <script src="../sounds.js" defer></script>
+   <script src="../update-banner.js"></script>   <!-- offline setup + update toast -->
+   ```
+   Forms that export a PDF/image also add `<script src="../clean-capture.js"></script>`,
+   and forms with holiday themes add `<script src="../seasonal.js"></script>`.
+   Save the dark/light choice under the one shared key `aog-theme` (`'dark'` / `'light'`).
+7. Bump `CACHE_VERSION` in `sw.js` so existing installs pick up the change
 
 ---
 

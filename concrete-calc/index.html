@@ -495,7 +495,7 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
   document.getElementById('year').textContent = new Date().getFullYear();
 
   // ---- Theme toggle (matches hub: localStorage + prefers-color-scheme) ----
-  var THEME_KEY = 'aog_concrete_theme';
+  var THEME_KEY = 'aog-theme';
   var particleAlphaBoost = 1;
   function applyTheme(t){
     var light = (t === 'light');
@@ -815,21 +815,7 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
 <div id="offline-banner">No network connection · Calculator available offline</div>
 
 <script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('../sw.js', { scope: '../' })
-    .then(function(reg) {
-      console.log('[Concrete Calc] SW registered, scope:', reg.scope);
-      reg.addEventListener('updatefound', function() {
-        var newWorker = reg.installing;
-        newWorker.addEventListener('statechange', function() {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            console.log('[Concrete Calc] Update available');
-          }
-        });
-      });
-    })
-    .catch(function(err) { console.warn('[Concrete Calc] SW registration failed:', err); });
-}
+
 
 (function() {
   var banner = document.getElementById('offline-banner');

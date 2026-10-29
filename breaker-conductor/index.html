@@ -788,7 +788,7 @@ function toggleTheme(){
   var el=document.documentElement, dark=el.getAttribute('data-theme')==='dark';
   el.setAttribute('data-theme',dark?'light':'dark');
   var btn=$('themeBtn'); if(btn) btn.textContent=dark?'☀️':'🌙';
-  try{localStorage.setItem('aog_breaker_theme',dark?'light':'dark');}catch(e){}
+  try{localStorage.setItem('aog-theme',dark?'light':'dark');}catch(e){}
 }
 build(); render();
 (function(){var a=document.querySelector('.ans'),m=$('mini');
@@ -797,12 +797,10 @@ build(); render();
 </script>
 
 <script>
-if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
-  window.addEventListener('load',function(){navigator.serviceWorker.register('../sw.js',{scope:'../'}).catch(function(){});});
-}
+
 (function(){
   try{
-    var t=localStorage.getItem('aog_breaker_theme');
+    var t=localStorage.getItem('aog-theme');
     if(t) document.documentElement.setAttribute('data-theme',t);
   }catch(e){}
   var btn=document.getElementById('themeBtn');

@@ -76,6 +76,9 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
+'🌓 DARK MODE — your dark/light choice now carries across every tool',
+'⚡ LOAD CALC — now labeled NEC 2023',
+'🧹 Behind the scenes — holiday themes & offline setup now shared by all tools (lighter, more consistent)',
 '✅ QC CHECKLIST — "Technician" is now "Project Manager", "Elec. Crew" is now "Install Crew"; Gas Crew field removed',
 '📄 PDF & CAPTURE — holiday themes no longer show up in saved PDFs or images',
 '🔊 SOUNDS — every tool now uses the same tap sounds (no more double sounds on calculators)',
@@ -97,6 +100,7 @@ var PRECACHE_URLS = [
   './update-banner.js',
   './sounds.js',
   './clean-capture.js',
+  './seasonal.js',
   './estimate/',
   './maintenance/',
   './site-visit/',

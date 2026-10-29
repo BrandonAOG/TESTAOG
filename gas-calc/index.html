@@ -1401,15 +1401,13 @@ function resetAll(){
 // ── Theme ─────────────────────────────────────────────────────────────
 (function(){
   let t='dark';
-  try{ t=localStorage.getItem('aog_gas_theme') || (matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'); }catch(e){}
-  const apply=v=>{document.body.classList.toggle('light',v==='light');$('themeBtn').textContent=v==='light'?'☾':'☀︎';try{localStorage.setItem('aog_gas_theme',v);}catch(e){}};
+  try{ t=localStorage.getItem('aog-theme') || (matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'); }catch(e){}
+  const apply=v=>{document.body.classList.toggle('light',v==='light');$('themeBtn').textContent=v==='light'?'☾':'☀︎';try{localStorage.setItem('aog-theme',v);}catch(e){}};
   apply(t);
   $('themeBtn').addEventListener('click',()=>apply(document.body.classList.contains('light')?'dark':'light'));
 })();
 
-if('serviceWorker' in navigator && location.protocol.startsWith('http')){
-  navigator.serviceWorker.register('../sw.js',{scope:'../'}).catch(()=>{});
-}
+
 
 let ansVisible=false;
 if('IntersectionObserver' in window){new IntersectionObserver(es=>{ansVisible=es[0].isIntersecting;$('mini').style.visibility=ansVisible?'hidden':'visible';}).observe($('answer'));}

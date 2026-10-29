@@ -47,6 +47,8 @@
       canv.push({ el: c, display: c.style.display });
       c.style.display = 'none';
     });
+    // stop the particle animation too (hidden canvases still burn CPU every frame)
+    try { if (window._seasonalPauseAnimation) window._seasonalPauseAnimation(); } catch (e) {}
     saved = { cls: cls, sheets: sheets, canv: canv };
   }
 
@@ -60,6 +62,7 @@
       if (x.media === null) x.el.removeAttribute('media'); else x.el.setAttribute('media', x.media);
     });
     s.canv.forEach(function (x) { x.el.style.display = x.display; });
+    try { if (window._seasonalResumeAnimation) window._seasonalResumeAnimation(); } catch (e) {}
   }
 
   window.AOGSeason = { off: off, on: on };

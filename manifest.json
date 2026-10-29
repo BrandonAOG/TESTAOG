@@ -136,7 +136,7 @@
     {
       "name": "Load Calculation",
       "url": "./load-calcs/",
-      "description": "Advanced power load analysis & sizing — NEC 2020",
+      "description": "Advanced power load analysis & sizing — NEC 2023",
       "icons": [
         {
           "src": "./icons/icon-192.png",
@@ -204,6 +204,72 @@
       "name": "Site Plan / Annotator",
       "url": "./site-annotator/",
       "description": "Draw, annotate & mark up site plans & diagrams",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Electrical Formulas",
+      "url": "./quick-calc/",
+      "description": "kW ⇄ amps, voltage drop, gen load, motor FLA, Ohm's law & conversions",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Box Fill",
+      "url": "./box-fill/",
+      "description": "NEC 314.16 device & outlet box fill calculations",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Pull & Junction Box",
+      "url": "./pull-box/",
+      "description": "NEC 314.28 pull box sizing, bends & knockout layout",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Gas Pipe Bonding",
+      "url": "./gas-bonding/",
+      "description": "NFPA 54 7.12 CSST & pipe bonding with job drawing",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Trench & Burial Depth",
+      "url": "./trench-depth/",
+      "description": "NEC 300.5 cover, NFPA 54/58 gas depth & shared trenches",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Concrete Calculator",
+      "url": "./concrete-calc/",
+      "description": "Slab, column & footing volume, bags & yardage",
       "icons": [
         {
           "src": "./icons/icon-192.png",

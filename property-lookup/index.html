@@ -12,7 +12,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <meta charset="UTF-8">
 <script>
   /* Apply saved theme ASAP (before paint) to avoid a flash. No saved value => auto-follow OS. */
-  try{ var _t=localStorage.getItem('aog_theme'); if(_t==='light'||_t==='dark') document.documentElement.setAttribute('data-theme',_t); }catch(e){}
+  try{ var _t=localStorage.getItem('aog-theme'); if(_t==='light'||_t==='dark') document.documentElement.setAttribute('data-theme',_t); }catch(e){}
   /* Detect Safari / iOS-WebKit so the print stylesheet can shrink type 1.5px to keep the
      report on ONE page (Safari mishandles the fit-to-page zoom that Chrome/Edge honor).
      Includes Chrome/Firefox on iOS (CriOS/FxiOS) since iOS forces them onto WebKit too,
@@ -2403,10 +2403,34 @@ function _sbKin(J, code){
    own code has been read, that code governs, and a district the city does not have is a district
    that needs checking on the city's zoning map. Falling through to the county there is how a
    North Port parcel ends up showing Sarasota County's figures: quietly, plausibly, and wrong. */
+/* ── LEGACY DISTRICT CODES A ZONING LAYER STILL CARRIES (29 Oct 2026) ─────────────────────────
+   Cape Coral's 2019 LDC folded the old single-family districts into one: R-1A and R-1B are both
+   R1 now (Brandon: "R-1A and R-1B are the same thing"). The city's own layer (LMLUZN) already
+   reports R1. But when the city layer misses or doesn't answer, queryZoning() falls back to Lee
+   County's DCD_Zoning sublayer for Cape Coral, which still carries the PRE-2019 codes — so the card
+   printed "Zoning district R-1B", _sbFind() found no R-1B among Cape Coral's districts, and the
+   setbacks never showed.
+   This maps a superseded code to the district that replaced it, per jurisdiction key. It is tried
+   FIRST only when the code is listed here, and the original code is still tried if the mapped one
+   isn't on file, so it can't hide a real district. Add an entry only when the replacement is
+   confirmed — a legacy code that SPLIT into several districts must not be listed. The card says
+   which code the layer gave and which one the setbacks are for. */
+var SB_LEGACY = {
+  cape_coral: { 'R-1A': 'R1', 'R-1B': 'R1' }
+};
+function _sbLegacy(key, code){
+  var m = SB_LEGACY[key];
+  if(!m || code == null || String(code).trim() === '') return null;
+  var n = _sbNorm(code);
+  for(var k in m) if(_sbNorm(k) === n) return m[k];
+  return null;
+}
 function setbacksFor(cityName, countyName, code){
   if(!_SB) return null;
   var ck = _sbJur(cityName, false), nk = _sbJur(countyName, true), hit;
   if(ck){
+    var lc = _sbLegacy(ck, code), lh = lc ? _sbFind(ck, lc) : null;
+    if(lh) return { key: ck, jur: _SB[ck], row: lh, legacyFrom: String(code), legacyTo: lc };
     hit = _sbFind(ck, code);
     return { key: ck, jur: _SB[ck], row: hit || null };
   }
@@ -2552,7 +2576,10 @@ function renderSetbacks(cityName, countyName, code){
          + _sbSitewide(J) + _sbEquip(J, code);
   }
   h += '<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ REQUIRED</span> '
-     + 'setbacks · ' + esc(String(code)) + ' · ' + esc(J.name) + badge + '</div>';
+     + 'setbacks · ' + esc(String(f.legacyTo || code)) + ' · ' + esc(J.name) + badge + '</div>';
+  if(f.legacyTo) h += '<div class="note">The zoning layer reported the old code <b>' + esc(f.legacyFrom)
+     + '</b>. ' + esc(J.name) + ' replaced it with <b>' + esc(f.legacyTo) + '</b>; these are the '
+     + esc(f.legacyTo) + ' setbacks.</div>';
 
   /* (An unread jurisdiction already gets a caveat below the numbers — see the !J.eye block at the
      end of this function. One is enough; a second above the figures just says it twice.) */
@@ -5758,7 +5785,9 @@ const ZONING_CITY = {
   PUNTAGORDA:{code:"https://library.municode.com/fl/punta_gorda/codes/code_of_ordinances", permit:"https://www.pgorda.us/151/Urban-Design"},
   SARASOTA:{code:"https://library.municode.com/fl/sarasota/codes/code_of_ordinances", permit:"https://www.sarasotafl.gov/government/development-services"},  // City of Sarasota (was wrongly keyed SARASOTACITY)
   VENICE:{code:"https://library.municode.com/fl/venice/codes/code_of_ordinances", permit:"https://www.venicegov.com/government/development-services"},
-  NORTHPORT:{code:"https://library.municode.com/fl/north_port/codes/code_of_ordinances", permit:"https://www.northportfl.gov/government/neighborhood-development-services"},
+  // North Port's own Accela Citizen Access portal (supplied by AOG 20 Oct 2026) — deep-linked to the
+  // Building Permits record search, which takes site address or parcel number. Verified loading.
+  NORTHPORT:{code:"https://library.municode.com/fl/north_port/codes/code_of_ordinances", permit:"https://aca-prod.accela.com/NORTHPORT/Cap/CapHome.aspx?module=Building&TabName=Building"},
   BRADENTON:{code:"https://library.municode.com/fl/bradenton/codes/code_of_ordinances", permit:"https://www.cityofbradenton.com/162/Planning-Community-Development"},
   PALMETTO:{code:"https://library.municode.com/fl/palmetto/codes/code_of_ordinances", permit:"https://www.palmettofl.org/152/Planning-Zoning"},
   MOOREHAVEN:{code:"https://library.municode.com/fl/moore_haven/codes/code_of_ordinances", permit:"https://moorehaven.org/zoning-building-code-enforcement/"},
@@ -5951,10 +5980,42 @@ function _registryCardHtml(d, client, it){
   };
   // SETBACKS — sections naming this district first, then those whose stored table has this district's row, then the rest
   const zre = zone ? new RegExp('(^|[^A-Z0-9])'+zone.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/[- ]/g,'[- ]?')+'(?![A-Z0-9])','i') : null;
-  const setb = secs('setbacks').map(x=>({...x, _s:(zre && zre.test(x.title)?5:0) + (zre && x.excerpt && zre.test(x.excerpt)?4:0) + (zone && (x.tables||[]).some(tb=>trimTableHtml(tb,zone).trimmed)?3:0) + ((x.tables||[]).length?1:0) - (/^(chapter|division|article|part)\b/i.test(x.title)?3:0)})).sort((a,b)=>b._s-a._s);
-  const zoneMatched = setb.length && setb[0]._s >= 3;
+  /* DISTRICT FAMILY. Charlotte's RSF3.5 is regulated by "Sec. 3-9-33 – Residential single-family (RSF)";
+     the exact-code test above never matched "(RSF)", so that section sank under highway-access and PD
+     sections. Score the family code (the zone with its trailing density number stripped) too. */
+  const _zU = String(zone||'').toUpperCase();
+  const _zBase = _zU.replace(/[^A-Z0-9.\-]/g,'').replace(/[-.]?\d[\d.\-A-Z]*$/,'');
+  const famRe = (_zBase.length>=2 && _zBase!==_zU) ? new RegExp('\\(\\s*'+_zBase.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?:[-\\s]?[\\d.]+)?\\s*\\)','i') : null;
+  const _mine = x => (zre && zre.test(x.title)) || (famRe && famRe.test(x.title));
+  const _otherDistrict = x => /\(\s*[A-Z][A-Z0-9.\-]{0,9}\s*\)\s*\.?\s*$/.test(String(x.title||'')) && !_mine(x);
+  const _offTopic=/planned\s+(unit\s+)?development|\bP\.?U\.?D\b|\bPDD?\b|highway|access\s+(road|management|control)|overlay|airport|sign(s|age)?\b/i;
+  const setbAll = secs('setbacks').map(x=>({...x, _s:(zre && zre.test(x.title)?5:0) + (famRe && famRe.test(x.title)?4:0) + (zre && x.excerpt && zre.test(x.excerpt)?4:0) + (zone && (x.tables||[]).some(tb=>trimTableHtml(tb,zone).trimmed)?3:0) + ((x.tables||[]).length?1:0) - (/^(chapter|division|article|part)\b/i.test(x.title)?3:0)})).sort((a,b)=>b._s-a._s);
+  const zoneMatched = setbAll.length && setbAll[0]._s >= 3;
+  /* Off-topic sections (planned development, highway / access-road, overlays…) go unless the parcel is
+     actually in such a district; once this district's own section is found, other districts' sections
+     ("Agriculture (AG)", "Industrial general (IG)"…) go too. General sections (e.g. "Waterfront
+     property") stay. */
+  /* Road / overlay / planned-development / airport / sign sections are NOT this district's setbacks,
+     but on a commercial or industrial lot along a highway or inside a corridor overlay they can still
+     apply. So they are never dropped — they move to their own collapsed group below the district's
+     sections ("Other sections that may apply"). A lot actually zoned PD/PUD keeps them in the main list. */
+  const _isOffTopic = x => !_isPlannedZone(zone) && _offTopic.test(String(x.title||'')+' '+((x.path||[]).join(' ')));
+  const setbOther = setbAll.filter(_isOffTopic);
+  const setb = setbAll.filter(x => !_isOffTopic(x) && !(zoneMatched && _otherDistrict(x)));
   const sbid='cfs_'+Math.random().toString(36).slice(2,6);
-  h += `<div id="${sbid}">` + group(zone?`Setbacks for ${zone}`:'Setbacks & dimensional standards', setb, `No setback / dimensional section captured for ${esc(d.name)}. Open the code and search its table of contents.`, {table:true, max:2}) + `</div>`;
+  /* When NO stored section names this district, the remaining sections are shown collapsed under an
+     honest heading instead of "Setbacks for <zone>". A live hit that names the district still opens it. */
+  if(zoneMatched || !zone){
+    h += `<div id="${sbid}">` + group(zone?`Setbacks for ${zone}`:'Setbacks & dimensional standards', setb, `No setback / dimensional section captured for ${esc(d.name)}. Open the code and search its table of contents.`, {table:true, max:2}) + `</div>`;
+  } else {
+    h += `<details id="${sbid}" class="lc-otherset"><summary class="lc-meta" style="cursor:pointer;margin:6px 0">District setback sections — none names <b>${esc(zone)}</b> (${setb.length})</summary>`
+       + group('Setback sections', setb, `No district setback sections found — use the district table above.`, {table:true, max:3}) + `</details>`;
+  }
+  if(setbOther.length){
+    h += `<details class="lc-otherset"><summary class="lc-meta" style="cursor:pointer;margin:6px 0">Other sections that may apply — roads, overlays, planned development (${setbOther.length})</summary>`
+       + `<div class="lc-meta" style="margin:2px 0 4px">Not this district's setbacks, but they can govern a lot on a highway / frontage road, inside an overlay corridor, or in a planned development. Check them on commercial and industrial jobs.</div>`
+       + group('Roads, overlays & planned development', setbOther, '', {table:true, max:4}) + `</details>`;
+  }
   // Hybrid: the registry has this code's setback sections but none names this district → one live title search for
   // the district code (how discovery found "Sec. 58-176" for R1-10) and put that section first.
   if(zone && !zoneMatched && d.clientId){
@@ -5963,6 +6024,7 @@ function _registryCardHtml(d, client, it){
         const r = await codeApi(`code-search?clientId=${encodeURIComponent(d.clientId)}&q=${encodeURIComponent('"'+zone+'"')}&titlesOnly=1`);
         const hit = r && r.ok && r.hits.find(x=>zre.test(x.title) && /yard|setback|dimensional|standard|regulation|district|classification/i.test(x.title)) || (r && r.ok && r.hits.find(x=>zre.test(x.title)));
         const box=document.getElementById(sbid); if(!hit || !box) return;
+        try{ if(box.tagName==='DETAILS') box.open=true; }catch(e){}
         const x={ nodeId:hit.nodeId, productId:hit.productId, book:hit.productName, title:hit.title, path:hit.breadcrumb, tables:[], excerpt:hit.snippet };
         const first = box.querySelector('.lc-topic'); if(!first) return;
         first.insertAdjacentHTML('afterbegin', `<div class="lc-meta" style="margin-bottom:4px">Section naming <b>${esc(zone)}</b> (found live):</div>` + row(x,{}));
@@ -8853,12 +8915,16 @@ const ZONING_LIVE_CITY = {
     "https://gis.cityofmarcoisland.com/arcgis/rest/services/General/Zoning/MapServer/3/query",
     "https://gis.cityofmarcoisland.com/arcgis/rest/services/General/DataHub/MapServer/3/query"
   ]},
-  // City of Cape Coral's OWN zoning layer carries the EXACT per-parcel code (R-1A vs R-1B, etc.) in
-  // LMLUZN — finer than the Lee County layer, which groups them. Prefer it; if it's down or the path
-  // moves, fall back to the Lee layer (grouped label) so detection still works.
+  // City of Cape Coral's OWN zoning layer carries the CURRENT per-parcel code in LMLUZN (R1, RE, RML,
+  // RMM, CC, MX7 … — the 2019 LDC districts). Prefer it; if it's down or the path moves, fall back to
+  // the Lee layer so detection still works. ⚠ The Lee layer still carries PRE-2019 codes (R-1A, R-1B);
+  // SB_LEGACY maps those to today's district for the setbacks.
+  // badCodes (verified 29 Oct 2026 against the layer's distinct values): "ROW" is right-of-way and
+  // "<Null>" a literal placeholder — neither is a lot's district, so a pin in the road or canal
+  // must not print them; the next candidate answers instead.
   // PATH FIX (Aug 2026): the old OpenData/DCD/MapServer/3 path now returns "Service not found". The live
   // Cape Coral zoning layer is layer 32 ("Zoning", display field LMLUZN) of the IMS AGOL MapServer.
-  CAPECORAL: { label:"City of Cape Coral Zoning", codeField:"LMLUZN", descField:"Zoning_Desc", urls:[
+  CAPECORAL: { label:"City of Cape Coral Zoning", codeField:"LMLUZN", descField:"Zoning_Desc", badCodes:["ROW","<Null>"], urls:[
     "https://capeims.capecoral.gov/arcgis/rest/services/IMS/City_of_Cape_Coral_IMS_AGOL/MapServer/32/query",
     "https://gismapserver.leegov.com/gisserver910/rest/services/Layers/DCD_Zoning/MapServer/1/query"
   ]},
@@ -24600,6 +24666,7 @@ function drawParcel(g, info){
   try{
     if(g&&g.rings){
       window.__lastParcelGeom = g;
+      try{ if(window.__exportData) window.__exportData.__drawn=true; }catch(e){}
       // Real-world acreage (deg²→ft² at the parcel's latitude). Infinity if it can't be computed.
       let acres=Infinity;
       try{ const _d=parcelDimensions(g); if(_d&&_d.acres>0) acres=_d.acres; }catch(e){}
@@ -24641,11 +24708,11 @@ function drawParcel(g, info){
         let center=null, clat=null, clng=null;
         try{ if(marker){ const ll=marker.getLatLng(); center=ll; clat=ll.lat; clng=ll.lng; } }catch(e){}
         if(!center){ try{ center=parcelLayer.getBounds().getCenter(); clat=center.lat; clng=center.lng; }catch(e){} }
-        if(center){ const z=Math.max(map.getZoom(), 18); map.setView(center, z); }
+        if(center && _autoFitAllowed()){ const z=Math.max(map.getZoom(), 18); map.setView(center, z); }
         // Now find the INDIVIDUAL home parcel inside the shared tract and outline it in blue.
         if(isFinite(clat)&&isFinite(clng)) drawHomeWithinTract(clat, clng, acres, info);
       } else {
-        map.fitBounds(parcelLayer.getBounds(),{maxZoom:19,padding:[60,60]});
+        if(_autoFitAllowed()) map.fitBounds(parcelLayer.getBounds(),{maxZoom:19,padding:[60,60]});
         // MARKER SNAP (cosmetic): the orange dot starts at the raw geocode point, which for some
         // addresses (interpolated, or coastal lots on Estero Blvd etc.) lands off the actual lot —
         // even on a neighbour. The PARCEL is matched by address, not by the dot, so the data is
@@ -24814,7 +24881,17 @@ function addEcNoteMarker(ec){
    shows which neighbors also have an Elevation Certificate on file. Each note opens its own PDF.
    Active only after a lookup wired an EC layer (window.__ecAreaUrl). Debounced, capped, and keyed
    by extent so panning slightly doesn't refire identical queries. */
-const EC_AREA_MINZOOM = 15;          // below this the notes would be unreadable clutter
+const EC_AREA_MINZOOM = 16;          // below this the notes pile up into unreadable clutter (was 15; 17 felt too tight)
+/* Zooming OUT used to leave every note from the closer view on the map — the sweep only declines to
+   ADD notes below the min zoom — so one step out showed hundreds of 📝 pins stacked on each other.
+   Hide the area layer below the threshold and put it back when you zoom in again. The looked-up
+   lot's own note lives in ecLookupLayer and is never hidden. */
+map.on('zoomend', ()=>{
+  try{
+    if(map.getZoom() < EC_AREA_MINZOOM){ if(map.hasLayer(ecNoteLayer)) map.removeLayer(ecNoteLayer); }
+    else if(ecNoteLayer.getLayers().length && !map.hasLayer(ecNoteLayer)) ecNoteLayer.addTo(map);
+  }catch(e){}
+});
 const EC_AREA_MAX     = 200;         // cap features per view (raised from 120 — 10 Sep 2026, testing)
 let _ecAreaKey='', _ecAreaBusy=false, _ecAreaTimer=null;
 const _ecLinkFieldCache = Object.create(null);   // layer root -> PDF-link field name (or '')
@@ -24922,7 +24999,8 @@ async function refreshEcAreaNotes(){
     if(!_fresh.length){ _ecAreaKey=key; return; }   // nothing valid built — keep current notes
     ecNoteLayer.clearLayers();                        // now safe: we have replacements in hand
     _fresh.forEach(mk=>mk.addTo(ecNoteLayer));
-    if(!map.hasLayer(ecNoteLayer)) ecNoteLayer.addTo(map);
+    // A sweep that started zoomed in can land after the user zoomed back out — don't re-show then.
+    if(!map.hasLayer(ecNoteLayer) && map.getZoom() >= EC_AREA_MINZOOM) ecNoteLayer.addTo(map);
     _ecAreaKey=key;
   }catch(e){/* best-effort; try again on next move */}
   finally{ _ecAreaBusy=false; }
@@ -25078,6 +25156,7 @@ function searchForAddress(addrStr){
 function _nbrSetAddrBox(txt){
   const v=String(txt||'').replace(/\s+/g,' ').trim();
   if(!v) return;
+  if(_addrUserTyped) return;   // user is typing a new address — see the value-setter guard
   try{
     addrEl.value=v; STORE.set('fl_addr',v); addToHistory(v);
     if(typeof updateClearBtn==='function') updateClearBtn();
@@ -25164,9 +25243,18 @@ function _nbrSubjOnly(){ return !nbrNumOn; }
 function _nbrDrawSubject(hn, lat, lng){
   try{
     if(!isFinite(lat) || !isFinite(lng)) return false;
-    let txt='';
-    try{ txt=String((addrEl&&addrEl.value)||'').trim(); }catch(e){}
     const num=(hn!=null && String(hn).trim()!=='') ? String(hn).trim() : null;
+    /* Label with the RESOLVED site address, not the search box. The box holds whatever was typed —
+       "24330 Matias Ln Bonita Springs" put "Matias Ln Bonita Springs" on a Charlotte County lot. */
+    let txt='';
+    try{ const ed=window.__exportData||{};
+      if(ed.address && (!num || String(houseNum(ed.address)||'')===num)) txt=String(ed.address).trim(); }catch(e){}
+    if(!txt){ try{
+      const raw=String((addrEl&&addrEl.value)||'').trim();
+      txt=streetSegment(raw).trim();
+      const c=typedCityLoose(raw).city;
+      if(c && txt.toUpperCase().endsWith(c.toUpperCase())) txt=txt.slice(0, txt.length-c.length).trim();
+    }catch(e){} }
     if(!txt && !num) return false;                       // nothing honest to put in the label
     const icon=L.divIcon({ className:'nbr-hit',
       html:`<div class="nbr-num subject">${numStreetLabelHTML(txt||num, num)}</div>`, iconSize:null });
@@ -25221,7 +25309,7 @@ function _nbrRenderParcelLabels(labels, subjIdx){
         suppressUiClick(900);   // block the replayed tap landing on the map underneath
         // Use the parcel's REAL coordinates (exact) rather than re-geocoding the bare street, which
         // can resolve "123 Main St" to the wrong town. Fall back to address only if coords missing.
-        _nbrSetAddrBox(L0.txt);
+        _addrUserTyped=false; _nbrSetAddrBox(L0.txt); _markUserSearch();
         if(isFinite(L0.lat) && isFinite(L0.lng)) runLookup(L0.lat, L0.lng, _nbrClickCtx(L0.txt, L0.feat&&L0.feat.attributes));
         else searchForAddress(L0.txt);
       });
@@ -25336,7 +25424,7 @@ function _nbrRenderPoints(ptLabels, ptSubjIdx){
             if(isSubj) _nbrSubjDrawn=true;
             mk.on('click', (ev)=>{ try{ L.DomEvent.stop(ev); }catch(e){}
               suppressUiClick(900);
-              _nbrSetAddrBox(_addr);
+              _addrUserTyped=false; _nbrSetAddrBox(_addr); _markUserSearch();
               if(isFinite(P.lat) && isFinite(P.lng)) runLookup(P.lat, P.lng, _nbrClickCtx(_addr, P.a));
               else searchForAddress(_addr);
             });
@@ -26762,7 +26850,10 @@ function renderParcelGeneric(a, d){
      vs well/septic, whether the road is paved for equipment access, and waterfront exposure. */
   if(a.__utilities)  h += fieldRow('Utilities (per appraiser)', esc(String(a.__utilities)));
   if(a.__roads)      h += fieldRow('Road', esc(String(a.__roads)));
-  if(a.__waterfront) h += fieldRow('Waterfront', esc(String(a.__waterfront)));
+  /* Feeds carry this as a flag ("1", "Y", "T"); show it as a word. Anything else (e.g. "CANAL",
+     "GULF") is a real description and is shown as-is. */
+  if(a.__waterfront){ const _wf=String(a.__waterfront).trim();
+    h += fieldRow('Waterfront', esc(/^(y|yes|t|true|1)$/i.test(_wf) ? 'Yes' : _wf)); }
   if(a.__condoId)    h += fieldRow('Condo ID', esc(String(a.__condoId)));
   if(a.__taxDist)    h += fieldRow('Tax district', esc(String(a.__taxDist)));
   if(a.__neighborhood) h += fieldRow('Neighborhood', esc(String(a.__neighborhood)));
@@ -26837,7 +26928,41 @@ let runId=0;
    old, still-loading search from finishing late and hijacking the map/results with the OLD
    address after the user has already typed and launched a NEW one. */
 let searchSeq=0;
-function newSearch(){ return ++searchSeq; }
+function newSearch(){ _addrUserTyped=false; _markUserSearch(); _cancelSuggest(); return ++searchSeq; }   // explicit search: box released (see the value-setter guard)
+/* 🩹 A search started while an autocomplete request was still in flight: the request finished a
+   moment later and painted "no matches — try adding a city or ZIP" under the box, where it sat over
+   the result banner for the rest of the session. Starting a search now cancels the pending request
+   and closes the dropdown; the input handler also drops any answer that lands after a search began. */
+function _cancelSuggest(){
+  try{ clearTimeout(sugTimer); }catch(e){}
+  try{ ++sugSeq; }catch(e){}
+  try{ if(sugAbort){ sugAbort.abort(); sugAbort=null; } }catch(e){}
+  try{ hideSuggest(); }catch(e){}
+}
+/* 🩹 "On a reload, when I start zooming out it snaps back to the property 2–3 times."
+   After a reload the restored lookup is followed by one or more BACKGROUND re-runs (territory / gas
+   files and the county address-point files land and call rerunLastLookup()). Every run ends in
+   drawParcel(), which did an unconditional fitBounds/setView — so each re-run yanked the map back
+   to the lot while the user was already zooming out.
+   Rule now: the map only auto-frames the parcel if the user has NOT moved the map themselves since
+   the last search they actually started (address search, suggestion/history pick, map tap, label
+   tap). Only real view gestures count — wheel, pinch, drag, double-click, zoom buttons, keyboard,
+   box-zoom — so a plain tap on the map (which starts a new search) never blocks its own framing. */
+var _lastUserSearchAt=0, _lastUserViewAt=-1;
+function _markUserSearch(){ _lastUserSearchAt=Date.now(); }
+function _autoFitAllowed(){ return _lastUserViewAt < _lastUserSearchAt || _lastUserViewAt<0; }
+(function(){
+  try{
+    const mark=()=>{ _lastUserViewAt=Date.now(); };
+    const c=map.getContainer();
+    c.addEventListener('wheel', mark, {passive:true, capture:true});
+    c.addEventListener('dblclick', mark, true);
+    c.addEventListener('touchstart', e=>{ if(e.touches && e.touches.length>1) mark(); }, {passive:true, capture:true});
+    c.addEventListener('keydown', e=>{ if(/^(\+|-|=|_|Arrow\w+)$/.test(e.key)) mark(); }, true);
+    c.addEventListener('click', e=>{ if(e.target && e.target.closest && e.target.closest('.leaflet-control-zoom')) mark(); }, true);
+    map.on('dragstart boxzoomstart', mark);
+  }catch(e){}
+})();
 /* Render the per-source lookup timing breakdown into the "Sources & details" footer. Sources are
    listed slowest-first (so the bottleneck is at the top), errored sources marked, the single slowest
    source highlighted, and the milestones (first paint / total) shown below a divider. */
@@ -26877,8 +27002,51 @@ function renderLookupTiming(timings){
 async function runLookup(lat,lng,searchCtx){
   _lookupActive++;
   _lastLookupCtx = searchCtx || null;
+  const _bcRun = ++_boxCityRun;
   try{ return await _runLookupInner(lat,lng,searchCtx); }
-  finally{ _lookupActive = Math.max(0, _lookupActive-1); }
+  finally{ _lookupActive = Math.max(0, _lookupActive-1); try{ _ensureBoxCity(_bcRun); }catch(e){} }
+}
+/* ALWAYS SHOW THE TOWN IN THE SEARCH BOX. Several county records carry no site city (unincorporated
+   Charlotte, for one), so the box ended up reading "24330 MATIAS LN, FL 33955" or just
+   "24330 MATIAS LN". After each lookup, if the box names no town, add the postal city for the
+   parcel's ZIP (Esri postal lookup, cached) — "24330 MATIAS LN, PUNTA GORDA, FL 33955". Never
+   touches the box once the user has started typing, and leaves a box that already names a town
+   alone (including a wrong one — the location warning covers that). */
+let _boxCityRun=0;
+const _zipCityCache=Object.create(null);
+async function postalCityForZip(zip){
+  zip=String(zip==null?'':zip).slice(0,5);
+  if(!/^\d{5}$/.test(zip)) return null;
+  if(zip in _zipCityCache) return _zipCityCache[zip];
+  let c=null;
+  try{
+    const u=`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates`+
+      `?postal=${zip}&countryCode=USA&category=Postal&outFields=City,Region&f=json&maxLocations=1`;
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),5000);
+    const j=await fetch(u,{signal:ctrl.signal}).then(r=>r.json()).finally(()=>clearTimeout(t));
+    const a=j&&j.candidates&&j.candidates[0]&&j.candidates[0].attributes;
+    if(a && a.City && /^(florida|fl)$/i.test(String(a.Region||'').trim())) c=String(a.City).trim();
+  }catch(e){ c=null; }
+  _zipCityCache[zip]=c;
+  return c;
+}
+async function _ensureBoxCity(run){
+  if(run!==_boxCityRun || _addrUserTyped) return;
+  const v=String((addrEl&&addrEl.value)||'').trim();
+  if(!v || !houseNum(v)) return;
+  const tc=typedCityLoose(v);
+  if(tc.city) return;                                   // already names a town
+  const ed=window.__exportData||{};
+  const zip=String(ed.zip||tc.zip||'').slice(0,5);
+  let city=(ed.city && !_PLACE_VAGUE.test(_placeKey(ed.city))) ? String(ed.city).trim() : '';
+  if(!city && zip) city=(await postalCityForZip(zip))||'';
+  if(!city && ed.municipality && !/uninc|county/i.test(ed.municipality)) city=String(ed.municipality).trim();
+  if(!city) return;
+  if(run!==_boxCityRun || _addrUserTyped || String(addrEl.value||'').trim()!==v) return;   // something moved on
+  const street=streetSegment(v).replace(/\s+(FL|FLA|FLORIDA)?\s*\d{5}(?:-\d{4})?$/i,'').replace(/[,\s]+(FL|FLA|FLORIDA)$/i,'').trim();
+  if(!street) return;
+  const cityTxt=(street===street.toUpperCase()) ? city.toUpperCase() : titleCase(city);
+  setAddrBox(`${street}, ${cityTxt}, FL${zip?' '+zip:''}`);
 }
 async function _runLookupInner(lat,lng,searchCtx){
   const myId=++runId;
@@ -26919,6 +27087,42 @@ async function _runLookupInner(lat,lng,searchCtx){
   clearNeighborNumbers(); _nbrCtx=null;
   clearEcNote();   // remove any 📝 EC note from a previous property
   _subjRings=null;   // reset per lookup; drawParcel re-sets it only for a normal home lot
+  /* ── THE SITE POINT: ALWAYS ON THE LOT (28 Oct 2026) ─────────────────────────────────────────
+     lat/lng here are wherever the SEARCH landed — a geocoder hit or an address point. On waterfront
+     lots that is often in the CANAL behind the house or in the road in front of it (2370 Snook Dr:
+     pin in the canal, so Zoning came back blank). The map marker was already being snapped onto the
+     lot once the parcel resolved, but every point query below kept using the raw search point, so the
+     card could describe the water/road instead of the property: no zoning, the canal's flood zone,
+     the wrong utility/fire/plat polygon, and so on.
+     _site() returns a point that is guaranteed to be ON the subject lot:
+       · the search point itself, if it is already inside the lot (the normal case — nothing changes,
+         no extra requests), else
+       · labelPoint() of the lot — the most-interior point, never the centroid, which can fall outside
+         an L-shaped or curved canal lot.
+     It reads _subjRings lazily, so it only knows the lot after drawParcel() has run; before that (or
+     for an oversized tract, where drawParcel leaves _subjRings null on purpose) it returns the search
+     point unchanged. `moved` says whether a re-anchor happened, so early queries that were already
+     fired at the search point (zoning, FEMA flood, county flood) can re-ask at the lot and prefer it.
+     Deliberately NOT moved: wind (ASCE contours are miles apart), easements (already polygon-based),
+     neighbour numbers (address-driven), and the print metadata (records what was searched). */
+  let _siteRingsSeen, _sitePt=null;
+  const _site = ()=>{
+    const r=_subjRings;
+    if(r!==_siteRingsSeen){
+      _siteRingsSeen=r; _sitePt=null;
+      try{
+        const good = Array.isArray(r) ? r.filter(x=>Array.isArray(x) && x.length>2) : [];   // a 1-2 vertex ring is not a lot
+        if(good.length && isFinite(lat) && isFinite(lng)){
+          const inLot = good.some(x=>pointInRing(lng, lat, x));
+          if(!inLot){
+            const lp = labelPoint({ geometry:{ rings:good } });   // [lng,lat]
+            if(lp && isFinite(lp[0]) && isFinite(lp[1])) _sitePt = { lat:lp[1], lng:lp[0], moved:true };
+          }
+        }
+      }catch(e){ _sitePt=null; }
+    }
+    return _sitePt || { lat, lng, moved:false };
+  };
   _subjTractRings=null;   // ditto: re-set only when an oversized shared tract is drawn
   saveLoc(lat,lng);
   const _coordReadout=document.getElementById('coordReadout');
@@ -30387,14 +30591,14 @@ async function _runLookupInner(lat,lng,searchCtx){
       // blocks render; if the layer is down or the point misses, nothing is added. Guarded to Citrus.
       if(norm(countyName)==='CITRUS'){
         const _myIdSB=myId;
-        citrusLDCInfo(lat,lng).then(sb=>{ if(_myIdSB!==runId) return; injectCitrusSetbacks(sb); }).catch(()=>{});
+        citrusLDCInfo(_site().lat,_site().lng).then(sb=>{ if(_myIdSB!==runId) return; injectCitrusSetbacks(sb); }).catch(()=>{});
       }
       // SEPTIC vs PUBLIC SEWER (informational): for counties with wired sources, ask every one of them
       // at the resolved point and show what they say. Async, dupe-guarded, silent on any miss — the
       // single most useful thing here is a drainfield warning before someone picks a pad location.
       if(SEPTIC_SEWER[norm(countyName)]){
         const _myIdSS=myId; clearSepticPoints(); const _spMine=_spRun;
-        septicSewerAtPoint(countyName, lat, lng).then(ss=>{ if(_myIdSS!==runId) return;
+        septicSewerAtPoint(countyName, _site().lat, _site().lng).then(ss=>{ if(_myIdSS!==runId) return;
           injectSepticSewer(ss);
           try{ drawSepticPoints(ss && ss.points, _spMine); }catch(e){}
         }).catch(()=>{});
@@ -30404,7 +30608,7 @@ async function _runLookupInner(lat,lng,searchCtx){
          miss — because it answers the same class of question: what is already in the ground here. */
       if(WELLFIELD[norm(countyName)] || WELLS_PERMITTED[norm(countyName)]){
         const _myIdWL=myId; clearWellPoints(); const _wlMine=_wlRun;
-        wellsAtPoint(countyName, lat, lng).then(wl=>{ if(_myIdWL!==runId) return;
+        wellsAtPoint(countyName, _site().lat, _site().lng).then(wl=>{ if(_myIdWL!==runId) return;
           injectWells(wl);
           try{ drawWellPoints(wl && wl.points, _wlMine); }catch(e){}
         }).catch(()=>{});
@@ -30616,13 +30820,13 @@ async function _runLookupInner(lat,lng,searchCtx){
     // setback query is independent of the parcel source. Async, dupe-guarded, Citrus-only.
     if(norm(countyName)==='CITRUS'){
       const _myIdSB2=myId;
-      citrusLDCInfo(lat,lng).then(sb=>{ if(_myIdSB2!==runId) return; injectCitrusSetbacks(sb); }).catch(()=>{});
+      citrusLDCInfo(_site().lat,_site().lng).then(sb=>{ if(_myIdSB2!==runId) return; injectCitrusSetbacks(sb); }).catch(()=>{});
     }
     // Septic/sewer on the roll path too — it is a point query against county utility layers and does
     // not depend on which parcel source answered. Async, dupe-guarded.
     if(SEPTIC_SEWER[norm(countyName)]){
       const _myIdSS2=myId; clearSepticPoints(); const _spMine2=_spRun;
-      septicSewerAtPoint(countyName, lat, lng).then(ss=>{ if(_myIdSS2!==runId) return;
+      septicSewerAtPoint(countyName, _site().lat, _site().lng).then(ss=>{ if(_myIdSS2!==runId) return;
         injectSepticSewer(ss);
         try{ drawSepticPoints(ss && ss.points, _spMine2); }catch(e){}
       }).catch(()=>{});
@@ -30630,7 +30834,7 @@ async function _runLookupInner(lat,lng,searchCtx){
     // Wells on the roll path too — a point query, independent of which parcel source answered.
     if(WELLFIELD[norm(countyName)] || WELLS_PERMITTED[norm(countyName)]){
       const _myIdWL2=myId; clearWellPoints(); const _wlMine2=_wlRun;
-      wellsAtPoint(countyName, lat, lng).then(wl=>{ if(_myIdWL2!==runId) return;
+      wellsAtPoint(countyName, _site().lat, _site().lng).then(wl=>{ if(_myIdWL2!==runId) return;
         injectWells(wl);
         try{ drawWellPoints(wl && wl.points, _wlMine2); }catch(e){}
       }).catch(()=>{});
@@ -30751,7 +30955,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
     const _hoaSlotId='hoaLive-'+myId;
     if(COMMUNITY_LAYERS[norm(countyName||'')]){
       html += `<div id="${_hoaSlotId}"><div class="freshline"><span class="badge live">● CHECKING</span> ${esc(titleCase(countyName))} County community layers… <span class="zone-spin" aria-hidden="true"></span></div></div>`;
-      queryCommunity(lat, lng, countyName, 8000).then(c=>{
+      queryCommunity(_site().lat, _site().lng, countyName, 8000).then(c=>{
         if(myId!==runId) return;
         patchSlot(_hoaSlotId, renderCommunityBlock(c, countyName,
           (liveRes && liveRes.features && liveRes.features[0]) ? liveRes.features[0].attributes : null)
@@ -30810,7 +31014,18 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   }
 
   /* ---- Flood ---- */
+  /* Pin off the lot → ask FEMA at the on-lot point too (in parallel with the pin query already in
+     flight) and prefer that answer. A canal pin otherwise reports the canal's zone (often AE/VE)
+     for a lot that may be X, or the reverse. See _site(). */
+  const _sFl = _site();
+  const pFloodLot = _sFl.moved
+    ? _timed('flood (FEMA, inside lot)', arcQueryRetry(EP.flood, _sFl.lat, _sFl.lng, 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF', false, 2500, 4, true, false)).catch(e=>({__err:e.message}))
+    : null;
   flood = await pFlood; if(myId!==runId) return;   // deferred: awaited here, not in the fast-core batch
+  if(pFloodLot){
+    const _fl = await pFloodLot; if(myId!==runId) return;
+    if(_fl && !_fl.__err && _fl.features && _fl.features.length){ _fl.__fromLot = true; flood = _fl; }
+  }
   /* Both the FEMA Flood Hazard card and the Elevation Certificate card now live in the Flood tab,
      and for some cities (Naples) the resident portal and the EC lookup are the SAME URL. Record
      whatever portal this card links so the EC card below can reference it instead of re-linking. */
@@ -30821,6 +31036,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   html += `<div class="card"><div class="ch"><span class="icn">[ FLD ]</span><h2>FEMA Flood Hazard</h2>
     <div class="src">FEMA National<br>Flood Hazard Layer</div></div><div class="cb">`;
   html += `<div class="freshline"><span class="badge live">● LIVE</span> effective NFHL, queried in real time</div>`;
+  if(flood && flood.__fromLot) html += `<div class="note">The address pin fell outside the lot (canal, road or easement), so the zone was read at a point <b>inside the parcel</b>.</div>`;
   let nfhlZone=null;   // captured for the county cross-check below
   if(flood.__err){
     /* 🩹 SAME PATTERN AS THE GROUND-ELEVATION ROW (see _geSlotId below).
@@ -30897,7 +31113,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
         + `<span class="zone-spin" aria-hidden="true"></span></div>`;
       let f2=null;
       // 25 s. The card is up, nothing is blocked, and NFHL is frequently just slow rather than down.
-      try{ f2 = await arcQueryRetry(EP.flood, lat, lng,
+      try{ f2 = await arcQueryRetry(EP.flood, _site().lat, _site().lng,
              'FLD_ZONE,ZONE_SUBTY,STATIC_BFE,DEPTH,SFHA_TF', false, 25000, 2); }catch(_){}
       if(myId!==runId) return;
       const slot=document.getElementById(_fldSlot); if(!slot) return;
@@ -31318,7 +31534,13 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
     const _nfhlForCheck = nfhlZone;   // capture: the patch runs long after this scope has moved on
     (async () => {
       let cf = null;
-      try { cf = await pCountyFlood; } catch (e) {}
+      try {
+        const _sc = _site();
+        if (_sc.moved) {
+          const _cl = await queryCountyFlood(_sc.lat, _sc.lng, countyName, cityName).catch(() => null);
+          cf = (_cl && _cl.zone != null && String(_cl.zone).trim() !== '') ? _cl : await pCountyFlood;
+        } else cf = await pCountyFlood;
+      } catch (e) {}
       // A superseded lookup has already repainted the panel, so the slot is gone and so is the point.
       // Do NOT require the slot to exist yet — an early answer arrives before the paint that puts
       // it in the DOM. patchSlot() records it either way and the next paint applies it.
@@ -31446,7 +31668,29 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   // ZONING_MAX removed — the background patch is uncapped now (see RENDER CONTRACT). pZoning's own
   // request timeout is the only bound, which is where a bound belongs.
   const _zoneSlotId = 'zoningLive-' + runId;
-  let zhit = await Promise.race([ pZoning,
+  /* ── ZONING IS READ INSIDE THE LOT, NOT AT THE PIN (28 Oct 2026) ─────────────────────────────
+     pZoning was fired at the very top of runLookup with the raw search coordinate, before the parcel
+     was known. On waterfront lots the geocoder/address point can land in the CANAL or the road
+     right-of-way behind/in front of the lot. Zoning polygons usually stop at the lot line, so the
+     point-in-polygon found nothing and the card read "no live district" even though the parcel
+     itself resolved fine. Reported on 2370 Snook Dr (pin sits in the canal).
+     Worse than blank: where a jurisdiction DOES zone its canals/ROW as their own polygon, the pin
+     would have returned that polygon's district for the house.
+     Fix: _site() (defined at the top of this function) gives a point inside the lot once drawParcel()
+     has run. If it had to move off the search point, query zoning again there and PREFER that answer. The pin-point result (already in flight, nothing wasted) is only the
+     fallback when the interior query also returns nothing. A pin that is already inside the lot
+     takes the old path untouched, so normal lookups cost no extra request. */
+  const pZoningLot = (()=>{
+    const st = _site();
+    if(!st.moved) return pZoning;
+    return (async()=>{
+      let inHit = null;
+      try{ inHit = await _timed('zoning (inside lot — pin off-parcel)', queryZoning(st.lat, st.lng, cityName, countyName)); }catch(e){ inHit = null; }
+      if(inHit){ inHit.__fromLot = true; return inHit; }
+      return pZoning;
+    })();
+  })();
+  let zhit = await Promise.race([ pZoningLot,
     new Promise(res=>setTimeout(()=>res({__slow:true}), ZONING_FAST)) ]);
   if(myId!==runId) return;
   const _zoneSlow = !!(zhit && zhit.__slow);
@@ -31464,7 +31708,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
        so this can't hang forever. */
     (async()=>{
       let late=null;
-      try{ late = await pZoning; }catch(e){}
+      try{ late = await pZoningLot; }catch(e){}
       if(myId!==runId) return;                          // a newer lookup superseded this one — drop it
       const slot=document.getElementById(_zoneSlotId);
       if(!slot) return;
@@ -31491,6 +31735,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   } else
   if(zhit && ((zhit.code!=null&&String(zhit.code).trim()!=='') || (zhit.desc!=null&&String(zhit.desc).trim()!=='') || (zhit.extras&&zhit.extras.length))){
     html += `<div class="freshline snap" style="margin-top:10px"><span class="badge live">● LIVE</span> zoning polygon at this point${zhit.layerName?' · '+esc(zhit.layerName):''}</div>`;
+    if(zhit.__fromLot) html += `<div class="note">The address pin fell outside the lot (canal, road or easement), so the district was read at a point <b>inside the parcel</b> instead.</div>`;
     if(zhit.code!=null && String(zhit.code).trim()!==''){ html += fieldRow('Zoning district', esc(String(zhit.code)), 'big'); if(window.__exportData) window.__exportData.zoning=String(zhit.code).trim(); }
     if(zhit.extras) for(const ex of zhit.extras) html += fieldRow(ex.label, esc(ex.value));
     if(zhit.desc!=null && String(zhit.desc).trim()!=='' && norm(zhit.desc)!==norm(zhit.code)) html += fieldRow('District name', esc(String(zhit.desc)));
@@ -31938,8 +32183,17 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   html += `</div></div>`;   // ---- close the Elevation Certificate card ----
 
   /* ---- Permits & Documents: survey / site plan / permit history ---- */
+  /* 🩹 WHOSE PERMITS. The card used to name the jurisdiction from the DOCUMENTS config, which only
+     knows a city when the city has its own DOCS_CITY entry. North Port has none (its Elevation
+     Certificates come from Sarasota County's layer), so a North Port lot was labelled "Sarasota County
+     permitting portal" and sent to the COUNTY's records request — even though the link itself went to
+     North Port's portal and North Port's own GovQA records portal is in RECORDS_PORTALS. North Port
+     issues its own permits. Now: when the parcel is in a city whose zoning config carries a permit
+     portal, the Permits card — label, portal and records request — is that city's. */
+  const _permInCity = docInCity || !!(zr && zr.inCity && z && z.permit && cityName);
+  const permJur = (_permInCity && !docInCity) ? titleCase(cityName) : docJur;
   html += `<div class="card noprint"><div class="ch"><span class="icn">[ DOC ]</span><h2>Permits &amp; Documents</h2>
-    <div class="src">${esc(docJur)}<br>permits</div></div><div class="cb">`;
+    <div class="src">${esc(permJur)}<br>permits</div></div><div class="cb">`;
 
   // --- Survey / Site Plan / permit history: deep link to the permitting portal (no public data feed exists) ---
   // City portal wins when the parcel is in a city; else county; else the zoning-config portal.
@@ -31949,7 +32203,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   const portal = (docInCity && docCfg && docCfg.permit) ? docCfg.permit
                : (zr.inCity && z && z.permit) ? z.permit
                : ((docCfg && docCfg.permit) || (z && z.permit) || null);
-  html += `<div class="lc-meta" style="margin-top:9px">Surveys and site plans aren't a public map layer &mdash; they live in <b>${esc(docJur)}</b>'s building-permit file, retrieved by ${docCfg&&docCfg.permitBy==='permit'?'permit record number':'address or parcel/STRAP number'}.</div>`;
+  html += `<div class="lc-meta" style="margin-top:9px">Surveys and site plans aren't a public map layer &mdash; they live in <b>${esc(permJur)}</b>'s building-permit file, retrieved by ${docCfg&&docCfg.permitBy==='permit'?'permit record number':'address or parcel/STRAP number'}.</div>`;
   /* ── BS&A ONLINE, PER-PARCEL (added 19 Sep 2026) ────────────────────────────────────────────
      Grant-Valkaria is one of the towns with NO zoning layer anywhere (see ZONING_LIVE_CITY's
      not-found notes), so anything that reaches its records is worth having. The town runs BS&A
@@ -32234,7 +32488,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
 
      Nothing new is fetched here. Same portal, same folio, same records-request URL and text. */
   {
-    const _rr   = recordsRequestUrl(docJur, cityName, countyName, docInCity);
+    const _rr   = recordsRequestUrl(permJur, cityName, countyName, _permInCity);
     /* The request used to carry searchCtx.raw — whatever was typed in the box. Empty on a map
        click, and wrong whenever the lookup started from a folio, an owner name or a half-spelled
        street, so the text went out reading "[address]" with the right parcel number beside it.
@@ -32259,14 +32513,14 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
       p += `<div class="pstep"><div class="n">${strap?2:1}</div><div class="b">`
         +  `<div class="t">Search the permitting portal</div>`
         +  `<div class="s">${strap ? 'Paste the folio above into the portal’s <i>Search for a Property</i> box.' : 'Search by address — no folio was read for this parcel.'} Not every record is digitized.</div>`
-        +  `<a class="palink" href="${esc(portal)}" target="_blank" rel="noopener">↗ ${esc(docJur)} permitting portal (survey / site plan / permits)</a>`
+        +  `<a class="palink" href="${esc(portal)}" target="_blank" rel="noopener">↗ ${esc(permJur)} permitting portal (survey / site plan / permits)</a>`
         +  `</div></div>`;
     }
 
     p += `<div class="pstep"><div class="n">${(strap?1:0)+(portal?1:0)+1}</div><div class="b">`
       +  `<div class="t">No attachment on the permit? Request the file</div>`
       +  `<div class="s">A survey and site plan usually arrive this way — the portal shows the permit, but not what was filed with it.</div>`
-      +  `<a class="palink" href="${esc(_rr.url)}" target="_blank" rel="noopener">↗ ${_rr.verified ? 'Request the permit file — '+esc(docJur)+' public records portal' : 'Find '+esc(docJur)+'’s public records request page'}</a>`
+      +  `<a class="palink" href="${esc(_rr.url)}" target="_blank" rel="noopener">↗ ${_rr.verified ? 'Request the permit file — '+esc(permJur)+' public records portal' : 'Find '+esc(permJur)+'’s public records request page'}</a>`
       +  `<div class="copyrow"><span class="lc-meta">Request text, this parcel filled in</span>`
       +  `<button type="button" class="copyfolio" data-rr="plain" data-strap="${_strapAttr}">Copy request text</button></div>`
       /* The formal, statute-citing version sits behind a chevron rather than beside the main
@@ -32280,7 +32534,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
       +  (_rr.verified ? '' : `<div class="lc-meta" style="margin-top:4px">This jurisdiction’s records portal isn’t confirmed yet — the link searches for it. Once you land on the real page, its URL can be added so this becomes one click.</div>`)
       +  `</div></div>`;
 
-    const _rrAlt = RECORDS_PORTALS[(docInCity ? norm(cityName||'') : (norm(countyName||'')+'COUNTY'))+'_ALT'];
+    const _rrAlt = RECORDS_PORTALS[(_permInCity ? norm(cityName||'') : (norm(countyName||'')+'COUNTY'))+'_ALT'];
     if(_rrAlt && _rrAlt.url){
       p += `<a class="palink" href="${esc(_rrAlt.url)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(_rrAlt.label||'Alternate records custodian')}</a>`;
     }
@@ -32289,7 +32543,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   // Fire district (who reviews the LP / generator clearances and inspects) — county GIS where published
   if(FIRE_DISTRICT_LAYERS[norm(countyName||'')]){
     html += `<div id="fireDist-${myId}"></div>`;
-    queryFireDistrict(lat, lng, countyName).then(fd=>{ if(myId!==runId || !fd) return; patchSlot('fireDist-'+myId,
+    queryFireDistrict(_site().lat, _site().lng, countyName).then(fd=>{ if(myId!==runId || !fd) return; patchSlot('fireDist-'+myId,
       `<div class="note" style="margin-top:6px"><b>Fire district:</b> ${esc(fd.name)}${fd.contact?` — <a href="${esc(fd.contact.url)}" target="_blank" rel="noopener">${esc(fd.contact.name)} ↗</a>`:''}${fd.phone?` · <a href="tel:${esc(fd.phone.replace(/[^0-9+]/g,''))}">${esc(fd.phone)}</a>`:''}${fd.addr?`<div class="lc-meta">${esc(fd.addr)}</div>`:''}<div class="lc-meta">This district's fire marshal reviews the LP tank and generator clearances (NFPA 58 / NFPA 37) and does the final inspection.</div></div>`); }).catch(()=>{});
   }
   // Fire prevention code adoption (NFPA editions → NFPA 37 clearances, NFPA 58 tank distances) — live from Municode
@@ -32304,8 +32558,8 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
       html += `<div id="${_platSlot}"></div>`;
       if(!window.__parcelPlatName && window.__platNameFn){ try{ window.__parcelPlatName = window.__platNameFn(); }catch(e){} }
       const _platQ = (PLAT_LAYERS[norm(cityName||'')] || PLAT_LAYERS_COUNTY[norm(countyName||'')])
-        ? queryRecordedPlat(lat, lng, cityName, countyName, 8000)
-        : arcQuery(_subPlat.url.replace(/\/query$/,'')+'/query', lat, lng, '*', false, 8000).then(r=>{ const a=r&&r.features&&r.features[0]&&r.features[0].attributes; if(!a) return null; const x=_subPlat.pick(a); if(!x||!x.name) return null; return { label: x.name + (x.book?` · Plat Book ${x.book}${x.page?`, Page ${x.page}`:''}`:''), link:x.link||null }; }).catch(()=>null);
+        ? queryRecordedPlat(_site().lat, _site().lng, cityName, countyName, 8000)
+        : arcQuery(_subPlat.url.replace(/\/query$/,'')+'/query', _site().lat, _site().lng, '*', false, 8000).then(r=>{ const a=r&&r.features&&r.features[0]&&r.features[0].attributes; if(!a) return null; const x=_subPlat.pick(a); if(!x||!x.name) return null; return { label: x.name + (x.book?` · Plat Book ${x.book}${x.page?`, Page ${x.page}`:''}`:''), link:x.link||null }; }).catch(()=>null);
       _platQ.then(p=>{
         if(myId!==runId || !p) return;
         patchSlot(_platSlot,
@@ -32336,7 +32590,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   /* ---- Electric Utility ----
      Source order: (1) local territory GeoJSON via in-browser point-in-polygon, (2) a live REST
      /query override the user supplies. Real provider, or an honest "no data" + a loader. */
-  const localProps = findUtilityAt(lat,lng);                       // local data first (offline, reliable)
+  const localProps = findUtilityAt(_site().lat,_site().lng);                       // local data first (offline, reliable)
   util = await pUtil; if(myId!==runId) return;                     // deferred: awaited here, not in the fast-core batch
   // ── Electric provider resolution, in PRIORITY order ───────────────────────────────────────────────
   // (1) local territory file  (2) authoritative LCEC polygon (SW FL)  (3) HIFLD statewide (approximate)
@@ -32348,7 +32602,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   // Collier. Host gismapserver.leegov.com is CORS-proven here (Lee zoning uses it). Gated to LCEC counties.
   if(!localProps && countyName && ['LEE','COLLIER','CHARLOTTE','HENDRY'].includes(norm(countyName))){
     try{
-      const _l = await arcQuery("https://gismapserver.leegov.com/gisserver910/rest/services/Layers/Boundaries/MapServer/21/query", lat, lng, "NAME_R", false);
+      const _l = await arcQuery("https://gismapserver.leegov.com/gisserver910/rest/services/Layers/Boundaries/MapServer/21/query", _site().lat, _site().lng, "NAME_R", false);
       if(myId!==runId) return;
       if(_l && !_l.__err && _l.features && _l.features[0]){
         restHit = { NAME:"Lee County Electric Cooperative (LCEC)", TYPE:"COOPERATIVE", TELEPHONE:"(239) 656-2300", WEBSITE:"https://www.lcec.net" };
@@ -32451,7 +32705,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   /* ---- Fuel: Natural Gas vs Propane ----
      Based on the gas LDC service-territory polygon. Inside → gas may be available (confirm a
      main with the utility); outside all territories → propane required. No data → loader. */
-  const gasHit = findGasAt(lat,lng);
+  const gasHit = findGasAt(_site().lat,_site().lng);
   html += `<div class="card noprint"><div class="ch"><span class="icn">[ FUEL ]</span><h2>Natural Gas / Propane</h2>
     <div class="src">gas LDC service<br>territory</div></div><div class="cb">`;
   if(gasHit){
@@ -33759,6 +34013,7 @@ function _pcPick(i){
     parts[0] = (parts[0]||'').trim() + ' ' + (c.unitType||'Unit') + ' ' + c.unit;
     lbl = parts.map(s=>s.trim()).filter(Boolean).join(', ');
   }
+  _addrUserTyped=false;   // explicit pick — see the value-setter guard
   try{ if(lbl){ addrEl.value=lbl; STORE.set('fl_addr',lbl); addToHistory(lbl); } }catch(e){}
   const ctx = makeSearchCtx(lbl);
   // PIN BY FOLIO. Condo units all sit inside (or share) one polygon, so a coordinate lookup on the
@@ -34024,6 +34279,156 @@ function geocoderMatchBanner(searchedLabel, snapMatched, srcLabel){
          `<b style="color:var(--ink)">${esc(shown)}</b>${src} — parcel resolved below.</div>`;
 }
 
+/* ======================================================================================
+   SEARCH HONESTY HELPERS (2026-10-20)
+   1) "Matched … parcel resolved below" was printed even when the lookup found NO parcel (the
+      geocoder point fell on the street — 1000 5th Ave S, Naples). Now the search checks whether a
+      parcel was actually resolved; if not it says so and offers the nearest lots as one-tap picks.
+   2) A typed city with no commas ("24330 Matias Ln Bonita Springs") was never parsed, and the county
+      resolver happily returned the only 24330 Matias Ln it knows — in Charlotte County, ~45 mi away —
+      under a green ✓. Now the typed city (comma or not) is located and, if the matched parcel is far
+      from it, the banner says so.
+   ====================================================================================== */
+function _lookupFoundParcel(){
+  try{ const ed=window.__exportData||{}; return !!(ed.__drawn || ed.parcelId || ed.address || ed.owner); }
+  catch(e){ return true; }   // can't tell → don't cry wolf
+}
+function _kmBetween(aLat,aLng,bLat,bLng){
+  const R=6371, r=Math.PI/180, dLat=(bLat-aLat)*r, dLng=(bLng-aLng)*r;
+  const h=Math.sin(dLat/2)**2 + Math.cos(aLat*r)*Math.cos(bLat*r)*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.min(1,Math.sqrt(h)));
+}
+const _STREET_SFX=/^(ST|STREET|AVE|AV|AVENUE|RD|ROAD|DR|DRIVE|LN|LANE|CT|COURT|BLVD|BOULEVARD|WAY|CIR|CIRCLE|TER|TERRACE|TERR|PL|PLACE|TRL|TRAIL|PKWY|PARKWAY|HWY|HIGHWAY|LOOP|PT|POINT|RUN|PATH|ROW|SQ|XING|CV|COVE|BND|BEND|PASS|WALK|PLZ|ALY|CSWY)$/;
+/* {city, zip} from what was typed. Comma-formatted text goes through typedPlace(); otherwise the
+   city is whatever follows the LAST street-type word (plus an optional trailing direction / unit). */
+function typedCityLoose(raw){
+  const tp=typedPlace(raw);
+  if(tp.city) return tp;
+  // Drop ZIP / state words — but never the FIRST token: a 5-digit house number ("24330") looks like a ZIP.
+  const toks=String(raw==null?'':raw).replace(/,/g,' ').replace(/\s+/g,' ').trim().split(' ')
+    .filter((t,i)=> i===0 || !(/^\d{5}(?:-\d{4})?$/.test(t) || /^(FL|FLA|FLORIDA|USA|US)\.?$/i.test(t)));
+  if(!tp.zip){ const zt=String(raw==null?'':raw).replace(/,/g,' ').trim().split(/\s+/).slice(1).reverse().find(t=>/^\d{5}(?:-\d{4})?$/.test(t)); if(zt) tp.zip=zt.slice(0,5); }
+  if(!/^\d/.test(toks[0]||'')) return {city:'', zip:tp.zip};
+  let idx=-1;
+  for(let i=2;i<toks.length;i++){
+    const t=toks[i].toUpperCase().replace(/\./g,'');
+    if(t==='AVE' && /^maria$/i.test(toks[i+1]||'')) continue;   // "Ave Maria" is a town, not a suffix
+    if(_STREET_SFX.test(t)) idx=i;
+  }
+  if(idx<0) return {city:'', zip:tp.zip};
+  let j=idx+1;
+  if(j<toks.length && /^(N|S|E|W|NE|NW|SE|SW)$/i.test(toks[j])) j++;
+  if(j<toks.length && /^(#|APT|UNIT|STE|SUITE)/i.test(toks[j])) j+= /^#\S/.test(toks[j]) ? 1 : 2;
+  const city=toks.slice(j).join(' ').trim();
+  return {city: /[A-Za-z]{3,}/.test(city) ? city : '', zip:tp.zip};
+}
+/* Locate a Florida city/town by name (Esri, city-level only). Cached; never throws. */
+const _placeGeoCache=Object.create(null);
+async function geocodePlace(city){
+  const k=_placeKey(city); if(!k || k.length<3) return null;
+  if(k in _placeGeoCache) return _placeGeoCache[k];
+  let out=null;
+  try{
+    const u=`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates`+
+      `?SingleLine=${encodeURIComponent(city+', Florida')}&category=${encodeURIComponent('City,Populated Place')}`+
+      `&f=json&maxLocations=1&outSR=4326&searchExtent=${encodeURIComponent('-87.6,24.4,-80.0,31.0')}`;
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),5000);
+    const j=await fetch(u,{signal:ctrl.signal}).then(r=>r.json()).finally(()=>clearTimeout(t));
+    const c=j&&j.candidates&&j.candidates[0];
+    if(c && c.location && (c.score||0)>=85) out={lat:+c.location.y, lng:+c.location.x, label:c.address};
+  }catch(e){ out=null; }
+  _placeGeoCache[k]=out;
+  return out;
+}
+/* Warning HTML when the matched parcel is not in the town / ZIP that was typed, else ''. */
+async function placeMismatchHTML(typedRaw, lat, lng, placeP){
+  try{
+    const tp=typedCityLoose(typedRaw);
+    const ed=window.__exportData||{};
+    const pZip=String(ed.zip||'').slice(0,5);
+    const bits=[];
+    if(tp.zip && pZip && tp.zip!==pZip)
+      bits.push(`you asked for ZIP <b style="color:var(--ink)">${esc(tp.zip)}</b>, this parcel is ZIP <b style="color:var(--ink)">${esc(pZip)}</b>`);
+    if(tp.city && isFinite(lat) && isFinite(lng)){
+      const tc=_placeKey(tp.city), rc=_placeKey(ed.city||'');
+      const same = rc && !_PLACE_VAGUE.test(rc) && (tc===rc || tc.indexOf(rc)>=0 || rc.indexOf(tc)>=0);
+      if(!same){
+        const pl = await (placeP || geocodePlace(tp.city));
+        if(pl){
+          const km=_kmBetween(pl.lat,pl.lng,lat,lng);
+          // 35 km: wide enough that a "Naples" mailing address in east Golden Gate Estates doesn't trip it,
+          // tight enough to catch a neighbouring county (Bonita Springs → Punta Gorda Isles is ~75 km).
+          if(km>35){
+            const cty=window.__parcelCounty ? ` in <b style="color:var(--ink)">${esc(titleCase(window.__parcelCounty))} County</b>` : '';
+            const where=[ed.city?titleCase(ed.city):'', pZip?('ZIP '+pZip):''].filter(Boolean).join(', ');
+            bits.push(`you typed <b style="color:var(--ink)">${esc(tp.city)}</b>, but this parcel is${cty}${where?' ('+esc(where)+')':''}, about ${Math.round(km/1.609)} mi from there`);
+          }
+        }
+      }
+    }
+    if(!bits.length) return '';
+    return `<div class="note matchconf noprint" style="padding:2px 2px 4px"><b style="color:var(--ink)">Check the location —</b> `+
+           `${bits.join('; ')}. The house number and street matched, but this may not be the property you meant. `+
+           `Add the ZIP or pick from the suggestions to be sure.</div>`;
+  }catch(e){ return ''; }
+}
+/* Nearest lots to a point. The statewide layer answers single-POINT queries in ~1-2 s but an
+   envelope (box) query on it can take 45 s+, so ask a ring of points around the pin instead —
+   8 directions at ~30 m and ~60 m, in parallel — and collect the lots they land in. Same-street lots
+   first (closest house number), then nearest. */
+async function nearbyParcelPicks(lat, lng, raw){
+  if(!isFinite(lat) || !isFinite(lng)) return [];
+  const pts=[];
+  const mPerDegLat=111320, mPerDegLng=111320*Math.cos(lat*Math.PI/180);
+  for(const r of [30, 60]) for(let k=0;k<8;k++){
+    const a=k*Math.PI/4; pts.push([lat + r*Math.sin(a)/mPerDegLat, lng + r*Math.cos(a)/mPerDegLng]);
+  }
+  const res = await Promise.all(pts.map(([la,ln])=>
+    arcQuery(EP.parcel, la, ln, 'PHY_ADDR1,PARCEL_ID', true, 7000).catch(()=>null)));
+  const want=houseNum(raw||''); const seen=new Set(); const out=[];
+  for(const j of res){
+    for(const f of (j&&j.features)||[]){
+      const a=(f.attributes||{}); const addr=String(a.PHY_ADDR1||'').replace(/\s+/g,' ').trim();
+      const key=String(a.PARCEL_ID||addr);
+      if(!addr || !/^\d/.test(addr) || seen.has(key)) continue;
+      const c=featCentroid(f); if(!c || !isFinite(c[0]) || !isFinite(c[1])) continue;
+      seen.add(key);
+      const onStreet = raw ? sameStreet(raw, addr) : false;
+      const hn=houseNum(addr);
+      out.push({ label:addr, lat:c[1], lng:c[0], onStreet,
+        hnGap: (want && hn) ? Math.abs(Number(hn)-Number(want)) : 1e9,
+        km: _kmBetween(lat,lng,c[1],c[0]) });
+    }
+  }
+  out.sort((x,y)=> (y.onStreet-x.onStreet) || (x.onStreet&&y.onStreet ? x.hnGap-y.hnGap : 0) || (x.km-y.km));
+  return out.slice(0,4);
+}
+function noParcelBannerHTML(q, pickId){
+  return `<div class="note matchconf noprint" style="padding:2px 2px 4px"><b style="color:var(--ink)">No lot found for ${esc(q)}.</b> `+
+         `The address point landed on the street or between lots — the geocoder's position is approximate, and this `+
+         `house number may not exist in the county's records. Tap the right lot on the map.</div>`+
+         `<div id="${pickId}" class="nearpicks noprint" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:2px 2px 10px">`+
+         `<span class="lc-meta">Looking for nearby lots…</span></div>`;
+}
+/* Banner goes up immediately; the nearby-lot buttons fill in when the ring query answers. */
+async function _showNoParcel(q, lat, lng, stale){
+  const pickId='np_'+Math.random().toString(36).slice(2,8);
+  try{ results.insertAdjacentHTML('afterbegin', noParcelBannerHTML(q, pickId)); }catch(e){ return; }
+  const picks = await nearbyParcelPicks(lat, lng, q).catch(()=>[]);
+  if(stale && stale()) return;
+  const box=document.getElementById(pickId); if(!box) return;
+  box.innerHTML = picks.length
+    ? `<span class="lc-meta">Nearby lots:</span>` + picks.map(p=>`<button type="button" class="wbtn nearpick" data-lat="${p.lat}" data-lng="${p.lng}">${esc(p.label)}</button>`).join('')
+    : '';
+}
+document.addEventListener('click', e=>{
+  const b=e.target && e.target.closest && e.target.closest('.nearpick'); if(!b) return;
+  e.preventDefault();
+  const la=+b.dataset.lat, ln=+b.dataset.lng; if(!isFinite(la)||!isFinite(ln)) return;
+  newSearch(); map.setView([la,ln], 18);
+  runLookup(la, ln, { viaMap:true });   // same as tapping that lot: fills the box with its address
+});
+
 async function doSearch(){
   /* NORMALISE WHITESPACE AT THE INPUT BOUNDARY.
      A pasted address can arrive with padding — "24330      MATIAS LN" is what a copy out of a
@@ -34033,6 +34438,7 @@ async function doSearch(){
      once, here, and write the clean version back so the box shows what was actually searched. */
   const _rawBox=document.getElementById('addr').value;
   const q=_rawBox.replace(/[\t\u00a0\u2000-\u200b]+/g,' ').replace(/\s+/g,' ').trim();
+  _addrUserTyped=false;   // release first: the normalising write below goes through the guarded setter
   if(q && q!==_rawBox.trim()){ try{ document.getElementById('addr').value=q; }catch(e){} }
   /* The typed text has now been consumed by this search, so release the box: a subsequent MAP CLICK
      should still be able to fill it with the clicked parcel's address, which is how it behaved
@@ -34043,6 +34449,8 @@ async function doSearch(){
   const mySeq=newSearch();                       // cancel any search still loading
   const stale=()=> mySeq!==searchSeq;            // true if a NEWER search has started
   const searchCtx = makeSearchCtx(q);
+  // Locate the typed town (if any) now, in parallel, so the city check after the match costs nothing.
+  const _placeP = (()=>{ const c=typedCityLoose(q).city; return c ? geocodePlace(c).catch(()=>null) : Promise.resolve(null); })();
   // Held across both paths: the ranked geocode is started early (below) and REUSED by the fallback
   // instead of issuing a second identical set of geocoder requests.
   let rankedP=null;
@@ -34067,6 +34475,9 @@ async function doSearch(){
     const resolverP = resolveAllCounties(searchCtx);
     const rough = await roughP;
     if(stale()) return;
+    /* #5 FEEDBACK: the map used to sit on the old view (often the whole state) for the full ~15 s of
+       the lookup. The rough point is within a block or two of the answer, so go there now. */
+    if(rough && isFinite(rough.lat) && isFinite(rough.lng)) map.setView([rough.lat, rough.lng], 17);
     const settled = await resolverP;
     if(stale()) return;
     // TIEBREAK: more than one county can hold a strict house-number + street match for the same
@@ -34101,6 +34512,9 @@ async function doSearch(){
         // folio lets runLookup fetch the EXACT parcel that was matched instead of re-guessing by point.
         await runLookup(pr.lat, pr.lng, resolverCtx(searchCtx, pr, cty));
         if(stale()) return;
+        { const _mm = await placeMismatchHTML(q, pr.lat, pr.lng, _placeP);
+          if(stale()) return;
+          if(_mm){ results.insertAdjacentHTML('afterbegin', _mm); return; } }
         const fol = pr.folio ? ` · Folio ${esc(pr.folio)}` : '';
         /* Authoritative folio match — the strongest result the tool can produce. Say what it
            matched and stop there; demanding "confirm the marker" here is what made every single
@@ -34187,6 +34601,7 @@ async function doSearch(){
   if(Math.abs(sLat-_preSnapLat)>1e-7 || Math.abs(sLng-_preSnapLng)>1e-7) map.setView([sLat,sLng], 18);
   await runLookup(sLat,sLng, searchCtx);
   if(stale()) return;
+  if(!_lookupFoundParcel()){ await _showNoParcel(q, sLat, sLng, stale); return; }
   /* Was an unconditional warning tier. The click path already checked whether the rooftop snap
      landed on a genuinely DIFFERENT address before raising a red flag; FIND warned every time,
      including when the snap matched exactly and only the punctuation differed. Shared now, so the
@@ -34218,6 +34633,42 @@ document.getElementById('go').onclick=doSearch;
 
 /* ---------- Address autocomplete (suggest as you type) ---------- */
 const addrEl=document.getElementById('addr');
+/* 🩹 "Sometimes on a reload the search bar has a bunch of space between the house number, street…"
+   setAddrBox() collapsed padding, but about ten other code paths write addrEl.value / fl_addr
+   directly (suggestion pick, history pick, unit pick, label tap, resolver label, restore). A site
+   address built from fixed-width county fields ("24330      MATIAS LN") went in raw, got saved to
+   fl_addr, and came back on every reload. Fix it at the element: every PROGRAMMATIC write to the
+   box is cleaned. Typing doesn't go through this setter, so the user's own keystrokes are untouched. */
+function _cleanAddr(v){ return String(v==null?'':v).replace(/[\t  -​ 　]+/g,' ').replace(/\s+/g,' ').replace(/\s+,/g,',').trim(); }
+/* ── THE USER OWNS THE BOX WHILE THEY ARE TYPING (29 Oct 2026) ───────────────────────────────
+   Reported: "sometimes it starts typing after the address that's already in it after I highlight
+   and start typing." Cause: a search is still resolving in the background (suggestion pick, Find,
+   map tap, the parcel resolver's clean-label upgrade) and, when it lands, writes the resolved
+   address into the box. You had already selected-all and typed your first characters of the NEXT
+   address; the late write replaced them with the old address and dropped the caret at the END, so
+   everything you typed after that was appended to the old address.
+   _addrUserTyped existed, but only setAddrBox() honoured it — and even that let `force` through —
+   while about ten other paths wrote addrEl.value directly after their awaits.
+   So the guard now lives in the element's value setter, the one place every programmatic write
+   passes through: once the user has typed (a real `input` event — programmatic writes never fire
+   one), NO background write lands until an explicit action hands the box back. Explicit actions
+   (Find/Enter, picking a suggestion or history row, the ×, a unit pick, tapping a map label or the
+   map) clear the flag FIRST and then write, so they still work. newSearch() clears it too, since
+   every explicit search goes through it. */
+let _addrUserTyped=false;
+try{
+  const _vd=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');
+  Object.defineProperty(addrEl,'value',{ configurable:true,
+    get(){ return _vd.get.call(this); },
+    set(v){
+      if(_addrUserTyped){
+        try{ console.info('[addr] background write skipped — the user is typing:', v); }catch(e){}
+        return;
+      }
+      _vd.set.call(this, _cleanAddr(v));
+    } });
+}catch(e){}
+try{ const _ss=STORE.set; STORE.set=function(k,v){ return _ss.call(STORE, k, k==='fl_addr'?_cleanAddr(v):v); }; }catch(e){}
 /* 🩹 "I start typing and it refreshes with what was already loading."
    restore() ends with `await runLookup(saved lat/lng)`, but that sits BEHIND
    `await Promise.all([autoLoadTerritories(), autoLoadGas()])` — two large geojson downloads. On a
@@ -34229,7 +34680,6 @@ const addrEl=document.getElementById('addr');
    This flag makes the box's ownership explicit: once the user has typed in it, nothing background
    is allowed to overwrite it. Set on real input only — not focus, since tapping the field and
    deciding not to type shouldn't block a legitimate restore. */
-let _addrUserTyped=false;
 addrEl.addEventListener('input',()=>{ _addrUserTyped=true; });
 /* Every automated write to the box goes through here. Returns false when the user owns the field. */
 function setAddrBox(v, opts){
@@ -34237,7 +34687,11 @@ function setAddrBox(v, opts){
   // it, and this value gets persisted to fl_addr.
   v = String(v==null?'':v).replace(/[\t\u00a0\u2000-\u200b]+/g,' ').replace(/\s+/g,' ').trim();
   if(!v) return false;
-  if(_addrUserTyped && !(opts && opts.force)) return false;
+  /* `force` (map taps) no longer overrides a user who typed AFTER the tap: the tap itself clears the
+     flag via newSearch(), so force only mattered for exactly the case it got wrong. The value setter
+     enforces the same rule; returning false here keeps callers from adding to history a value that
+     never reached the box. */
+  if(_addrUserTyped) return false;
   try{ addrEl.value=v; STORE.set('fl_addr',v); if(typeof updateClearBtn==='function') updateClearBtn(); }catch(e){}
   return true;
 }
@@ -34404,7 +34858,10 @@ async function chooseSuggestion(it){
   const mySeq=newSearch();                       // cancel any search still loading
   const stale=()=> mySeq!==searchSeq;
   const typed=(addrEl.value||'').trim();           // what the user actually typed (before we overwrite it)
+  _addrUserTyped=false;   // the pick consumes what was typed — same release as doSearch(), so the box can be completed
   hideSuggest();
+  // #5 FEEDBACK: jump to the suggestion's own point right away; the lookup refines it.
+  try{ if(isFinite(it.lat) && isFinite(it.lng)) map.setView([it.lat, it.lng], 17); }catch(e){}
   // Anchor on what the user TYPED (house #, street, unit) — not the verbose suggestion label, which
   // is comma-mangled ("…, Ridgeview Lakes, Naples, Collier County, Florida, 34102, United States")
   // and whose OSM coordinate is interpolated (lands on the wrong house). Prefer the typed text.
@@ -34454,8 +34911,10 @@ async function chooseSuggestion(it){
       return;
     }
     if(pr && isFinite(pr.lat) && isFinite(pr.lng)){
-      addrEl.value = pr.label || basis;            // show the clean authoritative address, not the OSM blob
-      STORE.set('fl_addr',addrEl.value); addToHistory(addrEl.value);
+      if(!_addrUserTyped){   // typed again since the pick? leave their text alone (value-setter guard)
+        addrEl.value = pr.label || basis;            // show the clean authoritative address, not the OSM blob
+        STORE.set('fl_addr',addrEl.value); addToHistory(addrEl.value);
+      }
       setSearchStatus('busy','Pinpointing the parcel…');
       map.setView([pr.lat,pr.lng], 18);
       // The resolver already isolated the CORRECT unit (owner + label + unique folio). Pass that folio
@@ -34467,6 +34926,9 @@ async function chooseSuggestion(it){
          click-a-suggestion path mid-flight. Sharing resolverCtx() is what stops that recurring. */
       await runLookup(pr.lat, pr.lng, resolverCtx(searchCtx, pr, cty));
       if(stale()) return;
+      { const _mm = await placeMismatchHTML(fullAddr||basis, pr.lat, pr.lng);
+        if(stale()) return;
+        if(_mm){ results.insertAdjacentHTML('afterbegin', _mm); return; } }
       /* Same banner the FIND button uses. This used to be a hard-coded warning tier, so every
          click-a-suggestion search — including a folio-exact one — came back red asking you to
          confirm the marker. The place check decides the tier now; `fullAddr` is the address the
@@ -34508,6 +34970,7 @@ async function chooseSuggestion(it){
   map.setView([qLat,qLng], 18);
   await runLookup(qLat,qLng, searchCtx);
   if(stale()) return;
+  if(!_lookupFoundParcel()){ await _showNoParcel(fullAddr||basis, qLat, qLng, stale); return; }
   results.insertAdjacentHTML('afterbegin', geocoderMatchBanner(it.label, _snapMatched, ''));
 }
 
@@ -34537,6 +35000,7 @@ addrEl.addEventListener('input',()=>{
   sugTimer=setTimeout(async()=>{
     lastSugQ=q;
     const seq=++sugSeq;
+    const _sugSearchAt=searchSeq;
     // Cancel any still-in-flight request from a previous keystroke so it doesn't waste mobile data.
     if(sugAbort){ try{ sugAbort.abort(); }catch(e){} }
     sugAbort = (typeof AbortController!=='undefined') ? new AbortController() : null;
@@ -34545,6 +35009,7 @@ addrEl.addEventListener('input',()=>{
     try{ items=await fetchSuggestions(q, sugAbort?sugAbort.signal:undefined); }
     catch(e){ if(e&&e.name==='AbortError') return; }   // superseded — newer keystroke owns the UI
     if(seq!==sugSeq) return;              // a newer keystroke superseded this
+    if(searchSeq!==_sugSearchAt) return;  // a search started while this was loading — stay closed
     if(addrEl.value.trim().length<4){ hideSuggest(); return; }
     if(!items.length){ setSugMsg('no matches — try adding a city or ZIP, or tap the map'); return; }
     renderSuggest(items);
@@ -34614,8 +35079,8 @@ addrEl.addEventListener('input', () => {
    fires no focus event. The only way back was to click somewhere else and return.
    Clearing now shows Recent, which is what an empty search box is for. */
 const _clearAddrBox = () => {
+  _addrUserTyped = false;      // box is being emptied — nothing left to protect (must precede the write)
   addrEl.value = '';
-  _addrUserTyped = false;      // box is empty — nothing left to protect
   updateClearBtn();
   hideSuggest();
   addrEl.focus();
@@ -34645,10 +35110,11 @@ const histEl = document.getElementById('historyDrop');
 const HIST_KEY = 'fl_search_history';
 const HIST_MAX = 8;
 
-function getHistory(){ try{ return JSON.parse(STORE.get(HIST_KEY)||'[]'); }catch(e){ return []; } }
+function getHistory(){ try{ const h=JSON.parse(STORE.get(HIST_KEY)||'[]'); return Array.isArray(h)?[...new Set(h.map(_cleanAddr).filter(Boolean))]:[]; }catch(e){ return []; } }
 function saveHistory(arr){ STORE.set(HIST_KEY, JSON.stringify(arr)); }
 
 function addToHistory(label){
+  label=_cleanAddr(label);
   if(!label || label.length < 5) return;
   let h = getHistory().filter(x => x !== label);
   h.unshift(label);
@@ -34721,6 +35187,7 @@ histEl.addEventListener('mousedown', e => {
   const h = getHistory();
   const addr = h[+row.dataset.i];
   if(!addr) return;
+  _addrUserTyped = false;      // explicit pick — see the value-setter guard
   addrEl.value = addr;
   updateClearBtn();
   STORE.set('fl_addr', addr);
@@ -34739,6 +35206,49 @@ addrEl.addEventListener('click', () => {
   if(!addrEl.value.trim() && !histEl.classList.contains('show')) showHistory();
 });
 addrEl.addEventListener('blur', () => setTimeout(hideHistory, 150));
+/* ── DON'T LET BACKGROUND WORK TAKE THE CURSOR OUT OF THE BOX (29 Oct 2026) ──────────────────
+   Reported: "when I type in an address sometimes my cursor will leave the box." Something in a
+   still-running lookup (a panel that opens and focuses its own field, a re-render, a map update)
+   can take focus while you are mid-word, and the next keystrokes go nowhere.
+   Rule: if the box loses focus WITHOUT a user gesture — no tap/click anywhere and no Tab/Escape in
+   the last 400 ms — while you typed in it within the last 3 s, put focus straight back with the
+   caret/selection where it was. Anything the user actually does (tapping the map, a result card,
+   another field, tabbing away) is a gesture, so it is never fought. The unit picker is exempt: it
+   opens on purpose and owns its own filter field. Each refocus logs which element took focus, so
+   if this ever fires the culprit is named in the console rather than guessed at. */
+(function(){
+  let _lastGesture=0, _lastType=0, _sel=null;
+  const _g=()=>{ _lastGesture=Date.now(); };
+  document.addEventListener('pointerdown', _g, true);
+  document.addEventListener('mousedown',  _g, true);
+  document.addEventListener('touchstart', _g, {capture:true, passive:true});
+  document.addEventListener('keydown', e=>{ if(e.key==='Tab'||e.key==='Escape') _g(); }, true);
+  const _remember=()=>{ try{ _sel=[addrEl.selectionStart, addrEl.selectionEnd]; }catch(e){ _sel=null; } };
+  addrEl.addEventListener('input', ()=>{ _lastType=Date.now(); _remember(); });
+  addrEl.addEventListener('keyup', _remember);
+  addrEl.addEventListener('select', _remember);
+  addrEl.addEventListener('blur', ()=>{
+    const now=Date.now();
+    if(now-_lastType > 3000) return;          // not mid-typing
+    if(now-_lastGesture < 400) return;        // the user moved focus themselves
+    setTimeout(()=>{
+      const ae=document.activeElement;
+      if(ae===addrEl) return;
+      /* Only when another ELEMENT took focus. Focus falling to <body> is what the iPhone keyboard's
+         "Done" key (and hiding the keyboard) does — that's the user leaving on purpose, and pulling
+         the keyboard back up would be maddening. A thief, by contrast, focuses something specific. */
+      if(!ae || ae===document.body || ae===document.documentElement) return;
+      if(Date.now()-_lastGesture < 400) return;
+      const um=document.getElementById('unitModal');
+      if(um && um.classList.contains('show')) return;   // the unit picker opened on purpose
+      try{ console.info('[addr] focus taken by', ae, '— returning it to the address box'); }catch(e){}
+      try{
+        addrEl.focus({preventScroll:true});
+        if(_sel && _sel[0]!=null){ const n=addrEl.value.length; addrEl.setSelectionRange(Math.min(_sel[0],n), Math.min(_sel[1],n)); }
+      }catch(e){}
+    },0);
+  });
+})();
 document.getElementById('liveTest').onclick=()=>{ testLiveSource(); showLiveDiagnostic(); };
 document.getElementById('diagBtn').onclick=diagnoseLiveFeeds;
 document.getElementById('liveUrl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();testLiveSource();}});
@@ -35043,8 +35553,8 @@ window.Sheet=Sheet;
     if(meta) meta.setAttribute('content', effectiveDark()?'#00263E':'#EEF2F5');
   }
   function apply(mode){
-    if(mode==='auto'){ root.removeAttribute('data-theme'); STORE.del('aog_theme'); }
-    else { root.setAttribute('data-theme',mode); STORE.set('aog_theme',mode); }
+    if(mode==='auto'){ root.removeAttribute('data-theme'); STORE.del('aog-theme'); }
+    else { root.setAttribute('data-theme',mode); STORE.set('aog-theme',mode); }
     paint();
   }
   btn.addEventListener('click',()=>{
@@ -35445,7 +35955,7 @@ window.Sheet=Sheet;
 })();
 
 (async function restore(){
-  const a=STORE.get('fl_addr'); if(a){ document.getElementById('addr').value=a; updateClearBtn(); }
+  const a=STORE.get('fl_addr'); if(a){ document.getElementById('addr').value=a; STORE.set('fl_addr',a); updateClearBtn(); }
   // WARM THE COLLIER FILE EARLY: Collier's sqft (and per-unit condo data) comes from the ~4.6MB
   // compact file, unlike Lee/Sarasota/Charlotte which read sqft straight from their live layers. On a
   // cold session the first Collier search raced that download and painted a lean card (no sqft) until

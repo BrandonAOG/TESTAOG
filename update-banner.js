@@ -11,6 +11,24 @@
 //  That's the only file you need to touch when you update.
 // ============================================================
 
+// ── ONE dark/light setting for every tool (added 2026-10-29) ───
+// Every tool now saves the choice under the single key 'aog-theme'
+// ('dark' / 'light'; no value = follow the phone's setting). Before this,
+// tools used nine different keys, so dark mode chosen in one tool didn't
+// carry to the next. This copies a tech's last choice from the old keys
+// once, so nobody loses their setting on the update.
+(function () {
+  try {
+    if (localStorage.getItem('aog-theme')) return;
+    var OLD = ['aog_forms_theme_preference', 'aog_theme_preference', 'aog_maint_theme', 'aog_gas_theme',
+               'aog_breaker_theme', 'aog_spec_theme', 'aog_annotator_theme', 'aog_concrete_theme', 'aog_theme'];
+    for (var i = 0; i < OLD.length; i++) {
+      var v = localStorage.getItem(OLD[i]);
+      if (v === 'dark' || v === 'light') { localStorage.setItem('aog-theme', v); return; }
+    }
+  } catch (e) { /* storage blocked — tools fall back to the phone's setting */ }
+})();
+
 // ── Lightweight error log ─────────────────────────────────────
 // Records the last 10 JS errors (per device) so the Hub's
 // "Report a Bug" email can attach them automatically. Stored in
