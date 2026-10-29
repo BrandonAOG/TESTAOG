@@ -30,9 +30,9 @@
 var SEASONAL_THEMES = {
   // ── Specific holidays first (narrow ranges take priority over broad seasons) ──
   'newyear':     {'start':{month:1,day:1},'end':{month:1,day:7}},
-  'valentines':  {'start':{month:2,day:1},'end':{month:2,day:28}},
-  'stpatricks':  {'start':{month:3,day:1},'end':{month:3,day:31}},
-  'easter':      {'start':{month:3,day:25},'end':{month:4,day:20}},
+  'valentines':  {'start':{month:2,day:7},'end':{month:2,day:15}},
+  'stpatricks':  {'start':{month:3,day:10},'end':{month:3,day:24}},   // a week either side of Mar 17
+  'easter':      {'start':{month:3,day:25},'end':{month:4,day:20}},   // placeholder — replaced each year with the REAL Easter window (see easterWindow below)
   'mothersday':  {'start':{month:5,day:1},'end':{month:5,day:14}},
   'memorialday': {'start':{month:5,day:25},'end':{month:5,day:31}},
   'fathersday':  {'start':{month:6,day:1},'end':{month:6,day:20}},
@@ -45,13 +45,30 @@ var SEASONAL_THEMES = {
   'thanksgiving':{'start':{month:11,day:1},'end':{month:11,day:30}},
   'christmas':   {'start':{month:12,day:1},'end':{month:12,day:31}},
   // ── Broad seasons last (catch-all fallbacks) ──
+  'winter':      {'start':{month:1,day:8},'end':{month:3,day:19}},   // shows around New Year / Valentine's / St. Patrick's
   'spring':      {'start':{month:3,day:20},'end':{month:6,day:20}},
   'summer':      {'start':{month:6,day:21},'end':{month:9,day:22}},
   'fall':        {'start':{month:9,day:23},'end':{month:10,day:31}}
 };
 
+// Easter moves every year. Western (Gregorian) Easter Sunday — the standard
+// "Anonymous Gregorian" computus — then the theme runs 10 days before to 7 after.
+function easterSunday(y) {
+  var a=y%19, b=Math.floor(y/100), c=y%100, d=Math.floor(b/4), e=b%4, f=Math.floor((b+8)/25),
+      g=Math.floor((b-f+1)/3), h=(19*a+b-d-g+15)%30, i=Math.floor(c/4), k=c%4,
+      l=(32+2*e+2*i-h-k)%7, m=Math.floor((a+11*h+22*l)/451),
+      month=Math.floor((h+l-7*m+114)/31), day=((h+l-7*m+114)%31)+1;
+  return new Date(y, month-1, day);
+}
+function easterWindow(y) {
+  var e=easterSunday(y), s=new Date(e), t=new Date(e);
+  s.setDate(e.getDate()-10); t.setDate(e.getDate()+7);
+  return {'start':{month:s.getMonth()+1,day:s.getDate()},'end':{month:t.getMonth()+1,day:t.getDate()}};
+}
+
 function getCurrentSeasonalTheme() {
   var today=new Date(), month=today.getMonth()+1, date=today.getDate();
+  SEASONAL_THEMES.easter = easterWindow(today.getFullYear());
   for (var key in SEASONAL_THEMES) {
     var theme = SEASONAL_THEMES[key], start=theme.start, end=theme.end;
     var isActive = false;
@@ -993,6 +1010,42 @@ function createSeasonalCanvas(theme) {
       tick: function(p) {
         p.rot+=p.rotSpeed; p.x+=p.vx; p.y+=p.vy;
         if(p.y>H+20){p.y=-10;p.x=Math.random()*W;}
+      }
+    },
+    winter: {
+      // Quiet snowfall: soft white & ice-blue flakes drifting down, a few big slow ones
+      count: 60,
+      make: function() {
+        var big = Math.random() < 0.15;
+        return {
+          x: Math.random()*W, y: Math.random()*H,
+          vx: (Math.random()-0.5)*0.4, vy: big ? 0.35+Math.random()*0.4 : 0.6+Math.random()*1.0,
+          size: big ? 9+Math.random()*6 : 3+Math.random()*5,
+          opacity: big ? 0.35+Math.random()*0.25 : 0.45+Math.random()*0.5,
+          wobble: Math.random()*Math.PI*2, wobbleSpeed: 0.008+Math.random()*0.02,
+          rot: Math.random()*Math.PI, rotSpeed: (Math.random()-0.5)*0.02,
+          color: ['#ffffff','#bae6fd','#93c5fd','#7dd3fc'][Math.floor(Math.random()*4)] // blues stay visible on light pages
+        };
+      },
+      draw: function(p) {
+        ctx.save(); ctx.globalAlpha=p.opacity;
+        ctx.strokeStyle=p.color; ctx.lineWidth=p.size>8?1.4:1.1;
+        ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+        var s=p.size;
+        for (var i=0;i<6;i++) {
+          ctx.save(); ctx.rotate(i*Math.PI/3);
+          ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,s); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0,s*0.45); ctx.lineTo(s*0.22,s*0.68); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0,s*0.45); ctx.lineTo(-s*0.22,s*0.68); ctx.stroke();
+          ctx.restore();
+        }
+        ctx.restore();
+      },
+      tick: function(p) {
+        p.wobble+=p.wobbleSpeed; p.rot+=p.rotSpeed;
+        p.x+=p.vx+Math.sin(p.wobble)*0.4; p.y+=p.vy;
+        if (p.y>H+20) { p.y=-12; p.x=Math.random()*W; }
+        if (p.x<-20) p.x=W+10; if (p.x>W+20) p.x=-10;
       }
     },
     christmas: {

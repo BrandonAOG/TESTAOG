@@ -88,6 +88,8 @@ var CHANGELOG = [
 '🔊 ANDROID & COMPUTER — sound can start as soon as the app opens',
 '🎃 HALLOWEEN — spookier background sounds on the forms (now with wolves)',
 '🎄 CHRISTMAS — crackling fireplace, sleigh bells, music box, church chimes & Santa',
+'❄️ WINTER — new icy-blue snowfall theme from Jan 8 until spring; Valentine\'s now Feb 7–15, St. Patrick\'s Mar 10–24',
+'🐣 EASTER — now follows the real Easter date each year (10 days before to 7 after)',
 ];
 //
 // ============================================================

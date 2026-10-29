@@ -1769,6 +1769,8 @@
       oscLoopNode('sine', 220, 0.007); oscLoopNode('sine', 233.1, 0.006);
       noiseLoopNode('bandpass', 280, 0.7, 0.018, true);
     },
+    // Winter bed: a soft, cold wind under the window — quieter than Halloween's
+    winterwind: function () { noiseLoopNode('bandpass', 520, 0.6, 0.010, true); noiseLoopNode('bandpass', 1400, 0.9, 0.003, true); },
     // Christmas bed: a fire in the hearth (low roar + crackle pops) with a soft
     // winter wind outside the window.
     hearth: function () {
@@ -1854,6 +1856,7 @@
                                         ['chimes', 60000, 120000], ['hohoho', 70000, 150000]] },
     newyear:      { occ: [['explosion', 9000, 20000], ['fanfare', 30000, 70000]] },
     fall:         { occ: [['wind', 8000, 18000]] },
+    winter:       { loop: 'winterwind', occ: [['wind', 12000, 24000], ['snowsteps', 50000, 100000]] },
     thanksgiving: { occ: [['wind', 10000, 20000]] },
     spring:       { occ: [['chirp', 5000, 12000]] },
     easter:       { occ: [['chirp', 6000, 14000]] },
@@ -2043,7 +2046,7 @@
         flair = ({ fourthofjuly: '\uD83C\uDF86 ', halloween: '\uD83C\uDF83 ', christmas: '\uD83C\uDF84 ',
                    newyear: '\uD83C\uDF89 ', valentines: '\uD83D\uDC96 ', stpatricks: '\uD83C\uDF40 ',
                    spring: '\uD83C\uDF38 ', easter: '\uD83D\uDC23 ', summer: '\u2600\uFE0F ',
-                   fall: '\uD83C\uDF42 ', thanksgiving: '\uD83E\uDD83 ', backtoschool: '\uD83D\uDCDA ' })[m[1]] || '';
+                   fall: '\uD83C\uDF42 ', winter: '\u2744\uFE0F ', thanksgiving: '\uD83E\uDD83 ', backtoschool: '\uD83D\uDCDA ' })[m[1]] || '';
       }
 
       var back = document.createElement('div');

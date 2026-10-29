@@ -21,7 +21,7 @@ A mobile-first Progressive Web App (PWA) built for Always On Generators field te
 - **One dark / light setting** shared by every tool (Load Calc has a single fixed look)
 - **Forms export a resumable PDF and an image** — and reload from that PDF later; holiday themes never appear in exports
 - **Auto-saved drafts** on every form — close the app mid-job and pick up where you left off
-- **Holiday themes** on the 8 forms (falling snow, bats, fireworks…) and **50 animated hub backgrounds**
+- **Holiday themes** on the 8 forms (falling snow, bats, fireworks…) all year round and **50 animated hub backgrounds**
 - **Built-in sounds and vibration** — tap sounds, holiday ambience — adjustable in Sound Settings
 - **Report a Bug / Suggestions / Share App** — bug emails attach device details and recent errors automatically
 
@@ -411,10 +411,11 @@ Themes run on the 8 forms. The first matching theme in the list wins, so some da
 | Theme | Dates in code | Shows | Background sounds |
 |---|---|---|---|
 | New Year | Jan 1–7 | Jan 1–7 | Fireworks, fanfare |
-| Valentine's | Feb 1–28 | Feb 1–28 | Harp |
-| St. Patrick's | Mar 1–31 | Mar 1–31 | Harp |
-| Easter | Mar 25–Apr 20 | Apr 1–20 | Birdsong |
-| Spring | Mar 20–Jun 20 | Apr 21–30, May 15–24 | Birdsong |
+| Winter | Jan 8–Mar 19 | Jan 8–Feb 6, Feb 16–Mar 9 | Soft cold wind, gusts, footsteps in snow |
+| Valentine's | Feb 7–15 | Feb 7–15 | Harp |
+| St. Patrick's | Mar 10–24 | Mar 10–24 | Harp |
+| Easter | 10 days before → 7 days after the real Easter Sunday (worked out each year) | 2026: Mar 26–Apr 12 · 2027: Mar 25–Apr 4 | Birdsong |
+| Spring | Mar 20–Jun 20 | Late March / April days outside Easter, May 15–24 | Birdsong |
 | Mother's Day | May 1–14 | May 1–14 | — |
 | Memorial Day | May 25–31 | May 25–31 | — |
 | Father's Day | Jun 1–20 | Jun 1–20 | — |
@@ -429,7 +430,7 @@ Themes run on the 8 forms. The first matching theme in the list wins, so some da
 | Thanksgiving | Nov 1–30 | Nov 1–30 (except Nov 11) | Wind |
 | Christmas | Dec 1–31 | Dec 1–31 | Crackling fireplace, sleigh bells, snowy footsteps, music box, church chimes, "Ho ho ho" |
 
-Jan 8–31 has no theme. Holiday sounds need **Seasonal & Fireworks** on in Sound Settings and don't play in Vibrate-only mode.
+Winter fills the gaps around New Year, Valentine's and St. Patrick's with icy blue colors and quiet snowfall. Holiday sounds need **Seasonal & Fireworks** on in Sound Settings and don't play in Vibrate-only mode.
 
 ---
 
