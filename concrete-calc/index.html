@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Concrete Calculator</title>
+<title>Always On Generators – Concrete Calculator</title>
+<script src="../sounds.js" defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -54,6 +55,14 @@ body.light-mode .shape-tabs,
 body.light-mode .panel,
 body.light-mode .results { background: #FAFAFA; border-color: rgba(217,119,6,0.22); }
 body.light-mode .shape-tab { background: rgba(217,119,6,0.05); }
+/* keep the selected tab clearly orange with readable dark text in light mode */
+body.light-mode .shape-tab.active,
+body.light-mode .unit-btn.active {
+  color: #FFFFFF;
+  background: linear-gradient(135deg, #F59E0B, #EA580C);
+  border-color: transparent;
+  box-shadow: 0 0 16px rgba(234,88,12,0.35), 0 4px 10px rgba(0,0,0,0.15);
+}
 body.light-mode .input-wrap input,
 body.light-mode .select-wrap select { background: #FFFFFF; border-color: rgba(31,41,55,0.16); color: var(--text); }
 body.light-mode .input-wrap input::placeholder { color: rgba(107,114,128,0.55); }
@@ -127,8 +136,10 @@ body.light-mode .theme-icon.theme-icon-moon { opacity: 1; transform: rotate(0deg
 .header-rule { height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(251,191,36,0.5) 25%, rgba(249,115,22,0.5) 50%, rgba(0,212,255,0.35) 75%, transparent 100%); margin-bottom: 30px; position: relative; }
 .header-rule::before { content: 'AOG'; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); background: var(--bg-dark); padding: 0 14px; font-family: var(--font-display); font-size: 0.5rem; font-weight: 700; letter-spacing: 4px; color: rgba(251,191,36,0.5); }
 .logo-wrap { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 14px; }
-.logo-icon { width: 64px; height: 64px; flex-shrink: 0; filter: drop-shadow(0 0 12px rgba(251,191,36,0.5)) drop-shadow(0 0 22px rgba(249,115,22,0.35)); animation: logoPulse 3s ease-in-out infinite; }
-@keyframes logoPulse { 0%,100% { filter: drop-shadow(0 0 12px rgba(251,191,36,0.5)) drop-shadow(0 0 22px rgba(249,115,22,0.35)); } 50% { filter: drop-shadow(0 0 18px rgba(251,191,36,0.75)) drop-shadow(0 0 34px rgba(249,115,22,0.55)); } }
+.logo-img { width: 72px; height: 72px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 0 12px rgba(251,191,36,0.6)) drop-shadow(0 0 24px rgba(249,115,22,0.4)) brightness(1.1); animation: logoPulse 3s ease-in-out infinite; }
+@media (min-width: 480px) { .logo-img { width: 90px; height: 90px; } }
+.title-block { text-align: left; min-width: 0; }
+@keyframes logoPulse { 0%,100% { filter: drop-shadow(0 0 12px rgba(251,191,36,0.6)) drop-shadow(0 0 24px rgba(249,115,22,0.4)) brightness(1.1); } 50% { filter: drop-shadow(0 0 18px rgba(251,191,36,0.8)) drop-shadow(0 0 36px rgba(249,115,22,0.6)) brightness(1.2); } }
 .company-name { font-family: var(--font-display); font-size: clamp(1.4rem, 5vw, 2.1rem); font-weight: 900; letter-spacing: clamp(2px,0.5vw,4px); line-height: 1.05; background: linear-gradient(135deg, #fff 0%, var(--yellow-bright) 35%, var(--orange) 75%, var(--orange-deep) 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 .tagline { font-family: var(--font-mono); font-size: clamp(0.5rem,1.3vw,0.68rem); letter-spacing: 4px; color: var(--blue-electric); text-transform: uppercase; opacity: 0.75; margin-top: 6px; }
 .subtitle { display: inline-flex; align-items: center; gap: 12px; margin-top: 18px; font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 5px; color: var(--text-dim); text-transform: uppercase; opacity: 0.7; }
@@ -258,18 +269,13 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
   <div class="header">
     <div class="header-rule"></div>
     <div class="logo-wrap">
-      <svg class="logo-icon" viewBox="0 0 64 64" fill="none">
-        <rect x="10" y="26" width="44" height="24" rx="2" stroke="url(#lg)" stroke-width="2.5"/>
-        <path d="M10 26 L20 14 L54 14 L54 26" stroke="url(#lg)" stroke-width="2.5" stroke-linejoin="round"/>
-        <path d="M20 14 L20 26 M32 14 L32 26 M44 14 L44 26" stroke="url(#lg)" stroke-width="1.8" opacity="0.6"/>
-        <path d="M16 38 h32 M16 44 h24" stroke="var(--blue-electric)" stroke-width="1.6" opacity="0.7"/>
-        <defs><linearGradient id="lg" x1="0" y1="0" x2="64" y2="64"><stop stop-color="#FBBF24"/><stop offset="1" stop-color="#EA580C"/></linearGradient></defs>
-      </svg>
-      <div>
-        <div class="company-name">Concrete<br>Calculator</div>
+      <img src="../logo.png" alt="Always On Generators Logo" class="logo-img">
+      <div class="title-block">
+        <div class="company-name">Always On<br>Generators</div>
+        <div class="tagline">// Power When You Need It //</div>
       </div>
     </div>
-    <div class="subtitle">Volume &amp; <span>Bag Estimator</span></div>
+    <div class="subtitle">Concrete <span>Calculator</span></div>
   </div>
 
   <div class="unit-toggle" id="unit-toggle">

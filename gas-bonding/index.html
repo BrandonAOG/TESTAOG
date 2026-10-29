@@ -1055,7 +1055,6 @@ const EGC = [[15,'14','12'],[20,'12','10'],[60,'10','8'],[100,'8','6'],[200,'6',
 const CU_ORDER = ['14','12','10','8','6','4','3','2','1','1/0','2/0','3/0','4/0','250','300','350','400','500','600','700','750','800'];
 const awg = s => /^\d+$/.test(s) && +s >= 250 ? s + ' kcmil' : s + ' AWG';
 const $ = id => document.getElementById(id);
-const play = s => { if (window.AOGSound) AOGSound.play(s); };
 
 // ── THEME ──────────────────────────────────────────────────
 let darkMode = false;
@@ -1087,14 +1086,14 @@ document.querySelectorAll('[data-tog]').forEach(row => row.addEventListener('cli
     $('mainRun').querySelector('[value=csst]').text = TOG.fuel === 'lp' ? 'CSST from the house regulator, through the wall' : 'CSST from the meter, through the wall';
     renderApps();
   }
-  play('tink'); calc();
+  calc();
 }));
-document.querySelectorAll('#pipeList input').forEach(i => i.addEventListener('change', () => { play('tink'); renderApps(); calc(); }));
+document.querySelectorAll('#pipeList input').forEach(i => i.addEventListener('change', () => { renderApps(); calc(); }));
 $('jLen').addEventListener('input', calc);
 ['ugMetal'].forEach(id => $(id).addEventListener('change', calc));
 const csstSel = () => [...document.querySelectorAll('#pipeList input:checked')].some(i => i.dataset.p === 'csst' || i.dataset.p === 'ar');
 let mainRunSet = false;   // until the user picks one, the attic run follows the CSST checkboxes (FL: rigid up the wall, CSST across the attic)
-$('mainRun').addEventListener('change', () => { mainRunSet = true; play('tink'); calc(); });
+$('mainRun').addEventListener('change', () => { mainRunSet = true; calc(); });
 const pipes = () => new Set([...document.querySelectorAll('#pipeList input:checked')].map(i => i.dataset.p));
 
 // Appliances: k, label, short (drawing), default location, default has power (EGC)
@@ -1128,7 +1127,7 @@ $('appAdd').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   const t = APP_TYPES.find(x => x.k === b.dataset.k);
   apps.push({ id: ++appId, k: t.k, n: t.n, short: t.s, loc: t.loc, egc: t.egc, note: t.note || '', feed: defFeed(t.loc) });
-  renderApps(); play('tink'); calc();
+  renderApps(); calc();
 });
 function renderApps() {
   $('appList').innerHTML = apps.map(a => `<div class="app-row" data-id="${a.id}">
@@ -1145,7 +1144,7 @@ $('appList').addEventListener('change', e => {
 });
 $('appList').addEventListener('click', e => {
   const b = e.target.closest('.remove-btn'); if (!b) return;
-  apps = apps.filter(x => x.id !== +b.closest('.app-row').dataset.id); renderApps(); play('tink'); calc();
+  apps = apps.filter(x => x.id !== +b.closest('.app-row').dataset.id); renderApps(); calc();
 });
 
 let summary = '';
@@ -1507,7 +1506,7 @@ function draw(o) {
 
 // ── COPY ───────────────────────────────────────────────────
 function copyNotes() {
-  const done = () => { const t = $('toast'); t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 1400); play('tink'); };
+  const done = () => { const t = $('toast'); t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 1400); };
   if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(summary).then(done, fb); else fb();
   function fb() { const ta = document.createElement('textarea'); ta.value = summary; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (e) {} ta.remove(); }
 }
@@ -1519,7 +1518,7 @@ function refTab(t) {
 }
 function openRef(t) {
   $('egcT').innerHTML = EGC.map(r => `<tr><td>${r[0]}</td><td>${awg(r[1])}</td><td>${awg(r[2])}</td></tr>`).join('');
-  refTab(t || 'n'); $('refModal').classList.add('open'); document.body.classList.add('modal-open'); play('tink');
+  refTab(t || 'n'); $('refModal').classList.add('open'); document.body.classList.add('modal-open');
 }
 function closeRef() { $('refModal').classList.remove('open'); document.body.classList.remove('modal-open'); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRef(); });

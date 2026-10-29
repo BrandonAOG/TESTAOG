@@ -1114,12 +1114,10 @@ function addItem(kind, preset) {
       </div>`;
   }
   $('itemList').appendChild(el);
-  if (window.AOGSound && !preset.silent) AOGSound.play('tink');
   calculate(true);
 }
 function removeItem(id) {
   const el = $('item-' + id); if (el) el.remove();
-  if (window.AOGSound) AOGSound.play('tink');
   calculate(true);
 }
 
@@ -1175,7 +1173,6 @@ function calculate(auto) {
   $('trEmpty').style.display = items.length ? 'none' : '';
   if (!items.length) { res.style.display = 'none'; return; }
   if (auto && res.style.display === 'none') return;
-  if (!auto && window.AOGSound) AOGSound.play('clunk');
   res.style.display = 'block';
 
   const warns = [], notes = new Map();
@@ -1372,7 +1369,7 @@ function refTab(t) {
   document.querySelectorAll('.modal-tab').forEach(x => x.classList.toggle('active', x.dataset.tab === t));
   document.querySelectorAll('.modal-pane').forEach(x => x.classList.toggle('active', x.id === 'pane-' + t));
 }
-function openRef(t) { buildRefTable(); refTab(t || 'e'); $('refModal').classList.add('open'); document.body.classList.add('modal-open'); if (window.AOGSound) AOGSound.play('tink'); }
+function openRef(t) { buildRefTable(); refTab(t || 'e'); $('refModal').classList.add('open'); document.body.classList.add('modal-open'); }
 function closeRef() { $('refModal').classList.remove('open'); document.body.classList.remove('modal-open'); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRef(); });
 

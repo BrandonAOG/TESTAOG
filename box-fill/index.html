@@ -1173,7 +1173,6 @@ function largerSize(a, b) { if (!a) return b; if (!b) return a; return sizeIdx(a
 
 // ── BOX MODE ───────────────────────────────────────────────
 function setBoxMode(mode) {
-  if (mode !== boxMode && window.AOGSound) AOGSound.play(mode === 'std' ? 'clunk' : 'tink');
   boxMode = mode;
   $('tog-std').classList.toggle('active', mode === 'std');
   $('tog-custom').classList.toggle('active', mode === 'custom');
@@ -1218,7 +1217,6 @@ function addWire(size, qty, type) {
     <div class="span-m"><label>How It's Counted</label><select class="w-type" onchange="calculate(true)">${typeOpts}</select></div>
     <button class="remove-btn" onclick="removeRow('wire-${id}')" title="Remove">×</button>`;
   $('wireList').appendChild(row);
-  if (window.AOGSound && size === undefined) AOGSound.play('tink');
   calculate(true);
 }
 
@@ -1239,7 +1237,6 @@ function addDevice(type, size, gangs) {
 
 function removeRow(id) {
   const el = $(id); if (el) el.remove();
-  if (window.AOGSound) AOGSound.play('tink');
   calculate(true);
 }
 
@@ -1374,7 +1371,6 @@ function calculate(auto) {
 
   const res = $('results');
   if (auto && res.style.display === 'none') return;
-  if (!auto && window.AOGSound) AOGSound.play('clunk');
 
   const r = computeRequired(st);
   const pct = avail > 0 ? (r.total / avail) * 100 : 0;
@@ -1483,7 +1479,6 @@ function openRef(t) {
   refTab(t || 'a');
   $('refModal').classList.add('open');
   document.body.classList.add('modal-open');
-  if (window.AOGSound) AOGSound.play('tink');
 }
 function closeRef() {
   $('refModal').classList.remove('open');

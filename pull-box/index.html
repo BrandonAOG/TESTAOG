@@ -1269,13 +1269,11 @@ function addRun(inWall, inRow, inSize, outWall, outRow, outSize, spliced) {
       <div><label>Trade Size</label><select class="r-out-size" onchange="calculate(true)">${sizeOptions(outSize || '')}</select></div>
     </div>`;
   $('entryList').appendChild(el);
-  if (window.AOGSound && inWall === undefined) AOGSound.play('tink');
   calculate(true);
   return id;
 }
 function removeRun(id) {
   const el = $('run-' + id); if (el) el.remove();
-  if (window.AOGSound) AOGSound.play('tink');
   calculate(true);
 }
 
@@ -1935,7 +1933,6 @@ function calculate(auto) {
 
   const res = $('results');
   if (auto && res.style.display === 'none') return;
-  if (!auto && window.AOGSound) AOGSound.play('clunk');
   res.style.display = 'block';
 
   const r = compute(st);
@@ -2063,7 +2060,6 @@ function openRef(t) {
   refTab(t || 'r');
   $('refModal').classList.add('open');
   document.body.classList.add('modal-open');
-  if (window.AOGSound) AOGSound.play('tink');
 }
 function closeRef() {
   $('refModal').classList.remove('open');

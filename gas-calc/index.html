@@ -34,13 +34,13 @@ body.light{
   --ok:#15803D;--bad:#B91C1C;--warn:#C2410C;--chip:#EEF1F6;--chipOn:#FEF3C7;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{overflow-x:hidden}
+html,body{overflow-x:hidden;overflow-x:clip}
 body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:16px;line-height:1.4;-webkit-text-size-adjust:100%}
 button{font:inherit;color:inherit}
 .wrap{max-width:760px;margin:0 auto;padding:0 16px 120px}
 
 /* top bar */
-.bar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:10px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top));background:var(--bg);border-bottom:1px solid var(--line)}
+.bar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;gap:10px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top));background:var(--bg);border-bottom:1px solid var(--line)}
 .bar a,.bar button{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 14px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);text-decoration:none;font-weight:600;font-size:.9rem;cursor:pointer}
 .bar .title{flex:1;text-align:center;font-family:var(--disp);font-weight:900;font-size:.95rem;letter-spacing:1px;color:var(--accent)}
 .bar .title small{display:block;font-family:var(--font);font-weight:600;font-size:.72rem;letter-spacing:.5px;color:var(--dim)}
@@ -59,10 +59,30 @@ button{font:inherit;color:inherit}
 .chip small{display:block;font-weight:500;font-size:.72rem;color:var(--dim)}
 .grp-label{font-size:.78rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--dim);margin:14px 0 8px}
 .grp-label:first-child{margin-top:0}
+.mchk{margin:12px 16px;padding:12px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--chip)}
+.mchk .mh{display:flex;justify-content:space-between;gap:8px;font-size:.78rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--dim)}
+.mchk .mv{font-size:1.15rem;font-weight:800;margin:4px 0 2px}
+.mchk .mbar{height:10px;border-radius:6px;background:rgba(127,127,127,.18);overflow:hidden;margin:8px 0 6px}
+.mchk .mbar i{display:block;height:100%;border-radius:6px}
+.mchk .cap{font-size:.86rem;color:var(--dim);line-height:1.45}
+.mchk.ok{border-color:rgba(16,185,129,.55)}.mchk.ok .mv{color:#10B981}.mchk.ok .mbar i{background:#10B981}
+.mchk.tight{border-color:rgba(245,158,11,.7)}.mchk.tight .mv{color:#F59E0B}.mchk.tight .mbar i{background:#F59E0B}
+.mchk.bad{border-color:rgba(239,68,68,.7);background:rgba(239,68,68,.08)}.mchk.bad .mv{color:#EF4444}.mchk.bad .mbar i{background:#EF4444}
+body.light .mchk.ok .mv{color:#047857}body.light .mchk.tight .mv{color:#B45309}body.light .mchk.bad .mv{color:#B91C1C}
 .models .chip{min-width:92px}
 .models .chip b{font-size:1.1rem}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .seg .chip{text-align:center}
+.seg.three{grid-template-columns:1fr 1fr}
+.seg.three .chip:last-child{grid-column:1/-1}
+@media(min-width:620px){.seg.three{grid-template-columns:1fr 1fr 1fr}.seg.three .chip:last-child{grid-column:auto}}
+.regs{margin:12px 0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.regs-h{padding:8px 12px;font-family:var(--disp);font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--accent,#FBBF24);border-bottom:1px solid var(--line)}
+.regs table{width:100%;border-collapse:collapse;font-size:.86rem}
+.regs th,.regs td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line)}
+.regs th{font-size:.7rem;letter-spacing:1px;text-transform:uppercase;opacity:.7}
+.regs tr:last-child td{border-bottom:none}
+@media(max-width:380px){.regs table{font-size:.78rem}.regs th,.regs td{padding:7px 6px}.regs th{letter-spacing:0}}
 .seg .chip b{display:block;font-size:1rem}
 
 /* runs */
@@ -78,7 +98,9 @@ button{font:inherit;color:inherit}
 .stepper input{flex:1;min-width:0;min-height:48px;border:2px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;font-size:1.3rem;font-weight:700;text-align:center}
 .stepper input:focus,select:focus{outline:none;border-color:var(--accent)}
 .quick{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
-.quick .chip{min-height:36px;padding:4px 12px;font-size:.85rem}
+.quick .chip{min-height:38px;min-width:48px;padding:4px 10px;font-size:.85rem;text-align:center}
+.quick{display:grid;grid-template-columns:repeat(8,minmax(0,64px))}
+@media(max-width:480px){.quick{display:grid;grid-template-columns:repeat(6,1fr)}.quick .chip{min-width:0;padding:4px 2px}}
 select{width:100%;min-height:48px;padding:0 12px;border:2px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;font-size:1rem;font-weight:600}
 
 /* more */
@@ -124,7 +146,8 @@ tr.rec td{background:var(--chipOn)}
 /* sticky mini answer (mobile) */
 .mini{position:fixed;left:0;right:0;bottom:0;z-index:60;padding:10px 16px;padding-bottom:max(10px,env(safe-area-inset-bottom));background:var(--card);border-top:2px solid var(--accent);display:flex;align-items:center;gap:12px;transform:translateY(110%);transition:transform .2s}
 .mini.show{transform:none}
-.mini .t{flex:1;font-weight:700;font-size:.95rem;min-width:0}
+.mini .t{flex:1;font-weight:700;font-size:.95rem;min-width:0;text-align:center}
+@media(min-width:600px){.mini::before{content:"";flex:0 0 76px}.mini button{min-width:76px}}
 .mini .t small{display:block;font-weight:500;color:var(--dim);font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini button{min-height:44px;padding:0 14px;border-radius:10px;border:none;background:var(--accent);color:#111;font-weight:700;cursor:pointer}
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ok);color:#fff;padding:10px 16px;border-radius:10px;font-weight:700;opacity:0;transition:opacity .2s;pointer-events:none;z-index:70}
@@ -305,13 +328,73 @@ body.light .fine{color:#7A8290}
 body.light .mini{background:rgba(255,255,255,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid #F3D9A4;box-shadow:0 -8px 24px -12px rgba(31,41,51,.2)}
 body.light .mini .t{color:#92400E}
 body.light .mini .t small{color:#64748B}
+
+body{padding-top:calc(61px + env(safe-area-inset-top))}
+
+/* Shared update banner (../update-banner.js) reads these names — map them to this page's colors */
+:root{--panel:#0f1535;--text-muted:var(--dim);--amber:var(--accent);--font-body:var(--font)}
+body.light{--panel:#FFFFFF;--text-muted:var(--dim);--amber:var(--accent)}
+/* ===== CODE REFERENCE (gr-) ===== */
+.bar > a,.bar > .gr-btn{flex:1}
+:root{--gr-solid:#0f1535;--gr-solid2:#141c42}
+body.light{--gr-solid:#FFFFFF;--gr-solid2:#F7F4EC}
+.gr-card .gr-btns{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.gr-card .gr-btns button{min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--chip);color:var(--text);font-weight:700;font-size:.85rem;cursor:pointer;padding:8px 10px}
+.gr-card .gr-btns button:hover{border-color:var(--accent)}
+.gr-bg{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:16px}
+.gr-bg.open{display:flex}
+body.gr-open{overflow:hidden}
+.gr-m{width:100%;max-width:820px;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);display:flex;flex-direction:column;background:var(--gr-solid);border:1px solid var(--accent);border-radius:14px;overflow:hidden;color:var(--text)}
+.gr-h{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.gr-h b{flex:1;font-family:var(--disp);font-size:.85rem;letter-spacing:1.5px;color:var(--accent)}
+.gr-x{width:40px;height:40px;border:1px solid var(--line);border-radius:10px;background:var(--chip);color:var(--text);font-size:1.3rem;cursor:pointer}
+.gr-tabs{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line);overflow-x:auto}
+.gr-tab{flex:1;min-width:max-content;min-height:40px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--chip);color:var(--dim);font-family:var(--mono,inherit);font-size:.78rem;letter-spacing:1px;cursor:pointer}
+.gr-tab.on{border-color:var(--accent);color:var(--accent);background:var(--chipOn)}
+.gr-b{padding:14px;overflow:auto;-webkit-overflow-scrolling:touch}
+.gr-pane{display:none}.gr-pane.on{display:block}
+.gr-f{font-size:.72rem;color:var(--dim);padding:8px 14px;border-top:1px solid var(--line);font-family:var(--mono,inherit);text-align:center}
+.gr-lbl{font-family:var(--mono,inherit);font-size:.72rem;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:12px 0 6px}
+.gr-lbl:first-child{margin-top:0}
+.gr-row{display:flex;flex-wrap:wrap;gap:6px}
+.gr-c{min-height:38px;padding:6px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--chip);color:var(--text);font-size:.85rem;font-weight:600;cursor:pointer;text-align:left}
+.gr-c small{display:block;font-size:.68rem;font-weight:500;color:var(--dim)}
+.gr-c.on{border-color:var(--accent);background:var(--chipOn)}
+.gr-meta{margin:12px 0 8px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card2);font-size:.85rem;line-height:1.5}
+.gr-meta b{color:var(--accent)}
+.gr-look{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+.gr-look input{width:100%;min-height:42px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;font-weight:700;padding:0 10px}
+.gr-look label{display:block;font-family:var(--mono,inherit);font-size:.68rem;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-bottom:4px}
+.gr-ans{min-height:1.2em;margin:4px 0 8px;font-weight:700;font-size:.9rem;color:var(--ok)}
+.gr-ans.no{color:var(--bad)}
+.gr-tw{overflow:auto;max-height:52vh;border:1px solid var(--line);border-radius:10px}
+.gr-t{border-collapse:separate;border-spacing:0;font-size:.8rem;width:100%;font-family:var(--mono,inherit)}
+.gr-t th,.gr-t td{padding:6px 8px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+.gr-t thead th{position:sticky;top:0;background:var(--gr-solid2);box-shadow:0 1px 0 var(--line);color:var(--accent);z-index:2;font-size:.72rem}
+.gr-t th:first-child,.gr-t td:first-child{position:sticky;left:0;background:var(--gr-solid2);box-shadow:1px 0 0 var(--line);text-align:left;z-index:1;color:var(--dim)}
+.gr-t thead th:first-child{z-index:3}
+.gr-t tr.hit td{background:var(--chipOn)}
+.gr-t tr.hit td:first-child{background:var(--gr-solid2);color:var(--accent);font-weight:800}
+.gr-t td.hit{outline:2px solid var(--ok);outline-offset:-2px;font-weight:800;color:var(--ok)}
+.gr-note{font-size:.8rem;color:var(--dim);margin-top:8px;line-height:1.5}
+.gr-eq{margin:8px 0 12px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--card2);text-align:center;font-family:var(--mono,inherit);font-size:.95rem;line-height:1.8;overflow-x:auto}
+.gr-eq .fr{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 4px}
+.gr-eq .fr span:first-child{border-bottom:1px solid var(--text);padding:0 6px}
+.gr-rules{display:grid;gap:8px}
+.gr-rule{padding:10px 12px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;background:var(--card2);font-size:.86rem;line-height:1.5}
+.gr-rule .r{display:block;font-family:var(--mono,inherit);font-size:.7rem;letter-spacing:1px;color:var(--accent);margin-bottom:2px}
+.gr-small{width:auto;border-collapse:collapse;font-size:.85rem;margin:6px 0}
+.gr-small td,.gr-small th{padding:6px 12px;border-bottom:1px solid var(--line);text-align:left}
+@media(max-width:520px){.gr-bg{padding:0}.gr-m{max-height:100vh;max-height:100dvh;border-radius:0;height:100%}.gr-t{font-size:.74rem}.gr-t th,.gr-t td{padding:5px 6px}}
 </style>
+<script src="../sounds.js" defer></script>
+<script src="../update-banner.js"></script>
 </head>
 <body>
 
 <div class="bar">
   <a href="../" aria-label="Home">← Home</a>
-  <div style="flex:1"></div>
+  <button class="gr-btn" onclick="grOpen()" aria-label="Code reference">📋 CODE</button>
   <button id="themeBtn" aria-label="Toggle light or dark mode">☀︎</button>
 </div>
 
@@ -353,6 +436,11 @@ body.light .mini .t small{color:#64748B}
     <h2><span class="n">3</span>How is the gas delivered?</h2>
     <div class="seg" id="svcSeg"></div>
     <div class="hint" id="svcHint">Most homes. Pipe goes straight from the meter to the generator.</div>
+    <div id="meterWrap">
+      <div class="grp-label">Gas meter size (CFH)</div>
+      <div class="chips" id="meterSeg"></div>
+      <div class="hint">Usually on the meter nameplate, or ask the utility. Everything on the meter counts — generator plus any house appliances in step 05.</div>
+    </div>
   </section>
 
   <!-- 3. Runs -->
@@ -413,14 +501,86 @@ body.light .mini .t small{color:#64748B}
     </div>
   </details>
 
+  <!-- CODE REFERENCE -->
+  <section class="step gr-card">
+    <h2>📋 Code Reference</h2>
+    <div class="gr-btns">
+      <button type="button" onclick="grOpen('t')">NFPA 54 Pipe Tables</button>
+      <button type="button" onclick="grOpen('e')">Sizing Equations</button>
+      <button type="button" onclick="grOpen('r')">Sizing Rules</button>
+    </div>
+    <div class="hint">NFPA 54 (2024) Chapter 6 capacity tables for Sch 40 steel, PE and CSST: natural gas and propane.</div>
+  </section>
+
   <p class="fine">
     Galvanized (Sch 40) and PE (SDR 11, ½" SDR 9) are calculated with the NFPA 54 / IFGC 402.4 sizing equations at your exact length. These are the same equations the code tables come from, and they match Tables 402.4(2), (5) and (21). Low-pressure runs use a 0.5" WC drop unless you change it. Elevated runs use the drop shown in the dropdown. NG: SG 0.60, 1,000 BTU/ft³. LP: SG 1.52, 2,516 BTU/ft³. CSST / TracPipe use approximate manufacturer tables, so confirm with the EHD chart for the product you're installing. Ordinary fittings are covered by the code method; add equivalent length for unusually fitting-heavy runs. Generator fuel use is from Generac spec sheets. Tank runtime assumes 80% fill. Verify with a licensed gas fitter and the AHJ.
   </p>
 </main>
 
+<!-- CODE REFERENCE MODAL -->
+<div class="gr-bg" id="grModal" onclick="if(event.target===this)grClose()">
+  <div class="gr-m" role="dialog" aria-modal="true" aria-labelledby="grTitle">
+    <div class="gr-h"><b id="grTitle">📋 NFPA 54 GAS PIPE REFERENCE</b><button class="gr-x" onclick="grClose()" aria-label="Close">×</button></div>
+    <div class="gr-tabs">
+      <button class="gr-tab" data-t="t" onclick="grTab('t')">TABLES</button>
+      <button class="gr-tab" data-t="e" onclick="grTab('e')">EQUATIONS</button>
+      <button class="gr-tab" data-t="r" onclick="grTab('r')">RULES</button>
+    </div>
+    <div class="gr-b">
+      <div class="gr-pane" id="gr-t">
+        <div class="gr-lbl">Gas</div><div class="gr-row" id="grFuel"></div>
+        <div class="gr-lbl">Pipe</div><div class="gr-row" id="grMat"></div>
+        <div class="gr-lbl">Pressure</div><div class="gr-row" id="grList"></div>
+        <div class="gr-meta" id="grMeta"></div>
+        <div class="gr-look">
+          <div><label for="grLen">Look up length (ft)</label><input type="number" id="grLen" inputmode="numeric" min="1" placeholder="Feet"></div>
+          <div><label for="grLoad" id="grLoadL">Load</label><input type="number" id="grLoad" inputmode="decimal" min="0" placeholder="Load"></div>
+        </div>
+        <div class="gr-ans" id="grAns"></div>
+        <div class="gr-tw"><table class="gr-t"><thead id="grTh"></thead><tbody id="grTb"></tbody></table></div>
+        <div class="gr-note" id="grNote"></div>
+      </div>
+      <div class="gr-pane" id="gr-e">
+        <div class="gr-lbl">6.4.1 · Low pressure (less than 1.5 psi)</div>
+        <div class="gr-eq">D = <span class="fr"><span>Q<sup>0.381</sup></span><span>19.17 × (ΔH ÷ (Cr × L))<sup>0.206</sup></span></span></div>
+        <div class="gr-lbl">6.4.2 · High pressure (1.5 psi and above)</div>
+        <div class="gr-eq">D = <span class="fr"><span>Q<sup>0.381</sup></span><span>18.93 × [ (P₁² − P₂²) × Y ÷ (Cr × L) ]<sup>0.206</sup></span></span></div>
+        <table class="gr-small">
+          <tr><td><b>D</b></td><td>inside diameter of pipe (in.)</td></tr>
+          <tr><td><b>Q</b></td><td>flow, ft³/hr (at 60°F, 30 in. Hg)</td></tr>
+          <tr><td><b>ΔH</b></td><td>pressure drop, in. w.c. (27.7 in. w.c. = 1 psi)</td></tr>
+          <tr><td><b>P₁ / P₂</b></td><td>upstream / downstream pressure, psia (psig + 14.7)</td></tr>
+          <tr><td><b>L</b></td><td>equivalent length of pipe (ft)</td></tr>
+        </table>
+        <div class="gr-lbl">Table 6.4.2 · Cr and Y</div>
+        <table class="gr-small"><tr><th>Gas</th><th>Cr</th><th>Y</th></tr><tr><td>Natural gas</td><td>0.6094</td><td>0.9992</td></tr><tr><td>Undiluted propane</td><td>1.2462</td><td>0.9910</td></tr></table>
+        <div class="gr-note">This calculator solves the same equations for flow at your exact length: <b>Q = 2313 × D<sup>2.623</sup> × (ΔH ÷ (Cr × L))<sup>0.541</sup></b> (low) and <b>Q = 2237 × D<sup>2.623</sup> × ((P₁² − P₂²) × Y ÷ (Cr × L))<sup>0.541</sup></b> (high, × 0.95). Those constants come out slightly under the code's (about 0.6%), so the result stays on the safe side.</div>
+        <div class="gr-note">Heating values used: NG 1,000 BTU/ft³ (SG 0.60) · LP 2,516 BTU/ft³ (SG 1.52).</div>
+      </div>
+      <div class="gr-pane" id="gr-r">
+        <div class="gr-rules">
+          <div class="gr-rule"><span class="r">NFPA 54 6.1.2 · LONGEST LENGTH METHOD</span>Size every section using the length from the point of delivery (meter or regulator) to the <b>most remote outlet</b>, with the load that section carries.</div>
+          <div class="gr-rule"><span class="r">NFPA 54 6.1.3 · BRANCH LENGTH METHOD</span>Size the main run using the longest run. Size each branch using the length from the point of delivery to the most remote outlet <b>on that branch</b>.</div>
+          <div class="gr-rule"><span class="r">NFPA 54 6.1.4 · HYBRID PRESSURE</span>Elevated-pressure piping is sized to the most remote <b>line pressure regulator</b>. Piping after each regulator is sized from that regulator to the most remote outlet it serves. That's how this calculator sizes each side of a 2 PSI or two-stage system separately.</div>
+          <div class="gr-rule"><span class="r">NFPA 54 6.2.1 / 6.3.1 · TABLES</span>Natural gas: Tables 6.2.1(a)–(x). Propane: Tables 6.3.1(a)–(m). Use them with one of the methods above. Pick the table matching the gas, pipe material, inlet pressure and allowed pressure drop.</div>
+          <div class="gr-rule"><span class="r">READING A TABLE</span>Use the length row <b>equal to or longer than</b> your run, then the first size whose capacity is <b>equal to or greater than</b> the load. Never round the length down.</div>
+          <div class="gr-rule"><span class="r">UNITS</span>NG tables are in ft³/hr (CFH). At 1,000 BTU/ft³, 1 CFH ≈ 1,000 BTU/hr. Propane tables are in thousands of BTU/hr. Some NG tables (like 6.2.1(c)) are printed in thousands of BTU/hr.</div>
+          <div class="gr-rule"><span class="r">CSST</span>CSST tables are by <b>EHD</b> (flow designation), not trade size. Each brand's ½", ¾", etc. has its own EHD. Match it from the manufacturer's install guide. This calculator uses Gastite/Wardflex and TracPipe charts.</div>
+          <div class="gr-rule"><span class="r">FLORIDA</span>Natural gas piping in Florida is enforced under the <b>Florida Building Code – Fuel Gas</b>, which numbers its sizing tables 402.4(x). They're built from the same equations, but verify with the AHJ.</div>
+        </div>
+      </div>
+    </div>
+    <div class="gr-f">NFPA 54 (2024) values · rules summarized in plain language, not official code text · verify with your AHJ</div>
+  </div>
+</div>
+
 <div class="mini" id="mini"><div class="t" id="miniT"></div><button onclick="document.getElementById('answer').scrollIntoView({behavior:'smooth',block:'start'})">View</button></div>
 <div class="toast" id="toast">Copied</div>
 
+<script>
+// NFPA 54 (2024) Chapter 6 capacity tables — used by the code reference AND to cap the sizing equation (never exceed the published table)
+const GR_TABLES=[{"id":"6.2.1(a)","f":"ng","m":"sch","in":"Less than 2 psi","dp":"0.3 in. w.c.","sg":"0.60","use":"","u":"c","s":["½","¾","1","1¼","1½","2","2½","3","4"],"r":[[10,131,273,514,1060,1580,3050,4860,8580,17500],[20,90,188,353,726,1090,2090,3340,5900,12000],[30,72,151,284,583,873,1680,2680,4740,9660],[40,62,129,243,499,747,1440,2290,4050,8270],[50,55,114,215,442,662,1280,2030,3590,7330],[60,50,104,195,400,600,1160,1840,3260,6640],[70,46,95,179,368,552,1060,1690,3000,6110],[80,42,89,167,343,514,989,1580,2790,5680],[90,40,83,157,322,482,928,1480,2610,5330],[100,38,79,148,304,455,877,1400,2470,5040],[125,33,70,131,269,403,777,1240,2190,4460],[150,30,63,119,244,366,704,1120,1980,4050],[175,28,58,109,224,336,648,1030,1820,3720],[200,26,54,102,209,313,602,960,1700,3460],[250,23,48,90,185,277,534,851,1500,3070],[300,21,43,82,168,251,484,771,1360,2780],[350,19,40,75,154,231,445,709,1250,2560],[400,18,37,70,143,215,414,660,1170,2380],[450,17,35,66,135,202,389,619,1090,2230],[500,16,33,62,127,191,367,585,1030,2110]]},{"id":"6.2.1(b)","f":"ng","m":"sch","in":"Less than 2 psi","dp":"0.5 in. w.c.","sg":"0.60","use":"","u":"c","s":["½","¾","1","1¼","1½","2","2½","3","4"],"r":[[10,172,360,678,1390,2090,4020,6400,11300,23100],[20,118,247,466,957,1430,2760,4400,7780,15900],[30,95,199,374,768,1150,2220,3530,6250,12700],[40,81,170,320,657,985,1900,3020,5350,10900],[50,72,151,284,583,873,1680,2680,4740,9660],[60,65,137,257,528,791,1520,2430,4290,8760],[70,60,126,237,486,728,1400,2230,3950,8050],[80,56,117,220,452,677,1300,2080,3670,7490],[90,52,110,207,424,635,1220,1950,3450,7030],[100,50,104,195,400,600,1160,1840,3260,6640],[125,44,92,173,355,532,1020,1630,2890,5890],[150,40,83,157,322,482,928,1480,2610,5330],[175,37,77,144,296,443,854,1360,2410,4910],[200,34,71,134,275,412,794,1270,2240,4560],[250,30,63,119,244,366,704,1120,1980,4050],[300,27,57,108,221,331,638,1020,1800,3670],[350,25,53,99,203,305,587,935,1650,3370],[400,23,49,92,189,283,546,870,1540,3140],[450,22,46,86,177,266,512,816,1440,2940],[500,21,43,82,168,251,484,771,1360,2780]]},{"id":"6.2.1(c)","f":"ng","m":"sch","in":"Less than 2 psi","dp":"3.0 in. w.c.","sg":"0.60","use":"Initial supply pressure of 8.0\" w.c. or greater","u":"k","s":["½","¾","1","1¼","1½","2","2½","3","4"],"r":[[10,454,949,1790,3670,5500,10600,16900,29800,60800],[20,312,652,1230,2520,3780,7280,11600,20500,41800],[30,250,524,986,2030,3030,5840,9310,16500,33600],[40,214,448,844,1730,2600,5000,7970,14100,28700],[50,190,397,748,1540,2300,4430,7060,12500,25500],[60,172,360,678,1390,2090,4020,6400,11300,23100],[70,158,331,624,1280,1920,3690,5890,10400,21200],[80,147,308,580,1190,1790,3440,5480,9690,19800],[90,138,289,544,1120,1670,3230,5140,9090,18500],[100,131,273,514,1060,1580,3050,4860,8580,17500],[125,116,242,456,936,1400,2700,4300,7610,15500],[150,105,219,413,848,1270,2450,3900,6890,14100],[175,96,202,380,780,1170,2250,3590,6340,12900],[200,90,188,353,726,1090,2090,3340,5900,12000],[250,80,166,313,643,964,1860,2960,5230,10700],[300,72,151,284,583,873,1680,2680,4740,9660],[350,66,139,261,536,803,1550,2470,4360,8890],[400,62,129,243,499,747,1440,2290,4050,8270],[450,58,121,228,468,701,1350,2150,3800,7760],[500,55,114,215,442,662,1280,2030,3590,7330]]},{"id":"6.2.1(d)","f":"ng","m":"sch","in":"Less than 2 psi","dp":"6.0 in. w.c.","sg":"0.6","use":"Initial supply pressure of 11.0\" w.c. or greater","u":"c","s":["½","¾","1","1¼","1½","2","2½","3","4"],"r":[[10,660,1380,2600,5340,8000,15400,24600,43400,88500],[20,454,949,1790,3670,5500,10600,16900,29800,60800],[30,364,762,1440,2950,4410,8500,13600,24000,48900],[40,312,652,1230,2520,3780,7280,11600,20500,41800],[50,276,578,1090,2240,3350,6450,10300,18200,37100],[60,250,524,986,2030,3030,5840,9310,16500,33600],[70,230,482,907,1860,2790,5380,8570,15100,30900],[80,214,448,844,1730,2600,5000,7970,14100,28700],[90,201,420,792,1630,2440,4690,7480,13200,27000],[100,190,397,748,1540,2300,4430,7060,12500,25500],[125,168,352,663,1360,2040,3930,6260,11100,22600],[150,153,319,601,1230,1850,3560,5670,10000,20500],[175,140,293,553,1140,1700,3270,5220,9230,18800],[200,131,273,514,1056,1580,3050,4860,8580,17500],[250,116,242,456,936,1400,2700,4300,7610,15500],[300,105,219,413,848,1270,2450,3900,6890,14100],[350,96,202,380,780,1170,2250,3590,6340,12900],[400,90,188,353,726,1090,2090,3340,5900,12000],[450,84,176,332,681,1020,1960,3130,5540,11300],[500,80,166,313,643,964,1860,2960,5230,10700]]},{"id":"6.2.1(e)","f":"ng","m":"sch","in":"2.0 psi","dp":"1.0 psi","sg":"0.60","use":"","u":"c","s":["½","¾","1","1¼","1½","2","2½","3","4"],"r":[[10,1510,3040,5560,11400,17100,32900,52500,92800,189000],[20,1070,2150,3930,8070,12100,23300,37100,65600,134000],[30,869,1760,3210,6590,9880,19000,30300,53600,109000],[40,753,1520,2780,5710,8550,16500,26300,46400,94700],[50,673,1360,2490,5110,7650,14700,23500,41500,84700],[60,615,1240,2270,4660,6980,13500,21400,37900,77300],[70,569,1150,2100,4320,6470,12500,19900,35100,71600],[80,532,1080,1970,4040,6050,11700,18600,32800,67000],[90,502,1010,1850,3810,5700,11000,17500,30900,63100],[100,462,934,1710,3510,5260,10100,16100,28500,58200],[125,414,836,1530,3140,4700,9060,14400,25500,52100],[150,372,751,1370,2820,4220,8130,13000,22900,46700],[175,344,695,1270,2601,3910,7530,12000,21200,43300],[200,318,642,1170,2410,3610,6960,11100,19600,40000],[250,279,583,1040,2140,3210,6180,9850,17400,35500],[300,253,528,945,1940,2910,5600,8920,15800,32200],[350,232,486,869,1790,2670,5150,8210,14500,29600],[400,216,452,809,1660,2490,4790,7640,13500,27500],[450,203,424,759,1560,2330,4500,7170,12700,25800],[500,192,401,717,1470,2210,4250,6770,12000,24400]]},{"id":"6.2.1(f)","f":"ng","m":"sch","in":"3.0 psi","dp":"2.0 psi","sg":"0.60","use":"","u":"c","s":["½","¾","1","1¼","1½","2","2½","3","4"],"r":[[10,2350,4920,9270,19000,28500,54900,87500,155000,316000],[20,1620,3380,6370,13100,19600,37700,60100,106000,217000],[30,1300,2720,5110,10500,15700,30300,48300,85400,174000],[40,1110,2320,4380,8990,13500,25900,41300,73100,149000],[50,985,2060,3880,7970,11900,23000,36600,64800,132000],[60,892,1870,3520,7220,10800,20800,33200,58700,120000],[70,821,1720,3230,6640,9950,19200,30500,54000,110000],[80,764,1600,3010,6180,9260,17800,28400,50200,102000],[90,717,1500,2820,5800,8680,16700,26700,47100,96100],[100,677,1420,2670,5470,8200,15800,25200,44500,90800],[125,600,1250,2360,4850,7270,14000,22300,39500,80500],[150,544,1140,2140,4400,6590,12700,20200,35700,72900],[175,500,1050,1970,4040,6060,11700,18600,32900,67100],[200,465,973,1830,3760,5640,10900,17300,30600,62400],[250,412,862,1620,3330,5000,9620,15300,27100,55300],[300,374,781,1470,3020,4530,8720,13900,24600,50100],[350,344,719,1350,2780,4170,8020,12800,22600,46100],[400,320,669,1260,2590,3870,7460,11900,21000,42900],[450,300,627,1180,2430,3640,7000,11200,19700,40200],[500,283,593,1120,2290,3430,6610,10500,18600,38000]]},{"id":"6.2.1(g)","f":"ng","m":"sch","in":"5.0 psi","dp":"3.5 psi","sg":"0.60","use":"","u":"c","s":["½","¾","1","1¼","1½","2","2½","3","4"],"r":[[10,3190,6430,11800,24200,36200,69700,111000,196000,401000],[20,2250,4550,8320,17100,25600,49300,78600,139000,283000],[30,1840,3720,6790,14000,20900,40300,64200,113000,231000],[40,1590,3220,5880,12100,18100,34900,55600,98200,200000],[50,1430,2880,5260,10800,16200,31200,49700,87900,179000],[60,1300,2630,4800,9860,14800,28500,45400,80200,164000],[70,1200,2430,4450,9130,13700,26400,42000,74300,151000],[80,1150,2330,4260,8540,12800,24700,39300,69500,142000],[90,1060,2150,3920,8050,12100,23200,37000,65500,134000],[100,979,1980,3620,7430,11100,21400,34200,60400,123000],[125,876,1770,3240,6640,9950,19200,30600,54000,110000],[150,786,1590,2910,5960,8940,17200,27400,48500,98900],[175,728,1470,2690,5520,8270,15900,25400,44900,91600],[200,673,1360,2490,5100,7650,14700,23500,41500,84700],[250,558,1170,2200,4510,6760,13000,20800,36700,74900],[300,506,1060,1990,4090,6130,11800,18800,33300,67800],[350,465,973,1830,3760,5640,10900,17300,30600,62400],[400,433,905,1710,3500,5250,10100,16100,28500,58100],[450,406,849,1600,3290,4920,9480,15100,26700,54500],[500,384,802,1510,3100,4650,8950,14300,25200,51500]]},{"id":"6.2.1(o)","f":"ng","m":"csst","in":"Less than 2 psi","dp":"0.5 in. w.c.","sg":"0.60","use":"","u":"c","s":["13","15","18","19","23","25","30","31","37","39","46","48","60","62"],"r":[[5,46,63,115,134,225,270,471,546,895,1037,1790,2070,3660,4140],[10,32,44,82,95,161,192,330,383,639,746,1260,1470,2600,2930],[15,25,35,66,77,132,157,267,310,524,615,1030,1200,2140,2400],[20,22,31,58,67,116,137,231,269,456,536,888,1050,1850,2080],[25,19,27,52,60,104,122,206,240,409,482,793,936,1660,1860],[30,18,25,47,55,96,112,188,218,374,442,723,856,1520,1700],[40,15,21,41,47,83,97,162,188,325,386,625,742,1320,1470],[50,13,19,37,42,75,87,144,168,292,347,559,665,1180,1320],[60,12,17,34,38,68,80,131,153,267,318,509,608,1080,1200],[70,11,16,31,36,63,74,121,141,248,295,471,563,1000,1110],[80,10,15,29,33,60,69,113,132,232,277,440,527,940,1040],[90,10,14,28,32,57,65,107,125,219,262,415,498,887,983],[100,9,13,26,30,54,62,101,118,208,249,393,472,843,933],[150,7,10,20,23,42,48,78,91,171,205,320,387,691,762],[200,6,9,18,21,38,44,71,82,148,179,277,336,600,661],[250,5,8,16,19,34,39,63,74,133,161,247,301,538,591],[300,5,7,15,17,32,36,57,67,95,148,226,275,492,540]]},{"id":"6.2.1(p)","f":"ng","m":"csst","in":"Less than 2 psi","dp":"3.0 in. w.c.","sg":"0.60","use":"Initial supply pressure of 8.0\" w.c. or greater","u":"c","s":["13","15","18","19","23","25","30","31","37","39","46","48","60","62"],"r":[[5,120,160,277,327,529,649,1180,1370,2140,2423,4430,5010,8800,10100],[10,83,112,197,231,380,462,828,958,1530,1740,3200,3560,6270,7160],[15,67,90,161,189,313,379,673,778,1250,1433,2540,2910,5140,5850],[20,57,78,140,164,273,329,580,672,1090,1249,2200,2530,4460,5070],[25,51,69,125,147,245,295,518,599,978,1123,1960,2270,4000,4540],[30,46,63,115,134,225,270,471,546,895,1029,1790,2070,3660,4140],[40,39,54,100,116,196,234,407,471,778,897,1550,1800,3180,3590],[50,35,48,89,104,176,210,363,421,698,806,1380,1610,2850,3210],[60,32,44,82,95,161,192,330,383,639,739,1260,1470,2600,2930],[70,29,41,76,88,150,178,306,355,593,686,1170,1360,2420,2720],[80,27,38,71,82,141,167,285,331,555,644,1090,1280,2260,2540],[90,26,36,67,77,133,157,268,311,524,609,1030,1200,2140,2400],[100,24,34,63,73,126,149,254,295,498,579,974,1140,2030,2280],[150,19,27,52,60,104,122,206,240,409,477,793,936,1660,1860],[200,17,23,45,52,91,106,178,207,355,415,686,812,1440,1610],[250,15,21,40,46,82,95,159,184,319,373,613,728,1290,1440],[300,13,19,37,42,75,87,144,168,234,342,559,665,1180,1320]]},{"id":"6.2.1(q)","f":"ng","m":"csst","in":"Less than 2 psi","dp":"6.0 in. w.c.","sg":"0.60","use":"Initial supply pressure of 11.0\" w.c. or greater","u":"c","s":["13","15","18","19","23","25","30","31","37","39","46","48","60","62"],"r":[[5,173,229,389,461,737,911,1690,1950,3000,3375,6280,7050,12400,14260],[10,120,160,277,327,529,649,1180,1370,2140,2423,4430,5010,8800,10100],[15,96,130,227,267,436,532,960,1110,1760,1996,3610,4100,7210,8260],[20,83,112,197,231,380,462,828,958,1530,1740,3120,3560,6270,7160],[25,74,99,176,207,342,414,739,855,1370,1564,2790,3190,5620,6400],[30,67,90,161,189,313,379,673,778,1250,1433,2540,2910,5140,5850],[40,57,78,140,164,273,329,580,672,1090,1249,2200,2530,4460,5070],[50,51,69,125,147,245,295,518,599,978,1123,1960,2270,4000,4540],[60,46,63,115,134,225,270,471,546,895,1029,1790,2070,3660,4140],[70,42,58,106,124,209,250,435,505,830,956,1660,1920,3390,3840],[80,39,54,100,116,196,234,407,471,778,897,1550,1800,3180,3590],[90,37,51,94,109,185,221,383,444,735,848,1460,1700,3000,3390],[100,35,48,89,104,176,210,363,421,698,806,1380,1610,2850,3210],[150,28,39,73,85,145,172,294,342,573,664,1130,1320,2340,2630],[200,24,34,63,73,126,149,254,295,498,579,974,1140,2030,2280],[250,21,30,57,66,114,134,226,263,447,520,870,1020,1820,2040],[300,19,27,52,60,104,122,206,240,409,477,793,936,1660,1860]]},{"id":"6.2.1(r)","f":"ng","m":"csst","in":"2.0 psi","dp":"1.0 psi","sg":"0.60","use":"","u":"c","s":["13","15","18","19","23","25","30","31","37","39","46","48","60","62"],"r":[[10,270,353,587,700,1100,1370,2590,2990,4510,5037,9600,10700,18600,21600],[25,166,220,374,444,709,876,1620,1870,2890,3258,6040,6780,11900,13700],[30,151,200,342,405,650,801,1480,1700,2640,2987,5510,6200,10900,12500],[40,129,172,297,351,567,696,1270,1470,2300,2605,4760,5380,9440,10900],[50,115,154,266,314,510,624,1140,1310,2060,2343,4260,4820,8470,9720],[75,93,124,218,257,420,512,922,1070,1690,1932,3470,3950,6940,7940],[80,89,120,211,249,407,496,892,1030,1640,1874,3360,3820,6730,7690],[100,79,107,189,222,366,445,795,920,1470,1685,3000,3420,6030,6880],[150,64,87,155,182,302,364,646,748,1210,1389,2440,2800,4940,5620],[200,55,75,135,157,263,317,557,645,1050,1212,2110,2430,4290,4870],[250,49,67,121,141,236,284,497,576,941,1090,1890,2180,3850,4360],[300,44,61,110,129,217,260,453,525,862,999,1720,1990,3520,3980],[400,38,52,96,111,189,225,390,453,749,871,1490,1730,3060,3450],[500,34,46,86,100,170,202,348,404,552,783,1330,1550,2740,3090]]},{"id":"6.2.1(s)","f":"ng","m":"csst","in":"5.0 psi","dp":"3.5 psi","sg":"0.60","use":"","u":"c","s":["13","15","18","19","23","25","30","31","37","39","46","48","60","62"],"r":[[10,523,674,1080,1300,2000,2530,4920,5660,8300,9140,18100,19800,34400,40400],[25,322,420,691,827,1290,1620,3080,3540,5310,5911,11400,12600,22000,25600],[30,292,382,632,755,1180,1480,2800,3230,4860,5420,10400,11500,20100,23400],[40,251,329,549,654,1030,1280,2420,2790,4230,4727,8970,10000,17400,20200],[50,223,293,492,586,926,1150,2160,2490,3790,4251,8020,8930,15600,18100],[75,180,238,403,479,763,944,1750,2020,3110,3506,6530,7320,12800,14800],[80,174,230,391,463,740,915,1690,1960,3020,3400,6320,7090,12400,14300],[100,154,205,350,415,665,820,1510,1740,2710,3057,5650,6350,11100,12800],[150,124,166,287,339,548,672,1230,1420,2220,2521,4600,5200,9130,10500],[200,107,143,249,294,478,584,1060,1220,1930,2199,3980,4510,7930,9090],[250,95,128,223,263,430,524,945,1090,1730,1977,3550,4040,7110,8140],[300,86,116,204,240,394,479,860,995,1590,1813,3240,3690,6500,7430],[400,74,100,177,208,343,416,742,858,1380,1581,2800,3210,5650,6440],[500,66,89,159,186,309,373,662,766,1040,1422,2500,2870,5060,5760]]},{"id":"6.2.1(t)","f":"ng","m":"pe","in":"Less than 2 psi","dp":"0.3 in. w.c.","sg":"0.60","use":"","u":"c","s":["½","¾","1","1¼","1½","2","3","4"],"r":[[10,153,305,551,955,1440,2590,7170,13900],[20,105,210,379,656,991,1780,4920,9520],[30,84,169,304,527,796,1430,3950,7640],[40,72,144,260,451,681,1220,3380,6540],[50,64,128,231,400,604,1080,3000,5800],[60,58,116,209,362,547,983,2720,5250],[70,53,107,192,333,503,904,2500,4830],[80,50,99,179,310,468,841,2330,4500],[90,46,93,168,291,439,789,2180,4220],[100,44,88,159,275,415,745,2060,3990],[125,39,78,141,243,368,661,1830,3530],[150,35,71,127,221,333,598,1660,3200],[175,32,65,117,203,306,551,1520,2940],[200,30,60,109,189,285,512,1420,2740],[250,27,54,97,167,253,454,1260,2430],[300,24,48,88,152,229,411,1140,2200],[350,22,45,81,139,211,378,1050,2020],[400,21,42,75,130,196,352,974,1880],[450,19,39,70,122,184,330,914,1770],[500,18,37,66,115,174,312,863,1670]]},{"id":"6.2.1(u)","f":"ng","m":"pe","in":"Less than 2 psi","dp":"0.5 in. w.c.","sg":"0.60","use":"","u":"c","s":["½","¾","1","1¼","1½","2","3","4"],"r":[[10,201,403,726,1260,1900,3410,9450,18260],[20,138,277,499,865,1310,2350,6490,12550],[30,111,222,401,695,1050,1880,5210,10080],[40,95,190,343,594,898,1610,4460,8630],[50,84,169,304,527,796,1430,3950,7640],[60,76,153,276,477,721,1300,3580,6930],[70,70,140,254,439,663,1190,3300,6370],[80,65,131,236,409,617,1110,3070,5930],[90,61,123,221,383,579,1040,2880,5560],[100,58,116,209,362,547,983,2720,5250],[125,51,103,185,321,485,871,2410,4660],[150,46,93,168,291,439,789,2180,4220],[175,43,86,154,268,404,726,2010,3880],[200,40,80,144,249,376,675,1870,3610],[250,35,71,127,221,333,598,1660,3200],[300,32,64,115,200,302,542,1500,2900],[350,29,59,106,184,278,499,1380,2670],[400,27,55,99,171,258,464,1280,2480],[450,26,51,93,160,242,435,1200,2330],[500,24,48,88,152,229,411,1140,2200]]},{"id":"6.2.1(v)","f":"ng","m":"pe","in":"2.0 psi","dp":"1.0 psi","sg":"0.60","use":"","u":"c","s":["½","¾","1","1¼","1½","2","3","4"],"r":[[10,1860,3720,6710,11600,17600,31600,87300,169000],[20,1280,2560,4610,7990,12100,21700,60000,116000],[30,1030,2050,3710,6420,9690,17400,48200,93200],[40,878,1760,3170,5490,8300,14900,41200,79700],[50,778,1560,2810,4870,7350,13200,36600,70700],[60,705,1410,2550,4410,6660,12000,33100,64000],[70,649,1300,2340,4060,6130,11000,30500,58900],[80,603,1210,2180,3780,5700,10200,28300,54800],[90,566,1130,2050,3540,5350,9610,26600,51400],[100,535,1070,1930,3350,5050,9080,25100,48600],[125,474,949,1710,2970,4480,8050,22300,43000],[150,429,860,1550,2690,4060,7290,20200,39000],[175,395,791,1430,2470,3730,6710,18600,35900],[200,368,736,1330,2300,3470,6240,17300,33400],[250,326,652,1180,2040,3080,5530,15300,29600],[300,295,591,1070,1850,2790,5010,13900,26800],[350,272,544,981,1700,2570,4610,12800,24700],[400,253,506,913,1580,2390,4290,11900,22900],[450,237,475,856,1480,2240,4020,11100,21500],[500,224,448,809,1400,2120,3800,10500,20300]]},{"id":"6.3.1(a)","f":"lp","m":"sch","in":"10.0 psi","dp":"1.0 psi","sg":"1.50","use":"Between first-stage (high-pressure) regulator and second-stage (low-pressure) regulator","u":"k","s":["½","¾","1","1¼","1½","2","2½","3","4"],"r":[[10,3320,6950,13100,26900,40300,77600,124000,219000,446000],[20,2280,4780,9000,18500,27700,53300,85000,150000,306000],[30,1830,3840,7220,14800,22200,42800,68200,121000,246000],[40,1570,3280,6180,12700,19000,36600,58400,103000,211000],[50,1390,2910,5480,11300,16900,32500,51700,91500,187000],[60,1260,2640,4970,10200,15300,29400,46900,82900,169000],[70,1160,2430,4570,9380,14100,27100,43100,76300,156000],[80,1080,2260,4250,8730,13100,25200,40100,70900,145000],[90,1010,2120,3990,8190,12300,23600,37700,66600,136000],[100,956,2000,3770,7730,11600,22300,35600,62900,128000],[125,848,1770,3340,6850,10300,19800,31500,55700,114000],[150,768,1610,3020,6210,9300,17900,28600,50500,103000],[175,706,1480,2780,5710,8560,16500,26300,46500,94700],[200,657,1370,2590,5320,7960,15300,24400,43200,88100],[250,582,1220,2290,4710,7060,13600,21700,38300,78100],[300,528,1100,2080,4270,6400,12300,19600,34700,70800],[350,486,1020,1910,3930,5880,11300,18100,31900,65100],[400,452,945,1780,3650,5470,10500,16800,29700,60600],[450,424,886,1670,3430,5140,9890,15800,27900,56800],[500,400,837,1580,3240,4850,9340,14900,26300,53700]]},{"id":"6.3.1(b)","f":"lp","m":"sch","in":"10.0 psi","dp":"3.0 psi","sg":"1.50","use":"Between first-stage (high-pressure) regulator and second-stage (low-pressure) regulator","u":"k","s":["½","¾","1","1¼","1½","2","2½","3","4"],"r":[[10,5890,12300,23200,47600,71300,137000,219000,387000,789000],[20,4050,8460,15900,32700,49000,94400,150000,266000,543000],[30,3250,6790,12800,26300,39400,75800,121000,214000,436000],[40,2780,5810,11000,22500,33700,64900,103000,183000,373000],[50,2460,5150,9710,19900,29900,57500,91600,162000,330000],[60,2230,4670,8790,18100,27100,52100,83000,147000,299000],[70,2050,4300,8090,16600,24900,47900,76400,135000,275000],[80,1910,4000,7530,15500,23200,44600,71100,126000,256000],[90,1790,3750,7060,14500,21700,41800,66700,118000,240000],[100,1690,3540,6670,13700,20500,39500,63000,111000,227000],[125,1500,3140,5910,12100,18200,35000,55800,98700,201000],[150,1360,2840,5360,11000,16500,31700,50600,89400,182000],[175,1250,2620,4930,10100,15200,29200,46500,82300,167800],[200,1160,2430,4580,9410,14100,27200,43300,76500,156100],[250,1030,2160,4060,8340,12500,24100,38400,67800,138400],[300,935,1950,3680,7560,11300,21800,34800,61500,125400],[350,860,1800,3390,6950,10400,20100,32000,56500,115300],[400,800,1670,3150,6470,9690,18700,29800,52600,107300],[450,751,1570,2960,6070,9090,17500,27900,49400,100700],[500,709,1480,2790,5730,8590,16500,26400,46600,95100]]},{"id":"6.3.1(c)","f":"lp","m":"sch","in":"2.0 psi","dp":"1.0 psi","sg":"1.50","use":"Between 2 psig service and line pressure regulator","u":"k","s":["½","¾","1","1¼","1½","2","2½","3","4"],"r":[[10,2680,5590,10500,21600,32400,62400,99500,176000,359000],[20,1840,3850,7240,14900,22300,42900,68400,121000,247000],[30,1480,3090,5820,11900,17900,34500,54900,97100,198000],[40,1260,2640,4980,10200,15300,29500,47000,83100,170000],[50,1120,2340,4410,9060,13600,26100,41700,73700,150000],[60,1010,2120,4000,8210,12300,23700,37700,66700,136000],[70,934,1950,3680,7550,11300,21800,34700,61400,125000],[80,869,1820,3420,7020,10500,20300,32300,57100,116000],[90,815,1700,3210,6590,9880,19000,30300,53600,109000],[100,770,1610,3030,6230,9330,18000,28600,50600,103000],[125,682,1430,2690,5520,8270,15900,25400,44900,91500],[150,618,1290,2440,5000,7490,14400,23000,40700,82900],[175,569,1190,2240,4600,6890,13300,21200,37400,76300],[200,529,1110,2080,4280,6410,12300,19700,34800,71000],[250,469,981,1850,3790,5680,10900,17400,30800,62900],[300,425,889,1670,3440,5150,9920,15800,27900,57000],[350,391,817,1540,3160,4740,9120,14500,25700,52400],[400,364,760,1430,2940,4410,8490,13500,23900,48800],[450,341,714,1340,2760,4130,7960,12700,22400,45800],[500,322,674,1270,2610,3910,7520,12000,21200,43200]]},{"id":"6.3.1(d)","f":"lp","m":"sch","in":"11.0 in. w.c.","dp":"0.5 in. w.c.","sg":"1.50","use":"Between single- or second-stage (low-pressure) regulator and appliance","u":"k","s":["½","¾","1","1¼","1½","2","2½","3","4"],"r":[[10,291,608,1150,2350,3520,6790,10800,19100,39000],[20,200,418,787,1620,2420,4660,7430,13100,26800],[30,160,336,632,1300,1940,3750,5970,10600,21500],[40,137,287,541,1110,1660,3210,5110,9030,18400],[50,122,255,480,985,1480,2840,4530,8000,16300],[60,110,231,434,892,1340,2570,4100,7250,14800],[70,101,212,400,821,1230,2370,3770,6670,13600],[80,94,197,372,763,1140,2200,3510,6210,12700],[90,89,185,349,716,1070,2070,3290,5820,11900],[100,84,175,330,677,1010,1950,3110,5500,11200],[125,74,155,292,600,899,1730,2760,4880,9950],[150,67,140,265,543,814,1570,2500,4420,9010],[175,62,129,243,500,749,1440,2300,4060,8290],[200,58,120,227,465,697,1340,2140,3780,7710],[250,51,107,201,412,618,1190,1900,3350,6840],[300,46,97,182,373,560,1080,1720,3040,6190],[350,42,89,167,344,515,991,1580,2790,5700],[400,40,83,156,320,479,922,1470,2600,5300],[450,37,78,146,300,449,865,1380,2440,4970],[500,35,73,138,283,424,817,1300,2300,4700]]},{"id":"6.3.1(h)","f":"lp","m":"csst","in":"11.0 in. w.c.","dp":"0.5 in. w.c.","sg":"1.50","use":"CSST between single- or second-stage (low-pressure) regulator and appliance shutoff valve","u":"k","s":["13","15","18","19","23","25","30","31","37","39","46","48","60","62"],"r":[[5,72,99,181,211,355,426,744,863,1420,1638,2830,3270,5780,6550],[10,50,69,129,150,254,303,521,605,971,1179,1990,2320,4110,4640],[15,39,55,104,121,208,248,422,490,775,972,1620,1900,3370,3790],[20,34,49,91,106,183,216,365,425,661,847,1400,1650,2930,3290],[25,30,42,82,94,164,192,325,379,583,762,1250,1480,2630,2940],[30,28,39,74,87,151,177,297,344,528,698,1140,1350,2400,2680],[40,23,33,64,74,131,153,256,297,449,610,988,1170,2090,2330],[50,20,30,58,66,118,137,227,265,397,548,884,1050,1870,2080],[60,19,26,53,60,107,126,207,241,359,502,805,961,1710,1900],[70,17,25,49,57,99,117,191,222,330,466,745,890,1590,1760],[80,15,23,45,52,94,109,178,208,307,438,696,833,1490,1650],[90,15,22,44,50,90,102,169,197,286,414,656,787,1400,1550],[100,14,20,41,47,85,98,159,186,270,393,621,746,1330,1480],[150,11,15,31,36,66,75,123,143,217,324,506,611,1090,1210],[200,9,14,28,33,60,69,112,129,183,283,438,531,948,1050],[250,8,12,25,30,53,61,99,117,163,254,390,476,850,934],[300,8,11,23,26,50,57,90,107,147,234,357,434,777,854]]},{"id":"6.3.1(i)","f":"lp","m":"csst","in":"2.0 psi","dp":"1.0 psi","sg":"1.50","use":"CSST between 2 psig service and line pressure regulator","u":"k","s":["13","15","18","19","23","25","30","31","37","39","46","48","60","62"],"r":[[10,426,558,927,1110,1740,2170,4100,4720,7130,7958,15200,16800,29400,34200],[25,262,347,591,701,1120,1380,2560,2950,4560,5147,9550,10700,18800,21700],[30,238,316,540,640,1030,1270,2330,2690,4180,4719,8710,9790,17200,19800],[40,203,271,469,554,896,1100,2010,2320,3630,4116,7530,8500,14900,17200],[50,181,243,420,496,806,986,1790,2070,3260,3702,6730,7610,13400,15400],[75,147,196,344,406,663,809,1460,1690,2680,3053,5480,6230,11000,12600],[80,140,189,333,393,643,768,1410,1630,2590,2961,5300,6040,10600,12200],[100,124,169,298,350,578,703,1260,1450,2330,2662,4740,5410,9530,10900],[150,101,137,245,287,477,575,1020,1180,1910,2195,3860,4430,7810,8890],[200,86,118,213,248,415,501,880,1020,1660,1915,3340,3840,6780,7710],[250,77,105,191,222,373,448,785,910,1490,1722,2980,3440,6080,6900],[300,69,96,173,203,343,411,716,829,1360,1578,2720,3150,5560,6300],[400,60,82,151,175,298,355,616,716,1160,1376,2350,2730,4830,5460],[500,53,72,135,158,268,319,550,638,1030,1237,2100,2450,4330,4880]]},{"id":"6.3.1(j)","f":"lp","m":"csst","in":"5.0 psi","dp":"3.5 psi","sg":"1.50","use":"","u":"k","s":["13","15","18","19","23","25","30","31","37","39","46","48","60","62"],"r":[[10,826,1070,1710,2060,3150,4000,7830,8950,13100,14441,28600,31200,54400,63800],[25,509,664,1090,1310,2040,2550,4860,5600,8400,9339,18000,19900,34700,40400],[30,461,603,999,1190,1870,2340,4430,5100,7680,8564,16400,18200,31700,36900],[40,396,520,867,1030,1630,2030,3820,4400,6680,7469,14200,15800,27600,32000],[50,352,463,777,926,1460,1820,3410,3930,5990,6717,12700,14100,24700,28600],[75,284,376,637,757,1210,1490,2770,3190,4920,5539,10300,11600,20300,23400],[80,275,363,618,731,1170,1450,2680,3090,4770,5372,9990,11200,19600,22700],[100,243,324,553,656,1050,1300,2390,2760,4280,4830,8930,10000,17600,20300],[150,196,262,453,535,866,1060,1940,2240,3510,3983,7270,8210,14400,16600],[200,169,226,393,464,755,923,1680,1930,3050,3474,6290,7130,12500,14400],[250,150,202,352,415,679,828,1490,1730,2740,3124,5620,6390,11200,12900],[300,136,183,322,379,622,757,1360,1570,2510,2865,5120,5840,10300,11700],[400,117,158,279,328,542,657,1170,1360,2180,2498,4430,5070,8920,10200],[500,104,140,251,294,488,589,1050,1210,1950,2247,3960,4540,8000,9110]]},{"id":"6.3.1(k)","f":"lp","m":"pe","in":"11.0 in. w.c.","dp":"0.5 in. w.c.","sg":"1.50","use":"PE between integral second-stage regulator at tank (or second-stage regulator) and building","u":"k","s":["½","¾","1","1¼","1½","2","3","4"],"r":[[10,340,680,1230,2130,3210,5770,16000,30900],[20,233,468,844,1460,2210,3970,11000,21200],[30,187,375,677,1170,1770,3180,8810,17000],[40,160,321,580,1000,1520,2730,7540,14600],[50,142,285,514,890,1340,2420,6680,12900],[60,129,258,466,807,1220,2190,6050,11700],[70,119,237,428,742,1120,2010,5570,10800],[80,110,221,398,690,1040,1870,5180,10000],[90,103,207,374,648,978,1760,4860,9400],[100,98,196,353,612,924,1660,4590,8900],[125,87,173,313,542,819,1470,4070,7900],[150,78,157,284,491,742,1330,3690,7130],[175,72,145,261,452,683,1230,3390,6560],[200,67,135,243,420,635,1140,3160,6100],[250,60,119,215,373,563,1010,2800,5410],[300,54,108,195,338,510,916,2530,4900],[350,50,99,179,311,469,843,2330,4510],[400,46,92,167,289,436,784,2170,4190],[450,43,87,157,271,409,736,2040,3930],[500,41,82,148,256,387,695,1920,3720]]},{"id":"6.3.1(l)","f":"lp","m":"pe","in":"2.0 psi","dp":"1.0 psi","sg":"1.50","use":"PE between 2 psi service regulator and line pressure regulator","u":"k","s":["½","¾","1","1¼","1½","2","3","4"],"r":[[10,3130,6260,11300,19600,29500,53100,147000,284000],[20,2150,4300,7760,13400,20300,36500,101000,195000],[30,1730,3450,6230,10800,16300,29300,81100,157000],[40,1480,2960,5330,9240,14000,25100,69400,134100],[50,1310,2620,4730,8190,12400,22200,61500,119000],[60,1190,2370,4280,7420,11200,20100,55700,108000],[70,1090,2180,3940,6830,10300,18500,51300,99100],[80,1010,2030,3670,6350,9590,17200,47700,92200],[90,952,1910,3440,5960,9000,16200,44700,86500],[100,899,1800,3250,5630,8500,15300,42300,81700],[125,797,1600,2880,4990,7530,13500,37500,72400],[150,722,1450,2610,4520,6830,12300,33900,65600],[175,664,1330,2400,4160,6280,11300,31200,60300],[200,618,1240,2230,3870,5840,10500,29000,56100],[250,548,1100,1980,3430,5180,9300,25700,49800],[300,496,994,1790,3110,4690,8430,23300,45100],[350,457,914,1650,2860,4320,7760,21500,41500],[400,425,851,1530,2660,4020,7220,12000,38600],[450,399,798,1440,2500,3770,6770,18700,36200],[500,377,754,1360,2360,3560,6390,17700,34200]]}];
+</script>
 <script>
 const GM = [
   // ── GUARDIAN AIR-COOLED — NEXTGEN SERIES — verified vs Generac A0005151081 Rev. D & A0005151077 Rev. D (08/13/2026)
@@ -510,15 +670,15 @@ const GM = [
    desc:"Air-cooled · G-Force 1000 · 2-cyl 999cc · 3,600 RPM · 48\"L × 25\"W × 29\"H"},
 
   // ── NEW: 24kW Legacy (G007209-10 / G007210-10) ──────────────────
-  // Source: Generac spec sheet A0000937814 Rev. E — 20/22/24 kW Guardian
+  // Source: A0000937814 Rev. F (09/28/2022); fuel from Generac 24kW product page (sheet leaves the 24kW fuel column blank)
   {cooled:"air", kw_ng:21,   kw_lp:24,  label:"24kW  · G007209-10 / G007210-10", model:"Generac 24kW Guardian (Legacy)", num:"G007209-10 / G007210-10", grp:"Guardian — Legacy Series",
-   ng_cfh_f:287,  ng_cfh_h:164,  lp_gph_f:3.74, lp_gph_h:2.36,
+   ng_cfh_f:306,  ng_cfh_h:203,  lp_gph_f:3.90, lp_gph_h:2.53,
    ng_btu_cf:1000, lp_btu_gal:91500, req_ng:'3.5–7" WC', req_lp:'10–12" WC',
    snd:"67 / 57 dB(A) normal / Quiet-Test", warr:"5 Year limited", der_pct:3.5, der_above:0, cb:100, weight:"455 lb",
    desc:"Air-cooled · G-Force 1000 · 2-cyl 999cc · 3,600 RPM · 48\"L × 25\"W × 29\"H"},
 
   // ── NEW: 26kW Legacy (G007290-0 / G007291-0) ────────────────────
-  // Source: Generac spec sheet A0002026894 Rev. D — 26 kW Guardian
+  // Source: Generac spec sheet A0002026894 Rev. E (02/17/2026) — 26 kW Guardian
   {cooled:"air", kw_ng:22.5, kw_lp:26,  label:"26kW  · G007290-0 / G007291-0",  model:"Generac 26kW Guardian (Legacy)", num:"G007290-0 / G007291-0",  grp:"Guardian — Legacy Series",
    ng_cfh_f:333,  ng_cfh_h:188,  lp_gph_f:3.63, lp_gph_h:2.06,
    ng_btu_cf:1000, lp_btu_gal:91500, req_ng:'3.5–7" WC', req_lp:'10–12" WC',
@@ -634,6 +794,13 @@ const GM = [
    desc:"Liquid-cooled · 4.5L I-4 Turbo+AC · 1,800 RPM · 1-Ph or 3-Ph · Power Zone 410 · NFPA 110 · Metro Gray"},
 
   // ── PROTECTOR RG (9.0L V8) ───────────────────────────────────────
+  // Source: A0001454434 Rev. J (03/24/2025) — 100 kW Protector RG (9.0L V8 NA). 1-phase rating 96 kW.
+  {cooled:"liq", kw_ng:96, kw_lp:100, label:"100kW Protector RG — RG10090", model:"100kW Protector RG",      num:"RG10090",               grp:"Protector RG (9.0L V8)",
+   ng_cfh_f:1154, ng_cfh_h:600,  lp_gph_f:13.3, lp_gph_h:7.0,
+   ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'11–14" WC', req_lp:'11–14" WC',
+   snd:"71 dB(A) op (no load)", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:600, cb:400, weight:"2,848 lb",
+   desc:"Liquid-cooled · 9.0L V-8 Naturally Aspirated · 1,800 RPM · 1-Ph or 3-Ph · Evolution · Model-specific fuel · Bisque"},
+
   {cooled:"liq", kw_ng:130, kw_lp:130, label:"130kW Protector RG — RG13090", model:"130kW Protector RG",      num:"RG13090",               grp:"Protector RG (9.0L V8)",
    ng_cfh_f:1554, ng_cfh_h:858,  lp_gph_f:13.5, lp_gph_h:7.6,
    ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'7–11" WC', req_lp:'7–11" WC',
@@ -748,10 +915,10 @@ const FUEL = {
       {v:'14wc', wc:14, label:'14" WC (½ PSI)'},
     ],
     high:[
-      {v:'1psi',  p1:1,  dp:0.5, label:'1 PSI (½ PSI drop)'},
-      {v:'2psi',  p1:2,  dp:1,   label:'2 PSI (1 PSI drop) — most common'},
-      {v:'5psi',  p1:5,  dp:3.5, label:'5 PSI (3.5 PSI drop)'},
-      {v:'10psi', p1:10, dp:5,   label:'10 PSI (5 PSI drop)'},
+      {v:'1psi',  p1:1,  dp:0.5, label:'1 PSI'},
+      {v:'2psi',  p1:2,  dp:1,   label:'2 PSI (most common)'},
+      {v:'5psi',  p1:5,  dp:3,   label:'5 PSI'},
+      {v:'10psi', p1:10, dp:5,   label:'10 PSI'},
     ],
     Cr:0.6094, Y:0.9992, btuCf:1000,
     svc:{
@@ -774,18 +941,29 @@ const FUEL = {
       {v:'14wc', wc:14, label:'14" WC (½ PSI)'},
     ],
     high:[
-      {v:'5psi',  p1:5,  dp:1,   label:'5 PSI (1 PSI drop)'},
-      {v:'10psi', p1:10, dp:1,   label:'10 PSI (1 PSI drop) — standard 1st stage'},
-      {v:'15psi', p1:15, dp:1.5, label:'15 PSI (1.5 PSI drop)'},
-      {v:'20psi', p1:20, dp:2,   label:'20 PSI (2 PSI drop)'},
+      {v:'5psi',  p1:5,  dp:1,   label:'5 PSI'},
+      {v:'10psi', p1:10, dp:1,   label:'10 PSI (standard 1st stage)'},
+      {v:'15psi', p1:15, dp:1,   label:'15 PSI'},
+      {v:'20psi', p1:20, dp:2,   label:'20 PSI'},
+    ],
+    mid:[
+      {v:'0.5psi', p1:0.5, dp:0.1, label:'½ PSI'},
+      {v:'1psi',   p1:1,   dp:0.5, label:'1 PSI'},
+      {v:'2psi',   p1:2,   dp:1,   label:'2 PSI (most common)'},
+      {v:'3psi',   p1:3,   dp:1,   label:'3 PSI'},
+      {v:'4psi',   p1:4,   dp:2,   label:'4 PSI'},
+      {v:'5psi',   p1:5,   dp:3,   label:'5 PSI (max inside a building)'},
     ],
     Cr:1.2462, Y:0.9910, btuCf:2516,
     svc:{
       one:{b:'Twin-stage at tank', s:'11" WC line · one run', hint:'Integral twin-stage regulator at the tank. One low-pressure run from the tank to the generator.'},
       two:{b:'Two-stage', s:'1st stage → 2nd stage → gen', hint:'First-stage regulator at the tank (≈10 PSI line), second-stage regulator near the generator (11" WC). Each side is sized separately.'},
+      three:{b:'Three-stage', s:'10 PSI → 2 PSI → 11" WC (attic)', hint:'For runs through the attic or house. 1st stage at the tank (10 PSI), a second-stage PSI regulator (½–5 PSI) outside before the line enters the building, then a final regulator at the generator (11" WC). All three runs are sized separately.'},
     },
     runOne:'Tank Regulator → Generator', runA:'1st Stage → 2nd Stage Reg.', runB:'2nd Stage Reg. → Generator',
-    defaults:()=>({a:{len:30,mat:'pe',press:'11wc'}, e1:{len:50,mat:'pe',press:'10psi'}, e2:{len:15,mat:'steel',press:'11wc'}}),
+    runT1:'1st Stage → 2nd Stage PSI Reg.', runT2:'2nd Stage PSI Reg. → Final Reg. (attic)', runT3:'Final Reg. → Generator',
+    defaults:()=>({a:{len:30,mat:'pe',press:'11wc'}, e1:{len:50,mat:'pe',press:'10psi'}, e2:{len:15,mat:'steel',press:'11wc'},
+      t1:{len:20,mat:'pe',press:'10psi'}, t2:{len:60,mat:'csst',press:'2psi'}, t3:{len:10,mat:'steel',press:'11wc'}}),
     full:m=>m.lp_gph_f, half:m=>m.lp_gph_h, kw:m=>m.kw_lp, req:m=>m.req_lp,
     needCfh:m=>m.lp_gph_f*m.lp_btu_gal/2516,  // GPH → ft³/hr of LP vapor
     cfhToUnit:(c,m)=>c*2516/m.lp_btu_gal, extraCfh:b=>b/2516,
@@ -794,7 +972,8 @@ const FUEL = {
 };
 
 // ── State ─────────────────────────────────────────────────────────────
-const S = { fuel:'ng', line:'air', num:null, svc:'one', runs:{ng:FUEL.ng.defaults(), lp:FUEL.lp.defaults()}, extra:0, elev:0, drop:0.5, shared:false, tee:false, apps:defaultApps() };
+const METERS=[250,275,425,630,800,1000];
+const S = { meter:250, fuel:'ng', line:'air', num:null, svc:'one', runs:{ng:FUEL.ng.defaults(), lp:FUEL.lp.defaults()}, extra:0, elev:0, drop:0.5, shared:false, tee:false, apps:defaultApps() };
 const F = () => FUEL[S.fuel];
 function defaultApps(){ return [
   {name:'Furnace',               note:'60–120k typical', btu:80000,  qty:0},
@@ -815,7 +994,9 @@ function renderApps(){
   const src=S.fuel==='ng'?'meter':'tank';
   $('teeWrap').hidden = S.svc!=='one';
   $('teeSeg').querySelector('[data-tee="0"] b').textContent = S.fuel==='ng'?'Own line from meter':'Own line from tank';
-  $('appHint').textContent = S.svc==='two'
+  $('appHint').textContent = S.svc==='three'
+    ? `Add everything else fed from this tank. Their load is added to runs ① and ② and to the first-stage and second-stage PSI regulator ratings. Run ③ to the generator is sized for the generator only.`
+    : S.svc==='two'
     ? `Add everything else fed from this ${src}. Their load is added to run ① (${F().runA}) and the ${S.fuel==='ng'?'meter':'first-stage regulator'} check. Run ② to the generator is sized for the generator only.`
     : `Add everything else fed from this ${src}. It's always counted toward the ${S.fuel==='ng'?'meter':'tank regulator'} capacity. It only changes the pipe size if the generator tees into the house line.`;
   $('appList').innerHTML = S.apps.map((a,i)=>`
@@ -845,12 +1026,16 @@ const matName = k => MATS.find(x=>x.k===k).short;
 $('fuelSeg').addEventListener('click',e=>{
   const b=e.target.closest('[data-fuel]'); if(!b) return;
   S.fuel=b.dataset.fuel;
+  if(!F().svc[S.svc]) S.svc='two';
   $('fuelSeg').querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c===b));
   document.body.classList.toggle('fuel-lp',S.fuel==='lp');
   renderFuel(); renderApps(); update();
 });
 function renderFuel(){
-  $('svcSeg').innerHTML = ['one','two'].map(k=>`<button class="chip" data-svc="${k}" aria-pressed="${S.svc===k}"><b>${F().svc[k].b}</b><small>${F().svc[k].s}</small></button>`).join('');
+  $('svcSeg').innerHTML = Object.keys(F().svc).map(k=>`<button class="chip" data-svc="${k}" aria-pressed="${S.svc===k}"><b>${F().svc[k].b}</b><small>${F().svc[k].s}</small></button>`).join('');
+  $('svcSeg').classList.toggle('three',Object.keys(F().svc).length>2);
+  $('meterWrap').hidden = S.fuel!=='ng';
+  $('meterSeg').innerHTML = METERS.map(v=>`<button class="chip" data-meter="${v}" aria-pressed="${S.meter===v}">${v}</button>`).join('');
   $('svcHint').textContent = F().svc[S.svc].hint;
   renderRuns();
 }
@@ -881,6 +1066,14 @@ $('models').addEventListener('click',e=>{
   if(window.innerWidth<700) $('s2').scrollIntoView({behavior:'smooth',block:'start'});
 });
 
+// ── Meter ─────────────────────────────────────────────────────────────
+$('meterSeg').addEventListener('click',e=>{
+  const b=e.target.closest('[data-meter]'); if(!b) return;
+  S.meter=+b.dataset.meter;
+  $('meterSeg').querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c===b));
+  update();
+});
+
 // ── Service ───────────────────────────────────────────────────────────
 $('svcSeg').addEventListener('click',e=>{
   const b=e.target.closest('[data-svc]'); if(!b) return;
@@ -891,6 +1084,13 @@ $('svcSeg').addEventListener('click',e=>{
 });
 
 // ── Runs ──────────────────────────────────────────────────────────────
+const QUICK=[5,10,15,20,25,30,40,50,60,75,100,125,150,200,250,300];
+const markQuick=(card,len)=>card.querySelectorAll('[data-len]').forEach(c=>c.setAttribute('aria-pressed',+c.dataset.len===len));
+const DROPS=[0.1,0.25,0.5,1,2,3,4,5,6,7];
+const dropTxt=d=>d===0.5?'½':d===0.25?'¼':String(d);
+const psiTxt=v=>String(+v.toFixed(2));
+const dropOpts=p=>DROPS.filter(x=>x<p.p1 && (x>=0.5 || p.p1<=1));
+function runDrop(r,p){ return (r.drop && r.drop<p.p1 && (r.drop>=0.5||p.p1<=1)) ? r.drop : p.dp; }
 function runCard(id, title, tag, pressList){
   const r=R()[id];
   return `<div class="run" data-run="${id}">
@@ -902,7 +1102,7 @@ function runCard(id, title, tag, pressList){
         <input id="len-${id}" type="number" inputmode="numeric" min="1" max="500" value="${r.len}">
         <button data-d="5" aria-label="Plus 5 feet">+</button>
       </div>
-      <div class="quick">${[10,25,50,75,100,150].map(v=>`<button class="chip" data-len="${v}">${v}</button>`).join('')}</div>
+      <div class="quick">${QUICK.map(v=>`<button class="chip" data-len="${v}" aria-pressed="${r.len===v}">${v}</button>`).join('')}</div>
     </div>
     <div class="field">
       <label>Pipe material</label>
@@ -911,13 +1111,19 @@ function runCard(id, title, tag, pressList){
     <div class="field">
       <label for="p-${id}">Pressure</label>
       <select id="p-${id}">${pressList.map(p=>`<option value="${p.v}"${p.v===r.press?' selected':''}>${p.label}</option>`).join('')}</select>
-    </div>
+    </div>${(()=>{const p=pressList.find(x=>x.v===r.press)||pressList[0]; if(p.p1===undefined) return '';
+      const d=runDrop(r,p);
+      return `<div class="field"><label for="d-${id}">Allowed pressure drop</label>
+      <select id="d-${id}" data-drop="1">${dropOpts(p).map(x=>`<option value="${x}"${x===d?' selected':''}>${dropTxt(x)} PSI drop${x===p.dp?' (typical)':''}</option>`).join('')}</select>
+      <div class="hint">Leaves ${psiTxt(p.p1-d)} PSI (≈${Math.round((p.p1-d)*27.7)}" WC) at the regulator. Make sure the regulator is rated for that inlet pressure.</div></div>`;})()}
   </div>`;
 }
 function renderRuns(){
   const f=F();
   $('runs').innerHTML = S.svc==='one'
     ? runCard('a',f.runOne,'LOW PRESSURE',f.low)
+    : S.svc==='three'
+    ? runCard('t1','① '+f.runT1,'1ST STAGE',f.high) + runCard('t2','② '+f.runT2,'2ND STAGE',f.mid) + runCard('t3','③ '+f.runT3,'LOW PRESSURE',f.low)
     : runCard('e1',f.runA,S.fuel==='lp'?'1ST STAGE':'ELEVATED',f.high) + runCard('e2',f.runB,'LOW PRESSURE',f.low);
 }
 $('runs').addEventListener('click',e=>{
@@ -926,14 +1132,19 @@ $('runs').addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b) return;
   if(b.dataset.d){ r.len=Math.max(1,Math.min(500,(+inp.value||0)+ +b.dataset.d)); inp.value=r.len; }
   else if(b.dataset.len){ r.len=+b.dataset.len; inp.value=r.len; }
-  else if(b.dataset.mat){ r.mat=b.dataset.mat; card.querySelectorAll('[data-mat]').forEach(c=>c.setAttribute('aria-pressed',c===b)); }
+  if(b.dataset.d||b.dataset.len) markQuick(card,r.len);
+  if(b.dataset.mat){ r.mat=b.dataset.mat; card.querySelectorAll('[data-mat]').forEach(c=>c.setAttribute('aria-pressed',c===b)); }
   update();
 });
 const onField=e=>{
   const card=e.target.closest('[data-run]'); if(!card) return;
   const r=R()[card.dataset.run];
-  if(e.target.tagName==='INPUT') r.len=Math.max(0,+e.target.value||0);
-  if(e.target.tagName==='SELECT') r.press=e.target.value;
+  if(e.target.tagName==='INPUT'){ r.len=Math.max(0,+e.target.value||0); markQuick(card,r.len); }
+  if(e.target.tagName==='SELECT'){
+    if(e.target.dataset.drop) r.drop=+e.target.value;
+    else { r.press=e.target.value; r.drop=null; }
+    if(e.type==='change'){ const id=e.target.id; renderRuns(); const el=$(id); if(el) el.focus({preventScroll:true}); }
+  }
   update();
 };
 $('runs').addEventListener('input',onField);
@@ -977,8 +1188,27 @@ $('cAdd').addEventListener('click',()=>{
 
 // ── Sizing engine ─────────────────────────────────────────────────────
 function colFor(len){ for(let i=0;i<PIPE_LENGTHS.length;i++) if(PIPE_LENGTHS[i]>=len) return i; return -1; } // round UP (CSST tables)
+// NFPA 54 table to cap against for the current fuel, pipe and pressure.
+// Exact match → {t, k:1}. No exact table → closest table of the same kind, scaled by the NFPA equation (k = flow ratio; length cancels out).
+function codeTable(mat,p){
+  if(typeof GR_TABLES==='undefined') return null;
+  const m=mat==='steel'?'sch':mat==='pe'?'pe':null; if(!m) return null;
+  const num=s=>parseFloat(s);
+  if(p.p1===undefined || p.p1<1.5){                       // low-pressure formula → tables with an in. w.c. drop
+    const drop=p.p1===undefined?S.drop:p.dp*27.68;
+    const c=GR_TABLES.filter(t=>t.f===S.fuel&&t.m===m&&/w\.c\./.test(t.dp)); if(!c.length) return null;
+    const t=c.reduce((a,b)=>Math.abs(num(b.dp)-drop)<Math.abs(num(a.dp)-drop)?b:a);
+    return {t, k:Math.pow(drop/num(t.dp),0.541), exact:Math.abs(num(t.dp)-drop)<0.01};
+  }
+  const c=GR_TABLES.filter(t=>t.f===S.fuel&&t.m===m&&/psi$/.test(t.dp)&&/psi$/.test(t.in)); if(!c.length) return null;
+  const d2=t=>Math.abs(num(t.in)-p.p1)*10+Math.abs(num(t.dp)-p.dp);
+  const t=c.reduce((a,b)=>d2(b)<d2(a)?b:a);
+  const dP=(p1,dp)=>{const P1=p1+14.7,P2=P1-dp;return P1*P1-P2*P2;};
+  return {t, k:Math.pow(dP(p.p1,p.dp)/dP(num(t.in),num(t.dp)),0.541), exact:d2(t)<0.01};
+}
 function sizeRun(run, pressList, needCfh, m){
-  const mat=PIPE_MATERIALS[run.mat], p=pressList.find(x=>x.v===run.press)||pressList[0], f=F();
+  const mat=PIPE_MATERIALS[run.mat], f=F(); let p=pressList.find(x=>x.v===run.press)||pressList[0];
+  if(p.p1!==undefined){ const d=runDrop(run,p); p={...p, dp:d, label:p.label.replace(/\s*\(.*\)/,'')+' · '+dropTxt(d)+' PSI drop'}; }
   const L=Math.max(1,run.len);
   if(L>500) return {over:true, mat, p};
   let rows, basis;
@@ -986,6 +1216,20 @@ function sizeRun(run, pressList, needCfh, m){
     const k=nfpaFactor(p,L,run.mat);
     rows=Object.entries(PIPE_ID[run.mat]).map(([sz,d])=>({sz, cfh:k*Math.pow(d,2.623)}));
     basis=`NFPA 54 equation · ${L} ft`;
+    // Cap at the published NFPA 54 table for this exact gas / pipe / inlet / drop (length rounded UP to the next table row)
+    const cm=codeTable(run.mat,p);
+    if(cm){
+      const ct=cm.t, ui=ct.r.findIndex(r=>r[0]>=L);
+      if(ui>=0){
+        // between rows: take the row at/above your length, brought back to your exact length with the NFPA length exponent (0.541);
+        // never more than the row below. At a table length this is exactly the published value.
+        const up=ct.r[ui], lo=ct.r[ui]&&ct.r[ui][0]===L?null:ct.r[ui-1];
+        const toCfh=(ct.u==='k'?1000/f.btuCf:1)*cm.k, adj=Math.pow(up[0]/L,0.541); let capped=false;
+        rows=rows.map((r,i)=>{ let c=up[i+1]*adj; if(lo) c=Math.min(c,lo[i+1]); c*=toCfh; if(c<r.cfh*0.999){capped=true; return {sz:r.sz,cfh:c};} return r; });
+        const tn=`NFPA Table ${ct.id}${cm.exact?'':' (scaled to this pressure)'}`;
+        basis+=capped?` · held to ${tn}`:` · within ${tn}`;
+      }
+    }
   } else {                                     // CSST / TracPipe — manufacturer table (NG, 0.5" drop) scaled by the same equation
     const ci=colFor(L), col=PIPE_LENGTHS[ci];
     const ratio=nfpaFactor(p,col,run.mat)/(2313*Math.pow(0.5/(0.6094*col),0.541));
@@ -1019,7 +1263,7 @@ function update(){
   if(!m){ $('ansBody').innerHTML='<div class="empty">Pick a generator in Step 2 to see the pipe size.</div>'; $('mini').classList.remove('show'); return; }
 
   const genCfh=f.needCfh(m), extraCfh=f.extraCfh(S.extra), genBtu=S.fuel==='ng'?m.ng_cfh_f*m.ng_btu_cf:m.lp_gph_f*m.lp_btu_gal;
-  const warns=[], lines=[], miniParts=[]; let blocks='';
+  const warns=[], lines=[], miniParts=[]; let blocks='', regs=null;
   const line=(lbl,res,r)=>`${lbl}: ${res.pick?res.pick.sz:'N/A'} ${matName(r.mat)}, ${r.len} ft @ ${res.p?res.p.label:''}`;
 
   if(S.svc==='one'){
@@ -1027,6 +1271,28 @@ function update(){
     blocks+=pickBlock(f.runOne,res,r);
     lines.push(line(f.runOne,res,r)); miniParts.push(res.pick?res.pick.sz:'—');
     checkInlet(m, f.low.find(x=>x.v===r.press), warns);
+  } else if(S.svc==='three'){
+    const r1=runs.t1, r2=runs.t2, r3=runs.t3, all=genCfh+extraCfh;
+    const a=sizeRun(r1,f.high,all,m), b=sizeRun(r2,f.mid,all,m), c=sizeRun(r3,f.low,genCfh,m);
+    blocks+=pickBlock('① '+f.runT1,a,r1)+pickBlock('② '+f.runT2,b,r2)+pickBlock('③ '+f.runT3,c,r3);
+    lines.push(line(f.runT1,a,r1), line(f.runT2,b,r2), line(f.runT3,c,r3));
+    miniParts.push([a,b,c].map(x=>x.pick?x.pick.sz:'—').join(' → '));
+    checkInlet(m, f.low.find(x=>x.v===r3.press), warns);
+    const p1=f.high.find(x=>x.v===r1.press)||f.high[0], p2=f.mid.find(x=>x.v===r2.press)||f.mid[0];
+    const in2=+(p1.p1-runDrop(r1,p1)).toFixed(2), in3=+(p2.p1-runDrop(r2,p2)).toFixed(2);
+    const outWc=(f.low.find(x=>x.v===r3.press)||f.low[0]).wc, in3wc=Math.round(in3*27.7);
+    if(in3wc<outWc+3) warns.push(`Only ${in3} PSI (≈${in3wc}" WC) reaches the final regulator — not enough to hold ${outWc}" WC under full load. Raise the run ② pressure or allow less drop.`);
+    const sysBtu=genBtu+S.extra;
+    regs=[
+      ['1st stage (tank)', sysBtu, 'tank pressure', `${p1.p1} PSI out`],
+      ['2nd stage PSI reg.', sysBtu, `${in2} PSI in`, `${p2.p1} PSI out`],
+      ['Final reg. (at gen)', genBtu, `${in3} PSI in`, `${(f.low.find(x=>x.v===r3.press)||f.low[0]).wc}" WC out`],
+    ];
+    warns.push(`Each regulator must be rated for its BTU/hr <b>at the inlet pressure it actually sees</b> (see Regulators above). Check the capacity chart at that inlet, not the max.`);
+    warns.push(`Keep the second-stage PSI regulator and final regulator outdoors. A regulator inside the attic must be vented outdoors or have a listed vent limiter, and must be accessible (NFPA 54 / IFGC 410).`);
+    warns.push(`Piping inside the building is limited to 5 PSI (IFGC 402.6) — never run the 10 PSI section through the attic.`);
+    if(r2.mat==='csst'||r2.mat==='tracpipe') warns.push(`CSST in the attic: bond per the manufacturer (typically 6 AWG Cu to the grounding electrode system), support it, and use striker plates through framing. Use the manufacturer's ${p2.p1} PSI chart.`);
+    if(r1.mat==='pe'&&r2.mat==='pe') warns.push('Run ② goes through the building — PE is not allowed there. Use CSST or galvanized.');
   } else {
     const r1=runs.e1, r2=runs.e2;
     const a=sizeRun(r1,f.high,genCfh+extraCfh,m), b=sizeRun(r2,f.low,genCfh,m);
@@ -1039,21 +1305,34 @@ function update(){
       : `Second-stage regulator must be rated for at least ${fmt(genBtu)} BTU/hr.`);
   }
   if(S.extra>0){
-    const where = S.svc==='two' ? `Run ① sized for generator + ${fmt(S.extra)} BTU/hr house load. Run ② is generator only.`
+    const where = S.svc==='three' ? `Runs ① and ② sized for generator + ${fmt(S.extra)} BTU/hr house load. Run ③ is generator only.`
+      : S.svc==='two' ? `Run ① sized for generator + ${fmt(S.extra)} BTU/hr house load. Run ② is generator only.`
       : S.tee ? `Shared pipe sized for generator + ${fmt(S.extra)} BTU/hr house load. Size any separate branch to the generator for the generator alone.`
       : `Pipe sized for the generator only (own line from the ${S.fuel==='ng'?'meter':'tank'}).`;
-    warns.push(`${where} Total system load ${fmt(genBtu+S.extra)} BTU/hr — the ${S.fuel==='ng'?'gas meter':(S.svc==='two'?'first-stage regulator':'tank regulator')} must be rated for it${S.fuel==='ng'?` (≈${fmt(m.ng_cfh_f+S.extra/1000)} CFH)`:''}.`);
+    warns.push(`${where} Total system load ${fmt(genBtu+S.extra)} BTU/hr — the ${S.fuel==='ng'?'gas meter':(S.svc!=='one'?'first-stage regulator':'tank regulator')} must be rated for it${S.fuel==='ng'?` (≈${fmt(m.ng_cfh_f+S.extra/1000)} CFH)`:''}.`);
   }
-  if(S.fuel==='ng' && !S.extra && m.ng_cfh_f>250) warns.push(`Generator alone uses ${fmt(m.ng_cfh_f)} CFH — more than a standard 250 CFH residential meter. Check the meter size with the utility.`);
   if(S.shared && S.extra===0) warns.push('House appliances selected but none added yet (Step 5).');
   if(m.grp.includes('Legacy')) warns.push('Legacy model — confirm fuel numbers on the spec sheet.');
-  const used = S.svc==='one'?[runs.a]:[runs.e1,runs.e2];
+  const used = S.svc==='one'?[runs.a]:S.svc==='three'?[runs.t1,runs.t2,runs.t3]:[runs.e1,runs.e2];
   if(used.some(r=>r.mat==='csst'||r.mat==='tracpipe')) warns.push('CSST / TracPipe sizes are approximate — confirm with the manufacturer\'s EHD chart for the exact product.');
   if(S.drop===3 && used.some(r=>{const p=f.low.find(x=>x.v===r.press);return p&&p.wc<8;})) warns.push('3" WC drop needs at least 8" WC supply — use 0.5" or raise the pressure.');
-  if(used.some(r=>r.mat==='pe')) warns.push('PE is underground only — transition to galvanized/CSST before it comes above grade.');
+  if(S.svc==='three'? (runs.t1.mat==='pe'||runs.t3.mat==='pe') : used.some(r=>r.mat==='pe')) warns.push('PE is underground only — transition to galvanized/CSST before it comes above grade.');
   if(S.fuel==='lp' && m.kw_lp!==m.kw_ng) {} // LP is the nameplate rating — nothing to flag
   if(S.fuel==='ng' && m.kw_ng<m.kw_lp) warns.push(`On natural gas this unit makes ${m.kw_ng} kW (nameplate ${m.kw_lp} kW is the LP rating).`);
 
+  let meterBlock='', meterLine='';
+  if(S.fuel==='ng'){
+    const house=S.shared?S.extra/1000:0, tot=m.ng_cfh_f+house, pct=tot/S.meter*100;
+    const next=METERS.find(v=>v>=tot);
+    const cls=pct>100?'bad':pct>80?'tight':'ok';
+    const verdict=pct>100?(next?`${Math.round(pct)}% — upsize to ${next} CFH`:`${Math.round(pct)}% — over 1,000 CFH: commercial meter or elevated pressure`)
+      : pct>80?`${Math.round(pct)}% — tight, little room for more load`:`${Math.round(pct)}% — OK`;
+    meterBlock=`<div class="mchk ${cls}"><div class="mh"><span>Gas meter check</span><span>${S.meter} CFH meter</span></div>
+      <div class="mv">Meter at ${verdict}</div>
+      <div class="mbar"><i style="width:${Math.min(100,pct).toFixed(0)}%"></i></div>
+      <div class="cap">Total load <b>${fmt(tot)} CFH</b> = generator ${fmt(m.ng_cfh_f)}${house?` + house ${fmt(house)}`:''}. ${pct>100?'The utility must upsize the meter (or go to an elevated-pressure service) — pipe size alone won\'t fix it.':'Pipe size doesn\'t depend on the meter; this only checks capacity.'}</div></div>`;
+    meterLine=`Meter: ${S.meter} CFH · total load ${fmt(tot)} CFH (${Math.round(pct)}%)${pct>100&&next?` — upsize to ${next} CFH`:''}`;
+  }
   let derate='';
   if(S.elev>m.der_above){
     const k=Math.max(1-((S.elev-m.der_above)/1000)*(m.der_pct/100),0.55);
@@ -1066,6 +1345,11 @@ function update(){
 
   $('ansBody').innerHTML = `
     ${blocks}
+    ${regs?`<div class="regs"><div class="regs-h">Regulators — minimum rating</div>
+      <table><thead><tr><th>Regulator</th><th>BTU/hr</th><th>Inlet</th><th>Outlet</th></tr></thead><tbody>
+      ${regs.map(r=>`<tr><td>${r[0]}</td><td><b>${fmt(r[1])}</b></td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join('')}
+      </tbody></table></div>`:''}
+    ${meterBlock}
     ${warns.map(w=>`<div class="warn">⚠ ${w}</div>`).join('')}
     <div class="facts">
       <div><span>Gen full load</span><b>${f.fmtU(f.full(m))} ${u}</b></div>
@@ -1084,6 +1368,8 @@ function update(){
     `AOG ${f.short} pipe sizing — ${m.model} (${m.num})`,
     `Gen load: ${f.fmtU(f.full(m))} ${u} full / ${f.fmtU(f.half(m))} ${u} half · ${fmt(btuReal)} BTU/hr · inlet ${f.req(m)}`,
     ...lines,
+    meterLine,
+    ...(regs?regs.map(r=>`Regulator — ${r[0]}: ≥ ${fmt(r[1])} BTU/hr @ ${r[2]}, ${r[3]}`):[]),
     S.extra?`Other appliances on system${S.svc==='one'?(S.tee?' (gen tees into house line)':' (gen on own line)'):''}: ${S.apps.filter(a=>a.qty).map(a=>`${a.qty>1?a.qty+'× ':''}${a.name} ${fmt(a.btu/1000)}k`).join(', ')} = ${fmt(S.extra)} BTU/hr · total system ${fmt(genBtu+S.extra)} BTU/hr`:'Generator only on this system',
     S.fuel==='lp'?`500 gal tank (80% fill) at half load: ~${fmt(400/m.lp_gph_h)} hrs`:'',
     derate?`Elevation ${fmt(S.elev)} ft → ${derate} ${f.short} output`:'',
@@ -1128,6 +1414,59 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
 let ansVisible=false;
 if('IntersectionObserver' in window){new IntersectionObserver(es=>{ansVisible=es[0].isIntersecting;$('mini').style.visibility=ansVisible?'hidden':'visible';}).observe($('answer'));}
 renderModels(); renderFuel(); renderApps(); update();
+</script>
+<script>
+// ── CODE REFERENCE: NFPA 54 (2024) Chapter 6 tables (lookup only — does not affect the calculator) ──
+(function(){
+  const MATN={sch:'Sch 40 steel',pe:'PE plastic',csst:'CSST'};
+  const DEF={ng:{sch:'6.2.1(b)',pe:'6.2.1(u)',csst:'6.2.1(o)'},lp:{sch:'6.3.1(d)',pe:'6.3.1(k)',csst:'6.3.1(h)'}};
+  const st={f:'ng',m:'sch',id:'6.2.1(b)'};
+  const g=id=>document.getElementById(id);
+  const n=v=>v.toLocaleString('en-US');
+  const cur=()=>GR_TABLES.find(t=>t.id===st.id);
+  const short=s=>s.replace(' in. w.c.','" WC').replace('Less than 2 psi','< 2 psi');
+  function chips(el,items,on,fn){
+    el.innerHTML=items.map(([v,l,s])=>`<button type="button" class="gr-c${v===on?' on':''}" data-v="${v}">${l}${s?`<small>${s}</small>`:''}</button>`).join('');
+    el.onclick=e=>{const b=e.target.closest('.gr-c'); if(b){fn(b.dataset.v);}};
+  }
+  function render(){
+    chips(g('grFuel'),[['ng','Natural Gas'],['lp','Propane (LP)']],st.f,v=>{st.f=v;st.id=DEF[st.f][st.m];render();});
+    chips(g('grMat'),[['sch','Sch 40 Steel'],['pe','PE (buried)'],['csst','CSST']],st.m,v=>{st.m=v;st.id=DEF[st.f][st.m];render();});
+    const list=GR_TABLES.filter(t=>t.f===st.f&&t.m===st.m);
+    chips(g('grList'),list.map(t=>[t.id,`${short(t.in)} inlet`,`${short(t.dp)} drop · ${t.id}`]),st.id,v=>{st.id=v;render();});
+    const t=cur(), u=t.u==='k'?'×1,000 BTU/hr':'CFH';
+    g('grMeta').innerHTML=`<b>Table ${t.id}</b> · ${MATN[t.m]} · ${t.f==='ng'?'Natural gas':'Undiluted propane'}<br>Inlet: <b>${t.in}</b> · Pressure drop: <b>${t.dp}</b> · SG ${t.sg}<br>Capacity in <b>${t.u==='k'?'thousands of BTU/hr':'cubic feet per hour (CFH)'}</b>${t.use?`<br><i>Intended use: ${t.use}</i>`:''}`;
+    g('grLoadL').textContent=`Load (${u})`;
+    g('grTh').innerHTML=`<tr><th>Length ft</th>${t.s.map(s=>`<th>${t.m==='csst'?'EHD '+s:s+'"'}</th>`).join('')}</tr>`;
+    look();
+    g('grNote').innerHTML=(t.m==='csst'?'CSST by EHD flow designation — match your brand\'s size to its EHD in the manufacturer\'s guide. ':'')
+      +(t.m==='pe'?'PE: ½" is SDR 9.3, 1¼" is SDR 10, others SDR 11 (IPS). Underground outdoors only. ':'')
+      +'Rows shown to 500 ft. Values exactly as published in NFPA 54 (2024).';
+  }
+  function look(){
+    const t=cur(), L=parseFloat(g('grLen').value), Q=parseFloat(g('grLoad').value);
+    let ri=-1, ci=-1, msg='', bad=false;
+    if(L>0){ ri=t.r.findIndex(r=>r[0]>=L); if(ri<0){msg=`Longer than ${t.r[t.r.length-1][0]} ft — beyond this reference.`;bad=true;} }
+    if(ri>=0 && Q>0){ ci=t.r[ri].slice(1).findIndex(v=>v>=Q);
+      if(ci<0){msg=`No size in this table carries ${n(Q)} at ${t.r[ri][0]} ft.`;bad=true;}
+      else msg=`Use the ${t.r[ri][0]} ft row → smallest size: ${t.m==='csst'?'EHD '+t.s[ci]:t.s[ci]+'"'} (${n(t.r[ri][ci+1])} ${t.u==='k'?'×1,000 BTU/hr':'CFH'})`; }
+    else if(ri>=0) msg=`Use the ${t.r[ri][0]} ft row (round length up).`;
+    g('grAns').textContent=msg; g('grAns').classList.toggle('no',bad);
+    g('grTb').innerHTML=t.r.map((r,i)=>`<tr class="${i===ri?'hit':''}"><td>${r[0]}</td>${r.slice(1).map((v,j)=>`<td class="${i===ri&&j===ci?'hit':''}">${n(v)}</td>`).join('')}</tr>`).join('');
+    if(ri>=0){ const row=g('grTb').children[ri]; if(row) row.scrollIntoView({block:'nearest'}); }
+  }
+  g('grLen').addEventListener('input',look); g('grLoad').addEventListener('input',look);
+  window.grTab=function(t){
+    document.querySelectorAll('.gr-tab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+    document.querySelectorAll('.gr-pane').forEach(p=>p.classList.toggle('on',p.id==='gr-'+t));
+  };
+  window.grOpen=function(tab){
+    try{ if(typeof S!=='undefined' && S.fuel && S.fuel!==st.f){ st.f=S.fuel; st.id=DEF[st.f][st.m]; } }catch(e){}
+    render(); grTab(tab||'t'); g('grModal').classList.add('open'); document.body.classList.add('gr-open');
+  };
+  window.grClose=function(){ g('grModal').classList.remove('open'); document.body.classList.remove('gr-open'); };
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') grClose(); });
+})();
 </script>
 </body>
 </html>

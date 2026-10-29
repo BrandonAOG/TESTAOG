@@ -1396,7 +1396,6 @@ function toggleTheme() {
 
 // ── FILL MODE ──────────────────────────────────────────────
 function setFillMode(mode) {
-  if (mode !== fillMode && window.AOGSound) AOGSound.play(mode === 'raceway' ? 'clunk' : 'tink');
   fillMode = mode;
   document.getElementById('tog-raceway').classList.toggle('active', mode === 'raceway');
   document.getElementById('tog-nipple').classList.toggle('active', mode === 'nipple');
@@ -1923,7 +1922,6 @@ function cfOpenRef(t) {
   cfRefTab(t || 't1');
   document.getElementById('cfRefModal').classList.add('open');
   document.body.classList.add('modal-open');
-  if (window.AOGSound) AOGSound.play('tink');
 }
 function cfCloseRef() {
   document.getElementById('cfRefModal').classList.remove('open');

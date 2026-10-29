@@ -1,5 +1,5 @@
 /* ============================================================
-   AOG Sound Engine v1.0.8 — drop-in UI + ambient sounds (no files)
+   AOG Sound Engine v1.0.9 — drop-in UI + ambient sounds (no files)
    <script src="./sounds.js"></script>  (../sounds.js from sub-pages)
 
    - Synthesized with Web Audio API → 100% offline in the PWA
@@ -1561,6 +1561,15 @@
   document.addEventListener('pointerdown', function (e) {
     var el = e.target.closest('button, a, [role="button"], select');
     if (!el) return;
+    // Per-button sound: <button data-sound="tink"> (or data-sound on a container
+    // to cover every button inside it). Pages never call AOGSound.play() for taps —
+    // they label the button and this one handler plays it. data-sound="none" = silent.
+    var tagged = el.closest('[data-sound]');
+    if (tagged) {
+      var nm = tagged.getAttribute('data-sound');
+      if (nm !== 'none' && S[nm]) S[nm]();
+      return;
+    }
     S.click();
     var sig = (el.id + ' ' + el.className + ' ' + (el.textContent || '').slice(0, 60)).toLowerCase();
     // Is this button inside a confirmation popup? (custom modals like the
@@ -1575,6 +1584,7 @@
     else if (/delete|remove|trash|\ud83d\uddd1/.test(sig)) S.trash();
     else if (/\bok\b|\byes\b/.test(sig) && inDialog) S.trash();
     else if (/copy|clipboard/.test(sig)) S.copied();
+    else if (/\bcalculate\b|\bcalc-btn\b/.test(sig)) S.clunk();
     else if (/pdf|export|download|save|print|submit|send/.test(sig)) S.result();
   }, { passive: true });
 
@@ -1737,7 +1747,7 @@
   startRetryLoop(); // zero-tap start attempt — everything above is now defined
 
   window.AOGSound = {
-    version: 'v1.0.8',
+    version: 'v1.0.9',
     play: function (name) { if (S[name]) S[name](); },
     // Force-play for the Sound Settings panel: taps must always be audible,
     // even for 'animations' sounds (fireworks/thunder) that preview mode
