@@ -80,6 +80,7 @@ var CHANGELOG = [
 '🔊 SOUNDS — every tool now uses the same tap sounds (no more double sounds on calculators)',
 '🔊 CONCRETE CALC — tap sounds added',
 '🔊 ANDROID & COMPUTER — sound can start as soon as the app opens',
+'🎃 HALLOWEEN — spookier background sounds on the forms (now with wolves)',
 ];
 //
 // ============================================================

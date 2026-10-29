@@ -89,6 +89,7 @@
     ignite:'animations', trip:'animations',
     explosion:'seasonal', launch:'seasonal', jingle:'seasonal', bell:'seasonal',
     chirp:'seasonal', harp:'seasonal', wind:'seasonal',
+    owl:'seasonal', moan:'seasonal', toll:'seasonal', creak:'seasonal', howl:'seasonal',
     pop:'forms', fanfare:'forms', result:'forms', shutter:'forms',
     trash:'forms', copied:'forms', sweep:'forms', clunk:'taps', tink:'taps'
   };
@@ -791,6 +792,86 @@
     noiseBurst({ dur: 1.8 + Math.random(), vol: 0.045, filter: 'bandpass', from: 200, to: 600, q: 0.6, curve: 1 });
   }
 
+  /* ── HALLOWEEN: spooky one-shots (all quiet, all distant) ───────────── */
+  // A soft-attack voice: tone() snaps in over 10ms, which reads as a beep.
+  // Owls, moans and bells need a slow swell, a pitch path and a long tail.
+  function voice(o) {
+    if (muted) return;
+    var c = getCtx(); if (!c) return;
+    var t = c.currentTime + (o.delay || 0), dur = o.dur || 1;
+    var osc = c.createOscillator(), g = c.createGain(), f = c.createBiquadFilter();
+    osc.type = o.type || 'sine';
+    var path = o.path || [o.from];
+    osc.frequency.setValueAtTime(path[0], t);
+    for (var i = 1; i < path.length; i++)
+      osc.frequency.linearRampToValueAtTime(path[i], t + dur * i / (path.length - 1));
+    if (o.vib) { // vibrato
+      var lfo = c.createOscillator(), lg = c.createGain();
+      lfo.frequency.value = o.vib; lg.gain.value = o.vibDepth || 6;
+      lfo.connect(lg).connect(osc.frequency); lfo.start(t); lfo.stop(t + dur + 0.1);
+    }
+    f.type = 'lowpass'; f.frequency.value = o.lp || 2200;
+    var atk = o.atk || 0.3;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(o.vol || 0.03, t + atk);
+    if (o.hold) g.gain.setValueAtTime(o.vol || 0.03, t + dur * o.hold); // sustain, then fade
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(f).connect(g).connect(out(c));
+    osc.start(t); osc.stop(t + dur + 0.1);
+  }
+  function owlHoot() { // "hoo ... hoo-hoo" from somewhere out in the trees
+    var f = 330 + Math.random() * 40;
+    voice({ path: [f, f * 1.02, f * 0.96], dur: 0.7, vol: 0.06, atk: 0.12, lp: 900 });
+    voice({ path: [f * 0.98, f * 0.94],    dur: 0.4, vol: 0.05, atk: 0.06, lp: 900, delay: 1.0 });
+    voice({ path: [f * 0.98, f * 0.92],    dur: 0.6, vol: 0.055, atk: 0.06, lp: 900, delay: 1.45 });
+  }
+  function ghostMoan() { // a slow, wavering "ooooOOOooo"
+    var b = 260 + Math.random() * 60;
+    voice({ type: 'triangle', path: [b, b * 1.45, b * 1.3, b * 0.85], dur: 3.2, vol: 0.045,
+            atk: 0.9, vib: 5, vibDepth: 7, lp: 1100 });
+    voice({ type: 'sine', path: [b * 2, b * 2.9, b * 2.6, b * 1.7], dur: 3.2, vol: 0.015,
+            atk: 1.0, vib: 5.3, vibDepth: 10, lp: 1600 }); // airy upper "breath"
+  }
+  function wolfHowl() { // long rising howl, then a fainter wolf answers from further off
+    var b = 330 + Math.random() * 50;
+    var path = [b, b * 1.55, b * 1.95, b * 2.0, b * 1.98, b * 1.9, b * 1.5, b * 1.15];
+    voice({ type: 'triangle', path: path, dur: 3.6, vol: 0.05, atk: 0.5, hold: 0.7, vib: 4.5, vibDepth: 5, lp: 1500 });
+    voice({ type: 'sine', path: path.map(function (f) { return f * 2; }), dur: 3.6, vol: 0.012,
+            atk: 0.6, hold: 0.7, vib: 4.5, vibDepth: 9, lp: 2600 }); // breathy upper harmonic
+    var a = b * 1.12; // the answer: higher, shorter, more distant (lower + darker)
+    voice({ type: 'triangle', path: [a, a * 1.6, a * 1.85, a * 1.8, a * 1.3], dur: 2.6, vol: 0.022,
+            atk: 0.5, hold: 0.65, vib: 5, vibDepth: 5, lp: 1000, delay: 3.0 });
+  }
+  function churchToll() { // distant bell: inharmonic partials, long ringing tail
+    var f = 196;
+    [[1, 0.03], [2.0, 0.016], [2.4, 0.013], [3.0, 0.009], [4.2, 0.006]].forEach(function (p) {
+      voice({ path: [f * p[0], f * p[0] * 0.998], dur: 4.5, vol: p[1], atk: 0.01, lp: 1500 });
+    });
+  }
+  function doorCreak() { // stick-slip friction: a train of clicks whose rate drifts
+    if (muted) return;
+    var c = getCtx(); if (!c) return;
+    var dur = 1.1 + Math.random() * 0.8, sr = c.sampleRate;
+    var len = Math.floor(sr * dur), buf = c.createBuffer(1, len, sr), d = buf.getChannelData(0);
+    var next = 0, k = 0;
+    for (var i = 0; i < len; i++) {
+      var p = i / len;
+      if (i >= next) { // one "slip"
+        k = 1;
+        var rate = 38 + 50 * Math.sin(p * 3.1 + 0.4) + Math.random() * 14; // 25–100 slips/sec
+        next = i + Math.floor(sr / Math.max(22, rate));
+      }
+      var env = Math.sin(Math.PI * p);        // swell in, fade out
+      d[i] = k * env * (Math.random() * 0.6 + 0.4);
+      k *= 0.993;                            // each slip rings briefly
+    }
+    var src = c.createBufferSource(); src.buffer = buf;
+    var f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 620; f.Q.value = 6;
+    var g = c.createGain(); g.gain.value = 0.09;
+    src.connect(f).connect(g).connect(out(c));
+    src.start();
+  }
+
   function shutter() { // camera: two fast clicks
     noiseBurst({ dur: 0.03, vol: 0.14, filter: 'highpass', from: 1500, curve: 4 });
     noiseBurst({ dur: 0.04, vol: 0.1, filter: 'highpass', from: 1200, curve: 4, delay: 0.07 });
@@ -1152,6 +1233,11 @@
     chirp:   chirp,
     harp:    harp,
     wind:    windGust,
+    owl:     owlHoot,
+    moan:    ghostMoan,
+    toll:    churchToll,
+    creak:   doorCreak,
+    howl:    wolfHowl,
     shutter: shutter,
     pop:     function () { pick('pop'); },
     fanfare: function () { pick('fanfare'); },
@@ -1188,7 +1274,9 @@
     zap: 10, zapBig: 35, trip: [30, 30, 50], trash: [15, 40, 30], sweep: 25,
     shutter: [12, 30, 12], clunk: 30, tink: 10, welcome: [15, 40, 25],
     arcflash: [20, 20, 80], grb: [20, 30, 200], powerDown: [80, 60, 40], surge: 40,
-    ignite: 15, ping: 12, pulse: 30
+    ignite: 15, ping: 12, pulse: 30,
+    // Background ambience never vibrates the phone
+    wind: 0, owl: 0, moan: 0, toll: 0, creak: 0, howl: 0
   };
   function buzz(k) {
     if (!navigator.vibrate) return;
@@ -1410,7 +1498,15 @@
     },
     fire:   function () { noiseLoopNode('lowpass', 1100, 0.6, 0.045); noiseLoopNode('highpass', 3200, 1, 0.016); },
     arcbuzz:function () { oscLoopNode('sawtooth', 110, 0.011); noiseLoopNode('highpass', 3000, 1, 0.009); },
-    fan:    fanLoopNode
+    fan:    fanLoopNode,
+    // Halloween bed: two notes a half-step apart BEAT against each other (the
+    // classic horror-film unease), an octave up so phone speakers can play it,
+    // under a low wobbling night wind. Kept just above silence.
+    haunt:  function () {
+      oscLoopNode('sine', 110, 0.010); oscLoopNode('sine', 116.5, 0.009);
+      oscLoopNode('sine', 220, 0.007); oscLoopNode('sine', 233.1, 0.006);
+      noiseLoopNode('bandpass', 280, 0.7, 0.018, true);
+    }
   };
 
   function scheduleOccasional(name, minMs, maxMs) {
@@ -1478,7 +1574,9 @@
   /* ---- Seasonal form-page themes → sound profile ---- */
   var SEASONS = {
     fourthofjuly: {},                                        // engine calls explosion/launch itself
-    halloween:    { occ: [['wind', 6000, 14000], ['thunder', 20000, 45000]] },
+    halloween:    { loop: 'haunt', occ: [['wind', 9000, 18000], ['creak', 22000, 45000], ['owl', 28000, 55000],
+                                       ['moan', 35000, 70000], ['toll', 60000, 120000], ['thunder', 45000, 90000],
+                                       ['howl', 50000, 110000]] },
     christmas:    { occ: [['jingle', 8000, 18000]] },
     newyear:      { occ: [['explosion', 9000, 20000], ['fanfare', 30000, 70000]] },
     fall:         { occ: [['wind', 8000, 18000]] },
