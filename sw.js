@@ -1,6 +1,6 @@
 // ============================================================
 //  Always On Generators – Field Hub
-//  Service Worker  |  sw.js  |  Version: v2.7.0
+//  Service Worker  |  sw.js  |  Version: v2.8.0
 //
 //  ⚠ WHEN YOU UPDATE ANY TOOL:
 //    1. Bump CACHE_VERSION
@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v2.7.0';
+var CACHE_VERSION = 'v2.8.0';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -76,12 +76,11 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-'📦 BOX FILL — new: NEC 314.16 device & outlet box fill calculator',
-'📐 PULL BOX — new: NEC 314.28 pull & junction box sizing with knockout layout',
-'🔌 CONDUIT FILL — wire & conduit data corrected to NEC 2023 Chapter 9',
-'🔌 CONDUIT FILL — Chapter 9 quick-reference tables & notes added',
-'🧰 TOOLS — regrouped into Lookup, Electrical, and Install Planning',
-'🔔 Update banner no longer hidden behind the top bar on tool pages',
+'🧮 ELECTRICAL FORMULAS — new: kW/amps, voltage drop, gen load, motor FLA, Ohm\'s law & conversions',
+'⛏️ TRENCH DEPTH — new: NEC 300.5 & NFPA 54/58 burial depth with trench drawing',
+'🔗 GAS BONDING — new: NFPA 54 7.12 CSST & pipe bonding with job drawing',
+'🔥 GAS CALC — NFPA 54 tables & code reference added',
+'⚡ BREAKER & CONDUCTOR — NEC tables & code reference added',
 ];
 //
 // ============================================================
@@ -114,7 +113,10 @@ var PRECACHE_URLS = [
   './property-lookup/fl_electric_territories.geojson',
   './gas-calc/',
   './spec-viewer/',
-  './concrete-calc/'
+  './concrete-calc/',
+  './quick-calc/',
+  './trench-depth/',
+  './gas-bonding/'
 ];
 
 // CDN assets that must be cached on install for 100% offline support

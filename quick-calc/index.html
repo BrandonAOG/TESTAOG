@@ -1,0 +1,1893 @@
+<!DOCTYPE html>
+<!--
+© 2026 Brandon Keilholz — All rights reserved.
+Created by Brandon Keilholz. Licensed for use by Always On Generators.
+This form, its code, layout, and content are proprietary.
+Unauthorized copying, reproduction, or distribution is prohibited and
+may result in liability for statutory damages of up to $150,000 per work
+for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>AOG Electrical Formulas</title>
+<script src="../sounds.js" defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="../manifest.json">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="theme-color" content="#FBBF24">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AOG Forms">
+
+<style>
+:root {
+  --bg: #f8f9fa;
+  --bg2: #ffffff;
+  --bg3: #f1f3f5;
+  --border: #dee2e6;
+  --text: #1F2937;
+  --text2: #4b5563;
+  --accent: #D97706;
+  --accent2: #B45309;
+  --cyan: #0891b2;
+  --success: #059669;
+  --danger: #DC2626;
+  --warn: #d97706;
+  --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --radius: 12px;
+  --header-bg: #1a1a2e;
+  --header-text: #D97706;
+}
+.dark {
+  --bg: #0A0E27;
+  --bg2: #0f1535;
+  --bg3: #141a3a;
+  --border: #1e2a4a;
+  --text: #E0F7FF;
+  --text2: #94a3b8;
+  --accent: #00FFC8;
+  --accent2: #06B6D4;
+  --cyan: #00FFC8;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warn: #f59e0b;
+  --shadow: 0 2px 8px rgba(0,255,200,0.06);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Exo 2', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* HEADER — spec-viewer style: pulsing logo left of company name + scanline flashes */
+.header {
+  text-align: center;
+  padding: 26px 16px 20px;
+  margin-bottom: 8px;
+  position: relative;
+}
+.header::before,.header::after{content:'';position:absolute;height:2px;width:80%;left:10%;background:linear-gradient(90deg,transparent,#FBBF24,#F97316,#00D4FF,transparent);}
+.header::before{top:0;animation:scanline 4s linear infinite;}
+.header::after{bottom:0;animation:scanline 4s linear infinite reverse;}
+@keyframes scanline{0%,100%{opacity:0;transform:scaleX(0)}50%{opacity:1;transform:scaleX(1)}}
+.logo-wrap{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:nowrap;margin-bottom:10px;}
+.logo-img{width:70px;height:70px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 0 12px rgba(251,191,36,.6));animation:logoPulse 3s ease-in-out infinite;}
+@media(min-width:480px){.logo-img{width:90px;height:90px}}
+@keyframes logoPulse{0%,100%{filter:drop-shadow(0 0 12px rgba(251,191,36,.6))}50%{filter:drop-shadow(0 0 22px rgba(251,191,36,.9)) drop-shadow(0 0 36px rgba(249,115,22,.6))}}
+.title-block{text-align:left;min-width:0;}
+.company-name{font-family:'Orbitron',monospace;font-size:clamp(1.05rem,4.5vw,1.4rem);font-weight:900;letter-spacing:2px;line-height:1.1;background:linear-gradient(135deg,#FBBF24 0%,#F97316 50%,#EA580C 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;}
+@media(min-width:480px){.company-name{font-size:1.8rem;letter-spacing:3px}}
+.tagline{font-family:'Share Tech Mono',monospace;font-size:.65rem;letter-spacing:4px;color:var(--cyan);text-transform:uppercase;}
+.tool-title{font-family:'Orbitron',monospace;font-size:.7rem;letter-spacing:5px;color:var(--text2);margin-top:8px;text-transform:uppercase;}
+.tool-title span{color:#F97316;}
+.header .nec-badge{margin-top:8px;display:inline-block;}
+.home-btn {
+  background: none; border: 1px solid #D97706;
+  color: #D97706; border-radius: 8px;
+  padding: 6px 10px; font-size: 11px;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.2s;
+  text-decoration: none; display: inline-flex;
+  align-items: center; gap: 4px;
+}
+.home-btn:hover { background: #D97706; color: #000; }
+.theme-btn {
+  background: none; border: 1px solid #D97706;
+  color: #D97706; border-radius: 8px;
+  padding: 6px 10px; font-size: 14px; cursor: pointer;
+  transition: all 0.2s;
+}
+.theme-btn:hover { background: #D97706; color: #000; }
+.nec-badge {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8px; background: #D97706;
+  color: #000; padding: 3px 7px;
+  border-radius: 4px; font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* MAIN */
+.main { padding: 16px; max-width: 900px; margin: 0 auto; }
+
+/* SECTION CARDS */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+  transition: background 0.3s, border 0.3s;
+}
+.card-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px; font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title::before {
+  content: ''; display: inline-block;
+  width: 3px; height: 14px;
+  background: var(--accent); border-radius: 2px;
+}
+
+/* FORM ELEMENTS */
+label {
+  font-size: 11px; font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  display: block; margin-bottom: 5px;
+}
+select, input[type="number"], input[type="text"] {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: 'Exo 2', sans-serif;
+  outline: none;
+  transition: border 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none;
+}
+select:focus, input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(217,119,6,0.2);
+}
+.dark select:focus, .dark input:focus {
+  box-shadow: 0 0 0 2px rgba(0,255,200,0.15);
+}
+
+/* GRID LAYOUTS */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+@media(max-width:520px) {
+  .grid-2 { grid-template-columns: 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+}
+
+/* WIRE ROWS */
+.wire-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+  padding: 10px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  transition: background 0.3s;
+}
+.wire-row:hover { border-color: var(--accent); }
+.remove-btn {
+  background: var(--danger);
+  color: white; border: none;
+  border-radius: 6px; width: 32px; height: 32px;
+  font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: opacity 0.2s;
+  align-self: flex-end; margin-bottom: 0;
+}
+.remove-btn:hover { opacity: 0.8; }
+.add-btn {
+  background: var(--accent);
+  color: #000; border: none;
+  border-radius: 8px; padding: 10px 16px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  transition: opacity 0.2s, transform 0.1s;
+  width: 100%; justify-content: center;
+  margin-top: 8px;
+}
+.add-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+.add-btn:active { transform: translateY(0); }
+
+/* CALCULATE BUTTON */
+.calc-btn {
+  width: 100%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000; border: none;
+  border-radius: 10px; padding: 14px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 2px; cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(217,119,6,0.3);
+  margin-top: 4px;
+}
+.calc-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(217,119,6,0.4);
+}
+.calc-btn:active { transform: translateY(0); }
+.dark .calc-btn {
+  background: linear-gradient(135deg, #00FFC8, #06B6D4);
+  box-shadow: 0 4px 15px rgba(0,255,200,0.25);
+}
+
+/* RESULTS */
+.result-card {
+  background: var(--bg2);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 0 20px rgba(217,119,6,0.1);
+}
+.dark .result-card {
+  box-shadow: 0 0 20px rgba(0,255,200,0.08);
+}
+.result-header {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px; color: var(--accent);
+  letter-spacing: 1.5px; margin-bottom: 14px;
+  text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* CONDUIT TABLE */
+.conduit-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 12px; font-family: 'Share Tech Mono', monospace;
+}
+.conduit-table th {
+  background: var(--bg3);
+  color: var(--accent);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px; letter-spacing: 1px;
+  padding: 8px 10px; text-align: left;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+.conduit-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+.conduit-table tr:last-child td { border-bottom: none; }
+.conduit-table tr:hover td { background: var(--bg3); }
+
+/* STATUS PILLS */
+.status-pass {
+  background: var(--success);
+  color: white; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+.status-fail {
+  background: var(--danger);
+  color: white; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+.status-warn {
+  background: var(--warn);
+  color: #000; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+.status-best {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+
+/* FILL BAR */
+.fill-bar-wrap {
+  background: var(--bg3);
+  border-radius: 6px; height: 10px;
+  overflow: hidden; min-width: 60px;
+}
+.fill-bar {
+  height: 100%; border-radius: 6px;
+  transition: width 0.6s ease;
+}
+.fill-green { background: var(--success); }
+.fill-yellow { background: var(--warn); }
+.fill-red { background: var(--danger); }
+
+/* JAM SECTION */
+.jam-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+}
+.jam-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px; color: var(--accent);
+  letter-spacing: 1px; margin-bottom: 8px;
+}
+.jam-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.jam-item {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px;
+  text-align: center;
+}
+.jam-size {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px; font-weight: 700;
+  color: var(--text);
+}
+.jam-ratio {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--text2);
+  margin: 2px 0;
+}
+.jam-status {
+  font-size: 10px; font-weight: 700;
+  margin-top: 4px;
+}
+.jam-ok  { color: var(--success); }
+.jam-risk { color: var(--warn); }
+.jam-high { color: var(--danger); }
+
+/* WIRE SUMMARY */
+.wire-summary {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-bottom: 12px;
+}
+.wire-chip {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--text);
+}
+
+/* RECOMMENDATION */
+.rec-box {
+  background: linear-gradient(135deg, rgba(217,119,6,0.1), rgba(180,83,9,0.05));
+  border: 1px solid var(--accent);
+  border-radius: 8px; padding: 12px;
+  margin-top: 12px;
+}
+.dark .rec-box {
+  background: linear-gradient(135deg, rgba(0,255,200,0.05), rgba(6,182,212,0.03));
+  border-color: var(--accent);
+}
+.rec-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px; color: var(--accent);
+  letter-spacing: 1.5px; margin-bottom: 6px;
+}
+.rec-size {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px; font-weight: 900;
+  color: var(--accent);
+}
+.rec-detail {
+  font-size: 12px; color: var(--text2);
+  margin-top: 4px; font-family: 'Share Tech Mono', monospace;
+}
+
+/* STATS ROW */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px; margin-bottom: 12px;
+}
+.stat-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px;
+  text-align: center;
+}
+.stat-val {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px; font-weight: 700;
+  color: var(--accent);
+}
+.stat-lbl {
+  font-size: 9px; color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.8px; margin-top: 2px;
+}
+
+/* NIPPLE/RACEWAY TOGGLE */
+.toggle-row {
+  display: flex; gap: 8px;
+  margin-bottom: 14px;
+}
+.toggle-opt {
+  flex: 1; padding: 10px;
+  border: 2px solid var(--border);
+  border-radius: 8px; text-align: center;
+  cursor: pointer; font-family: 'Orbitron', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; color: var(--text2);
+  transition: all 0.2s;
+}
+.toggle-opt.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(217,119,6,0.08);
+}
+.dark .toggle-opt.active {
+  background: rgba(0,255,200,0.07);
+}
+
+/* OVERFLOW TABLE */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center; padding: 40px 20px;
+  color: var(--text2);
+}
+.empty-icon { font-size: 48px; margin-bottom: 8px; }
+.empty-text {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px; letter-spacing: 1px;
+}
+
+/* DIVIDER */
+.divider {
+  border: none; border-top: 1px solid var(--border);
+  margin: 12px 0;
+}
+
+/* INFO ROW */
+.info-row {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text2);
+  margin-top: 6px;
+  font-family: 'Share Tech Mono', monospace;
+}
+.info-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%; background: var(--accent);
+  flex-shrink: 0;
+}
+
+
+/* ===== QUICK REFERENCE TABLES MODAL ===== */
+.ref-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.ref-btn {
+  flex: 1; min-width: 140px;
+  background: var(--bg3); color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 8px;
+  padding: 10px; cursor: pointer;
+  font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  text-decoration: none; text-align: center; transition: all 0.2s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.ref-btn:hover { background: var(--accent); color: #000; }
+.modal-bg {
+  position: fixed; inset: 0; z-index: 100000;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(2px);
+  display: none; align-items: flex-start; justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 16px)) 12px 16px;
+  overflow-y: auto;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: var(--bg2); border: 2px solid var(--accent);
+  border-radius: var(--radius); width: 100%; max-width: 820px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+  margin: auto 0;
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--bg2); border-radius: var(--radius) var(--radius) 0 0; z-index: 1;
+}
+.modal-title { font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 1.5px; }
+.modal-close {
+  background: none; border: 1px solid var(--border); color: var(--text2);
+  border-radius: 6px; width: 32px; height: 32px; font-size: 18px; cursor: pointer; flex-shrink: 0;
+}
+.modal-close:hover { border-color: var(--danger); color: var(--danger); }
+.modal-tabs { display: flex; gap: 6px; padding: 10px 14px 0; flex-wrap: wrap; }
+.modal-tab {
+  flex: 1; min-width: 100px; padding: 8px; border: 2px solid var(--border); border-radius: 8px;
+  background: none; color: var(--text2); cursor: pointer;
+  font-family: 'Orbitron', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 1px;
+}
+.modal-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(217,119,6,0.08); }
+.dark .modal-tab.active { background: rgba(0,255,200,0.07); }
+.modal-body { padding: 14px; }
+.modal-pane { display: none; }
+.modal-pane.active { display: block; }
+.modal .conduit-table td.grp {
+  background: var(--bg3); color: var(--accent);
+  font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 1px;
+}
+.modal .conduit-table td.num, .modal .conduit-table th.num { text-align: center; }
+.rule-list { display: grid; gap: 8px; }
+.rule {
+  background: var(--bg3); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 8px; padding: 10px;
+}
+.rule-ref { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--accent); margin-bottom: 3px; }
+.rule-txt { font-size: 13px; color: var(--text); line-height: 1.45; }
+.rule-txt b { font-weight: 600; }
+.modal-foot { padding: 0 14px 14px; }
+body.modal-open { overflow: hidden; }
+@media print { .modal-bg, .ref-btns { display: none !important; } }
+
+
+/* ===== MOBILE TABLE TUNING ===== */
+.m-only { display: none; }
+@media (max-width: 520px) {
+  /* stop iOS auto-zoom on focus */
+  select, input[type="number"], input[type="text"] { font-size: 16px; }
+  .conduit-table { font-size: 11px; }
+  .conduit-table th { padding: 7px 5px; font-size: 8px; }
+  .conduit-table td { padding: 7px 5px; }
+  .hide-m { display: none; }
+  .m-only { display: inline; }
+  .wrap-m { white-space: normal !important; min-width: 96px; }
+  /* first column stays put if a table still needs to scroll */
+  .sticky-1 td:first-child, .sticky-1 th:first-child {
+    position: sticky; left: 0; z-index: 1; background: var(--bg2);
+    box-shadow: 1px 0 0 var(--border);
+  }
+  .sticky-1 thead th:first-child { background: var(--bg3); }
+  .sticky-1 tr.current-row td:first-child { background: linear-gradient(rgba(217,119,6,0.08), rgba(217,119,6,0.08)), var(--bg2); }
+  .dark .sticky-1 tr.current-row td:first-child { background: linear-gradient(rgba(0,255,200,0.06), rgba(0,255,200,0.06)), var(--bg2); }
+  .modal-bg { padding-left: 6px; padding-right: 6px; }
+  .modal-body { padding: 10px; }
+  .modal .conduit-table td.num, .modal .conduit-table th.num { padding: 7px 3px; }
+  .modal .conduit-table td.grp { position: static; box-shadow: none; }
+  .stats-row { gap: 6px; }
+  .stat-val { font-size: 14px; }
+}
+
+
+.check-detail {
+  margin-top: -9px;
+  padding: 12px 10px 10px;
+  background: var(--bg3);
+  border: 1px solid var(--accent);
+  border-top: 1px dashed var(--border);
+  border-radius: 0 0 8px 8px;
+}
+.check-row:has(input:checked) { border-color: var(--accent); }
+.check-row:has(+ .check-detail[style*="display: none"]), .check-row:has(+ .check-detail[style*="display:none"]) { border-radius: 8px; }
+.check-row:has(input:checked):has(+ .check-detail:not([style*="none"])) { border-radius: 8px 8px 0 0; border-bottom-color: transparent; }
+
+
+/* ===== RUN CARDS (IN → OUT) ===== */
+.run-card {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px; margin-bottom: 8px; transition: border 0.2s;
+}
+.run-card:hover { border-color: var(--accent); }
+.run-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.run-head .entry-tag { height: 28px; padding: 0 10px; align-self: center; }
+.run-head .remove-btn { margin-left: auto; }
+.pull-badge {
+  font-family: 'Share Tech Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 1px;
+  padding: 4px 10px; border-radius: 12px; background: var(--bg2); border: 1px solid var(--border); color: var(--text2);
+}
+.pull-badge.k-straight { color: var(--cyan); border-color: var(--cyan); }
+.pull-badge.k-angle, .pull-badge.k-u { color: var(--accent); border-color: var(--accent); }
+.pull-badge.k-splice { color: var(--warn); border-color: var(--warn); }
+.run-line { display: grid; grid-template-columns: 44px 1.2fr 0.9fr 1fr; gap: 8px; align-items: end; }
+.run-side {
+  height: 40px; display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  color: #000; background: var(--accent); border-radius: 8px;
+}
+.run-side.out { background: var(--cyan); }
+.dark .run-side.out { background: var(--accent2); }
+.run-arrow { text-align: left; padding-left: 16px; color: var(--text2); font-size: 14px; line-height: 1; margin: 2px 0; }
+.run-card.in-none .r-in-row, .run-card.in-none .r-in-size,
+.run-card.out-none .r-out-row, .run-card.out-none .r-out-size { opacity: 0.35; }
+.splice-tog {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0 0 0 auto; cursor: pointer;
+  font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text2);
+}
+.splice-tog input { position: absolute; opacity: 0; pointer-events: none; }
+.splice-tog .check-box { width: 16px; height: 16px; }
+.splice-tog input:checked + .check-box { background: var(--warn); border-color: var(--warn); }
+.splice-tog input:checked + .check-box::after { content: '✓'; color: #000; font-size: 11px; font-weight: 900; }
+.splice-tog input:disabled + .check-box { opacity: .6; }
+.splice-tog:has(input:checked) { color: var(--warn); }
+.run-head .splice-tog + .remove-btn { margin-left: 4px; }
+select:disabled { cursor: not-allowed; }
+@media (max-width: 520px) {
+  .run-line { grid-template-columns: 36px 1.25fr 0.95fr 1fr; gap: 5px; }
+  .run-line label { font-size: 9px; letter-spacing: .4px; }
+  .run-line select { padding: 9px 6px; }
+  .run-side { height: 38px; font-size: 9px; }
+}
+
+
+/* ===== WALL ROWS SIDE VIEW ===== */
+.rows-view { display: grid; gap: 14px; }
+.row-wall { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+.row-calcs { display: grid; gap: 4px; margin-top: 8px; }
+.row-calc { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--text2); padding: 4px 6px; border-radius: 6px; }
+.row-calc b { color: var(--text); font-weight: 700; }
+.row-calc.gov { color: var(--text); background: rgba(217,119,6,0.08); }
+.dark .row-calc.gov { background: rgba(0,255,200,0.07); }
+
+
+.pull-badge { white-space: nowrap; }
+@media (max-width: 520px) {
+  .run-head { gap: 6px; }
+  .pull-badge { font-size: 10px; padding: 3px 8px; letter-spacing: .5px; }
+  .splice-tog { font-size: 11px; white-space: nowrap; }
+  .splice-tog .sp-txt::before { content: 'Spliced'; }
+  .splice-tog .sp-txt { font-size: 0; }
+  .splice-tog .sp-txt::before { font-size: 11px; }
+}
+
+
+@media (max-width: 520px) { #fitCard .conduit-table td, #fitCard .conduit-table th { padding-left: 4px; padding-right: 4px; } #fitCard .status-pass, #fitCard .status-warn, #fitCard .status-fail { font-size: 9px; padding: 3px 6px; } }
+.rec-box.warn { border-color: var(--warn); background: linear-gradient(135deg, rgba(217,119,6,0.10), rgba(217,119,6,0.03)); }
+.rec-box.warn .rec-size, .rec-box.warn .rec-label { color: var(--warn); }
+
+/* ===== TOUCH & SMALL-PHONE TUNING ===== */
+.splice-tog { min-height: 40px; padding: 0 6px; border-radius: 8px; }
+.splice-tog:active { background: var(--bg2); }
+@media (max-width: 360px) {
+  .conduit-table { font-size: 10px; }
+  .conduit-table th { font-size: 7.5px; padding: 6px 3px; letter-spacing: .5px; }
+  .conduit-table td { padding: 6px 3px; }
+  .wrap-m { min-width: 78px; }
+  .modal .conduit-table th { white-space: normal; }
+  .run-line { grid-template-columns: 32px 1.2fr 0.95fr 1fr; gap: 4px; }
+  .run-line select { padding: 9px 4px; }
+}
+.run-head > * { flex-shrink: 0; }
+.run-head .pull-badge { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 360px) { .bd-spl { display: none; } .run-head .pull-badge { font-size: 9px; padding: 3px 6px; letter-spacing: .3px; } .run-head { gap: 4px; } }
+/* PRINT */
+@media print {
+  .header, .add-btn, .remove-btn, .calc-btn,
+  .theme-btn, .home-btn, .toggle-row { display: none !important; }
+  body { background: white; color: black; }
+  .card, .result-card { box-shadow: none; border: 1px solid #ccc; }
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+
+/* FOOTER */
+.footer {
+  text-align: center; padding: 20px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--text2);
+  letter-spacing: 1px;
+}
+
+
+/* ===== FIXED ACTION BAR ===== */
+.action-bar {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  z-index: 99999;
+  width: 100%;
+  background: var(--header-bg, #1e293b);
+  padding: 4px 8px;
+  padding-top: max(4px, env(safe-area-inset-top, 4px));
+  display: flex; justify-content: flex-start; gap: 4px; flex-wrap: nowrap; align-items: center;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  
+  box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+  border-bottom: 1px solid rgba(217,119,6,0.3);
+  box-sizing: border-box;
+}
+/* Center the buttons when they fit; auto-margins collapse safely when the
+   bar overflows and scrolls, so nothing gets clipped off the left edge. */
+.action-bar > :first-child { margin-left: auto; }
+.action-bar > :last-child { margin-right: auto; }
+.action-bar .ab-btn {
+  padding: 6px 8px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.07);
+  border-radius: 0; cursor: pointer; color: #D97706; text-transform: uppercase;
+  font-family: Arial, sans-serif; white-space: nowrap; flex: 1; min-width: 0;
+  text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+  clip-path: polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  overflow: hidden; text-overflow: ellipsis; transition: all 0.15s ease;
+}
+.action-bar .ab-btn:hover { border-color: #D97706; box-shadow: 0 0 8px rgba(217,119,6,0.3); }
+.action-bar .theme-toggle-ab {
+  width: 36px; height: 36px; padding: 6px; flex-shrink: 0;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.07);
+  border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: #D97706; font-size: 16px; transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.action-bar .theme-toggle-ab:hover { border-color: #D97706; box-shadow: 0 0 8px rgba(217,119,6,0.3); }
+@media (max-width: 480px) {
+  .action-bar { padding: 4px 4px; padding-top: max(4px, env(safe-area-inset-top, 4px)); gap: 3px; }
+}
+
+/* ===== BOX FILL ADDITIONS (same tokens as conduit fill) ===== */
+.wire-row.w4 { grid-template-columns: 1fr 0.7fr 1.6fr auto; }
+.wire-row.w3 { grid-template-columns: 1.6fr 1fr auto; }
+.wire-row.wd { grid-template-columns: 1.4fr 1fr 0.7fr auto; }
+@media(max-width:520px) {
+  .wire-row.w4, .wire-row.wd { grid-template-columns: 1fr 1fr; }
+  .wire-row.w4 .remove-btn, .wire-row.wd .remove-btn { grid-column: 2; justify-self: end; }
+  .wire-row.w4 .span-m, .wire-row.wd .span-m { grid-column: 1 / -1; }
+}
+.row-note {
+  grid-column: 1 / -1;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--text2);
+  letter-spacing: .5px;
+}
+.row-note b { color: var(--accent); font-weight: 400; }
+
+.check-list { display: grid; gap: 8px; }
+.check-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px; margin: 0;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer;
+  text-transform: none; letter-spacing: 0;
+  font-weight: 400; transition: border 0.2s;
+}
+.check-row:hover { border-color: var(--accent); }
+.check-row input { position: absolute; opacity: 0; pointer-events: none; }
+.check-box {
+  width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px;
+  border: 2px solid var(--border); border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; background: var(--bg2);
+}
+.check-row input:checked + .check-box { background: var(--accent); border-color: var(--accent); }
+.check-row input:checked + .check-box::after { content: '✓'; color: #000; font-size: 12px; font-weight: 900; }
+.check-row input:focus-visible + .check-box { box-shadow: 0 0 0 2px rgba(217,119,6,0.3); }
+.check-text { font-size: 13px; color: var(--text); line-height: 1.4; }
+.check-text b { font-weight: 600; }
+.check-text em {
+  font-style: normal; font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--text2); letter-spacing: .5px;
+}
+
+.total-row td {
+  font-family: 'Orbitron', sans-serif !important;
+  font-weight: 700; font-size: 11px;
+  color: var(--accent) !important;
+  border-top: 2px solid var(--border);
+  background: var(--bg3);
+}
+.ref-tag { color: var(--text2); }
+
+.warn-box {
+  display: flex; gap: 8px; align-items: flex-start;
+  background: var(--bg3);
+  border: 1px solid var(--warn);
+  border-left: 3px solid var(--warn);
+  border-radius: 8px; padding: 10px; margin-bottom: 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--text);
+}
+.warn-box.err { border-color: var(--danger); }
+.rec-box.fail { border-color: var(--danger); background: linear-gradient(135deg, rgba(220,38,38,0.10), rgba(220,38,38,0.03)); }
+.rec-box.fail .rec-size, .rec-box.fail .rec-label { color: var(--danger); }
+.rec-box.pass .rec-size { color: var(--success); }
+.current-row td { background: rgba(217,119,6,0.08); }
+.dark .current-row td { background: rgba(0,255,200,0.06); }
+
+/* ===== PULL BOX ADDITIONS ===== */
+.wire-row.we { grid-template-columns: 34px 1fr 0.8fr 0.9fr 1.1fr 1.2fr auto; }
+.entry-tag {
+  align-self: end; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700;
+  color: var(--accent); border: 1px solid var(--accent); border-radius: 8px;
+  background: var(--bg2);
+}
+@media (max-width: 720px) {
+  .wire-row.we { grid-template-columns: 1fr 1fr; }
+  .wire-row.we .entry-tag { grid-column: 1 / -1; height: 26px; justify-content: flex-start; padding: 0 10px; align-self: start; }
+  .wire-row.we .remove-btn { grid-column: 2; justify-self: end; }
+}
+.diagram-wrap { padding: 4px 0; overflow: hidden; }
+.grid-3 > div { min-width: 0; }
+@media (max-width: 520px) { .grid-3 { grid-template-columns: 1fr 1fr 1fr; gap: 6px; } }
+
+/* ===== QUICK CALC ===== */
+/* checkbox (shared AOG style) */
+.mini-chk { display: inline-flex; align-items: center; gap: 10px; margin: 0; cursor: pointer; min-height: 44px; position: relative;
+  font-size: 13px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text2); line-height: 1.3; }
+.mini-chk input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.mini-chk .check-box { width: 22px; height: 22px; flex-shrink: 0; border: 2px solid var(--border); border-radius: 5px; background: var(--bg2);
+  display: flex; align-items: center; justify-content: center; transition: all .2s; }
+.mini-chk:hover .check-box { border-color: var(--accent); }
+.mini-chk input:checked + .check-box { background: var(--accent); border-color: var(--accent); }
+.mini-chk input:checked + .check-box::after { content: '✓'; color: #000; font-size: 14px; font-weight: 900; }
+.mini-chk input:focus-visible + .check-box { box-shadow: 0 0 0 3px rgba(217,119,6,.3); }
+.mini-chk:has(input:checked) { color: var(--text); }
+
+.calc-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.calc-tabs .toggle-opt { padding: 12px 6px; font-size: 10px; }
+.toggle-opt { background: var(--bg2); }
+.toggle-opt:hover { border-color: var(--accent); }
+.calc-pane { display: none; }
+td.sel-size { color: var(--accent); font-weight: 700; }
+details.math { margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg3); }
+details.math summary { cursor: pointer; padding: 10px 12px; font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: var(--accent); list-style: none; display: flex; justify-content: space-between; }
+details.math summary::-webkit-details-marker { display: none; }
+details.math summary::after { content: '+'; font-size: 16px; line-height: 1; }
+details.math[open] summary::after { content: '−'; }
+.math-b { padding: 0 12px 12px; display: grid; gap: 8px; }
+.mstep { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; }
+.mstep .mn { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #000; font-weight: 800; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+.mstep .mt { font-size: 12px; font-weight: 700; color: var(--text); }
+.mstep .mf { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--cyan); margin: 1px 0 2px; }
+.mstep .mf::before { content: 'ƒ  '; opacity: .7; }
+.mstep .me { font-family: 'Share Tech Mono', monospace; font-size: 12.5px; color: var(--text); line-height: 1.5; word-break: break-word; }
+.mstep .me b { color: var(--accent); }
+.mstep .mr { font-family: 'Share Tech Mono', monospace; font-size: 10.5px; color: var(--text2); letter-spacing: .3px; }
+td.amp-bad { color: var(--danger); font-weight: 700; }
+.calc-pane.active { display: block; }
+.toggle-row .toggle-opt { min-height: 40px; }
+.formula {
+  margin-top: 10px; font-family: 'Share Tech Mono', monospace; font-size: 12px;
+  color: var(--text2); text-align: center; min-height: 1em; line-height: 1.5;
+}
+input.is-out { border-color: var(--accent); color: var(--accent); font-weight: 700; background: var(--bg3); }
+.gen-row {
+  display: grid; grid-template-columns: 30px 1.4fr 0.8fr 0.7fr 1.4fr auto; gap: 8px; align-items: end;
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-bottom: 10px;
+}
+.gen-row > div { min-width: 0; }
+.gen-n {
+  align-self: end; height: 40px; display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700; color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 8px; background: var(--bg2);
+}
+.gen-msg { grid-column: 2 / -1; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text2); min-height: 0; }
+.gen-msg:empty { display: none; }
+.gen-msg.err { color: var(--danger); }
+.gen-row .remove-btn { height: 40px; }
+@media (max-width: 720px) {
+  .gen-row { grid-template-columns: 1fr 1fr; }
+  .gen-row .gen-n { grid-column: 1; height: 28px; width: 40px; justify-self: start; align-self: start; }
+  .gen-row .remove-btn { grid-column: 2; grid-row: 1; justify-self: end; height: 32px; }
+  .gen-row .gen-name, .gen-row .gen-conn { grid-column: 1 / -1; }
+  .gen-msg { grid-column: 1 / -1; }
+}
+.std-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.std-chip {
+  font-family: 'Share Tech Mono', monospace; font-size: 12px; padding: 5px 9px; min-width: 44px; text-align: center;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--bg3); color: var(--text2);
+}
+.std-chip.hit { border-color: var(--accent); color: var(--accent); font-weight: 700; box-shadow: 0 0 0 2px rgba(217,119,6,0.18); }
+.dark .std-chip.hit { box-shadow: 0 0 0 2px rgba(0,255,200,0.15); }
+#pane-gen .stats-row { grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); }
+</style>
+<script src="../update-banner.js"></script>
+</head>
+<body>
+<div class="action-bar" id="action-bar">
+  <a class="ab-btn" href="../">🏠 HOME</a>
+  <button class="ab-btn" onclick="openRef()">📋 FORMULAS</button>
+  <button class="theme-toggle-ab" id="themeBtn" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo-wrap">
+    <img src="../logo.png" alt="Always On Generators Logo" class="logo-img" onerror="this.style.display='none'">
+    <div class="title-block">
+      <div class="company-name">Always On<br>Generators</div>
+      <div class="tagline">// Power When You Need It //</div>
+    </div>
+  </div>
+  <div class="tool-title"><span>Electrical</span> Formulas</div>
+  <span class="nec-badge">NEC 2023</span>
+</div>
+
+<div class="main" id="main">
+
+  <div class="card">
+    <div class="card-title">Pick a Formula</div>
+    <div class="calc-tabs" id="calcTabs">
+      <button class="toggle-opt" data-pane="kw">⚡ kW ⇄ AMPS</button>
+      <button class="toggle-opt" data-pane="vd">📉 VOLTAGE DROP</button>
+      <button class="toggle-opt" data-pane="gen">🔋 GEN LOAD</button>
+      <button class="toggle-opt" data-pane="motor">⚙️ MOTOR FLA</button>
+      <button class="toggle-opt" data-pane="brk">🔌 BREAKER SIZE</button>
+      <button class="toggle-opt" data-pane="ohm">Ω OHM'S LAW</button>
+      <button class="toggle-opt" data-pane="conv">🔄 HP · kW · BTU</button>
+    </div>
+  </div>
+
+  <!-- ========== kW ⇄ AMPS ========== -->
+  <div class="calc-pane" id="pane-kw">
+    <div class="card">
+      <div class="card-title">kW / kVA ⇄ Amps</div>
+      <div class="toggle-row" data-tog="kwPh">
+        <button class="toggle-opt active" data-v="1">1Φ SINGLE-PHASE</button>
+        <button class="toggle-opt" data-v="3">3Φ THREE-PHASE</button>
+      </div>
+      <div class="grid-2">
+        <div><label>Voltage</label><span id="kwVwrap"></span></div>
+        <div><label>Power Factor</label><input type="number" id="kwPf" step="0.01" min="0.1" max="1" inputmode="decimal" placeholder="1.0"></div>
+      </div>
+      <label style="margin-top:12px;">I know the…</label>
+      <div class="toggle-row" data-tog="kwMode">
+        <button class="toggle-opt active" data-v="kw">kW</button>
+        <button class="toggle-opt" data-v="kva">kVA</button>
+        <button class="toggle-opt" data-v="a">AMPS</button>
+      </div>
+      <div><label id="kwValLbl">kW</label><input type="number" id="kwVal" step="any" min="0" inputmode="decimal" placeholder="Enter value"></div>
+      <div class="stats-row" style="margin-top:14px;">
+        <div class="stat-box"><div class="stat-val" id="kwOutA">—</div><div class="stat-lbl">Amps</div></div>
+        <div class="stat-box"><div class="stat-val" id="kwOutKw">—</div><div class="stat-lbl">kW</div></div>
+        <div class="stat-box"><div class="stat-val" id="kwOutKva">—</div><div class="stat-lbl">kVA</div></div>
+      </div>
+      <div class="formula" id="kwFormula"></div>
+      <details class="math" id="math-kw" style="display:none"><summary>🧮 Show the math</summary><div class="math-b"></div></details>
+      <div class="info-row" style="margin-top:8px;"><div class="info-dot"></div>
+        <span id="kwNote">Home standby generators (1Φ) are rated at 1.0 PF. 3Φ generators are rated at 0.8 PF.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== VOLTAGE DROP ========== -->
+  <div class="calc-pane" id="pane-vd">
+    <div class="card">
+      <div class="card-title">Voltage Drop</div>
+      <div class="grid-2">
+        <div class="toggle-row" data-tog="vdMat" style="margin-bottom:0;">
+          <button class="toggle-opt active" data-v="cu">COPPER</button>
+          <button class="toggle-opt" data-v="al">ALUMINUM</button>
+        </div>
+        <div class="toggle-row" data-tog="vdPh" style="margin-bottom:0;">
+          <button class="toggle-opt active" data-v="1">1Φ / DC</button>
+          <button class="toggle-opt" data-v="3">3Φ</button>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-top:12px;">
+        <div><label>System Voltage</label><span id="vdVwrap"></span></div>
+        <div><label>Load Amps</label><input type="number" id="vdA" step="any" min="0" inputmode="decimal" placeholder="Amps"></div>
+        <div><label>One-Way Length (ft)</label><input type="number" id="vdL" step="any" min="0" inputmode="decimal" placeholder="Feet, one way"></div>
+        <div><label>Wire Size</label><select id="vdSize"></select></div>
+        <div><label>Parallel Sets</label><select id="vdSets"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></div>
+        <div><label>Circuit Type</label><select id="vdKind">
+          <option value="branch">Branch circuit — 3%</option>
+          <option value="feeder">Feeder — 3%</option>
+          <option value="total">Whole run, feeder + branch — 5%</option>
+        </select></div>
+        <div id="vdOtherW"><label id="vdOtherL">Feeder Drop Already Used (%)</label><input type="number" id="vdOther" step="0.1" min="0" max="5" inputmode="decimal" placeholder="optional"></div>
+        <div><label>Ampacity Column</label><select id="vdTc"><option value="auto">Auto — 110.14(C)</option><option value="60">60°C</option><option value="75">75°C</option></select></div>
+      </div>
+      <div id="vdRes" style="display:none;margin-top:14px;">
+        <div class="stats-row">
+          <div class="stat-box"><div class="stat-val" id="vdOutV">—</div><div class="stat-lbl">Volts Dropped</div></div>
+          <div class="stat-box"><div class="stat-val" id="vdOutP">—</div><div class="stat-lbl">% Drop</div></div>
+          <div class="stat-box"><div class="stat-val" id="vdOutLoad">—</div><div class="stat-lbl">Volts at Load</div></div>
+        </div>
+        <div class="rec-box" id="vdRec">
+          <div class="rec-label" id="vdRecL">◆ SMALLEST WIRE FOR THIS RUN</div>
+          <div class="rec-size" id="vdMin">—</div>
+          <div class="rec-detail" id="vdMinDet">—</div>
+        </div>
+        <div class="table-wrap" style="margin-top:12px;">
+          <table class="conduit-table">
+            <thead><tr><th>SIZE</th><th id="vdAmpH">AMPS</th><th>VOLTS DROP</th><th>% DROP</th><th class="hide-m" id="vdMaxH">MAX FT @ 3%</th></tr></thead>
+            <tbody id="vdTbody"></tbody>
+          </table>
+        </div>
+        <details class="math" id="math-vd" style="display:none"><summary>🧮 Show the math</summary><div class="math-b"></div></details>
+      </div>
+      <div class="info-row" style="margin-top:10px;"><div class="info-dot"></div>
+        <span>Pick the circuit type above. Recommended max: 3% on a branch circuit or feeder, 5% total (NEC 210.19 &amp; 215.2 Informational Notes — not a code requirement, but most engineers &amp; AHJs expect it). The recommendation also checks Table 310.16 ampacity at 30°C with 3 or fewer current-carrying wires. For hot locations or more wires in one conduit, use the Breaker &amp; Conductor tool's derating.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== GENERATOR LOAD ========== -->
+  <div class="calc-pane" id="pane-gen">
+    <div class="card">
+      <div class="card-title">Generator Load</div>
+      <div class="grid-2">
+        <div><label>Generator System</label>
+          <select id="genSys">
+            <option value="s240">1Φ 120/240 V (home standby)</option>
+            <option value="w208">3Φ 120/208 V wye</option>
+            <option value="w480">3Φ 277/480 V wye</option>
+          </select>
+        </div>
+        <div><label>Generator Size (kW)</label><input type="number" id="genKw" step="any" min="0" inputmode="decimal" placeholder="e.g. nameplate kW"></div>
+      </div>
+      <div class="info-row" style="margin:10px 0;"><div class="info-dot"></div>
+        <span>Add each load. Enter it in amps, watts, kW or HP (HP uses NEC Table 430.248 / 430.250 motor amps).</span>
+      </div>
+      <div id="genList"></div>
+      <button class="add-btn" onclick="genAdd()">＋ ADD LOAD</button>
+      <div id="genRes" style="display:none;margin-top:14px;">
+        <div class="stats-row" id="genLegs"></div>
+        <div class="rec-box" id="genRec">
+          <div class="rec-label" id="genRecLbl">◆ GENERATOR LOADING</div>
+          <div class="rec-size" id="genVerdict">—</div>
+          <div class="rec-detail" id="genDet">—</div>
+        </div>
+        <details class="math" id="math-gen" style="display:none"><summary>🧮 Show the math</summary><div class="math-b"></div></details>
+      </div>
+      <div class="info-row" style="margin-top:10px;"><div class="info-dot"></div>
+        <span>Running load only — motor/AC starting (LRA / surge) is not included. Check large motors with the manufacturer's sizing tool. Generator conductors: 115% of nameplate amps (445.13).</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== MOTOR FLA ========== -->
+  <div class="calc-pane" id="pane-motor">
+    <div class="card">
+      <div class="card-title">Motor Full-Load Amps</div>
+      <div class="toggle-row" data-tog="moPh">
+        <button class="toggle-opt active" data-v="1">1Φ — TABLE 430.248</button>
+        <button class="toggle-opt" data-v="3">3Φ — TABLE 430.250</button>
+      </div>
+      <div class="grid-2">
+        <div><label>Horsepower</label><select id="moHp"></select></div>
+        <div><label>Motor Voltage</label><select id="moV"></select></div>
+      </div>
+      <div id="moRes" style="display:none;margin-top:14px;">
+        <div class="stats-row">
+          <div class="stat-box"><div class="stat-val" id="moFla">—</div><div class="stat-lbl">Table FLA</div></div>
+          <div class="stat-box"><div class="stat-val" id="moCond">—</div><div class="stat-lbl">Wire Min. A (125%)</div></div>
+          <div class="stat-box"><div class="stat-val" id="moKva">—</div><div class="stat-lbl">Running kVA</div></div>
+        </div>
+        <div class="table-wrap" style="margin-top:12px;">
+          <table class="conduit-table">
+            <thead><tr><th>SHORT-CIRCUIT / GROUND-FAULT DEVICE</th><th>MAX %</th><th>CALC A</th><th>NEXT STD</th></tr></thead>
+            <tbody id="moTbody"></tbody>
+          </table>
+        </div>
+        <details class="math" id="math-mo" style="display:none"><summary>🧮 Show the math</summary><div class="math-b"></div></details>
+      </div>
+      <div class="info-row" style="margin-top:10px;"><div class="info-dot"></div>
+        <span>Use the table FLA for wire, breaker &amp; disconnect sizing (430.6(A)(1)). Use the motor nameplate amps for overload protection (430.32). Max device % from Table 430.52(C)(1); next standard size up is allowed (Exception No. 1).</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== BREAKER SIZE ========== -->
+  <div class="calc-pane" id="pane-brk">
+    <div class="card">
+      <div class="card-title">Standard Breaker Size</div>
+      <div class="grid-2">
+        <div><label>Load Amps</label><input type="number" id="brA" step="any" min="0" inputmode="decimal" placeholder="Amps"></div>
+        <div style="align-self:end;">
+          <label class="mini-chk" style="min-height:40px;"><input type="checkbox" id="brCont"><span class="check-box"></span>Continuous load (3 hrs+) — ×125%</label>
+        </div>
+      </div>
+      <div id="brRes" style="display:none;margin-top:14px;">
+        <div class="stats-row">
+          <div class="stat-box"><div class="stat-val" id="brReq">—</div><div class="stat-lbl">Min. Rating (A)</div></div>
+          <div class="stat-box"><div class="stat-val" id="brStd">—</div><div class="stat-lbl">Next Standard</div></div>
+          <div class="stat-box"><div class="stat-val" id="brLow">—</div><div class="stat-lbl">Size Below</div></div>
+        </div>
+        <div class="formula" id="brFormula"></div>
+        <details class="math" id="math-br" style="display:none"><summary>🧮 Show the math</summary><div class="math-b"></div></details>
+      </div>
+      <div class="std-chips" id="brChips"></div>
+      <div class="info-row" style="margin-top:10px;"><div class="info-dot"></div>
+        <span>Standard ratings per Table 240.6(A). Continuous loads: 125% (210.20(A), 215.3). The wire must still be protected per 240.4 — next size up is allowed only to 800 A when the wire's ampacity doesn't match a standard size (240.4(B)).</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== OHM'S LAW ========== -->
+  <div class="calc-pane" id="pane-ohm">
+    <div class="card">
+      <div class="card-title">Ohm's Law &amp; Watts</div>
+      <div class="info-row" style="margin:-6px 0 12px;"><div class="info-dot"></div>
+        <span>Fill in any two — the other two are calculated.</span>
+      </div>
+      <div class="grid-2">
+        <div><label>Volts (V)</label><input type="number" id="ohmV" data-k="V" step="any" min="0" inputmode="decimal" placeholder="Volts"></div>
+        <div><label>Amps (I)</label><input type="number" id="ohmI" data-k="I" step="any" min="0" inputmode="decimal" placeholder="Amps"></div>
+        <div><label>Ohms (R)</label><input type="number" id="ohmR" data-k="R" step="any" min="0" inputmode="decimal" placeholder="Ohms"></div>
+        <div><label>Watts (P)</label><input type="number" id="ohmP" data-k="P" step="any" min="0" inputmode="decimal" placeholder="Watts"></div>
+      </div>
+      <div class="formula" id="ohmFormula"></div>
+      <details class="math" id="math-ohm" style="display:none"><summary>🧮 Show the math</summary><div class="math-b"></div></details>
+      <button class="add-btn" style="margin-top:12px;" onclick="ohmClear()">CLEAR</button>
+      <div class="info-row" style="margin-top:10px;"><div class="info-dot"></div>
+        <span>Resistive loads (heaters, lights, DC). For AC motors &amp; electronics, real watts = V × A × PF.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== CONVERSIONS ========== -->
+  <div class="calc-pane" id="pane-conv">
+    <div class="card">
+      <div class="card-title">HP · kW · BTU/hr · Tons</div>
+      <div class="info-row" style="margin:-6px 0 12px;"><div class="info-dot"></div>
+        <span>Type in any box — the rest convert.</span>
+      </div>
+      <div class="grid-2">
+        <div><label>Horsepower (HP)</label><input type="number" id="cvHp" data-k="hp" step="any" min="0" inputmode="decimal" placeholder="HP"></div>
+        <div><label>Kilowatts (kW)</label><input type="number" id="cvKw" data-k="kw" step="any" min="0" inputmode="decimal" placeholder="kW"></div>
+        <div><label>BTU per hour</label><input type="number" id="cvBtu" data-k="btu" step="any" min="0" inputmode="decimal" placeholder="BTU/hr"></div>
+        <div><label>Tons (cooling)</label><input type="number" id="cvTon" data-k="ton" step="any" min="0" inputmode="decimal" placeholder="Tons"></div>
+      </div>
+      <div class="formula">1 HP = 0.7457 kW · 1 kW = 3,412 BTU/hr · 1 ton = 12,000 BTU/hr</div>
+      <details class="math" id="math-cv" style="display:none"><summary>🧮 Show the math</summary><div class="math-b"></div></details>
+      <div class="info-row" style="margin-top:8px;"><div class="info-dot"></div>
+        <span>Output conversions only. A 3-ton AC draws far less than 3 tons ÷ 3,412 — use the nameplate RLA/MCA for electrical sizing.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- REFERENCE MODAL -->
+<div class="modal-bg" id="refModal" onclick="if(event.target===this)closeRef()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="refTitle">
+    <div class="modal-head">
+      <div class="modal-title" id="refTitle">📋 Formulas &amp; Tables</div>
+      <button class="modal-close" onclick="closeRef()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab" data-tab="f" onclick="refTab('f')">FORMULAS</button>
+      <button class="modal-tab" data-tab="r" onclick="refTab('r')">CH.9 TABLE 8</button>
+      <button class="modal-tab" data-tab="m" onclick="refTab('m')">MOTOR FLA</button>
+      <button class="modal-tab" data-tab="b" onclick="refTab('b')">240.6(A)</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-pane" id="pane-f">
+        <div class="rule-list">
+          <div class="rule"><div class="rule-ref">AMPS</div><div class="rule-txt"><b>1Φ:</b> A = kVA × 1000 ÷ V &nbsp;·&nbsp; <b>3Φ:</b> A = kVA × 1000 ÷ (1.732 × V)</div></div>
+          <div class="rule"><div class="rule-ref">kW / kVA</div><div class="rule-txt">kW = kVA × PF &nbsp;·&nbsp; kVA = kW ÷ PF</div></div>
+          <div class="rule"><div class="rule-ref">V-DROP</div><div class="rule-txt"><b>1Φ / DC:</b> VD = 2 × A × R × L ÷ 1000 &nbsp;·&nbsp; <b>3Φ:</b> VD = 1.732 × A × R × L ÷ 1000<br>R = Ω per 1,000 ft (Ch. 9 Table 8, 75°C) ÷ parallel sets · L = one-way feet<br><b>K formula:</b> VD = 2 × K × L × I ÷ CM (3Φ: 1.732) · K = 12.9 Cu / 21.2 Al · CM = circular mils (Table 8)</div></div>
+          <div class="rule"><div class="rule-ref">% DROP</div><div class="rule-txt">VD ÷ system volts × 100. Target ≤ 3% per circuit, ≤ 5% total (210.19 / 215.2 Info. Notes)</div></div>
+          <div class="rule"><div class="rule-ref">OHM'S LAW</div><div class="rule-txt">V = I × R · I = V ÷ R · R = V ÷ I · P = V × I = I² × R = V² ÷ R</div></div>
+          <div class="rule"><div class="rule-ref">GEN AMPS</div><div class="rule-txt"><b>120/240 1Φ:</b> kW × 1000 ÷ 240 (PF 1.0)<br><b>3Φ:</b> kW × 1000 ÷ (1.732 × V × 0.8)</div></div>
+          <div class="rule"><div class="rule-ref">MOTORS</div><div class="rule-txt">Wire: 125% of table FLA (430.22). Breaker (inverse time): up to 250% · Dual-element fuse: 175% · Non-time-delay fuse: 300% (Table 430.52(C)(1))</div></div>
+          <div class="rule"><div class="rule-ref">CONVERT</div><div class="rule-txt">1 HP = 746 W · 1 kW = 3,412.14 BTU/hr · 1 ton = 12,000 BTU/hr</div></div>
+        </div>
+      </div>
+      <div class="modal-pane" id="pane-r">
+        <div class="table-wrap">
+          <table class="conduit-table">
+            <thead><tr><th>SIZE</th><th class="num">COPPER Ω/kft</th><th class="num">ALUMINUM Ω/kft</th></tr></thead>
+            <tbody id="refR"></tbody>
+          </table>
+        </div>
+        <div class="info-row" style="margin-top:8px;"><div class="info-dot"></div><span>Stranded, uncoated copper, DC resistance at 75°C. For 1/0 and larger on AC, Table 9 gives slightly higher effective values.</span></div>
+      </div>
+      <div class="modal-pane" id="pane-m">
+        <div class="rule-ref" style="margin-bottom:6px;">TABLE 430.248 — SINGLE-PHASE (A)</div>
+        <div class="table-wrap"><table class="conduit-table"><thead id="refM1h"></thead><tbody id="refM1"></tbody></table></div>
+        <div class="rule-ref" style="margin:14px 0 6px;">TABLE 430.250 — THREE-PHASE INDUCTION (A)</div>
+        <div class="table-wrap"><table class="conduit-table"><thead id="refM3h"></thead><tbody id="refM3"></tbody></table></div>
+      </div>
+      <div class="modal-pane" id="pane-b">
+        <div class="std-chips" id="refB" style="margin-top:0;"></div>
+        <div class="info-row" style="margin-top:10px;"><div class="info-dot"></div><span>Also standard for fuses only: 1, 3, 6, 10 and 601 A.</span></div>
+      </div>
+    </div>
+    <div class="modal-foot">NEC 2023 values · summaries are plain-language, not official code text · verify with your AHJ</div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// QUICK ELECTRICAL CALCULATOR — NEC 2023
+// Ch.9 Table 8 · Tables 430.248 / 430.250 / 430.52(C)(1) · Table 240.6(A)
+// ============================================================
+const SQ3 = Math.sqrt(3);
+
+// Ch. 9 Table 8 — stranded DC resistance, Ω/1000 ft @ 75°C  [size, Cu (uncoated), Al]
+const WIRE = [
+  ['14', 3.14, 5.17], ['12', 1.98, 3.25], ['10', 1.24, 2.04], ['8', 0.778, 1.28], ['6', 0.491, 0.808],
+  ['4', 0.308, 0.508], ['3', 0.245, 0.403], ['2', 0.194, 0.319], ['1', 0.154, 0.253],
+  ['1/0', 0.122, 0.201], ['2/0', 0.0967, 0.159], ['3/0', 0.0766, 0.126], ['4/0', 0.0608, 0.100],
+  ['250', 0.0515, 0.0847], ['300', 0.0429, 0.0707], ['350', 0.0367, 0.0605], ['400', 0.0321, 0.0529],
+  ['500', 0.0258, 0.0424], ['600', 0.0214, 0.0353], ['700', 0.0184, 0.0303], ['750', 0.0171, 0.0282],
+  ['800', 0.0161, 0.0265], ['900', 0.0143, 0.0235], ['1000', 0.0129, 0.0212],
+];
+// Table 310.16 (NEC 2023) ampacity, same size order as WIRE: [60°C, 75°C]
+const AMP = {
+  cu: [[15,20],[20,25],[30,35],[40,50],[55,65],[70,85],[85,100],[95,115],[110,130],[125,150],[145,175],[165,200],[195,230],[215,255],[240,285],[260,310],[280,335],[320,380],[350,420],[385,460],[400,475],[410,490],[435,520],[455,545]],
+  al: [null,[15,20],[25,30],[35,40],[40,50],[55,65],[65,75],[75,90],[85,100],[100,120],[115,135],[130,155],[150,180],[170,205],[195,230],[210,250],[225,270],[260,310],[285,340],[315,375],[320,385],[330,395],[355,425],[375,445]],
+};
+// NEC Ch. 9 Table 8 conductor area, circular mils (same size order as WIRE)
+const CMIL = [4110, 6530, 10380, 16510, 26240, 41740, 52620, 66360, 83690, 105600, 133100, 167800, 211600, 250000, 300000, 350000, 400000, 500000, 600000, 700000, 750000, 800000, 900000, 1000000];
+const wl = s => /^\d+$/.test(s) && +s >= 250 ? s + ' kcmil' : (s.includes('/') ? s : '#' + s);
+
+// Table 430.248 — single-phase motor FLA. Columns 115, 200, 208, 230 V
+const M1V = [115, 200, 208, 230];
+const M1 = [
+  ['1/6', [4.4, 2.5, 2.4, 2.2]], ['1/4', [5.8, 3.3, 3.2, 2.9]], ['1/3', [7.2, 4.1, 4.0, 3.6]],
+  ['1/2', [9.8, 5.6, 5.4, 4.9]], ['3/4', [13.8, 7.9, 7.6, 6.9]], ['1', [16, 9.2, 8.8, 8.0]],
+  ['1-1/2', [20, 11.5, 11.0, 10]], ['2', [24, 13.8, 13.2, 12]], ['3', [34, 19.6, 18.7, 17]],
+  ['5', [56, 32.2, 30.8, 28]], ['7-1/2', [80, 46.0, 44.0, 40]], ['10', [100, 57.5, 55.0, 50]],
+];
+// Table 430.250 — three-phase induction motor FLA. Columns 115, 200, 208, 230, 460, 575 V
+const M3V = [115, 200, 208, 230, 460, 575];
+const M3 = [
+  ['1/2', [4.4, 2.5, 2.4, 2.2, 1.1, 0.9]], ['3/4', [6.4, 3.7, 3.5, 3.2, 1.6, 1.3]], ['1', [8.4, 4.8, 4.6, 4.2, 2.1, 1.7]],
+  ['1-1/2', [12.0, 6.9, 6.6, 6.0, 3.0, 2.4]], ['2', [13.6, 7.8, 7.5, 6.8, 3.4, 2.7]],
+  ['3', [null, 11.0, 10.6, 9.6, 4.8, 3.9]], ['5', [null, 17.5, 16.7, 15.2, 7.6, 6.1]],
+  ['7-1/2', [null, 25.3, 24.2, 22, 11, 9]], ['10', [null, 32.2, 30.8, 28, 14, 11]],
+  ['15', [null, 48.3, 46.2, 42, 21, 17]], ['20', [null, 62.1, 59.4, 54, 27, 22]],
+  ['25', [null, 78.2, 74.8, 68, 34, 27]], ['30', [null, 92, 88, 80, 40, 32]],
+  ['40', [null, 120, 114, 104, 52, 41]], ['50', [null, 150, 143, 130, 65, 52]],
+  ['60', [null, 177, 169, 154, 77, 62]], ['75', [null, 221, 211, 192, 96, 77]],
+  ['100', [null, 285, 273, 248, 124, 99]], ['125', [null, 359, 343, 312, 156, 125]],
+  ['150', [null, 414, 396, 360, 180, 144]], ['200', [null, 552, 528, 480, 240, 192]],
+];
+// Table 240.6(A) — standard ampere ratings
+const STD = [15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200, 225, 250, 300, 350, 400, 450, 500, 600, 700, 800, 1000, 1200, 1600, 2000, 2500, 3000, 4000, 5000, 6000];
+const nextStd = a => STD.find(s => s >= a - 1e-9) || null;
+const prevStd = a => [...STD].reverse().find(s => s < a - 1e-9) || null;
+
+const $ = id => document.getElementById(id);
+const num = id => { const v = parseFloat($(id).value); return isFinite(v) ? v : NaN; };
+function fmt(n, d = 2) {
+  if (!isFinite(n)) return '—';
+  const a = Math.abs(n);
+  const dec = a >= 1000 ? 0 : a >= 100 ? Math.min(d, 1) : a >= 1 ? d : Math.max(d, 3);
+  return (+n.toFixed(dec)).toLocaleString('en-US', { maximumFractionDigits: dec });
+}
+const play = s => { if (window.AOGSound) AOGSound.play(s); };
+
+// ── THEME ──────────────────────────────────────────────────
+let darkMode = false;
+function toggleTheme() {
+  darkMode = !darkMode;
+  document.body.classList.toggle('dark', darkMode);
+  $('themeBtn').textContent = darkMode ? '☀️' : '🌙';
+  try { localStorage.setItem('aog-theme', darkMode ? 'dark' : 'light'); } catch (e) {}
+}
+(function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem('aog-theme'); } catch (e) {}
+  const prefer = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (saved === 'dark' || (!saved && prefer)) {
+    darkMode = true; document.body.classList.add('dark'); $('themeBtn').textContent = '☀️';
+  }
+})();
+
+// ── TOGGLES & TABS ─────────────────────────────────────────
+const TOG = {};
+document.querySelectorAll('[data-tog]').forEach(row => {
+  const key = row.dataset.tog;
+  TOG[key] = row.querySelector('.toggle-opt.active').dataset.v;
+  row.addEventListener('click', e => {
+    const b = e.target.closest('.toggle-opt'); if (!b) return;
+    row.querySelectorAll('.toggle-opt').forEach(x => x.classList.toggle('active', x === b));
+    TOG[key] = b.dataset.v; play('tink');
+    onToggle(key);
+  });
+});
+function showPane(p, silent) {
+  document.querySelectorAll('#calcTabs .toggle-opt').forEach(b => b.classList.toggle('active', b.dataset.pane === p));
+  document.querySelectorAll('.calc-pane').forEach(x => x.classList.toggle('active', x.id === 'pane-' + p));
+  try { localStorage.setItem('aog-qcalc-tab', p); } catch (e) {}
+  if (!silent) play('tink');
+}
+$('calcTabs').addEventListener('click', e => { const b = e.target.closest('.toggle-opt'); if (b) showPane(b.dataset.pane); });
+
+// Voltage select with "Other" box
+function voltSel(wrapId, id, list, def) {
+  $(wrapId).innerHTML = `<select id="${id}">${list.map(v => `<option value="${v}"${v === def ? ' selected' : ''}>${v} V</option>`).join('')}<option value="o">Other…</option></select>
+    <input type="number" id="${id}-o" class="volt-other" step="any" min="0" inputmode="decimal" placeholder="Volts" style="display:none;margin-top:6px;">`;
+  $(id).addEventListener('change', () => { $(id + '-o').style.display = $(id).value === 'o' ? '' : 'none'; recalc(); });
+  $(id + '-o').addEventListener('input', recalc);
+}
+const getV = id => $(id).value === 'o' ? num(id + '-o') : parseFloat($(id).value);
+
+function onToggle(key) {
+  if (key === 'kwPh') {
+    voltSel('kwVwrap', 'kwV', TOG.kwPh === '3' ? [208, 240, 480, 600] : [120, 208, 240, 277], TOG.kwPh === '3' ? 480 : 240);
+    if (!kwPfTouched) $('kwPf').value = '';
+    $('kwPf').placeholder = TOG.kwPh === '3' ? '0.8' : '1.0';
+  }
+  if (key === 'kwMode') $('kwValLbl').textContent = { kw: 'kW', kva: 'kVA', a: 'Amps' }[TOG.kwMode];
+  if (key === 'vdPh') voltSel('vdVwrap', 'vdV', TOG.vdPh === '3' ? [208, 240, 480, 600] : [12, 24, 48, 120, 208, 240, 277], TOG.vdPh === '3' ? 480 : 240);
+  if (key === 'moPh') moFill();
+  recalc();
+}
+let ready = false;
+function recalc() { if (!ready) return; calcKw(); calcVd(); calcGen(); calcMo(); calcBr(); }
+
+// ── kW ⇄ AMPS ──────────────────────────────────────────────
+let kwPfTouched = false;
+$('kwPf').addEventListener('input', () => { kwPfTouched = $('kwPf').value !== ''; calcKw(); });
+$('kwVal').addEventListener('input', calcKw);
+function kwPF() { const p = num('kwPf'); return isFinite(p) && p > 0 && p <= 1 ? p : (TOG.kwPh === '3' ? 0.8 : 1.0); }
+function calcKw() { calcKw_(); mathKw(); }
+function calcKw_() {
+  const V = getV('kwV'), pf = kwPF(), x = num('kwVal'), three = TOG.kwPh === '3';
+  const k = three ? SQ3 * V : V;
+  let A = NaN, kw = NaN, kva = NaN;
+  if (isFinite(x) && x >= 0 && V > 0) {
+    if (TOG.kwMode === 'kw') { kw = x; kva = x / pf; A = kva * 1000 / k; }
+    else if (TOG.kwMode === 'kva') { kva = x; kw = x * pf; A = kva * 1000 / k; }
+    else { A = x; kva = A * k / 1000; kw = kva * pf; }
+  }
+  $('kwOutA').textContent = fmt(A, 1); $('kwOutKw').textContent = fmt(kw, 2); $('kwOutKva').textContent = fmt(kva, 2);
+  const vt = three ? `1.732 × ${fmt(V, 0)} V` : `${fmt(V, 0)} V`;
+  $('kwFormula').innerHTML = isFinite(A)
+    ? `A = kVA × 1000 ÷ (${vt}) &nbsp;·&nbsp; kW = kVA × ${pf} PF`
+    : (V > 0 ? '' : 'Enter a voltage');
+}
+
+// ── VOLTAGE DROP ───────────────────────────────────────────
+$('vdSize').innerHTML = '<option value="">— any —</option>' + WIRE.map((w, i) => `<option value="${i}">${wl(w[0])}</option>`).join('');
+['vdA', 'vdL'].forEach(id => $(id).addEventListener('input', calcVd));
+['vdSize', 'vdSets', 'vdTc', 'vdKind'].forEach(id => $(id).addEventListener('change', calcVd));
+$('vdOther').addEventListener('input', calcVd);
+function vdFor(i, A, L, sets, three, al) {
+  const R = WIRE[i][al ? 2 : 1] / sets;
+  return (three ? SQ3 : 2) * A * R * L / 1000;
+}
+function calcVd() { calcVd_(); mathVd(); }
+function calcVd_() {
+  window.__vd = null;
+  const V = getV('vdV'), A = num('vdA'), L = num('vdL'), sets = +$('vdSets').value, three = TOG.vdPh === '3', al = TOG.vdMat === 'al';
+  // Drop target: 3% branch or feeder, 5% total (210.19 / 215.2 Informational Notes). Other part's drop comes out of the 5%.
+  const kind = $('vdKind').value, other = Math.max(0, num('vdOther') || 0);
+  $('vdOtherW').style.display = kind === 'total' ? 'none' : '';
+  $('vdOtherL').textContent = kind === 'branch' ? 'Feeder Drop Already Used (%)' : 'Branch Drop Planned (%)';
+  const T = kind === 'total' ? 5 : Math.max(0, Math.min(3, 5 - other)), Ts = fmt(T, 2) + '%';
+  const why = kind === 'total' ? '5% total, feeder + branch' : (T < 3 ? `3% ${kind}, but only ${Ts} left of the 5% total after ${fmt(other, 2)}% ${kind === 'branch' ? 'feeder' : 'branch'} drop` : `3% ${kind === 'branch' ? 'branch circuit' : 'feeder'}`);
+  $('vdMaxH').textContent = 'MAX FT @ ' + Ts;
+  if (!(V > 0 && A > 0 && L > 0)) { $('vdRes').style.display = 'none'; return; }
+  if (T <= 0) { $('vdRes').style.display = ''; $('vdRec').className = 'rec-box fail'; $('vdRecL').textContent = '◆ RECOMMENDED WIRE'; $('vdMin').textContent = 'No drop left'; $('vdMinDet').textContent = `The other part already uses ${fmt(other, 2)}%, the whole 5% total. Reduce it first.`; $('vdTbody').innerHTML = ''; return; }
+  $('vdRes').style.display = '';
+  const pct = i => vdFor(i, A, L, sets, three, al) / V * 100;
+  const start = al ? 1 : 0; // no #14 aluminum
+  let min3 = -1, min5 = -1;
+  for (let i = start; i < WIRE.length; i++) { if (min5 < 0 && pct(i) <= 5) min5 = i; if (min3 < 0 && pct(i) <= T + 1e-9) { min3 = i; break; } }
+  const sel = $('vdSize').value === '' ? -1 : +$('vdSize').value;
+  if (sel >= 0) {
+    const vd = vdFor(sel, A, L, sets, three, al), p = vd / V * 100;
+    $('vdOutV').textContent = fmt(vd, 2); $('vdOutP').textContent = fmt(p, 2) + '%'; $('vdOutLoad').textContent = fmt(V - vd, 1);
+    $('vdOutP').style.color = p > Math.max(5, T) ? 'var(--danger)' : p > T ? 'var(--warn)' : 'var(--success)';
+  } else {
+    ['vdOutV', 'vdOutP', 'vdOutLoad'].forEach(id => { $(id).textContent = '—'; $(id).style.color = ''; });
+  }
+  const setsTxt = sets > 1 ? ` × ${sets} sets` : '';
+  const mat = al ? 'AL' : 'CU', matW = al ? 'aluminum' : 'copper';
+  // Ampacity (Table 310.16). Auto column per 110.14(C)(1): 100A or less → 60°C, over 100A → 75°C
+  const tcSel = $('vdTc').value, tc = tcSel === 'auto' ? (A <= 100 ? 60 : 75) : +tcSel, ci = tc === 60 ? 0 : 1;
+  const perSet = A / sets, p10 = WIRE.findIndex(w => w[0] === '1/0');
+  const ampOf = i => (AMP[al ? 'al' : 'cu'][i] || [0, 0])[ci];
+  let minA = -1;
+  for (let i = start; i < WIRE.length; i++) { if (sets > 1 && i < p10) continue; if (ampOf(i) >= perSet) { minA = i; break; } }
+  $('vdAmpH').textContent = `AMPS ${tc}°C`;
+  const rec = $('vdRec');
+  rec.classList.remove('fail', 'warn', 'pass');
+  if (minA < 0) {
+    $('vdRecL').textContent = '◆ RECOMMENDED WIRE';
+    $('vdMin').textContent = 'Too big for one set';
+    $('vdMinDet').innerHTML = `${fmt(perSet, 0)}A per set is more than 1000 kcmil carries at ${tc}°C (Table 310.16). Add parallel sets.`;
+    rec.classList.add('fail');
+  } else if (min3 < 0) {
+    $('vdRecL').textContent = '◆ RECOMMENDED WIRE';
+    $('vdMin').textContent = `Over ${Ts} even at 1000 kcmil`;
+    $('vdMinDet').textContent = `Add parallel sets, shorten the run, or raise the voltage.` + (min5 >= 0 ? ` ${wl(WIRE[Math.max(min5, minA)][0])} gets under 5%.` : '');
+    rec.classList.add('fail');
+  } else {
+    const pick = Math.max(min3, minA), byAmp = minA > min3;
+    $('vdRecL').textContent = '◆ RECOMMENDED WIRE — AMPACITY + VOLTAGE DROP';
+    $('vdMin').textContent = `${wl(WIRE[pick][0])} ${mat}${setsTxt}`;
+    const ampTxt = `Ampacity: ${fmt(perSet, 0)}A${sets > 1 ? ' per set' : ''} needs ${wl(WIRE[minA][0])} ${matW} (${ampOf(minA)}A at ${tc}°C, Table 310.16${sets > 1 && minA === p10 && ampOf(p10 - 1) >= perSet ? '; 1/0 is the minimum for parallel sets, 310.10(G)' : ''}).`;
+    const vdTxt = `Voltage drop: ${wl(WIRE[min3][0])} keeps it at ${fmt(pct(min3), 2)}% (target ≤ ${Ts}: ${why}).`;
+    let det = `<b>${byAmp ? 'Ampacity sets the size.' : (minA === min3 ? 'Both rules land on the same size.' : 'Voltage drop sets the size.')}</b> ${ampTxt} ${vdTxt} At ${wl(WIRE[pick][0])}: ${fmt(pct(pick), 2)}% drop.`;
+    if (sel >= 0) {
+      const okA = sel >= minA && !(sets > 1 && sel < p10), okV = sel >= min3;
+      det += okA && okV ? ` Selected ${wl(WIRE[sel][0])} passes both.`
+        : ` <b style="color:var(--danger)">Selected ${wl(WIRE[sel][0])} is too small for ${!okA && !okV ? 'ampacity and voltage drop' : !okA ? 'the amps' : Ts + ' drop'}.</b>`;
+      rec.classList.add(okA && okV ? 'pass' : 'warn');
+    } else rec.classList.add('pass');
+    if (tcSel === 'auto') det += ` <span style="opacity:.8">${tc}°C column because the circuit is ${A <= 100 ? '100A or less' : 'over 100A'} (110.14(C)). Use 75°C if all terminations are listed for it.</span>`;
+    $('vdMinDet').innerHTML = det;
+  }
+  window.__vd = { V, A, L, sets, three, al, T, Ts, why, kind, other, tc, tcSel, perSet, minA, min3, sel, p10 };
+  // table window
+  const anchor = min3 >= 0 ? Math.max(min3, minA) : WIRE.length - 1;
+  const lo = Math.max(start, Math.min(min5 >= 0 ? min5 - 1 : anchor - 2, anchor - 2, sel >= 0 ? sel : Infinity, minA >= 0 ? minA - 1 : Infinity));
+  const hi = Math.min(WIRE.length - 1, Math.max(anchor + 2, sel));
+  const pickI = min3 >= 0 && minA >= 0 ? Math.max(min3, minA) : -1;
+  let rows = '';
+  for (let i = lo; i <= hi; i++) {
+    const vd = vdFor(i, A, L, sets, three, al), p = vd / V * 100;
+    const maxL = T / 100 * V * 1000 / ((three ? SQ3 : 2) * A * (WIRE[i][al ? 2 : 1] / sets));
+    const st = p > Math.max(5, T) ? 'status-fail' : p > T ? 'status-warn' : 'status-pass';
+    const ampOk = ampOf(i) >= perSet && !(sets > 1 && i < p10);
+    rows += `<tr><td class="${i === sel ? 'sel-size' : ''}">${i === sel ? '▸ ' : ''}${wl(WIRE[i][0])}${i === pickI ? ' ◆' : ''}</td><td class="${ampOk ? '' : 'amp-bad'}">${ampOf(i)}A${ampOk ? '' : ' ✕'}</td><td>${fmt(vd, 2)} V</td><td class="${st}">${fmt(p, 2)}%</td><td class="hide-m">${fmt(maxL, 0)} ft</td></tr>`;
+  }
+  $('vdTbody').innerHTML = rows;
+}
+
+// ── GENERATOR LOAD ─────────────────────────────────────────
+const GSYS = {
+  s240: { three: false, vln: 120, vll: 240, pf: 1.0, legs: ['L1', 'L2'] },
+  w208: { three: true, vln: 120, vll: 208, pf: 0.8, legs: ['A', 'B', 'C'] },
+  w480: { three: true, vln: 277, vll: 480, pf: 0.8, legs: ['A', 'B', 'C'] },
+};
+let genRows = [], genId = 0;
+function genConns(sys) {
+  const s = GSYS[sys];
+  if (!s.three) return [['L1', '120 V — Leg L1'], ['L2', '120 V — Leg L2'], ['L1-L2', '240 V — L1 + L2']];
+  return [['A', `${s.vln} V — A-N`], ['B', `${s.vln} V — B-N`], ['C', `${s.vln} V — C-N`],
+    ['A-B', `${s.vll} V 1Φ — A-B`], ['B-C', `${s.vll} V 1Φ — B-C`], ['C-A', `${s.vll} V 1Φ — C-A`], ['3P', `${s.vll} V 3Φ`]];
+}
+function genAdd(silent) {
+  const sys = $('genSys').value;
+  genRows.push({ id: ++genId, name: '', amt: '', unit: 'A', conn: GSYS[sys].three ? '3P' : 'L1-L2' });
+  genRender(); if (!silent) play('tink');
+}
+function genDel(id) { genRows = genRows.filter(r => r.id !== id); genRender(); calcGen(); play('tink'); }
+function genRender() {
+  const conns = genConns($('genSys').value);
+  $('genList').innerHTML = genRows.map((r, n) => `
+    <div class="gen-row" data-id="${r.id}">
+      <div class="gen-n">${n + 1}</div>
+      <div class="gen-name"><label>Load</label><input type="text" data-f="name" value="${r.name.replace(/"/g, '&quot;')}" placeholder="e.g. AC, well pump"></div>
+      <div><label>Amount</label><input type="number" data-f="amt" value="${r.amt}" step="any" min="0" inputmode="decimal" placeholder="0"></div>
+      <div><label>Unit</label><select data-f="unit">${['A', 'W', 'kW', 'HP'].map(u => `<option${u === r.unit ? ' selected' : ''}>${u}</option>`).join('')}</select></div>
+      <div class="gen-conn"><label>Connected</label><select data-f="conn">${conns.map(c => `<option value="${c[0]}"${c[0] === r.conn ? ' selected' : ''}>${c[1]}</option>`).join('')}</select></div>
+      <button class="remove-btn" onclick="genDel(${r.id})" aria-label="Remove load">✕</button>
+      <div class="gen-msg"></div>
+    </div>`).join('');
+}
+$('genList').addEventListener('input', e => {
+  const row = e.target.closest('.gen-row'); if (!row) return;
+  const r = genRows.find(x => x.id === +row.dataset.id); r[e.target.dataset.f] = e.target.value; calcGen();
+});
+$('genList').addEventListener('change', e => {
+  const row = e.target.closest('.gen-row'); if (!row) return;
+  const r = genRows.find(x => x.id === +row.dataset.id); r[e.target.dataset.f] = e.target.value; calcGen();
+});
+$('genSys').addEventListener('change', () => {
+  const s = GSYS[$('genSys').value], ok = genConns($('genSys').value).map(c => c[0]);
+  genRows.forEach(r => { if (!ok.includes(r.conn)) r.conn = s.three ? '3P' : 'L1-L2'; });
+  genRender(); calcGen();
+});
+$('genKw').addEventListener('input', calcGen);
+
+// Motor FLA for a gen load row given its voltage
+function motorFla(hpLabel, three, V) {
+  const T = three ? M3 : M1, cols = three ? M3V : M1V;
+  const row = T.find(r => r[0] === hpLabel); if (!row) return null;
+  // map system voltage to table column (NEC: 120→115, 240→230, 480→460, 600→575)
+  const map = { 120: 115, 115: 115, 200: 200, 208: 208, 240: 230, 230: 230, 480: 460, 460: 460, 600: 575, 575: 575 };
+  const col = cols.indexOf(map[V]); if (col < 0) return null;
+  return row[1][col];
+}
+function hpLabel(x) {
+  const m = { 0.1667: '1/6', 0.25: '1/4', 0.3333: '1/3', 0.5: '1/2', 0.75: '3/4', 1.5: '1-1/2', 7.5: '7-1/2' };
+  for (const k in m) if (Math.abs(x - k) < 0.002) return m[k];
+  return String(x);
+}
+// Returns per-leg current contribution
+function genRowAmps(r, s) {
+  const amt = parseFloat(r.amt); if (!(amt > 0)) return null;
+  const conn = r.conn, legs = s.legs;
+  const isLN = legs.includes(conn), is3 = conn === '3P';
+  const V = isLN ? s.vln : s.vll;
+  let I;
+  if (r.unit === 'A') I = amt;
+  else if (r.unit === 'W' || r.unit === 'kW') {
+    const W = r.unit === 'kW' ? amt * 1000 : amt;
+    I = is3 ? W / (SQ3 * V) : W / V;
+  } else { // HP
+    const f = motorFla(hpLabel(amt), is3, V);
+    if (f == null) return { err: `No NEC table amps for ${amt} HP ${is3 ? '3Φ' : '1Φ'} at ${V} V — enter nameplate amps instead.` };
+    I = f;
+  }
+  const out = {}; legs.forEach(l => out[l] = 0);
+  if (isLN) out[conn] = I;
+  else if (is3) legs.forEach(l => out[l] = I);
+  else conn.split('-').forEach(l => out[l] = I);
+  const va = is3 ? SQ3 * V * I : V * I;
+  return { legs: out, va, I, V };
+}
+function calcGen() { calcGen_(); mathGen(); }
+function calcGen_() {
+  window.__gen = { rows: [] };
+  const sysKey = $('genSys').value, s = GSYS[sysKey], gkw = num('genKw');
+  const tot = {}; s.legs.forEach(l => tot[l] = 0);
+  let va = 0, any = false;
+  document.querySelectorAll('#genList .gen-row').forEach(el => {
+    const r = genRows.find(x => x.id === +el.dataset.id);
+    const res = genRowAmps(r, s), msg = el.querySelector('.gen-msg');
+    msg.textContent = ''; msg.className = 'gen-msg';
+    if (!res) return;
+    if (res.err) { msg.textContent = res.err; msg.classList.add('err'); return; }
+    any = true; va += res.va; window.__gen.rows.push({ r, res });
+    s.legs.forEach(l => tot[l] += res.legs[l]);
+    msg.textContent = `= ${fmt(res.I, 1)} A${r.unit === 'HP' ? ' (table FLA)' : ''} · ${fmt(res.va / 1000, 2)} kVA`;
+  });
+  if (!any) { $('genRes').style.display = 'none'; return; }
+  $('genRes').style.display = '';
+  const rated = gkw > 0 ? (gkw / s.pf) * 1000 / (s.three ? SQ3 * s.vll : s.vll) : NaN;
+  const vals = s.legs.map(l => tot[l]), mx = Math.max(...vals), mn = Math.min(...vals);
+  $('genLegs').innerHTML = s.legs.map(l => {
+    const p = tot[l] / rated * 100;
+    const c = !isFinite(p) ? '' : p > 100 ? 'var(--danger)' : p > 80 ? 'var(--warn)' : 'var(--success)';
+    return `<div class="stat-box"><div class="stat-val" style="color:${c}">${fmt(tot[l], 1)}</div><div class="stat-lbl">Leg ${l} Amps${isFinite(p) ? ' · ' + fmt(p, 0) + '%' : ''}</div></div>`;
+  }).join('');
+  Object.assign(window.__gen, { s, gkw, rated, tot, mx, mn, va, ok: true });
+  const kva = va / 1000;
+  const needKw = mx / 0.8 * (s.three ? SQ3 * s.vll : s.vll) * s.pf / 1000;
+  const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+  const imb = avg > 0 ? (mx - mn) / avg * 100 : 0;
+  const rec = $('genRec'); rec.classList.remove('fail', 'warn', 'pass');
+  let det = `Total ≈ ${fmt(kva, 2)} kVA · Heaviest leg ${fmt(mx, 1)} A`;
+  if (vals.length > 1) det += ` · Legs differ by ${fmt(mx - mn, 1)} A${avg > 0 ? ` (${fmt(imb, 0)}%)` : ''}`;
+  det += `<br>For ≤ 80% loading on the heaviest leg you need about <b>${fmt(needKw, 1)} kW</b>.`;
+  if (isFinite(rated)) {
+    const p = mx / rated * 100;
+    $('genRecLbl').textContent = `◆ ${fmt(gkw, 1)} kW GENERATOR · ${fmt(rated, 1)} A PER LEG RATED`;
+    if (p > 100) { $('genVerdict').textContent = `OVERLOADED — ${fmt(p, 0)}%`; rec.classList.add('fail'); }
+    else if (p > 80) { $('genVerdict').textContent = `TIGHT — ${fmt(p, 0)}% of rating`; rec.classList.add('warn'); }
+    else { $('genVerdict').textContent = `OK — ${fmt(p, 0)}% of rating`; rec.classList.add('pass'); }
+    if (imb > 20 && vals.length > 1) det += `<br>⚠ Legs are unbalanced — move 120 V loads to even out the legs.`;
+  } else {
+    $('genRecLbl').textContent = '◆ GENERATOR LOADING';
+    $('genVerdict').textContent = `Need ≈ ${fmt(needKw, 1)} kW`;
+  }
+  $('genDet').innerHTML = det;
+}
+
+// ── MOTOR FLA ──────────────────────────────────────────────
+function moFill() {
+  const three = TOG.moPh === '3', T = three ? M3 : M1, cols = three ? M3V : M1V;
+  const hpPrev = $('moHp').value, vPrev = $('moV').value;
+  $('moHp').innerHTML = '<option value="">— HP —</option>' + T.map(r => `<option value="${r[0]}">${r[0]} HP</option>`).join('');
+  $('moV').innerHTML = cols.map(v => `<option value="${v}"${v === 230 ? ' selected' : ''}>${v} V${{ 115: ' (120 V sys)', 230: ' (240 V sys)', 460: ' (480 V sys)', 575: ' (600 V sys)' }[v] || ''}</option>`).join('');
+  if (T.some(r => r[0] === hpPrev)) $('moHp').value = hpPrev;
+  if (cols.includes(+vPrev)) $('moV').value = vPrev;
+}
+['moHp', 'moV'].forEach(id => $(id).addEventListener('change', calcMo));
+function calcMo() { calcMo_(); mathMo(); }
+function calcMo_() {
+  const three = TOG.moPh === '3', T = three ? M3 : M1, cols = three ? M3V : M1V;
+  const row = T.find(r => r[0] === $('moHp').value), V = +$('moV').value;
+  if (!row) { $('moRes').style.display = 'none'; return; }
+  $('moRes').style.display = '';
+  const fla = row[1][cols.indexOf(V)];
+  if (fla == null) {
+    $('moFla').textContent = 'N/A'; $('moCond').textContent = '—'; $('moKva').textContent = '—';
+    $('moTbody').innerHTML = `<tr><td colspan="4" style="white-space:normal;">No table value for ${row[0]} HP at ${V} V — pick another voltage.</td></tr>`;
+    return;
+  }
+  $('moFla').textContent = fmt(fla, 1);
+  $('moCond').textContent = fmt(fla * 1.25, 1);
+  $('moKva').textContent = fmt((three ? SQ3 : 1) * V * fla / 1000, 2);
+  const devs = [['Inverse-time breaker', 250], ['Dual-element (time-delay) fuse', 175], ['Non-time-delay fuse', 300]];
+  $('moTbody').innerHTML = devs.map(([n, p]) => {
+    const c = fla * p / 100;
+    return `<tr><td style="white-space:normal;">${n}</td><td>${p}%</td><td>${fmt(c, 1)}</td><td class="status-best">${nextStd(c)} A</td></tr>`;
+  }).join('');
+}
+
+// ── BREAKER SIZE ───────────────────────────────────────────
+$('brA').addEventListener('input', calcBr);
+$('brCont').addEventListener('change', calcBr);
+$('brChips').innerHTML = STD.map(s => `<span class="std-chip" data-a="${s}">${s}</span>`).join('');
+function calcBr() { calcBr_(); mathBr(); }
+function calcBr_() {
+  const A = num('brA'), cont = $('brCont').checked;
+  document.querySelectorAll('#brChips .std-chip').forEach(c => c.classList.remove('hit'));
+  if (!(A > 0)) { $('brRes').style.display = 'none'; return; }
+  $('brRes').style.display = '';
+  const req = cont ? A * 1.25 : A, s = nextStd(req), lo = prevStd(req);
+  $('brReq').textContent = fmt(req, 1);
+  $('brStd').textContent = s ? s + ' A' : '> 6000';
+  $('brLow').textContent = lo ? lo + ' A' : '—';
+  $('brFormula').innerHTML = cont ? `${fmt(A, 1)} A × 125% = ${fmt(req, 2)} A → next standard ${s ? s + ' A' : '—'}` : `${fmt(A, 1)} A (non-continuous) → next standard ${s ? s + ' A' : '—'}`;
+  if (s) document.querySelector(`#brChips .std-chip[data-a="${s}"]`).classList.add('hit');
+}
+
+// ── OHM'S LAW ──────────────────────────────────────────────
+const OHM = ['V', 'I', 'R', 'P'];
+let ohmSrc = []; // last two user-entered keys
+document.querySelectorAll('#pane-ohm input').forEach(inp => inp.addEventListener('input', () => {
+  const k = inp.dataset.k;
+  inp.classList.remove('is-out');
+  ohmSrc = ohmSrc.filter(x => x !== k);
+  if (inp.value !== '') ohmSrc.push(k);
+  if (ohmSrc.length > 2) ohmSrc = ohmSrc.slice(-2);
+  calcOhm();
+}));
+function calcOhm() { calcOhm_(); mathOhm(); }
+function calcOhm_() {
+  const g = k => parseFloat($('ohm' + k).value);
+  OHM.forEach(k => { if (!ohmSrc.includes(k)) { $('ohm' + k).value = ''; $('ohm' + k).classList.remove('is-out'); } });
+  $('ohmFormula').textContent = '';
+  if (ohmSrc.length < 2) return;
+  const s = {}; ohmSrc.forEach(k => s[k] = g(k));
+  if (Object.values(s).some(v => !isFinite(v) || v < 0)) return;
+  let { V, I, R, P } = s; const has = k => k in s; let f = '';
+  if (has('V') && has('I')) { R = V / I; P = V * I; f = 'R = V ÷ I · P = V × I'; }
+  else if (has('V') && has('R')) { I = V / R; P = V * V / R; f = 'I = V ÷ R · P = V² ÷ R'; }
+  else if (has('V') && has('P')) { I = P / V; R = V * V / P; f = 'I = P ÷ V · R = V² ÷ P'; }
+  else if (has('I') && has('R')) { V = I * R; P = I * I * R; f = 'V = I × R · P = I² × R'; }
+  else if (has('I') && has('P')) { V = P / I; R = P / (I * I); f = 'V = P ÷ I · R = P ÷ I²'; }
+  else if (has('R') && has('P')) { V = Math.sqrt(P * R); I = Math.sqrt(P / R); f = 'V = √(P × R) · I = √(P ÷ R)'; }
+  const out = { V, I, R, P };
+  OHM.forEach(k => { if (!has(k)) { const v = out[k]; $('ohm' + k).value = isFinite(v) ? +v.toPrecision(5) : ''; $('ohm' + k).classList.add('is-out'); } });
+  $('ohmFormula').textContent = f;
+}
+function ohmClear() { showMath('math-ohm', null); ohmSrc = []; OHM.forEach(k => { $('ohm' + k).value = ''; $('ohm' + k).classList.remove('is-out'); }); $('ohmFormula').textContent = ''; play('tink'); }
+
+// ── CONVERSIONS ────────────────────────────────────────────
+const CV = { hp: ['cvHp', 0.745699872], kw: ['cvKw', 1], btu: ['cvBtu', 1 / 3412.14163], ton: ['cvTon', 12000 / 3412.14163] }; // factor → kW
+document.querySelectorAll('#pane-conv input').forEach(inp => inp.addEventListener('input', () => {
+  const k = inp.dataset.k, v = parseFloat(inp.value);
+  Object.keys(CV).forEach(o => { if (o !== k) $(CV[o][0]).classList.toggle('is-out', isFinite(v)); });
+  inp.classList.remove('is-out');
+  if (!isFinite(v)) { Object.keys(CV).forEach(o => { if (o !== k) $(CV[o][0]).value = ''; }); showMath('math-cv', null); return; }
+  const kw = v * CV[k][1];
+  Object.keys(CV).forEach(o => {
+    if (o === k) return;
+    const x = kw / CV[o][1];
+    $(CV[o][0]).value = o === 'btu' ? Math.round(x) : +x.toPrecision(5);
+  });
+  mathCv(k, v);
+}));
+
+// ── SHOW THE MATH (display only — reads the same values the calculators use) ──
+// step = [title, formula, numbers-plugged-in, code/source note]
+function showMath(id, steps) {
+  const d = $(id); if (!d) return;
+  if (!steps || !steps.length) { d.style.display = 'none'; return; }
+  d.style.display = '';
+  d.querySelector('.math-b').innerHTML = steps.map((s, i) =>
+    `<div class="mstep"><span class="mn">${i + 1}</span><div><div class="mt">${s[0]}</div>${s[1] ? `<div class="mf">${s[1]}</div>` : ''}<div class="me">${s[2]}</div>${s[3] ? `<div class="mr">${s[3]}</div>` : ''}</div></div>`).join('');
+}
+const f2 = (n, d = 2) => fmt(n, d);
+
+function mathKw() {
+  const V = getV('kwV'), pf = kwPF(), x = num('kwVal'), three = TOG.kwPh === '3';
+  if (!(isFinite(x) && x >= 0 && V > 0)) return showMath('math-kw', null);
+  const vk = three ? `(1.732 × ${f2(V, 0)} V)` : `${f2(V, 0)} V`, k = three ? SQ3 * V : V, vf = three ? '(1.732 × Volts)' : 'Volts';
+  const pfNote = num('kwPf') > 0 ? 'entered' : (three ? 'default 0.8: 3Φ generators are rated at 0.8 PF' : 'default 1.0: 1Φ generators are rated at 1.0 PF');
+  const st = [['Power factor', 'PF = real power ÷ apparent power (kW ÷ kVA)', `PF = <b>${pf}</b>`, pfNote]];
+  if (TOG.kwMode === 'kw') {
+    const kva = x / pf;
+    st.push(['kW → kVA', 'kVA = kW ÷ PF', `kVA = ${f2(x)} ÷ ${pf} = <b>${f2(kva)} kVA</b>`]);
+    st.push(['kVA → Amps', `Amps = kVA × 1000 ÷ ${vf}`, `Amps = ${f2(kva)} × 1000 ÷ ${vk} = <b>${f2(kva * 1000 / k, 1)} A</b>`, three ? '3Φ uses √3 = 1.732 × line-to-line volts' : '1Φ uses line-to-line volts (240 V for a home standby)']);
+  } else if (TOG.kwMode === 'kva') {
+    st.push(['kVA → kW', 'kW = kVA × PF', `kW = ${f2(x)} × ${pf} = <b>${f2(x * pf)} kW</b>`]);
+    st.push(['kVA → Amps', `Amps = kVA × 1000 ÷ ${vf}`, `Amps = ${f2(x)} × 1000 ÷ ${vk} = <b>${f2(x * 1000 / k, 1)} A</b>`]);
+  } else {
+    const kva = x * k / 1000;
+    st.push(['Amps → kVA', `kVA = Amps × ${vf} ÷ 1000`, `kVA = ${f2(x)} × ${vk} ÷ 1000 = <b>${f2(kva)} kVA</b>`]);
+    st.push(['kVA → kW', 'kW = kVA × PF', `kW = ${f2(kva)} × ${pf} = <b>${f2(kva * pf)} kW</b>`]);
+  }
+  showMath('math-kw', st);
+}
+
+function mathVd() {
+  const d = window.__vd; if (!d) return showMath('math-vd', null);
+  const { V, A, L, sets, three, al, T, Ts, why, tc, tcSel, perSet, minA, min3, sel } = d;
+  const k = three ? '1.732' : '2', kn = three ? SQ3 : 2, mat = al ? 'aluminum' : 'copper';
+  const VDF = `VD = ${k} × Amps × R × Length ÷ 1000 · %VD = VD ÷ Volts × 100`;
+  const vdNums = i => {
+    const R0 = WIRE[i][al ? 2 : 1], r = R0 / sets, vd = kn * A * r * L / 1000;
+    return `R = ${R0} Ω/1000 ft${sets > 1 ? ` ÷ ${sets} sets = ${+r.toPrecision(4)}` : ''} · VD = ${k} × ${f2(A, 1)} × ${+r.toPrecision(4)} × ${f2(L, 0)} ÷ 1000 = <b>${f2(vd)} V</b> · %VD = ${f2(vd)} ÷ ${f2(V, 0)} × 100 = <b>${f2(vd / V * 100)}%</b>`;
+  };
+  const st = [['Drop target', 'Volts allowed = Target % × System volts', `${why}: ${Ts} × ${f2(V, 0)} V = <b>${f2(T / 100 * V)} V</b>`, 'NEC 210.19 / 215.2 Informational Notes (recommendation, not a requirement)']];
+  if (sets > 1) st.push(['Amps per set', 'Amps per set = Load amps ÷ Number of sets', `${f2(A, 1)} ÷ ${sets} = <b>${f2(perSet, 1)} A</b>`, '310.10(G): parallel sets must be 1/0 or larger']);
+  if (minA >= 0) {
+    const amp = (AMP[al ? 'al' : 'cu'][minA] || [0, 0])[tc === 60 ? 0 : 1];
+    st.push(['Ampacity', `Smallest wire where Table 310.16 ampacity ≥ amps${sets > 1 ? ' per set' : ''}`, `${tc}°C ${mat} column: ≥ ${f2(perSet, 1)} A → <b>${wl(WIRE[minA][0])} = ${amp} A</b>`,
+      tcSel === 'auto' ? `110.14(C): circuit ${A <= 100 ? '100 A or less → 60°C' : 'over 100 A → 75°C'} column` : `${tc}°C column chosen`]);
+  }
+  if (min3 >= 0) {
+    const vnote = `${three ? '3Φ: 1.732' : '1Φ / DC: 2 (out and back)'} · R = NEC Ch. 9 Table 8 resistance at 75°C · Length = one-way feet`;
+    if (min3 - 1 >= (al ? 1 : 0)) st.push([`Voltage drop: ${wl(WIRE[min3 - 1][0])} (one size smaller)`, VDF, vdNums(min3 - 1) + ` → over ${Ts} ✕`, vnote]);
+    st.push([`Voltage drop: ${wl(WIRE[min3][0])} (smallest that passes)`, VDF, vdNums(min3) + ` → within ${Ts} ✓`, min3 - 1 >= (al ? 1 : 0) ? '' : vnote]);
+    { // cross-check with the K-factor formula
+      const K = al ? 21.2 : 12.9, cm = CMIL[min3] * sets, vdK = kn * K * L * A / cm;
+      st.push([`Cross-check: K formula (${wl(WIRE[min3][0])})`, `VD = ${k} × K × L × I ÷ CM`,
+        `${k} × ${K} × ${f2(L, 0)} × ${f2(A, 1)} ÷ ${cm.toLocaleString()}${sets > 1 ? ` (${CMIL[min3].toLocaleString()} × ${sets} sets)` : ''} = <b>${f2(vdK)} V</b> = ${f2(vdK / V * 100)}%`,
+        `K = ${K} Ω per circular-mil-foot (${al ? 'aluminum' : 'copper'}) · CM = circular mils from Ch. 9 Table 8 · within a few % of the Table 8 resistance method used above`]);
+    }
+    if (minA >= 0) {
+      const pick = Math.max(min3, minA);
+      st.push(['Recommended', 'Wire = the larger of (ampacity size, voltage drop size)', `larger of ${wl(WIRE[minA][0])} and ${wl(WIRE[min3][0])} → <b>${wl(WIRE[pick][0])} ${mat}${sets > 1 ? ' × ' + sets + ' sets' : ''}</b>`]);
+      if (sel >= 0 && sel !== pick && sel !== min3 && sel !== min3 - 1) st.push([`Your selected size: ${wl(WIRE[sel][0])}`, VDF, vdNums(sel)]);
+    }
+  }
+  showMath('math-vd', st);
+}
+
+function mathGen() {
+  const g = window.__gen; if (!g || !g.ok) return showMath('math-gen', null);
+  const { s, gkw, rated, tot, mx } = g, st = [];
+  const vf = s.three ? '(1.732 × Volts)' : 'Volts';
+  g.rows.forEach(({ r, res }) => {
+    const amt = parseFloat(r.amt), name = r.name ? r.name : 'Load', conn = r.conn === '3P' ? '3Φ' : r.conn;
+    const is3 = r.conn === '3P', vtxt = is3 ? `(1.732 × ${res.V} V)` : `${res.V} V`;
+    let fo, e;
+    if (r.unit === 'A') { fo = 'Amps as entered'; e = `${f2(amt)} A`; }
+    else if (r.unit === 'HP') { const col = { 120: 115, 240: 230, 480: 460, 600: 575 }[res.V]; fo = `Amps = motor full-load amps from Table ${is3 ? '430.250' : '430.248'}`; e = `${amt} HP at ${res.V} V${col ? ` (${col} V column)` : ''} = ${f2(res.I, 1)} A`; }
+    else { const W = r.unit === 'kW' ? amt * 1000 : amt; fo = `Amps = Watts ÷ ${is3 ? '(1.732 × Volts)' : 'Volts'}`; e = `${f2(W, 0)} W ÷ ${vtxt} = ${f2(res.I, 1)} A`; }
+    const legs = s.legs.filter(l => res.legs[l] > 0).join(' + ');
+    st.push([`${name} (${conn})`, fo, `${e} → leg${legs.includes('+') ? 's' : ''} ${legs} · ${f2(res.va / 1000)} kVA`, r.conn.includes('-') || is3 ? 'A 240 V / line-to-line load draws its amps on both legs' : '']);
+  });
+  st.push(['Leg totals', 'Leg amps = sum of every load on that leg', s.legs.map(l => `${l} = <b>${f2(tot[l], 1)} A</b>`).join(' · ')]);
+  const vk = s.three ? `(1.732 × ${s.vll} V)` : `${s.vll} V`, k = s.three ? SQ3 * s.vll : s.vll;
+  if (isFinite(rated)) {
+    st.push(['Generator rated amps', `Rated amps = kW ÷ PF × 1000 ÷ ${vf}`, `${f2(gkw, 1)} ÷ ${s.pf} × 1000 ÷ ${vk} = <b>${f2(rated, 1)} A per leg</b>`, s.three ? '3Φ generators are rated at 0.8 PF' : '1Φ home standby generators are rated at 1.0 PF']);
+    st.push(['Loading', '% loading = Heaviest leg amps ÷ Rated amps × 100', `${f2(mx, 1)} ÷ ${f2(rated, 1)} × 100 = <b>${f2(mx / rated * 100, 0)}%</b>`, '≤ 80% OK · 80–100% tight · over 100% overloaded']);
+  }
+  st.push(['Generator size for 80% loading', `kW needed = Heaviest leg amps ÷ 0.8 × ${vf} × PF ÷ 1000`, `${f2(mx, 1)} ÷ 0.8 × ${vk} × ${s.pf} ÷ 1000 = <b>${f2(mx / 0.8 * k * s.pf / 1000, 1)} kW</b>`, 'Running load only. Motor starting surge not included.']);
+  showMath('math-gen', st);
+}
+
+function mathMo() {
+  const three = TOG.moPh === '3', T = three ? M3 : M1, cols = three ? M3V : M1V;
+  const row = T.find(r => r[0] === $('moHp').value), V = +$('moV').value;
+  if (!row) return showMath('math-mo', null);
+  const fla = row[1][cols.indexOf(V)];
+  if (fla == null) return showMath('math-mo', null);
+  const st = [
+    ['Full-load amps', `FLA = value from Table ${three ? '430.250' : '430.248'} (HP × voltage)`, `${row[0]} HP at ${V} V = <b>${f2(fla, 1)} A</b>`, '430.6(A)(1): use the table, not the nameplate, for wire and short-circuit protection'],
+    ['Wire ampacity', 'Wire ampacity = FLA × 125%', `${f2(fla, 1)} × 1.25 = <b>${f2(fla * 1.25, 1)} A</b>`, '430.22'],
+    ['Inverse-time breaker', 'Max breaker = FLA × 250% → round up to next standard size', `${f2(fla, 1)} × 2.50 = ${f2(fla * 2.5, 1)} A → <b>${nextStd(fla * 2.5)} A</b>`, 'Table 430.52(C)(1) · Exception No. 1 allows next size up · 240.6(A) sizes'],
+    ['Dual-element fuse', 'Max fuse = FLA × 175% → next standard size', `${f2(fla, 1)} × 1.75 = ${f2(fla * 1.75, 1)} A → <b>${nextStd(fla * 1.75)} A</b>`],
+    ['Non-time-delay fuse', 'Max fuse = FLA × 300% → next standard size', `${f2(fla, 1)} × 3.00 = ${f2(fla * 3, 1)} A → <b>${nextStd(fla * 3)} A</b>`],
+    ['Running kVA', `kVA = ${three ? '1.732 × ' : ''}Volts × FLA ÷ 1000`, `${three ? `1.732 × ` : ''}${V} × ${f2(fla, 1)} ÷ 1000 = <b>${f2((three ? SQ3 : 1) * V * fla / 1000)} kVA</b>`],
+  ];
+  showMath('math-mo', st);
+}
+
+function mathBr() {
+  const A = num('brA'), cont = $('brCont').checked;
+  if (!(A > 0)) return showMath('math-br', null);
+  const req = cont ? A * 1.25 : A, s = nextStd(req);
+  const st = [];
+  st.push(cont ? ['Continuous load', 'Minimum rating = Load amps × 125%', `${f2(A, 1)} × 1.25 = <b>${f2(req, 2)} A</b>`, '210.20(A) branch circuits · 215.3 feeders (load on 3 hours or more)']
+    : ['Non-continuous load', 'Minimum rating = Load amps', `<b>${f2(A, 1)} A</b>`]);
+  st.push(['Standard size', 'Breaker = first standard rating ≥ minimum rating', `≥ ${f2(req, 2)} A → <b>${s ? s + ' A' : 'over 6000 A'}</b>`, 'Table 240.6(A)']);
+  st.push(['Wire check', 'Wire ampacity ≥ breaker rating (240.4)', `Wire must carry ≥ ${s} A, or ≥ ${f2(req, 1)} A with 240.4(B) next-size-up (800 A or less)`]);
+  showMath('math-br', st);
+}
+
+function mathOhm() {
+  if (ohmSrc.length < 2) return showMath('math-ohm', null);
+  const g = k => parseFloat($('ohm' + k).value), has = k => ohmSrc.includes(k);
+  const V = g('V'), I = g('I'), R = g('R'), P = g('P');
+  if (![V, I, R, P].every(isFinite)) return showMath('math-ohm', null);
+  const n = v => +v.toPrecision(5), st = [['You entered', '', ohmSrc.map(k => `${k} = ${n({ V, I, R, P }[k])}`).join(' · '), 'V = volts · I = amps · R = ohms · P = watts']];
+  const add = (t, f, e) => st.push([t, f, e]);
+  if (has('V') && has('I')) { add('Resistance', 'R = V ÷ I', `R = ${n(V)} ÷ ${n(I)} = <b>${n(R)} Ω</b>`); add('Watts', 'P = V × I', `P = ${n(V)} × ${n(I)} = <b>${n(P)} W</b>`); }
+  else if (has('V') && has('R')) { add('Amps', 'I = V ÷ R', `I = ${n(V)} ÷ ${n(R)} = <b>${n(I)} A</b>`); add('Watts', 'P = V² ÷ R', `P = ${n(V)}² ÷ ${n(R)} = <b>${n(P)} W</b>`); }
+  else if (has('V') && has('P')) { add('Amps', 'I = P ÷ V', `I = ${n(P)} ÷ ${n(V)} = <b>${n(I)} A</b>`); add('Resistance', 'R = V² ÷ P', `R = ${n(V)}² ÷ ${n(P)} = <b>${n(R)} Ω</b>`); }
+  else if (has('I') && has('R')) { add('Volts', 'V = I × R', `V = ${n(I)} × ${n(R)} = <b>${n(V)} V</b>`); add('Watts', 'P = I² × R', `P = ${n(I)}² × ${n(R)} = <b>${n(P)} W</b>`); }
+  else if (has('I') && has('P')) { add('Volts', 'V = P ÷ I', `V = ${n(P)} ÷ ${n(I)} = <b>${n(V)} V</b>`); add('Resistance', 'R = P ÷ I²', `R = ${n(P)} ÷ ${n(I)}² = <b>${n(R)} Ω</b>`); }
+  else if (has('R') && has('P')) { add('Volts', 'V = √(P × R)', `V = √(${n(P)} × ${n(R)}) = <b>${n(V)} V</b>`); add('Amps', 'I = √(P ÷ R)', `I = √(${n(P)} ÷ ${n(R)}) = <b>${n(I)} A</b>`); }
+  showMath('math-ohm', st);
+}
+
+function mathCv(k, v) {
+  const kw = v * CV[k][1], n = x => +x.toPrecision(5), btu = kw * 3412.14163;
+  const st = [];
+  if (k === 'hp') st.push(['HP → kW', 'kW = HP × 0.7457', `${n(v)} × 0.7457 = <b>${n(kw)} kW</b>`, '1 HP = 745.7 W']);
+  if (k === 'btu') st.push(['BTU/hr → kW', 'kW = BTU/hr ÷ 3,412.14', `${n(v)} ÷ 3,412.14 = <b>${n(kw)} kW</b>`, '1 kW = 3,412.14 BTU/hr']);
+  if (k === 'ton') { st.push(['Tons → BTU/hr', 'BTU/hr = Tons × 12,000', `${n(v)} × 12,000 = <b>${Math.round(v * 12000).toLocaleString()} BTU/hr</b>`, '1 ton of cooling = 12,000 BTU/hr']);
+    st.push(['BTU/hr → kW', 'kW = BTU/hr ÷ 3,412.14', `${Math.round(v * 12000).toLocaleString()} ÷ 3,412.14 = <b>${n(kw)} kW</b>`]); }
+  if (k !== 'hp') st.push(['kW → HP', 'HP = kW ÷ 0.7457', `${n(kw)} ÷ 0.7457 = <b>${n(kw / 0.745699872)} HP</b>`]);
+  if (k !== 'btu' && k !== 'ton') st.push(['kW → BTU/hr', 'BTU/hr = kW × 3,412.14', `${n(kw)} × 3,412.14 = <b>${Math.round(btu).toLocaleString()} BTU/hr</b>`]);
+  if (k !== 'ton') st.push(['BTU/hr → Tons', 'Tons = BTU/hr ÷ 12,000', `${Math.round(btu).toLocaleString()} ÷ 12,000 = <b>${n(btu / 12000)} tons</b>`]);
+  showMath('math-cv', st);
+}
+
+// ── REFERENCE MODAL ────────────────────────────────────────
+function buildRef() {
+  $('refR').innerHTML = WIRE.map(w => `<tr><td>${wl(w[0])}</td><td class="num">${w[1]}</td><td class="num">${w[0] === '14' ? '—' : w[2]}</td></tr>`).join('');
+  $('refM1h').innerHTML = `<tr><th>HP</th>${M1V.map(v => `<th class="num">${v} V</th>`).join('')}</tr>`;
+  $('refM1').innerHTML = M1.map(r => `<tr><td>${r[0]}</td>${r[1].map(v => `<td class="num">${v}</td>`).join('')}</tr>`).join('');
+  $('refM3h').innerHTML = `<tr><th>HP</th>${M3V.map(v => `<th class="num">${v} V</th>`).join('')}</tr>`;
+  $('refM3').innerHTML = M3.map(r => `<tr><td>${r[0]}</td>${r[1].map(v => `<td class="num">${v == null ? '—' : v}</td>`).join('')}</tr>`).join('');
+  $('refB').innerHTML = STD.map(s => `<span class="std-chip">${s}</span>`).join('');
+}
+function refTab(t) {
+  document.querySelectorAll('.modal-tab').forEach(x => x.classList.toggle('active', x.dataset.tab === t));
+  document.querySelectorAll('.modal-pane').forEach(x => x.classList.toggle('active', x.id === 'pane-' + t));
+}
+function openRef(t) {
+  buildRef();
+  const cur = (document.querySelector('.calc-pane.active') || {}).id || '';
+  refTab(t || ({ 'pane-vd': 'r', 'pane-motor': 'm', 'pane-brk': 'b' }[cur] || 'f'));
+  $('refModal').classList.add('open'); document.body.classList.add('modal-open'); play('tink');
+}
+function closeRef() { $('refModal').classList.remove('open'); document.body.classList.remove('modal-open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRef(); });
+
+// ── INIT ───────────────────────────────────────────────────
+onToggle('kwPh'); onToggle('vdPh'); moFill();
+genAdd(true);
+let startTab = 'kw';
+try { const t = localStorage.getItem('aog-qcalc-tab'); if (t && $('pane-' + t)) startTab = t; } catch (e) {}
+showPane(startTab, true);
+ready = true;
+recalc();
+</script>
+
+<!-- SERVICE WORKER — single registration pointing to ../sw.js -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('../sw.js', { scope: '../' })
+      .then(function(reg) {
+        console.log('[SW] Registered, scope:', reg.scope);
+        reg.addEventListener('updatefound', function() {
+          var nw = reg.installing;
+          nw.addEventListener('statechange', function() {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('[AOG SW] Update available — reload to apply.');
+            }
+          });
+        });
+      })
+      .catch(function(err) {
+        console.warn('[SW] Registration failed:', err);
+      });
+  });
+}
+</script>
+
+<script>
+function adjustTopPadding() {
+  var bar = document.getElementById('action-bar');
+  var header = document.querySelector('.header');
+  var main = document.getElementById('main');
+  if (bar && header) header.style.marginTop = bar.offsetHeight + 'px';
+}
+window.addEventListener('resize', adjustTopPadding);
+window.addEventListener('load', adjustTopPadding);
+setTimeout(adjustTopPadding, 100);
+</script>
+</body>
+</html>

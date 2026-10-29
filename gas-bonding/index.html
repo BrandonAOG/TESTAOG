@@ -1,0 +1,1563 @@
+<!DOCTYPE html>
+<!--
+© 2026 Brandon Keilholz — All rights reserved.
+Created by Brandon Keilholz. Licensed for use by Always On Generators.
+This form, its code, layout, and content are proprietary.
+Unauthorized copying, reproduction, or distribution is prohibited and
+may result in liability for statutory damages of up to $150,000 per work
+for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>AOG Gas Pipe Bonding — NFPA 54 7.12</title>
+<script src="../sounds.js" defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="../manifest.json">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="theme-color" content="#FBBF24">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AOG Forms">
+
+<style>
+:root {
+  --bg: #f8f9fa;
+  --bg2: #ffffff;
+  --bg3: #f1f3f5;
+  --border: #dee2e6;
+  --text: #1F2937;
+  --text2: #4b5563;
+  --accent: #D97706;
+  --accent2: #B45309;
+  --cyan: #0891b2;
+  --success: #059669;
+  --danger: #DC2626;
+  --warn: #d97706;
+  --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --radius: 12px;
+  --header-bg: #1a1a2e;
+  --header-text: #D97706;
+}
+.dark {
+  --bg: #0A0E27;
+  --bg2: #0f1535;
+  --bg3: #141a3a;
+  --border: #1e2a4a;
+  --text: #E0F7FF;
+  --text2: #94a3b8;
+  --accent: #00FFC8;
+  --accent2: #06B6D4;
+  --cyan: #00FFC8;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warn: #f59e0b;
+  --shadow: 0 2px 8px rgba(0,255,200,0.06);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Exo 2', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* HEADER — spec-viewer style: pulsing logo left of company name + scanline flashes */
+.header {
+  text-align: center;
+  padding: 26px 16px 20px;
+  margin-bottom: 8px;
+  position: relative;
+}
+.header::before,.header::after{content:'';position:absolute;height:2px;width:80%;left:10%;background:linear-gradient(90deg,transparent,#FBBF24,#F97316,#00D4FF,transparent);}
+.header::before{top:0;animation:scanline 4s linear infinite;}
+.header::after{bottom:0;animation:scanline 4s linear infinite reverse;}
+@keyframes scanline{0%,100%{opacity:0;transform:scaleX(0)}50%{opacity:1;transform:scaleX(1)}}
+.logo-wrap{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:nowrap;margin-bottom:10px;}
+.logo-img{width:70px;height:70px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 0 12px rgba(251,191,36,.6));animation:logoPulse 3s ease-in-out infinite;}
+@media(min-width:480px){.logo-img{width:90px;height:90px}}
+@keyframes logoPulse{0%,100%{filter:drop-shadow(0 0 12px rgba(251,191,36,.6))}50%{filter:drop-shadow(0 0 22px rgba(251,191,36,.9)) drop-shadow(0 0 36px rgba(249,115,22,.6))}}
+.title-block{text-align:left;min-width:0;}
+.company-name{font-family:'Orbitron',monospace;font-size:clamp(1.05rem,4.5vw,1.4rem);font-weight:900;letter-spacing:2px;line-height:1.1;background:linear-gradient(135deg,#FBBF24 0%,#F97316 50%,#EA580C 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;}
+@media(min-width:480px){.company-name{font-size:1.8rem;letter-spacing:3px}}
+.tagline{font-family:'Share Tech Mono',monospace;font-size:.65rem;letter-spacing:4px;color:var(--cyan);text-transform:uppercase;}
+.tool-title{font-family:'Orbitron',monospace;font-size:.7rem;letter-spacing:5px;color:var(--text2);margin-top:8px;text-transform:uppercase;}
+.tool-title span{color:#F97316;}
+.header .nec-badge{margin-top:8px;display:inline-block;}
+.home-btn {
+  background: none; border: 1px solid #D97706;
+  color: #D97706; border-radius: 8px;
+  padding: 6px 10px; font-size: 11px;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.2s;
+  text-decoration: none; display: inline-flex;
+  align-items: center; gap: 4px;
+}
+.home-btn:hover { background: #D97706; color: #000; }
+.theme-btn {
+  background: none; border: 1px solid #D97706;
+  color: #D97706; border-radius: 8px;
+  padding: 6px 10px; font-size: 14px; cursor: pointer;
+  transition: all 0.2s;
+}
+.theme-btn:hover { background: #D97706; color: #000; }
+.nec-badge {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8px; background: #D97706;
+  color: #000; padding: 3px 7px;
+  border-radius: 4px; font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* MAIN */
+.main { padding: 16px; max-width: 900px; margin: 0 auto; }
+
+/* SECTION CARDS */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+  transition: background 0.3s, border 0.3s;
+}
+.card-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px; font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title::before {
+  content: ''; display: inline-block;
+  width: 3px; height: 14px;
+  background: var(--accent); border-radius: 2px;
+}
+
+/* FORM ELEMENTS */
+label {
+  font-size: 11px; font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  display: block; margin-bottom: 5px;
+}
+select, input[type="number"], input[type="text"] {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: 'Exo 2', sans-serif;
+  outline: none;
+  transition: border 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none;
+}
+select:focus, input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(217,119,6,0.2);
+}
+.dark select:focus, .dark input:focus {
+  box-shadow: 0 0 0 2px rgba(0,255,200,0.15);
+}
+
+/* GRID LAYOUTS */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+@media(max-width:520px) {
+  .grid-2 { grid-template-columns: 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+}
+
+/* WIRE ROWS */
+.wire-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+  padding: 10px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  transition: background 0.3s;
+}
+.wire-row:hover { border-color: var(--accent); }
+.remove-btn {
+  background: var(--danger);
+  color: white; border: none;
+  border-radius: 6px; width: 32px; height: 32px;
+  font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: opacity 0.2s;
+  align-self: flex-end; margin-bottom: 0;
+}
+.remove-btn:hover { opacity: 0.8; }
+.add-btn {
+  background: var(--accent);
+  color: #000; border: none;
+  border-radius: 8px; padding: 10px 16px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  transition: opacity 0.2s, transform 0.1s;
+  width: 100%; justify-content: center;
+  margin-top: 8px;
+}
+.add-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+.add-btn:active { transform: translateY(0); }
+
+/* CALCULATE BUTTON */
+.calc-btn {
+  width: 100%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000; border: none;
+  border-radius: 10px; padding: 14px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 2px; cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(217,119,6,0.3);
+  margin-top: 4px;
+}
+.calc-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(217,119,6,0.4);
+}
+.calc-btn:active { transform: translateY(0); }
+.dark .calc-btn {
+  background: linear-gradient(135deg, #00FFC8, #06B6D4);
+  box-shadow: 0 4px 15px rgba(0,255,200,0.25);
+}
+
+/* RESULTS */
+.result-card {
+  background: var(--bg2);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 0 20px rgba(217,119,6,0.1);
+}
+.dark .result-card {
+  box-shadow: 0 0 20px rgba(0,255,200,0.08);
+}
+.result-header {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px; color: var(--accent);
+  letter-spacing: 1.5px; margin-bottom: 14px;
+  text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* CONDUIT TABLE */
+.conduit-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 12px; font-family: 'Share Tech Mono', monospace;
+}
+.conduit-table th {
+  background: var(--bg3);
+  color: var(--accent);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px; letter-spacing: 1px;
+  padding: 8px 10px; text-align: left;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+.conduit-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+.conduit-table tr:last-child td { border-bottom: none; }
+.conduit-table tr:hover td { background: var(--bg3); }
+
+/* STATUS PILLS */
+.status-pass {
+  background: var(--success);
+  color: white; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+.status-fail {
+  background: var(--danger);
+  color: white; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+.status-warn {
+  background: var(--warn);
+  color: #000; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+.status-best {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+
+/* FILL BAR */
+.fill-bar-wrap {
+  background: var(--bg3);
+  border-radius: 6px; height: 10px;
+  overflow: hidden; min-width: 60px;
+}
+.fill-bar {
+  height: 100%; border-radius: 6px;
+  transition: width 0.6s ease;
+}
+.fill-green { background: var(--success); }
+.fill-yellow { background: var(--warn); }
+.fill-red { background: var(--danger); }
+
+/* JAM SECTION */
+.jam-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+}
+.jam-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px; color: var(--accent);
+  letter-spacing: 1px; margin-bottom: 8px;
+}
+.jam-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.jam-item {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px;
+  text-align: center;
+}
+.jam-size {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px; font-weight: 700;
+  color: var(--text);
+}
+.jam-ratio {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--text2);
+  margin: 2px 0;
+}
+.jam-status {
+  font-size: 10px; font-weight: 700;
+  margin-top: 4px;
+}
+.jam-ok  { color: var(--success); }
+.jam-risk { color: var(--warn); }
+.jam-high { color: var(--danger); }
+
+/* WIRE SUMMARY */
+.wire-summary {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-bottom: 12px;
+}
+.wire-chip {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--text);
+}
+
+/* RECOMMENDATION */
+.rec-box {
+  background: linear-gradient(135deg, rgba(217,119,6,0.1), rgba(180,83,9,0.05));
+  border: 1px solid var(--accent);
+  border-radius: 8px; padding: 12px;
+  margin-top: 12px;
+}
+.dark .rec-box {
+  background: linear-gradient(135deg, rgba(0,255,200,0.05), rgba(6,182,212,0.03));
+  border-color: var(--accent);
+}
+.rec-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px; color: var(--accent);
+  letter-spacing: 1.5px; margin-bottom: 6px;
+}
+.rec-size {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px; font-weight: 900;
+  color: var(--accent);
+}
+.rec-detail {
+  font-size: 12px; color: var(--text2);
+  margin-top: 4px; font-family: 'Share Tech Mono', monospace;
+}
+
+/* STATS ROW */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px; margin-bottom: 12px;
+}
+.stat-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px;
+  text-align: center;
+}
+.stat-val {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px; font-weight: 700;
+  color: var(--accent);
+}
+.stat-lbl {
+  font-size: 9px; color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.8px; margin-top: 2px;
+}
+
+/* NIPPLE/RACEWAY TOGGLE */
+.toggle-row {
+  display: flex; gap: 8px;
+  margin-bottom: 14px;
+}
+.toggle-opt {
+  flex: 1; padding: 10px;
+  border: 2px solid var(--border);
+  border-radius: 8px; text-align: center;
+  cursor: pointer; font-family: 'Orbitron', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; color: var(--text2);
+  transition: all 0.2s;
+}
+.toggle-opt.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(217,119,6,0.08);
+}
+.dark .toggle-opt.active {
+  background: rgba(0,255,200,0.07);
+}
+
+/* OVERFLOW TABLE */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center; padding: 40px 20px;
+  color: var(--text2);
+}
+.empty-icon { font-size: 48px; margin-bottom: 8px; }
+.empty-text {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px; letter-spacing: 1px;
+}
+
+/* DIVIDER */
+.divider {
+  border: none; border-top: 1px solid var(--border);
+  margin: 12px 0;
+}
+
+/* INFO ROW */
+.info-row {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text2);
+  margin-top: 6px;
+  font-family: 'Share Tech Mono', monospace;
+}
+.info-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%; background: var(--accent);
+  flex-shrink: 0;
+}
+
+
+/* ===== QUICK REFERENCE TABLES MODAL ===== */
+.ref-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.ref-btn {
+  flex: 1; min-width: 140px;
+  background: var(--bg3); color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 8px;
+  padding: 10px; cursor: pointer;
+  font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  text-decoration: none; text-align: center; transition: all 0.2s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.ref-btn:hover { background: var(--accent); color: #000; }
+.modal-bg {
+  position: fixed; inset: 0; z-index: 100000;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(2px);
+  display: none; align-items: flex-start; justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 16px)) 12px 16px;
+  overflow-y: auto;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: var(--bg2); border: 2px solid var(--accent);
+  border-radius: var(--radius); width: 100%; max-width: 820px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+  margin: auto 0;
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--bg2); border-radius: var(--radius) var(--radius) 0 0; z-index: 1;
+}
+.modal-title { font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 1.5px; }
+.modal-close {
+  background: none; border: 1px solid var(--border); color: var(--text2);
+  border-radius: 6px; width: 32px; height: 32px; font-size: 18px; cursor: pointer; flex-shrink: 0;
+}
+.modal-close:hover { border-color: var(--danger); color: var(--danger); }
+.modal-tabs { display: flex; gap: 6px; padding: 10px 14px 0; flex-wrap: wrap; }
+.modal-tab {
+  flex: 1; min-width: 100px; padding: 8px; border: 2px solid var(--border); border-radius: 8px;
+  background: none; color: var(--text2); cursor: pointer;
+  font-family: 'Orbitron', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 1px;
+}
+.modal-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(217,119,6,0.08); }
+.dark .modal-tab.active { background: rgba(0,255,200,0.07); }
+.modal-body { padding: 14px; }
+.modal-pane { display: none; }
+.modal-pane.active { display: block; }
+.modal .conduit-table td.grp {
+  background: var(--bg3); color: var(--accent);
+  font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 1px;
+}
+.modal .conduit-table td.num, .modal .conduit-table th.num { text-align: center; }
+.rule-list { display: grid; gap: 8px; }
+.rule {
+  background: var(--bg3); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 8px; padding: 10px;
+}
+.rule-ref { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--accent); margin-bottom: 3px; }
+.rule-txt { font-size: 13px; color: var(--text); line-height: 1.45; }
+.rule-txt b { font-weight: 600; }
+.modal-foot { padding: 0 14px 14px; }
+body.modal-open { overflow: hidden; }
+@media print { .modal-bg, .ref-btns { display: none !important; } }
+
+
+/* ===== MOBILE TABLE TUNING ===== */
+.m-only { display: none; }
+@media (max-width: 520px) {
+  /* stop iOS auto-zoom on focus */
+  select, input[type="number"], input[type="text"] { font-size: 16px; }
+  .conduit-table { font-size: 11px; }
+  .conduit-table th { padding: 7px 5px; font-size: 8px; }
+  .conduit-table td { padding: 7px 5px; }
+  .hide-m { display: none; }
+  .m-only { display: inline; }
+  .wrap-m { white-space: normal !important; min-width: 96px; }
+  /* first column stays put if a table still needs to scroll */
+  .sticky-1 td:first-child, .sticky-1 th:first-child {
+    position: sticky; left: 0; z-index: 1; background: var(--bg2);
+    box-shadow: 1px 0 0 var(--border);
+  }
+  .sticky-1 thead th:first-child { background: var(--bg3); }
+  .sticky-1 tr.current-row td:first-child { background: linear-gradient(rgba(217,119,6,0.08), rgba(217,119,6,0.08)), var(--bg2); }
+  .dark .sticky-1 tr.current-row td:first-child { background: linear-gradient(rgba(0,255,200,0.06), rgba(0,255,200,0.06)), var(--bg2); }
+  .modal-bg { padding-left: 6px; padding-right: 6px; }
+  .modal-body { padding: 10px; }
+  .modal .conduit-table td.num, .modal .conduit-table th.num { padding: 7px 3px; }
+  .modal .conduit-table td.grp { position: static; box-shadow: none; }
+  .stats-row { gap: 6px; }
+  .stat-val { font-size: 14px; }
+}
+
+
+.check-detail {
+  margin-top: -9px;
+  padding: 12px 10px 10px;
+  background: var(--bg3);
+  border: 1px solid var(--accent);
+  border-top: 1px dashed var(--border);
+  border-radius: 0 0 8px 8px;
+}
+.check-row:has(input:checked) { border-color: var(--accent); }
+.check-row:has(+ .check-detail[style*="display: none"]), .check-row:has(+ .check-detail[style*="display:none"]) { border-radius: 8px; }
+.check-row:has(input:checked):has(+ .check-detail:not([style*="none"])) { border-radius: 8px 8px 0 0; border-bottom-color: transparent; }
+
+
+/* ===== RUN CARDS (IN → OUT) ===== */
+.run-card {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px; margin-bottom: 8px; transition: border 0.2s;
+}
+.run-card:hover { border-color: var(--accent); }
+.run-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.run-head .entry-tag { height: 28px; padding: 0 10px; align-self: center; }
+.run-head .remove-btn { margin-left: auto; }
+.pull-badge {
+  font-family: 'Share Tech Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 1px;
+  padding: 4px 10px; border-radius: 12px; background: var(--bg2); border: 1px solid var(--border); color: var(--text2);
+}
+.pull-badge.k-straight { color: var(--cyan); border-color: var(--cyan); }
+.pull-badge.k-angle, .pull-badge.k-u { color: var(--accent); border-color: var(--accent); }
+.pull-badge.k-splice { color: var(--warn); border-color: var(--warn); }
+.run-line { display: grid; grid-template-columns: 44px 1.2fr 0.9fr 1fr; gap: 8px; align-items: end; }
+.run-side {
+  height: 40px; display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  color: #000; background: var(--accent); border-radius: 8px;
+}
+.run-side.out { background: var(--cyan); }
+.dark .run-side.out { background: var(--accent2); }
+.run-arrow { text-align: left; padding-left: 16px; color: var(--text2); font-size: 14px; line-height: 1; margin: 2px 0; }
+.run-card.in-none .r-in-row, .run-card.in-none .r-in-size,
+.run-card.out-none .r-out-row, .run-card.out-none .r-out-size { opacity: 0.35; }
+.splice-tog {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0 0 0 auto; cursor: pointer;
+  font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text2);
+}
+.splice-tog input { position: absolute; opacity: 0; pointer-events: none; }
+.splice-tog .check-box { width: 16px; height: 16px; }
+.splice-tog input:checked + .check-box { background: var(--warn); border-color: var(--warn); }
+.splice-tog input:checked + .check-box::after { content: '✓'; color: #000; font-size: 11px; font-weight: 900; }
+.splice-tog input:disabled + .check-box { opacity: .6; }
+.splice-tog:has(input:checked) { color: var(--warn); }
+.run-head .splice-tog + .remove-btn { margin-left: 4px; }
+select:disabled { cursor: not-allowed; }
+@media (max-width: 520px) {
+  .run-line { grid-template-columns: 36px 1.25fr 0.95fr 1fr; gap: 5px; }
+  .run-line label { font-size: 9px; letter-spacing: .4px; }
+  .run-line select { padding: 9px 6px; }
+  .run-side { height: 38px; font-size: 9px; }
+}
+
+
+/* ===== WALL ROWS SIDE VIEW ===== */
+.rows-view { display: grid; gap: 14px; }
+.row-wall { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+.row-calcs { display: grid; gap: 4px; margin-top: 8px; }
+.row-calc { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--text2); padding: 4px 6px; border-radius: 6px; }
+.row-calc b { color: var(--text); font-weight: 700; }
+.row-calc.gov { color: var(--text); background: rgba(217,119,6,0.08); }
+.dark .row-calc.gov { background: rgba(0,255,200,0.07); }
+
+
+.pull-badge { white-space: nowrap; }
+@media (max-width: 520px) {
+  .run-head { gap: 6px; }
+  .pull-badge { font-size: 10px; padding: 3px 8px; letter-spacing: .5px; }
+  .splice-tog { font-size: 11px; white-space: nowrap; }
+  .splice-tog .sp-txt::before { content: 'Spliced'; }
+  .splice-tog .sp-txt { font-size: 0; }
+  .splice-tog .sp-txt::before { font-size: 11px; }
+}
+
+
+@media (max-width: 520px) { #fitCard .conduit-table td, #fitCard .conduit-table th { padding-left: 4px; padding-right: 4px; } #fitCard .status-pass, #fitCard .status-warn, #fitCard .status-fail { font-size: 9px; padding: 3px 6px; } }
+.rec-box.warn { border-color: var(--warn); background: linear-gradient(135deg, rgba(217,119,6,0.10), rgba(217,119,6,0.03)); }
+.rec-box.warn .rec-size, .rec-box.warn .rec-label { color: var(--warn); }
+
+/* ===== TOUCH & SMALL-PHONE TUNING ===== */
+.splice-tog { min-height: 40px; padding: 0 6px; border-radius: 8px; }
+.splice-tog:active { background: var(--bg2); }
+@media (max-width: 360px) {
+  .conduit-table { font-size: 10px; }
+  .conduit-table th { font-size: 7.5px; padding: 6px 3px; letter-spacing: .5px; }
+  .conduit-table td { padding: 6px 3px; }
+  .wrap-m { min-width: 78px; }
+  .modal .conduit-table th { white-space: normal; }
+  .run-line { grid-template-columns: 32px 1.2fr 0.95fr 1fr; gap: 4px; }
+  .run-line select { padding: 9px 4px; }
+}
+.run-head > * { flex-shrink: 0; }
+.run-head .pull-badge { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 360px) { .bd-spl { display: none; } .run-head .pull-badge { font-size: 9px; padding: 3px 6px; letter-spacing: .3px; } .run-head { gap: 4px; } }
+/* PRINT */
+@media print {
+  .header, .add-btn, .remove-btn, .calc-btn,
+  .theme-btn, .home-btn, .toggle-row { display: none !important; }
+  body { background: white; color: black; }
+  .card, .result-card { box-shadow: none; border: 1px solid #ccc; }
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+
+/* FOOTER */
+.footer {
+  text-align: center; padding: 20px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--text2);
+  letter-spacing: 1px;
+}
+
+
+/* ===== FIXED ACTION BAR ===== */
+.action-bar {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  z-index: 99999;
+  width: 100%;
+  background: var(--header-bg, #1e293b);
+  padding: 4px 8px;
+  padding-top: max(4px, env(safe-area-inset-top, 4px));
+  display: flex; justify-content: flex-start; gap: 4px; flex-wrap: nowrap; align-items: center;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  
+  box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+  border-bottom: 1px solid rgba(217,119,6,0.3);
+  box-sizing: border-box;
+}
+/* Center the buttons when they fit; auto-margins collapse safely when the
+   bar overflows and scrolls, so nothing gets clipped off the left edge. */
+.action-bar > :first-child { margin-left: auto; }
+.action-bar > :last-child { margin-right: auto; }
+.action-bar .ab-btn {
+  padding: 6px 8px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.07);
+  border-radius: 0; cursor: pointer; color: #D97706; text-transform: uppercase;
+  font-family: Arial, sans-serif; white-space: nowrap; flex: 1; min-width: 0;
+  text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+  clip-path: polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  overflow: hidden; text-overflow: ellipsis; transition: all 0.15s ease;
+}
+.action-bar .ab-btn:hover { border-color: #D97706; box-shadow: 0 0 8px rgba(217,119,6,0.3); }
+.action-bar .theme-toggle-ab {
+  width: 36px; height: 36px; padding: 6px; flex-shrink: 0;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.07);
+  border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: #D97706; font-size: 16px; transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.action-bar .theme-toggle-ab:hover { border-color: #D97706; box-shadow: 0 0 8px rgba(217,119,6,0.3); }
+@media (max-width: 480px) {
+  .action-bar { padding: 4px 4px; padding-top: max(4px, env(safe-area-inset-top, 4px)); gap: 3px; }
+}
+
+/* ===== BOX FILL ADDITIONS (same tokens as conduit fill) ===== */
+.wire-row.w4 { grid-template-columns: 1fr 0.7fr 1.6fr auto; }
+.wire-row.w3 { grid-template-columns: 1.6fr 1fr auto; }
+.wire-row.wd { grid-template-columns: 1.4fr 1fr 0.7fr auto; }
+@media(max-width:520px) {
+  .wire-row.w4, .wire-row.wd { grid-template-columns: 1fr 1fr; }
+  .wire-row.w4 .remove-btn, .wire-row.wd .remove-btn { grid-column: 2; justify-self: end; }
+  .wire-row.w4 .span-m, .wire-row.wd .span-m { grid-column: 1 / -1; }
+}
+.row-note {
+  grid-column: 1 / -1;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--text2);
+  letter-spacing: .5px;
+}
+.row-note b { color: var(--accent); font-weight: 400; }
+
+.check-list { display: grid; gap: 8px; }
+.check-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px; margin: 0;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer;
+  text-transform: none; letter-spacing: 0;
+  font-weight: 400; transition: border 0.2s;
+}
+.check-row:hover { border-color: var(--accent); }
+.check-row input { position: absolute; opacity: 0; pointer-events: none; }
+.check-box {
+  width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px;
+  border: 2px solid var(--border); border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; background: var(--bg2);
+}
+.check-row input:checked + .check-box { background: var(--accent); border-color: var(--accent); }
+.check-row input:checked + .check-box::after { content: '✓'; color: #000; font-size: 12px; font-weight: 900; }
+.check-row input:focus-visible + .check-box { box-shadow: 0 0 0 2px rgba(217,119,6,0.3); }
+.check-text { font-size: 13px; color: var(--text); line-height: 1.4; }
+.check-text b { font-weight: 600; }
+.check-text em {
+  font-style: normal; font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--text2); letter-spacing: .5px;
+}
+
+.total-row td {
+  font-family: 'Orbitron', sans-serif !important;
+  font-weight: 700; font-size: 11px;
+  color: var(--accent) !important;
+  border-top: 2px solid var(--border);
+  background: var(--bg3);
+}
+.ref-tag { color: var(--text2); }
+
+.warn-box {
+  display: flex; gap: 8px; align-items: flex-start;
+  background: var(--bg3);
+  border: 1px solid var(--warn);
+  border-left: 3px solid var(--warn);
+  border-radius: 8px; padding: 10px; margin-bottom: 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--text);
+}
+.warn-box.err { border-color: var(--danger); }
+.rec-box.fail { border-color: var(--danger); background: linear-gradient(135deg, rgba(220,38,38,0.10), rgba(220,38,38,0.03)); }
+.rec-box.fail .rec-size, .rec-box.fail .rec-label { color: var(--danger); }
+.rec-box.pass .rec-size { color: var(--success); }
+.current-row td { background: rgba(217,119,6,0.08); }
+.dark .current-row td { background: rgba(0,255,200,0.06); }
+
+/* ===== PULL BOX ADDITIONS ===== */
+.wire-row.we { grid-template-columns: 34px 1fr 0.8fr 0.9fr 1.1fr 1.2fr auto; }
+.entry-tag {
+  align-self: end; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700;
+  color: var(--accent); border: 1px solid var(--accent); border-radius: 8px;
+  background: var(--bg2);
+}
+@media (max-width: 720px) {
+  .wire-row.we { grid-template-columns: 1fr 1fr; }
+  .wire-row.we .entry-tag { grid-column: 1 / -1; height: 26px; justify-content: flex-start; padding: 0 10px; align-self: start; }
+  .wire-row.we .remove-btn { grid-column: 2; justify-self: end; }
+}
+.diagram-wrap { padding: 4px 0; overflow: hidden; }
+.grid-3 > div { min-width: 0; }
+@media (max-width: 520px) { .grid-3 { grid-template-columns: 1fr 1fr 1fr; gap: 6px; } }
+
+/* ===== TRENCH TOOL ===== */
+.run-card.is-elec { border-left: 3px solid var(--cyan); }
+.run-card.is-gas  { border-left: 3px solid #f59e0b; }
+.pull-badge.k-elec { color: var(--cyan); border-color: var(--cyan); }
+.pull-badge.k-gas  { color: #d97706; border-color: #f59e0b; }
+.run-card .grid-2 { gap: 10px; }
+.sub-opts { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
+.mini-chk { display: inline-flex; align-items: center; gap: 8px; margin: 0; cursor: pointer; min-height: 36px;
+  font-size: 12px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text2); }
+.mini-chk input { position: absolute; opacity: 0; pointer-events: none; }
+.mini-chk .check-box { width: 18px; height: 18px; }
+.mini-chk input:checked + .check-box { background: var(--accent); border-color: var(--accent); }
+.mini-chk input:checked + .check-box::after { content: '✓'; color: #000; font-size: 12px; font-weight: 900; }
+.mini-chk:has(input:checked) { color: var(--text); }
+.run-head .remove-btn { margin-left: auto; }
+#notesList .rule { background: var(--bg3); }
+.check-row input { position: absolute; opacity: 0; pointer-events: none; }
+.mini-chk b { color: var(--text); }
+#steps .rule { background: var(--bg3); }
+details.more-opts { display: block; }
+.app-add { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.app-add button { min-height: 36px; padding: 0 12px; border: 1px dashed var(--accent); border-radius: 8px; background: var(--bg2); color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer; }
+.app-add button:hover { background: var(--bg3); }
+.app-row { display: grid; grid-template-columns: 1.2fr .8fr 1.3fr auto auto; gap: 8px; align-items: center; padding: 8px 10px; margin-bottom: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg3); }
+.app-row .an { font-weight: 700; font-size: 13px; color: var(--text); }
+.app-row .an small { display: block; font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text2); font-weight: 400; }
+.app-row select { min-height: 38px; font-size: 13px; }
+.app-row .mini-chk { min-height: 38px; font-size: 12px; }
+@media (max-width: 640px) { .app-row { grid-template-columns: 1fr auto; } .app-row > select, .app-row > .an + .an { grid-column: 1; } .app-row .mini-chk { grid-column: 1; } .app-row .remove-btn { grid-column: 2; grid-row: 1; } }
+.bond-key { margin-top: 12px; display: grid; gap: 6px; }
+.bond-key .kh { font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: .5px; color: var(--accent); text-transform: uppercase; }
+.bond-key .kp { display: grid; grid-template-columns: 24px 1fr; gap: 8px; align-items: start; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); }
+.bond-key .kn { width: 22px; height: 22px; border-radius: 50%; color: #fff; font-weight: 800; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+.bond-key b { font-size: 13px; color: var(--text); display: block; }
+.bond-key small { font-family: 'Share Tech Mono', monospace; font-size: 10.5px; color: var(--text2); }
+details.more-opts summary { list-style: none; display: flex; align-items: center; gap: 8px; }
+details.more-opts summary::-webkit-details-marker { display: none; }
+details.more-opts summary::after { content: '+'; margin-left: auto; font-size: 18px; color: var(--accent); }
+details.more-opts[open] summary::after { content: '−'; }
+.opt-tag { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: .5px; color: var(--text2); text-transform: none; }
+.toggle-opt { background: var(--bg2); }
+.toggle-opt:hover { border-color: var(--accent); }
+</style>
+<script src="../update-banner.js"></script>
+</head>
+<body>
+<div class="action-bar" id="action-bar">
+  <a class="ab-btn" href="../">🏠 HOME</a>
+  <button class="ab-btn" onclick="openRef('n')">📋 CODE</button>
+  <button class="theme-toggle-ab" id="themeBtn" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo-wrap">
+    <img src="../logo.png" alt="Always On Generators Logo" class="logo-img" onerror="this.style.display='none'">
+    <div class="title-block">
+      <div class="company-name">Always On<br>Generators</div>
+      <div class="tagline">// Power When You Need It //</div>
+    </div>
+  </div>
+  <div class="tool-title">Gas Pipe <span>Bonding</span> &mdash; NFPA 54 7.12 · NEC 250.104(B)</div>
+  <span class="nec-badge">NFPA 54 2024 · NEC 2023</span>
+</div>
+
+<div class="main" id="main">
+
+  <div class="card">
+    <div class="card-title">What's in the Gas Piping System</div>
+    <div class="info-row" style="margin:-6px 0 10px;"><div class="info-dot"></div>
+      <span>Check everything in the system, from the meter or tank to the appliances (generator, furnace, water heater…), including the poly underground.</span>
+    </div>
+    <label>Gas</label>
+    <div class="toggle-row" data-tog="fuel">
+      <button class="toggle-opt" data-v="ng">🔥 NATURAL GAS (NG)</button>
+      <button class="toggle-opt" data-v="lp">🛢️ PROPANE (LP)</button>
+    </div>
+    <label>Pipe in the system</label>
+    <div class="check-list" id="pipeList">
+      <label class="check-row"><input type="checkbox" data-p="pe"><span class="check-box"></span><span class="check-text"><b>PE (poly) underground</b> <em>· yellow plastic gas pipe, comes up on an anodeless riser</em></span></label>
+      <label class="check-row"><input type="checkbox" data-p="steel"><span class="check-box"></span><span class="check-text"><b>Rigid pipe</b> <em>· Sch 40 steel, galvanized</em></span></label>
+      <label class="check-row"><input type="checkbox" data-p="copper"><span class="check-box"></span><span class="check-text"><b>Copper tubing</b> <em>· where allowed</em></span></label>
+      <label class="check-row"><input type="checkbox" data-p="csst"><span class="check-box"></span><span class="check-text"><b>Standard CSST</b> <em>· yellow jacket (not listed arc-resistant)</em></span></label>
+      <label class="check-row"><input type="checkbox" data-p="ar"><span class="check-box"></span><span class="check-text"><b>Arc-resistant CSST</b> <em>· black jacket, listed arc-resistant to CSA/ANSI LC 1 (e.g. CounterStrike, FlashShield)</em></span></label>
+    </div>
+
+  </div>
+
+
+  <div class="card" id="appCard">
+    <div class="card-title">Appliances on This Gas</div>
+    <div class="info-row" style="margin:-6px 0 10px;"><div class="info-dot"></div>
+      <span>Tap to add. Set where each one is and whether it has power. A powered appliance has an EGC, and that EGC bonds steel pipe and arc-resistant CSST.</span>
+    </div>
+    <div class="app-add" id="appAdd"></div>
+    <div id="mainRunWrap" style="display:none;margin-bottom:10px;"><label id="mainRunLbl">Meter → attic (how the gas gets up there)</label>
+      <select id="mainRun"><option value="rigidCsst">Rigid up the outside wall → CSST across the attic</option><option value="rigid">Rigid up the outside wall → rigid across the attic</option><option value="csst">CSST from the meter, through the wall</option></select>
+    </div>
+    <div id="appList"></div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results" style="display:none;">
+    <div class="result-card">
+      <div class="result-header">🔗 Bonding Requirement</div>
+      <div class="rec-box" id="rec">
+        <div class="rec-label" id="recL">◆ RESULT</div>
+        <div class="rec-size" id="recV">—</div>
+        <div class="rec-detail" id="recD">—</div>
+      </div>
+      <div class="stats-row" id="stats">
+        <div class="stat-box"><div class="stat-val" id="sWire">—</div><div class="stat-lbl">Bond Wire (min.)</div></div>
+        <div class="stat-box"><div class="stat-val" id="sLen">—</div><div class="stat-lbl">Max Jumper Length</div></div>
+        <div class="stat-box"><div class="stat-val" id="sClamp">—</div><div class="stat-lbl">Clamp</div></div>
+      </div>
+      <div id="warns"></div>
+    </div>
+
+    <div class="result-card">
+      <div class="result-header">🏠 How It Connects</div>
+      <div id="diagram"></div>
+    </div>
+
+    <div class="result-card">
+      <div class="result-header">✅ Install Checklist</div>
+      <div class="rule-list" id="steps"></div>
+      <button class="add-btn" style="margin-top:12px;" onclick="copyNotes()">📋 COPY FOR JOB NOTES</button>
+    </div>
+  </div>
+
+  <details class="card more-opts" id="siteCard">
+    <summary class="card-title" style="margin:0;cursor:pointer;">More Options <span class="opt-tag">optional · adds notes</span></summary>
+    <div class="grid-2" style="margin-top:14px;">
+      <div><label>Lightning protection system on the building?</label>
+        <div class="toggle-row" data-tog="lps" style="margin-bottom:0;">
+          <button class="toggle-opt" data-v="no">NO</button>
+          <button class="toggle-opt" data-v="yes">YES</button>
+        </div>
+      </div>
+      <div id="lenWrap"><label>CSST bonding jumper length (ft)</label><input type="number" id="jLen" inputmode="numeric" min="0" placeholder="Checks the 75 ft limit"></div>
+    </div>
+    <div class="sub-opts">
+      <label class="mini-chk"><input type="checkbox" id="ugMetal"><span class="check-box"></span>Underground <b>metal</b> pipe enters the building</label>
+    </div>
+  </details>
+
+  <!-- REFERENCE -->
+  <div class="card">
+    <div class="card-title">Reference</div>
+    <div class="ref-btns">
+      <button class="ref-btn" onclick="openRef('n')">🔥 NFPA 54 7.12</button>
+      <button class="ref-btn" onclick="openRef('e')">⚡ NEC 250.104(B)</button>
+      <button class="ref-btn" onclick="openRef('t')">📊 Table 250.122</button>
+    </div>
+    <div style="display:grid;gap:6px;">
+      <div class="info-row"><div class="info-dot"></div>Standard (yellow) CSST: 6 AWG copper bond to the grounding electrode system, 75 ft max</div>
+      <div class="info-row"><div class="info-dot"></div>Clamp on any rigid pipe or CSST brass fitting, wherever the jumper is shortest. Never on the corrugated tubing</div>
+      <div class="info-row"><div class="info-dot"></div>Steel pipe & arc-resistant CSST: bonded through the appliance's equipment ground</div>
+      <div class="info-row"><div class="info-dot"></div>Gas pipe is never a grounding electrode or conductor</div>
+    </div>
+  </div>
+</div>
+
+<!-- REFERENCE MODAL -->
+<div class="modal-bg" id="refModal" onclick="if(event.target===this)closeRef()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="refTitle">
+    <div class="modal-head">
+      <div class="modal-title" id="refTitle">📋 Gas Pipe Bonding Reference</div>
+      <button class="modal-close" onclick="closeRef()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab" data-tab="n" onclick="refTab('n')">NFPA 54 7.12</button>
+      <button class="modal-tab" data-tab="e" onclick="refTab('e')">NEC 250.104(B)</button>
+      <button class="modal-tab" data-tab="t" onclick="refTab('t')">TABLE 250.122</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-pane" id="pane-n">
+        <div class="info-row" style="margin:0 0 10px;"><div class="info-dot"></div><span>Plain-language summary of NFPA 54 (2024) 7.12, not the official code text.</span></div>
+        <div class="rule-list">
+          <div class="rule"><div class="rule-ref">7.12.1 — PIPE &amp; TUBING OTHER THAN CSST</div><div class="rule-txt">Above-ground piping likely to become energized must be electrically continuous and bonded to an effective ground-fault current path. It <b>counts as bonded</b> when it's connected to an appliance that's connected to the equipment grounding conductor of its circuit.</div></div>
+          <div class="rule"><div class="rule-ref">7.12.2 — CSST</div><div class="rule-txt">A system with <b>any</b> CSST must be bonded to the <b>electrical service grounding electrode system</b> (or the lightning protection grounding electrode system, where there is one).</div></div>
+          <div class="rule"><div class="rule-ref">WHY CSST GETS ITS OWN BOND</div><div class="rule-txt">Nearby lightning (not just a direct hit) energizes all the metal in a house unevenly. When the voltage difference between the CSST and nearby metal (wiring, water pipe, ductwork) gets big enough, it <b>arcs and can burn a hole in the thin CSST wall</b>. The 6 AWG bond ties the CSST to the grounding electrode system so everything stays at about the same voltage. <i>Summarized from the 2021 NFPA 54 Handbook, Supplement 6.</i></div></div>
+          <div class="rule"><div class="rule-ref">WHAT THE RESEARCH FOUND (GTI, 2013)</div><div class="rule-txt">• Clamp location in the system was <b>not a significant factor</b>. That's why the code allows any rigid pipe, fitting or CSST fitting.<br>• <b>Shorter jumpers work better.</b> Jumpers up to 150 ft still prevented perforation. The code set 75 ft to be conservative.<br>• Extra jumpers at more locations <b>didn't measurably help</b>. One bond is enough.<br>• Arc-resistant CSST bonded through the EGC performed about the same as yellow CSST with the 6 AWG bond, so the code treats it like steel pipe. <i>Summarized from the 2021 NFPA 54 Handbook, Supplement 6.</i></div></div>
+          <div class="rule"><div class="rule-ref">7.12.2.1 — WHERE TO CLAMP</div><div class="rule-txt">The jumper connects to a <b>metallic pipe, pipe fitting or CSST fitting</b>, not the corrugated tubing.</div></div>
+          <div class="rule"><div class="rule-ref">7.12.2.2 — WIRE SIZE</div><div class="rule-txt">Not smaller than <b>6 AWG copper</b> or equivalent. Larger is allowed. Solid or stranded is fine (Annex A.7.12.2).</div></div>
+          <div class="rule"><div class="rule-ref">7.12.2.3 — LENGTH</div><div class="rule-txt">Jumper no longer than <b>75 ft</b> from the gas piping connection to the grounding electrode system. If it would be longer, add a grounding electrode closer and bond it to the service grounding electrode system. Keep it as short as practical (A.7.12.2.3). Shorter is better: the length matters more than where the clamp goes.</div></div>
+          <div class="rule"><div class="rule-ref">7.12.2.4 / 7.12.2.5 — CONNECTIONS</div><div class="rule-txt">Connections per NFPA 70. Clamps and devices <b>listed to UL 467</b>.</div></div>
+          <div class="rule"><div class="rule-ref">A.7.12.2 — LANDING POINTS (ANNEX, INFO ONLY)</div><div class="rule-txt">Service equipment enclosure, grounded conductor at the service, grounding electrode conductor (if big enough), or directly to a grounding electrode. Lightning protection grounding electrode if shorter, <b>never a down conductor</b>. Clamps should stay <b>accessible</b> after construction. State and local laws may limit who can attach to the building grounding system.</div></div>
+          <div class="rule"><div class="rule-ref">7.12.3 — ARC-RESISTANT CSST</div><div class="rule-txt">Must be listed arc-resistant to CSA/ANSI LC 1/CSA 6.26. It's treated like steel pipe: <b>bonded through the appliance equipment grounding conductor</b>. If <b>any</b> CSST in the system isn't arc-resistant, 7.12.2 applies to the whole system.</div></div>
+          <div class="rule"><div class="rule-ref">7.12.4 — ELECTRICAL ISOLATION</div><div class="rule-txt">Gas piping is <b>never</b> a grounding conductor or electrode. Underground metal piping gets a <b>dielectric fitting at the building penetration</b>, and dielectric fittings are never installed underground.</div></div>
+          <div class="rule"><div class="rule-ref">7.12.5 — LIGHTNING PROTECTION</div><div class="rule-txt">Where a lightning protection system is installed, bond the gas piping per <b>NFPA 780</b>.</div></div>
+          <div class="rule"><div class="rule-ref">7.13 — NOT A CIRCUIT</div><div class="rule-txt">Gas piping can't be used as a circuit conductor. Exception: control, ignition and flame-detection circuits of 50 V or less.</div></div>
+          <div class="rule"><div class="rule-ref">PROPANE — NFPA 54 vs NFPA 58</div><div class="rule-txt">NFPA 54 covers LP piping from the <b>outlet of the final pressure regulator</b> to the appliances (54 1.1.1.1(A)), so 7.12 bonding applies there. NFPA 58 covers the tank side and says grounding and bonding <b>aren't required on LP-Gas systems</b> (58 6.26.1.3). That's static-electricity bonding: the gas is in a closed system (A.6.26.1.3). NFPA 58 doesn't apply to the parts NFPA 54 covers (58 1.3.2(6)).</div></div>
+          <div class="rule"><div class="rule-ref">FLORIDA / MANUFACTURER</div><div class="rule-txt">Florida natural gas is enforced under the <b>Florida Building Code – Fuel Gas</b>, which has its own CSST bonding section. Also follow the CSST manufacturer's installation guide, which can add requirements. Verify with the AHJ.</div></div>
+        </div>
+      </div>
+      <div class="modal-pane" id="pane-e">
+        <div class="info-row" style="margin:0 0 10px;"><div class="info-dot"></div><span>Plain-language summary of NEC 2023 250.104(B), not the official code text.</span></div>
+        <div class="rule-list">
+          <div class="rule"><div class="rule-ref">250.104(B) — OTHER METAL PIPING (INCLUDING GAS)</div><div class="rule-txt">Metal piping in or attached to a building that's <b>likely to become energized</b> must be bonded to one of:<br>(1) the <b>equipment grounding conductor</b> of the circuit likely to energize it<br>(2) the service equipment enclosure<br>(3) the grounded conductor at the service<br>(4) the grounding electrode conductor, if big enough<br>(5) a grounding electrode, if its conductor is big enough</div></div>
+          <div class="rule"><div class="rule-ref">SIZING</div><div class="rule-txt">Bonding jumper sized from <b>Table 250.122</b>, using the rating of the circuit likely to energize the piping. Attachment points must be <b>accessible</b>.</div></div>
+          <div class="rule"><div class="rule-ref">HOW IT FITS WITH NFPA 54</div><div class="rule-txt">Steel pipe or arc-resistant CSST on a grounded appliance is bonded through that appliance's EGC (option 1). Standard CSST needs the dedicated <b>6 AWG</b> bond to the grounding electrode system in NFPA 54 7.12.2, which is more than 250.104(B) alone asks.</div></div>
+          <div class="rule"><div class="rule-ref">250.104(B) INFO NOTES</div><div class="rule-txt">Bonding all piping and metal air ducts adds safety. See NFPA 54 and NFPA 780 for gas piping.</div></div>
+        </div>
+      </div>
+      <div class="modal-pane" id="pane-t">
+        <div class="info-row" style="margin:0 0 10px;"><div class="info-dot"></div><span>NEC 2023 Table 250.122. Size a 250.104(B) bond from the breaker of the circuit likely to energize the piping.</span></div>
+        <div class="table-wrap"><table class="conduit-table"><thead><tr><th>BREAKER NOT OVER (A)</th><th>COPPER</th><th>ALUMINUM / CCA</th></tr></thead><tbody id="egcT"></tbody></table></div>
+      </div>
+    </div>
+    <div class="modal-foot">NFPA 54 (2024) · NEC 2023 · plain-language summaries, not official code text · verify with your AHJ</div>
+  </div>
+</div>
+<div class="toast" id="toast" style="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--accent);color:#000;padding:10px 18px;border-radius:8px;font-weight:700;display:none;z-index:200000;">Copied</div>
+<script>
+// ============================================================
+// GAS PIPE BONDING — NFPA 54 (2024) 7.12 · NEC 2023 250.104(B) · Table 250.122
+// ============================================================
+// NEC 2023 Table 250.122 (verified)
+const EGC = [[15,'14','12'],[20,'12','10'],[60,'10','8'],[100,'8','6'],[200,'6','4'],[300,'4','2'],[400,'3','1'],[500,'2','1/0'],[600,'1','2/0'],[800,'1/0','3/0'],[1000,'2/0','4/0'],[1200,'3/0','250'],[1600,'4/0','350'],[2000,'250','400'],[2500,'350','600'],[3000,'400','600'],[4000,'500','750'],[5000,'700','1250'],[6000,'800','1250']];
+const CU_ORDER = ['14','12','10','8','6','4','3','2','1','1/0','2/0','3/0','4/0','250','300','350','400','500','600','700','750','800'];
+const awg = s => /^\d+$/.test(s) && +s >= 250 ? s + ' kcmil' : s + ' AWG';
+const $ = id => document.getElementById(id);
+const play = s => { if (window.AOGSound) AOGSound.play(s); };
+
+// ── THEME ──────────────────────────────────────────────────
+let darkMode = false;
+function toggleTheme() {
+  darkMode = !darkMode;
+  document.body.classList.toggle('dark', darkMode);
+  $('themeBtn').textContent = darkMode ? '☀️' : '🌙';
+  try { localStorage.setItem('aog-theme', darkMode ? 'dark' : 'light'); } catch (e) {}
+  calc();
+}
+(function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem('aog-theme'); } catch (e) {}
+  const prefer = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (saved === 'dark' || (!saved && prefer)) { darkMode = true; document.body.classList.add('dark'); $('themeBtn').textContent = '☀️'; }
+})();
+
+// ── INPUTS ─────────────────────────────────────────────────
+const TOG = { fuel: '', lps: '' };
+document.querySelectorAll('[data-tog]').forEach(row => row.addEventListener('click', e => {
+  const b = e.target.closest('.toggle-opt'); if (!b) return;
+  const on = !b.classList.contains('active');
+  row.querySelectorAll('.toggle-opt').forEach(x => x.classList.remove('active'));
+  if (on) b.classList.add('active');
+  TOG[row.dataset.tog] = on ? b.dataset.v : '';
+  if (row.dataset.tog === 'fuel') {   // LP: big outside appliances usually get their own poly line from the tank
+    apps.forEach(a => { if (TOG.fuel === 'lp' && a.feed === 'outRigid') a.feed = 'tankPe'; if (TOG.fuel !== 'lp' && a.feed === 'tankPe') a.feed = 'outRigid'; });
+    $('mainRunLbl').textContent = TOG.fuel === 'lp' ? 'House regulator → attic (how the gas gets up there)' : 'Meter → attic (how the gas gets up there)';
+    $('mainRun').querySelector('[value=csst]').text = TOG.fuel === 'lp' ? 'CSST from the house regulator, through the wall' : 'CSST from the meter, through the wall';
+    renderApps();
+  }
+  play('tink'); calc();
+}));
+document.querySelectorAll('#pipeList input').forEach(i => i.addEventListener('change', () => { play('tink'); renderApps(); calc(); }));
+$('jLen').addEventListener('input', calc);
+['ugMetal'].forEach(id => $(id).addEventListener('change', calc));
+const csstSel = () => [...document.querySelectorAll('#pipeList input:checked')].some(i => i.dataset.p === 'csst' || i.dataset.p === 'ar');
+let mainRunSet = false;   // until the user picks one, the attic run follows the CSST checkboxes (FL: rigid up the wall, CSST across the attic)
+$('mainRun').addEventListener('change', () => { mainRunSet = true; play('tink'); calc(); });
+const pipes = () => new Set([...document.querySelectorAll('#pipeList input:checked')].map(i => i.dataset.p));
+
+// Appliances: k, label, short (drawing), default location, default has power (EGC)
+const APP_TYPES = [
+  { k: 'gen', n: 'Generator', s: 'GENERATOR', loc: 'outside', egc: true },
+  { k: 'furn', n: 'Furnace / air handler', s: 'FURNACE', loc: 'attic', egc: true },
+  { k: 'whTank', n: 'Tank water heater', s: 'TANK W/H', loc: 'attic', egc: false, note: 'standing pilot has no power; power-vent does' },
+  { k: 'tankless', n: 'Tankless water heater', s: 'TANKLESS', loc: 'outside', egc: true },
+  { k: 'range', n: 'Range / cooktop', s: 'RANGE', loc: 'inside', egc: true },
+  { k: 'dryer', n: 'Dryer', s: 'DRYER', loc: 'inside', egc: true },
+  { k: 'logs', n: 'Fireplace / gas logs', s: 'GAS LOGS', loc: 'inside', egc: false },
+  { k: 'pool', n: 'Pool / spa heater', s: 'POOL HTR', loc: 'outside', egc: true },
+  { k: 'grill', n: 'Grill stub', s: 'GRILL', loc: 'outside', egc: false },
+  { k: 'other', n: 'Other appliance', s: 'OTHER', loc: 'inside', egc: true },
+];
+let apps = [], appId = 0;
+const FEEDS = {
+  atticCsst: 'CSST in attic', atticRigid: 'Rigid in attic',
+  dropRigid: 'Rigid drop from attic', dropCsst: 'CSST drop from attic', stub: 'Rigid stub through wall from outside', stubCsst: 'CSST through wall from outside',
+  outRigid: 'Rigid from the meter', outCsst: 'CSST from the meter', outAttic: 'From the attic, rigid down the outside wall', outPe: 'Poly underground from the meter',
+  tankPe: 'Own poly line from the tank (2nd-stage reg at the appliance)',
+};
+const FL = k => !FEEDS[k] ? '' : TOG.fuel === 'lp' ? FEEDS[k].replace('the meter', 'the house regulator') : FEEDS[k];
+const isCsstFeed = f => /Csst$/.test(f);
+const NO_TRAP = ['range', 'dryer', 'logs', 'grill'];          // 9.6.8: sediment trap not required
+const ROOF_VENT = ['furn', 'whTank', 'logs'];                  // usually a metal vent through the roof → 9.6.1(5)
+const defFeed = loc => loc === 'attic' ? 'atticCsst' : loc === 'inside' ? 'dropRigid' : TOG.fuel === 'lp' ? 'tankPe' : 'outRigid';
+const feedOpts = loc => loc === 'attic' ? ['atticCsst', 'atticRigid'] : loc === 'inside' ? ['dropRigid', 'dropCsst', 'stub', 'stubCsst'] : (TOG.fuel === 'lp' ? ['tankPe'] : []).concat(['outRigid', 'outCsst', 'outAttic', 'outPe']);
+$('appAdd').innerHTML = APP_TYPES.map(t => `<button type="button" data-k="${t.k}">＋ ${t.n}</button>`).join('');
+$('appAdd').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const t = APP_TYPES.find(x => x.k === b.dataset.k);
+  apps.push({ id: ++appId, k: t.k, n: t.n, short: t.s, loc: t.loc, egc: t.egc, note: t.note || '', feed: defFeed(t.loc) });
+  renderApps(); play('tink'); calc();
+});
+function renderApps() {
+  $('appList').innerHTML = apps.map(a => `<div class="app-row" data-id="${a.id}">
+    <div class="an">${a.n}${a.note ? `<small>${a.note}</small>` : ''}</div>
+    <select data-f="loc"><option value="attic"${a.loc === 'attic' ? ' selected' : ''}>Attic</option><option value="inside"${a.loc === 'inside' ? ' selected' : ''}>Inside</option><option value="outside"${a.loc === 'outside' ? ' selected' : ''}>Outside</option></select>
+    ${feedOpts(a.loc).length ? `<select data-f="feed">${feedOpts(a.loc).map(k => `<option value="${k}"${a.feed === k ? ' selected' : ''}>${FL(k)}</option>`).join('')}</select>` : '<div class="an" style="font-weight:400;font-size:12px;color:var(--text2)">Outside run from the meter</div>'}
+    <label class="mini-chk"><input type="checkbox" data-f="egc"${a.egc ? ' checked' : ''}><span class="check-box"></span>Has power (EGC)</label>
+    <button class="remove-btn" type="button" aria-label="Remove">✕</button>
+  </div>`).join('');
+}
+$('appList').addEventListener('change', e => {
+  const row = e.target.closest('.app-row'); if (!row) return; const a = apps.find(x => x.id === +row.dataset.id);
+  if (e.target.dataset.f === 'loc') { a.loc = e.target.value; a.feed = defFeed(a.loc); renderApps(); } if (e.target.dataset.f === 'egc') a.egc = e.target.checked; if (e.target.dataset.f === 'feed') a.feed = e.target.value; calc();
+});
+$('appList').addEventListener('click', e => {
+  const b = e.target.closest('.remove-btn'); if (!b) return;
+  apps = apps.filter(x => x.id !== +b.closest('.app-row').dataset.id); renderApps(); play('tink'); calc();
+});
+
+let summary = '';
+function calc() {
+  const rigidUsed = apps.some(a => ['atticRigid', 'dropRigid', 'stub', 'outRigid', 'outAttic'].includes(a.feed)) || (apps.some(a => a.loc === 'attic' || /^drop/.test(a.feed) || a.feed === 'outAttic') && $('mainRun').value !== 'csst');
+  const stl = document.querySelector('#pipeList [data-p=steel]'); if ((rigidUsed || apps.some(a => a.feed === 'outPe' || a.feed === 'tankPe')) && !stl.checked) stl.checked = true;
+  const peBox = document.querySelector('#pipeList [data-p=pe]'); if (apps.some(a => a.feed === 'outPe' || a.feed === 'tankPe') && !peBox.checked) peBox.checked = true;
+  const P = pipes();
+  $('siteCard').style.display = P.size ? '' : 'none';
+  if (!P.size) { $('results').style.display = 'none'; return; }
+  $('results').style.display = '';
+  const csst = P.has('csst'), ar = P.has('ar'), steel = P.has('steel') || P.has('copper'), pe = P.has('pe');
+  const peOnly = pe && !csst && !ar && !steel;
+  const L = parseFloat($('jLen').value), ocpd = NaN, land = '';  // auto: any appliance likely to energize the pipe has an EGC
+  const ug = $('ugMetal').checked, gen = apps.some(a => a.k === 'gen'), egcApps = apps.filter(a => a.egc), noEgcApps = apps.filter(a => !a.egc), lps = TOG.lps === 'yes', fuel = TOG.fuel;
+  $('lenWrap').style.display = csst ? '' : 'none';
+  const needAtticRun = apps.some(a => a.loc === 'attic' || a.feed === 'dropRigid' || a.feed === 'dropCsst' || a.feed === 'outAttic');
+  $('mainRunWrap').style.display = needAtticRun ? '' : 'none';
+  if (!mainRunSet) $('mainRun').value = csst || ar ? 'rigidCsst' : 'rigid';
+  const mainRun = $('mainRun').value;
+  const csstFeeds = apps.filter(a => isCsstFeed(a.feed)).concat(needAtticRun && mainRun !== 'rigid' ? [{ n: mainRun === 'csst' ? 'Meter → attic run' : 'Attic run' }] : []);
+
+  // 250.122 size for the circuit likely to energize the piping
+  let egcRow = null;
+  if (ocpd > 0) egcRow = EGC.find(r => r[0] >= ocpd) || EGC[EGC.length - 1];
+  const egcCu = egcRow ? egcRow[1] : null;
+  const bigger = (a, b) => CU_ORDER.indexOf(a) >= CU_ORDER.indexOf(b) ? a : b;
+
+  const warns = [], steps = [];
+  const rec = $('rec'); rec.classList.remove('pass', 'warn', 'fail');
+  let wire = '—', maxLen = '—', clamp = '—';
+
+  if (peOnly) {
+    $('recL').textContent = '◆ RESULT · POLY (PE) ONLY';
+    $('recV').textContent = 'NOTHING TO BOND ON THE POLY';
+    $('recD').innerHTML = 'PE is plastic, so it can\'t carry current and isn\'t bonded. Bonding is decided by the <b>metal above ground</b>: the anodeless riser and the piping from it to the appliances. Check what\'s above ground too (steel, copper, CSST).';
+    rec.classList.add('pass'); wire = '—'; maxLen = '—'; clamp = 'n/a';
+  } else if (csst) {
+    const w = egcCu ? bigger(egcCu, '6') : '6';
+    wire = awg(w) + ' Cu'; maxLen = '75 ft'; clamp = 'UL 467';
+    $('recL').textContent = '◆ RESULT · NFPA 54 7.12.2';
+    $('recV').textContent = 'SEPARATE BONDING JUMPER REQUIRED';
+    $('recD').innerHTML = `The system has standard (yellow) CSST, so the whole gas piping system gets a dedicated bond to the <b>electrical service grounding electrode system</b>${lps ? ' (or the lightning protection grounding electrode system)' : ''}.` +
+      (ar ? ' The arc-resistant CSST in the system doesn\'t remove this. Any standard CSST puts the whole system under 7.12.2 (7.12.3.4).' : '') +
+      (egcCu && w !== '6' ? ` Wire upsized to <b>${awg(w)}</b> because the ${ocpd} A circuit needs it per Table 250.122 (250.104(B)).` : '');
+    rec.classList.add('warn');
+    if (L > 75) warns.push(['err', `Jumper is ${L} ft, over the 75 ft limit (7.12.2.3). Drive a grounding electrode closer to the gas piping, bond it back to the service grounding electrode system, and connect the jumper to it.`]);
+    else if (L > 0) warns.push(['ok', `${L} ft jumper is within the 75 ft limit. Keep it as short as practical.`]);
+    if (land === 'gen') warns.push(['err', 'The generator frame or ground lug isn\'t the electrical service grounding electrode system. For CSST, land the jumper at the service (enclosure, neutral at the service, GEC or grounding electrode) (7.12.2).']);
+    if (land === 'lps' && !lps) warns.push(['err', 'You picked a lightning protection electrode, but there\'s no lightning protection system on this building.']);
+  } else {
+    $('recL').textContent = '◆ RESULT · NFPA 54 ' + (ar && !steel ? '7.12.3.3' : ar ? '7.12.1.2 / 7.12.3.3' : '7.12.1.2');
+    $('recV').textContent = apps.length && !egcApps.length ? 'NO APPLIANCE EGC ON THIS PIPING' : 'BONDED THROUGH THE APPLIANCE GROUND';
+    $('recD').innerHTML = `${ar ? 'Arc-resistant CSST' : 'Steel / metallic pipe'}${ar && steel ? ' and steel pipe are' : ' is'} considered bonded when connected to an appliance that's connected to the <b>equipment grounding conductor</b> of its circuit. No separate jumper is required by NFPA 54.` +
+      (egcApps.length ? ` Here that's the EGC of the <b>${egcApps.map(a => a.n.toLowerCase()).join(', ')}</b>.` : apps.length ? '' : ' Any appliance that could energize the pipe (generator, furnace, water heater, range…) already has an EGC, so this is automatic.');
+    rec.classList.add(apps.length && !egcApps.length ? 'warn' : 'pass');
+    if (egcApps.length && noEgcApps.length) warns.push(['ok', `<b>${noEgcApps.map(a => a.n).join(', ')}</b>: no power, so nothing there is <b>likely to energize</b> the pipe (7.12.1.1 / 250.104(B)). No bond is needed for ${noEgcApps.length > 1 ? 'them' : 'it'}.${noEgcApps.some(a => a.feed !== 'tankPe') ? ' Pipe shared with powered appliances is already bonded through their EGC.' : ''}`]);
+    if (apps.length && !egcApps.length) warns.push(['ok', 'None of these appliances has power, so no EGC bonds this piping. With nothing electrical on it, the piping usually isn\'t <b>likely to become energized</b> (7.12.1.1 / 250.104(B)), so no bond is required. Bond it if the AHJ asks.']);
+    wire = egcCu ? awg(egcCu) + ' Cu' : 'Appliance EGC'; maxLen = 'No limit'; clamp = egcCu ? 'UL 467' : 'n/a';
+    if (land === 'lps' && !lps) warns.push(['err', 'You picked a lightning protection electrode, but there\'s no lightning protection system on this building.']);
+  }
+  if (land === 'lps' && lps) warns.push(['ok', 'Lightning protection grounding electrode is OK if it makes the jumper shorter, but <b>never a down conductor</b> (A.7.12.2).']);
+  if (land === 'gec') warns.push(['ok', 'Grounding electrode conductor only if it\'s big enough (250.104(B)(4)). Use an irreversible or listed connection that doesn\'t cut the GEC.']);
+  if (ug) warns.push(['err', 'Underground metal pipe: install a <b>dielectric fitting at the building penetration</b>, above ground. Dielectric fittings are never installed underground (7.12.4.2).']);
+  if (lps) warns.push(['ok', 'Lightning protection system present: bond the gas piping per <b>NFPA 780</b> (7.12.5).']);
+  if (csstFeeds.length && !csst && !ar) warns.push(['err', `CSST is picked for: <b>${csstFeeds.map(a => a.n).join(', ')}</b>. Check <b>Standard CSST</b> or <b>Arc-resistant CSST</b> above. The type decides whether the 6 AWG bond is required.`]);
+  const tankApps = fuel === 'lp' ? apps.filter(a => a.feed === 'tankPe') : [];
+  if (tankApps.length) warns.push(['ok', `<b>${tankApps.map(a => a.n).join(', ')}</b>: own poly line from the tank. The poly breaks the metal path, so ${tankApps.length > 1 ? 'each line is its own piping system' : 'that line is its own piping system'}, separate from the house piping. ${tankApps.some(a => a.egc) ? 'Its riser and pipe are bonded through the appliance EGC (7.12.1.2).' : 'With no power on the appliance, nothing is likely to energize it.'}${csst ? ' The 6 AWG CSST jumper goes on the house piping, not on this line.' : ''}`]);
+  if ((csst || ar) && apps.length && !csstFeeds.length) warns.push(['err', `<b>${csst ? 'Standard' : 'Arc-resistant'} CSST</b> is checked, but no appliance below is fed with CSST, so the drawing shows none. Set the "how it's fed" dropdown to a CSST option for the appliance(s) that have it (or set the attic run above to CSST). If there's no CSST on this job, uncheck it.${csst ? ' The jumper result above assumes the CSST is there.' : ''}`]);
+  $('sWire').textContent = wire; $('sLen').textContent = maxLen; $('sClamp').textContent = clamp;
+  $('warns').innerHTML = warns.map(w => `<div class="warn-box${w[0] === 'err' ? ' err' : ''}"><span>${w[0] === 'err' ? '⚠️' : 'ℹ️'}</span><span>${w[1]}</span></div>`).join('');
+
+  // ── checklist
+  const S = (ref, txt) => steps.push([ref, txt]);
+  if (csst) {
+    S('7.12.2.1', `Put the clamp on any <b>rigid metal pipe, pipe fitting or CSST brass fitting</b>. The spot in the system doesn\'t matter much: <b>pick the one that gives the shortest jumper to ground</b>, usually the rigid pipe right out of the ${fuel === 'lp' ? 'second-stage regulator' : 'meter'} near the electrical service. One bond is enough. <b>Never clamp the corrugated tubing.</b>`);
+    S('7.12.2.5', 'Use a bonding clamp <b>listed to UL 467</b> for the pipe material and size. Leave it <b>accessible</b> (A.7.12.2).');
+    S('7.12.2.2', `Run <b>${wire.replace(' Cu', '')} copper</b> or larger, solid or stranded.`);
+    S('7.12.2.3', 'Keep the jumper <b>75 ft or less</b> and as short as practical. If it can\'t be, add a grounding electrode near the gas piping and bond it to the service grounding electrode system.');
+    S('A.7.12.2', 'Land it on the <b>service equipment enclosure</b>, the <b>neutral at the service</b>, the <b>GEC</b> (if big enough) or a <b>grounding electrode</b>.' + (lps ? ' A lightning protection electrode is OK if shorter, never a down conductor.' : ''));
+    S('7.12.2.4', 'Make connections per NFPA 70: listed lugs and clamps, tight, protected where exposed to damage (250.64).');
+  } else {
+    S('7.12.1.2', egcApps.length ? `Verify the EGC is landed at each powered appliance: <b>${egcApps.map(a => a.n).join(', ')}</b>. That bonds the pipe.` : 'Make sure every appliance on the piping (generator, furnace, water heater, range) is connected to its circuit\'s <b>equipment grounding conductor</b>. That bonds the pipe.');
+    S('7.12.1.1', 'Keep the above-ground piping <b>electrically continuous</b>: metal fittings and unions, no plastic sections above ground.');
+    S('250.104(B)(1)', 'That EGC is the code bond for this piping. No separate jumper is needed unless the AHJ, a lightning protection system or the manufacturer requires one.');
+  }
+  if (gen) S('7.12.1.2', 'Generator: its gas connection is bonded through the generator\'s <b>equipment grounding conductor</b>. Make sure the generator EGC is landed in the generator and at the transfer switch / panel.' + (csst ? ' The CSST bond to the service grounding electrode system is still required.' : ''));
+  if (noEgcApps.length) S('No EGC', `<b>${noEgcApps.map(a => a.n).join(', ')}</b>: no power, so ${noEgcApps.length > 1 ? 'they don\'t' : 'it doesn\'t'} bond the pipe. That's fine as long as a powered appliance (or the CSST jumper) bonds the system.`);
+  if (pe) {
+    S('Poly', 'PE (poly) is nonmetallic: <b>don\'t clamp it and don\'t count it as a bond path</b>. The above-ground metal from the anodeless riser on follows the rules above.');
+    S('Tracer', 'The <b>tracer wire is for locating only</b>. It isn\'t a bonding or grounding conductor. Bring one end up at the riser per NFPA 54 7.1.7.3 / NFPA 58 6.11.5.7.');
+  }
+  S('7.12.4.1', 'Never use the gas piping as a grounding electrode or grounding conductor.');
+  if (ug) S('7.12.4.2', 'Install a dielectric fitting at the building penetration, never underground.');
+  if (fuel === 'lp') S('NFPA 54 1.1.1.1(A) · NFPA 58 6.26.1.3', 'Propane: NFPA 54 (and its 7.12 bonding rules) starts at the <b>outlet of the final (second-stage) regulator</b>. Tank-side piping is NFPA 58, which says grounding and bonding <b>aren\'t required</b> on LP-Gas systems (6.26.1.3). The building piping still follows 7.12 and NEC 250.104(B).');
+  // ── install rules the drawing follows (NFPA 54 Ch. 7 & 9, summarized, not code text)
+  const nm = l => l.map(a => a.n).join(', ');
+  const csstApps = apps.filter(a => isCsstFeed(a.feed)), rv = csstApps.filter(a => ROOF_VENT.includes(a.k));
+  if (rv.length) S('9.6.1(5)', `<b>${nm(rv)}</b>: if it has a <b>metal vent through the roof</b>, CSST can't run straight into its cabinet. End the CSST at a termination fitting outside the cabinet, then rigid pipe or a listed connector into the appliance.`);
+  if (csstApps.length || (needAtticRun && mainRun !== 'rigid')) S('9.6.1(5) · 7.2.7', 'CSST connects only to appliances <b>fixed in place</b>, and every run ends at a <b>termination fitting</b>. Install it per the CSST maker\'s guide: fittings, support spacing (7.2.6.3) and protection from damage.');
+  if (apps.some(a => a.k === 'gen')) S('9.1.1.1 · 9.6.1', 'Generator: rigid pipe to the shutoff valve and sediment trap, then the <b>flexible fuel line supplied with the generator</b>. Don\'t run CSST or rigid pipe straight into the unit. Follow the generator\'s install manual (inlet size, pressure, location).');
+  if (apps.some(a => a.k === 'grill')) S('9.6.2(2)', 'Grill: CSST or rigid can feed a <b>fixed</b> stub. A portable grill hooks up with a hose listed to ANSI Z21.54, with a shutoff valve or listed quick-disconnect at the stub, in the outdoor area where it\'s used.');
+  if (apps.length) S('9.6.5 · 9.6.5.1', 'Each appliance gets its <b>own</b> accessible shutoff valve within 6 ft. With a connector, the valve goes upstream of it, with a union downstream to pull the controls.');
+  const traps = apps.filter(a => !NO_TRAP.includes(a.k));
+  if (traps.length) S('9.6.8', `Sediment trap right after the shutoff valve, close to the inlet (unless the appliance has one built in): <b>${nm(traps)}</b>. Not required for ranges, dryers, gas logs/fireplaces or outdoor cooking appliances.`);
+  if (apps.some(a => a.loc === 'outside') || needAtticRun) S('7.2.1', 'Outdoor pipe: securely supported, protected from physical damage, and at least <b>3½ in. above the ground</b>.');
+  if (apps.some(a => /^stub/.test(a.feed)) || (needAtticRun && mainRun === 'csst')) S('7.2.1(2)–(4)', 'Through the exterior wall: <b>coat or wrap</b> the pipe with an inert material and <b>seal</b> around it (and the sleeve, if used) against water, insects and rodents.');
+  if (needAtticRun && mainRun === 'csst') S('7.3.4', 'CSST run up inside a hollow wall: <b>steel striker plates</b> (0.0508 in. min.) at plates, studs and firestops, 4 in. past each, single run, not rigidly secured (or the CSST maker\'s protection).');
+  if (apps.some(a => a.feed === 'outPe' || a.feed === 'tankPe')) S('7.1.7 · 7.1.2.1', 'Poly is <b>outdoors and underground only</b>. Come up with an <b>anodeless riser</b> (listed transition fittings). Bury it 12 in. min., 18 in. where it could be damaged, with tracer wire.');
+  S('AHJ', 'Florida: natural gas is enforced under the Florida Building Code – Fuel Gas, which has its own CSST bonding section. Follow the CSST manufacturer\'s guide too, and verify with the AHJ.');
+  $('steps').innerHTML = steps.map(s => `<div class="rule"><div class="rule-ref">${s[0]}</div><div class="rule-txt">${s[1]}</div></div>`).join('');
+
+  draw({ csst, ar, steel, pe, lps, land, gen, L, wire, lp: fuel === 'lp', apps, mainRun, needAtticRun });
+  summary = [`GAS PIPE BONDING${apps.length ? ' — appliances: ' + apps.map(a => `${a.n} (${a.loc}${FL(a.feed) ? ', ' + FL(a.feed).toLowerCase() : ''}${a.egc ? ', EGC' : ''})`).join('; ') + '\n' : ' — '}${[...P].map(p => ({ pe: 'PE (poly) underground', steel: 'steel pipe', copper: 'copper tubing', csst: 'standard CSST', ar: 'arc-resistant CSST' })[p]).join(', ')}${fuel ? ' · ' + (fuel === 'ng' ? 'natural gas' : 'propane') : ''}`,
+    `${$('recV').textContent} (${$('recL').textContent.replace('◆ RESULT · ', '')})`,
+    `Bond wire: ${wire} · Max jumper: ${maxLen}${L > 0 ? ' · Actual: ' + L + ' ft' : ''} · Clamp: ${clamp}`,
+    ...steps.map((s, i) => `${i + 1}. ${s[1].replace(/<[^>]+>/g, '')} (${s[0]})`),
+    'NFPA 54 (2024) 7.12 · NEC 2023 250.104(B) · verify with AHJ'].join('\n');
+}
+
+// ── DIAGRAM ────────────────────────────────────────────────
+// Elevation of the outside wall, like a typical generator job:
+// gas meter on the wall → short rigid stub → CSST fitting/tee → CSST up the wall into the attic + CSST to the generator
+// (valve + sediment trap at the generator). Electric meter-main + ground rod on the same wall. Bond jumper along the wall.
+function draw(o) {
+  const cs = getComputedStyle(document.body), col = v => cs.getPropertyValue(v).trim();
+  const txt = col('--text'), t2 = col('--text2'), bd = col('--border'), bg2 = col('--bg2'), dark = document.body.classList.contains('dark');
+  const tankOut = o.lp ? (o.apps || []).filter(a => a.loc === 'outside').slice(0, 3).map((a, i) => a.feed === 'tankPe' ? i : -1).filter(i => i >= 0) : [];
+  const W = 440, G = 230, H = tankOut.length ? G + 60 + tankOut.length * 7 : 290, hx = 120;
+  const OY = i => [G - 22, G - 83, G - 129][i];   // pipe height at outside appliance slot i (bottom → top)                 // ground line, left edge of the house wall
+  const green = '#16a34a', yel = '#facc15', steelC = '#9ca3af', arC = dark ? '#cbd5e1' : '#1f2937', brass = '#d4a017';
+  const font = 'font-family="Share Tech Mono, monospace"';
+  const T = (x, y, s, o2 = {}) => `<text x="${x}" y="${y}" fill="${o2.c || t2}" font-size="${o2.fs || 8}" ${o2.b ? 'font-weight="700"' : ''} ${font} text-anchor="${o2.a || 'middle'}">${s}</text>`;
+  const svcPe = o.pe && (o.lp || !(o.apps || []).some(a => a.feed === 'outPe'));   // poly service into the riser (tank line for LP)
+  const flex = o.csst || o.ar, runC = o.csst ? yel : o.ar ? arC : steelC, dash = flex ? 'stroke-dasharray="2 1.5"' : '';
+  const pipe = (pts, c = runC, w = 4, d = dash) => `<polyline points="${pts}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linejoin="round" ${d}/>`;
+  let g = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:620px;display:block;margin:0 auto;" role="img" aria-label="Gas bonding job drawing">`;
+  // ground + slab
+  g += `<rect x="0" y="${G}" width="${W}" height="${H - G}" fill="${dark ? '#2a2016' : '#e8dcc6'}"/>`;
+  // house wall (siding) + roof + soffit
+  g += `<rect x="${hx}" y="70" width="${W - hx - 6}" height="${G - 70}" fill="${dark ? '#151c40' : '#f3f4f6'}" stroke="${bd}" stroke-width="2"/>`;
+  for (let y = 84; y < G; y += 14) g += `<line x1="${hx}" y1="${y}" x2="${W - 6}" y2="${y}" stroke="${bd}" stroke-width=".6" opacity=".5"/>`;
+  g += `<polygon points="${hx - 14},70 ${(hx + W) / 2},22 ${W + 8},70" fill="${dark ? '#0f1535' : '#e5e7eb'}" stroke="${bd}" stroke-width="2"/>`;
+  g += T(hx + 30, 67, 'ATTIC', { a: 'start', fs: 7 });
+  
+  // ── gas: riser → regulator → meter → short rigid stub → CSST fitting / tee
+  const mx = 222, mTop = 176, mBot = 205, regY = 217, sy = 108, teeY = 98;
+  const peOut = (o.apps || []).some(a => a.loc === 'outside' && a.feed === 'outPe'), pdx = mx - 26, labX = peOut ? pdx - 6 : mx - 13;   // poly takeoff drops right beside the meter
+  g += `<line x1="${mx}" y1="${G}" x2="${mx}" y2="${regY + 8}" stroke="${steelC}" stroke-width="5"/>`;
+  if (o.lp) {
+    // propane: 2nd-stage regulator on the wall (no meter); line comes from the tank's 1st-stage regulator
+    g += `<line x1="${mx}" y1="${regY + 8}" x2="${mx}" y2="${mBot}" stroke="${steelC}" stroke-width="5"/>`;
+    g += `<path d="M${mx - 18},${mTop + 6} Q${mx},${mTop - 6} ${mx + 18},${mTop + 6} L${mx + 18},${mBot} L${mx - 18},${mBot} Z" fill="${bg2}" stroke="${t2}" stroke-width="1.5"/>` + T(mx, mTop + 14, '2ND', { c: txt, fs: 7.5, b: 1 }) + T(mx, mTop + 24, 'STAGE', { c: txt, fs: 6.5 });
+    g += T(Math.min(labX, mx - 22), mTop + 15, 'LP REG', { a: 'end', fs: 7, b: 1 }) + T(Math.min(labX, mx - 22), mTop + 24, '11" WC out', { a: 'end', fs: 6.5 });
+    if (!svcPe) g += T(mx + 8, G + 14, '← from tank (1st-stage reg, ~10 psi)', { a: 'start', fs: 7, c: '#f97316' });
+  } else {
+    g += `<circle cx="${mx}" cy="${regY}" r="8" fill="${bg2}" stroke="${t2}" stroke-width="1.5"/>` + (peOut ? T(mx + 12, regY + 3, 'REG', { a: 'start', fs: 7 }) : T(mx - 13, regY + 3, 'REGULATOR', { a: 'end', fs: 7 }));
+    g += `<line x1="${mx}" y1="${regY - 8}" x2="${mx}" y2="${mBot}" stroke="${steelC}" stroke-width="5"/>`;
+    g += `<rect x="${mx - 18}" y="${mTop}" width="36" height="${mBot - mTop}" rx="5" fill="${bg2}" stroke="${t2}" stroke-width="1.5"/>` + T(mx, mTop + 13, 'GAS', { c: txt, fs: 8, b: 1 }) + T(mx, mTop + 23, 'METER', { c: txt, fs: 7 });
+  }
+  // ── Runs follow each appliance's "how it's fed" dropdown. Meter → attic: rigid up the outside wall, or CSST through the wall at the meter.
+  const atY = 50, fitY = 56, eave = 70, wx = mx + 30, stubY = 86;
+  const csC = o.csst ? yel : o.ar ? arC : yel, csD = 'stroke-dasharray="2 1.5"';      // CSST color (yellow if type not picked yet)
+  const list = o.apps && o.apps.length ? o.apps : [{ short: 'W/H', loc: 'attic', egc: false, feed: flex ? 'atticCsst' : 'atticRigid' }];
+  const attic = list.filter(a => a.loc === 'attic').slice(0, 3), inside = list.filter(a => a.loc === 'inside').slice(0, 3), outside = list.filter(a => a.loc === 'outside').slice(0, 3);
+  const more = list.length - attic.length - inside.length - outside.length;
+  const AB = (x, y, w, h, a, hid) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${hid ? 'none' : bg2}" stroke="${t2}" ${hid ? 'stroke-dasharray="3 2"' : ''}/>`
+    + T(x + w / 2, y + h / 2 + 3, a.short, { fs: hid ? 6.5 : 7.5, c: hid ? t2 : txt }) + (a.egc ? `<circle cx="${x + w - 3}" cy="${y + 3}" r="3.4" fill="${green}" stroke="${dark ? '#0a0e27' : '#fff'}"/>` : '')
+    + (!a.egc && a.n ? T(x + w / 2, hid ? y + h + (y > 100 ? 14 : 7) : y + h - 4, 'no power', { fs: 5.5, c: '#f97316' }) : '');   // no EGC: not likely to energize the pipe
+  const TERM = (x, y) => `<rect x="${x - 3}" y="${y}" width="6" height="4" rx="1" fill="${brass}" stroke="#92400e"/>`;   // CSST termination fitting
+  const TRAP = a => !NO_TRAP.includes(a.k);
+  const hid = (pts, c, w = 3) => `<polyline points="${pts}" fill="none" stroke="${c}" stroke-width="${w}" stroke-dasharray="5 4" opacity=".6"/>`;
+  const fromAttic = inside.filter(a => /^drop/.test(a.feed));
+  const ax = attic.map((_, i) => (attic.length > 2 ? 280 : 324) + i * 44), tight = inside.length > 2, iw = tight ? 40 : 46, ix = inside.map((_, i) => tight ? 244 + i * 44 : 248 + i * 50);
+  const outAtt = outside.filter(a => a.feed === 'outAttic');
+  const needAttic = attic.length || fromAttic.length || outAtt.length, mainCsst = o.mainRun === 'csst' && needAttic;
+  const atticCsst = attic.some(a => a.feed === 'atticCsst') || fromAttic.some(a => a.feed === 'dropCsst') || mainCsst || (needAttic && o.mainRun === 'rigidCsst');
+  const outsideCsst = mainCsst || inside.some(a => a.feed === 'stubCsst');      // CSST fitting high on the riser (through-wall runs)
+  const outCsstF = outside.some(a => a.feed === 'outCsst'), meterOut = outside.some(a => a.feed === 'outRigid' || a.feed === 'outCsst'), oTee = mTop - (o.csst ? 30 : 14);   // outside appliances tee off low, right above the meter
+  // rigid out of the meter (always), CSST fitting at the meter if any CSST starts outside
+  const rigidTop = Math.min(mTop - (o.csst ? 20 : 10), peOut ? mTop - (o.csst ? 22 : 8) : 999, needAttic && !mainCsst ? fitY + 10 : 999, inside.some(a => a.feed === 'stub') ? stubY : 999, outsideCsst ? sy : 999, meterOut ? oTee - (outCsstF ? 5 : 0) : 999);
+  g += `<line x1="${mx}" y1="${mTop}" x2="${mx}" y2="${rigidTop}" stroke="${steelC}" stroke-width="5"/>`;
+  if (outsideCsst) g += `<rect x="${mx - 6}" y="${teeY}" width="12" height="${sy - teeY}" rx="2" fill="${brass}" stroke="#92400e"/>`;
+  if (needAttic && !mainCsst) {
+    g += T(mx - 9, 84, 'RIGID', { a: 'end', fs: 7, b: 1 }) + T(mx - 9, 93, 'up the wall → attic', { a: 'end', fs: 6.5 });
+    g += `<line x1="${mx - 10}" y1="${eave}" x2="${mx + 10}" y2="${eave}" stroke="${t2}" stroke-width="1.5"/>`;
+    if (atticCsst) g += `<rect x="${mx - 6}" y="${fitY - 6}" width="12" height="10" rx="2" fill="${brass}" stroke="#92400e"/>`;
+  }
+  if (mainCsst) {
+    g += pipe(`${mx},${teeY} ${wx},${teeY}`, csC, 4, csD);
+    g += `<circle cx="${wx}" cy="${teeY}" r="6" fill="${dark ? '#0a0e27' : '#e5e7eb'}" stroke="${t2}" stroke-width="1.5"/><circle cx="${wx}" cy="${teeY}" r="2.5" fill="${csC}"/>`;
+    g += hid(`${wx},${teeY} ${wx},${atY}`, csC) + T(wx + 9, teeY + 3, 'THROUGH WALL', { a: 'start', fs: 7, b: 1 }) + T(wx + 9, 110, 'CSST from the meter, in the wall', { a: 'start', fs: 6.5 });
+  }
+  if (needAttic) {
+    const x0 = mainCsst ? wx : mx, mainC = atticCsst ? csC : steelC;
+    const endX = Math.max(0, ax.length ? ax[ax.length - 1] + 20 : 0, ...fromAttic.map(a => ix[inside.indexOf(a)] + iw / 2));
+    if (endX > x0) g += hid(`${x0},${atY} ${endX},${atY}`, mainC);
+    if (outAtt.length) g += hid(`${x0},${atY + 8} 132,${atY + 8}`, mainC) ;
+    g += T(x0 + 12, atY - 6, atticCsst ? (o.ar && !o.csst ? 'ARC-RESISTANT CSST in attic' : 'CSST in attic') : 'RIGID in attic', { a: 'start', fs: 7, b: 1, c: atticCsst && !o.ar ? '#ca8a04' : t2 });
+    attic.forEach((a, i) => { const c = a.feed === 'atticRigid' ? steelC : csC; g += `<line x1="${ax[i] + 20}" y1="${atY}" x2="${ax[i] + 20}" y2="${atY + 6}" stroke="${c}" stroke-width="2.5" opacity=".8"/>` + AB(ax[i], atY + 6, 40, 13, a, true); });
+  }
+  // inside appliances
+  inside.forEach((a, i) => {
+    const dx = ix[i] + iw / 2;
+    if (a.feed === 'stub') {
+      g += `<line x1="${mx}" y1="${stubY}" x2="${dx}" y2="${stubY}" stroke="${steelC}" stroke-width="4"/>`;
+    } else if (a.feed === 'stubCsst') {
+      g += pipe(`${mx},${teeY} ${mx},${stubY} ${dx},${stubY}`, csC, 4, csD);
+    }
+    if (/^stub/.test(a.feed)) g += `<circle cx="${dx}" cy="${stubY}" r="5" fill="${dark ? '#0a0e27' : '#e5e7eb'}" stroke="${t2}" stroke-width="1.5"/>` + (a.feed === 'stub' ? hid(`${dx},${stubY + 5} ${dx},116`, steelC, 3) : hid(`${dx},${stubY + 5} ${dx},106`, csC, 3) + TERM(dx, 106) + hid(`${dx},110 ${dx},116`, steelC, 3));
+    else if (a.feed === 'dropCsst') g += hid(`${dx},${atY} ${dx},106`, csC) + TERM(dx, 106) + hid(`${dx},110 ${dx},116`, steelC, 3);
+    else g += hid(`${dx},${atY} ${dx},116`, steelC, 3.5);
+    g += AB(ix[i], 116, iw, 16, a, true) + T(dx, 141, (tight ? { stub: 'rigid stub', stubCsst: 'CSST stub', dropCsst: 'CSST drop', dropRigid: 'rigid drop' } : { stub: 'rigid stub', stubCsst: 'CSST thru wall', dropCsst: 'CSST drop', dropRigid: 'rigid drop' })[a.feed] || '', { fs: tight ? 5.5 : 6 });
+  });
+  if (inside.some(a => /^stub/.test(a.feed)) && !mainCsst) g += T(mx + 12, stubY - 5, 'THROUGH THE WALL →', { a: 'start', fs: 6.5, b: 1 });
+  // outside appliances: branch off a tee at the meter (valve + sediment trap at each)
+  if (outside.length) {
+    const gx = 10, gw = 72, meterFed = outside.filter(a => a.feed === 'outRigid' || a.feed === 'outCsst'), peFed = outside.filter(a => a.feed === 'outPe');
+    const bx = 126, ex2 = 112;                                         // ex2: rigid drop down the outside corner from the attic
+    if (meterFed.length) {
+      const trunkCsst = meterFed[0].feed === 'outCsst', oc = trunkCsst ? csC : steelC, od = trunkCsst ? csD : '';
+      const ys = meterFed.map(a => OY(outside.indexOf(a))).concat(oTee), y0 = Math.min(...ys), y1 = Math.max(...ys);
+      g += pipe(`${mx - (trunkCsst ? 6 : 0)},${oTee} ${bx},${oTee}`, oc, 4, od) + pipe(`${bx},${y0} ${bx},${y1}`, oc, 4, od);
+      if (trunkCsst) g += `<rect x="${mx - 6}" y="${oTee - 5}" width="12" height="10" rx="2" fill="${brass}" stroke="#92400e"/>`;
+      g += T(bx + 6, oTee - 4, trunkCsst ? 'CSST' : 'RIGID', { a: 'start', fs: 7, c: trunkCsst ? '#ca8a04' : t2 });
+    }
+    if (outAtt.length) {
+      const lastY = Math.max(...outAtt.map(a => OY(outside.indexOf(a))));
+      g += `<line x1="132" y1="${atY + 8}" x2="${ex2}" y2="${atY + 8}" stroke="${steelC}" stroke-width="4"/>` + pipe(`${ex2},${atY + 8} ${ex2},${lastY}`, steelC, 4, '');
+      g += T(ex2 - 4, atY + 22, 'RIGID down', { a: 'end', fs: 6.5, b: 1 }) + T(ex2 - 4, atY + 30, 'the outside wall', { a: 'end', fs: 6.5 });
+    }
+    if (peFed.length) {
+      // tee right above the meter → short rigid drop beside the meter → PE underground → anodeless riser at the appliance
+      const px = pdx, py = G + 12, rx2 = 140, ty = mTop - (o.csst ? 22 : 8);
+      g += `<polyline points="${mx},${ty} ${px},${ty} ${px},${G + 6}" fill="none" stroke="${steelC}" stroke-width="4"/>`;
+      g += `<polyline points="${px},${G + 6} ${px - 4},${py} ${rx2 + 4},${py} ${rx2},${G + 6}" fill="none" stroke="${yel}" stroke-width="4.5" stroke-dasharray="7 3"/>`;
+      g += `<line x1="${px - 4}" y1="${py - 6}" x2="${rx2 + 4}" y2="${py - 6}" stroke="#f97316" stroke-width="1.5"/>`;
+      g += T((rx2 + px) / 2, py + 11, 'PE · NOT BONDED', { fs: 6.5, c: '#ca8a04', b: 1 });
+      g += T(px - 4, ty + 12, 'RIGID ↓', { a: 'end', fs: 6.5 });
+      const lastY = Math.min(...peFed.map(a => OY(outside.indexOf(a))));
+      g += `<line x1="${rx2}" y1="${G + 6}" x2="${rx2}" y2="${lastY}" stroke="${steelC}" stroke-width="4"/>` + T(rx2 + 5, G - 12, 'ANODELESS', { a: 'start', fs: 6 }) + T(rx2 + 5, G - 5, 'RISER', { a: 'start', fs: 6 });
+    }
+    // LP: appliance on its own poly line from the tank → riser with its own 2nd-stage regulator
+    tankOut.forEach((i, n) => {
+      const rx = 118 + i * 14, ly = G + 21 + n * 7, topY = OY(i);
+      g += `<polyline points="0,${ly} ${rx - 5},${ly} ${rx},${ly - 5} ${rx},${G + 2}" fill="none" stroke="${yel}" stroke-width="4" stroke-dasharray="7 3"/>`;
+      g += `<line x1="${rx}" y1="${G + 2}" x2="${rx}" y2="${topY}" stroke="${steelC}" stroke-width="4"/>`;
+      g += `<circle cx="${rx}" cy="${G - 11}" r="4.5" fill="${bg2}" stroke="${t2}" stroke-width="1.5"/>`;
+    });
+    if (tankOut.length) {
+      const rxL = 118 + tankOut[tankOut.length - 1] * 14;
+      g += T(rxL + 7, G - 9, '2ND-STAGE REG', { a: 'start', fs: 6 });
+      g += T(6, G + 21 + tankOut.length * 7 + 5, `← OWN POLY LINE${tankOut.length > 1 ? 'S' : ''} FROM TANK · NOT BONDED`, { a: 'start', fs: 6.5, c: '#ca8a04', b: 1 });
+    }
+    outside.forEach((a, i) => {
+      const h = i === 0 ? 40 : 30, gy = [G - 44, G - 98, G - 144][i], inY = OY(i), vx = 104, tx = gx + gw + 14;
+      const fromX = a.feed === 'outAttic' ? ex2 : a.feed === 'outPe' ? 140 : a.feed === 'tankPe' ? 118 + i * 14 : bx, c = a.feed === 'outCsst' ? csC : steelC;
+      if (i === 0) g += `<rect x="${gx - 4}" y="${G - 4}" width="${gw + 8}" height="6" fill="${dark ? '#4b5563' : '#9ca3af'}"/>`;
+      g += AB(gx, gy, gw, h, a, false);
+      g += a.feed === 'outCsst'   // CSST ends at a termination fitting on the wall; rigid to the valve (9.6.1(5))
+        ? `<line x1="${fromX}" y1="${inY}" x2="118" y2="${inY}" stroke="${csC}" stroke-width="4" ${csD}/><rect x="112" y="${inY - 4}" width="6" height="8" rx="1" fill="${brass}" stroke="#92400e"/><line x1="112" y1="${inY}" x2="${tx}" y2="${inY}" stroke="${steelC}" stroke-width="4"/>`
+        : `<line x1="${fromX}" y1="${inY}" x2="${tx}" y2="${inY}" stroke="${c}" stroke-width="4"/>`;
+      g += `<polygon points="${vx - 6},${inY - 5} ${vx - 6},${inY + 5} ${vx},${inY}" fill="${t2}"/><polygon points="${vx + 6},${inY - 5} ${vx + 6},${inY + 5} ${vx},${inY}" fill="${t2}"/>`;
+      if (TRAP(a)) g += `<line x1="${tx}" y1="${inY}" x2="${tx}" y2="${inY + 12}" stroke="${steelC}" stroke-width="4"/><rect x="${tx - 3}" y="${inY + 12}" width="6" height="4" fill="${t2}"/>`;
+      g += pipe(`${tx},${inY} ${gx + gw},${inY}`, steelC, 3, 'stroke-dasharray="1 2"');
+      if (i === 0) g += T(vx, inY - 9, 'VALVE', { fs: 7 }) + (TRAP(a) ? T(tx + 6, G + 12, 'SEDIMENT TRAP', { a: 'end', fs: 7 }) : '');
+      if (a.k === 'gen') g += T(gx + gw + 7, inY + 12, 'FLEX', { fs: 5, c: t2 });   // generator's own flex fuel line
+    });
+  }
+  o.fitAttic = needAttic && !mainCsst && atticCsst; o.fitMeter = outsideCsst; o.fitOut = outCsstF;
+  if (more > 0) g += T(W - 12, 40, `+${more} more (not drawn)`, { a: 'end', fs: 7 });
+  o.gen = outside.some(a => a.short === 'GENERATOR' && a.egc);
+  // poly underground into the anodeless riser
+  if (svcPe) {
+    const uy = tankOut.length ? G + 40 + tankOut.length * 7 : outside.some(a => a.feed === 'outPe') ? G + 38 : G + 30;
+    g += `<polyline points="0,${uy} ${mx - 6},${uy} ${mx},${uy - 8} ${mx},${G}" fill="none" stroke="${yel}" stroke-width="5" stroke-dasharray="7 3"/>`;
+    g += `<line x1="0" y1="${uy - 7}" x2="${mx - 10}" y2="${uy - 7}" stroke="#f97316" stroke-width="1.5"/>`;
+    g += T(6, uy + 14, o.lp ? 'PE (POLY) FROM TANK · NOT BONDED' : 'PE (POLY) · NOT BONDED', { a: 'start', c: '#ca8a04', b: 1 }) + T(o.lp ? 196 : 150, uy + 14, '· orange = tracer (locating only)', { a: 'start', c: '#f97316', fs: 7 });
+    g += T(mx + 8, G + 12, 'ANODELESS RISER', { a: 'start', fs: 7 });
+  }
+  // ── electric meter-main + ground rod on the same wall
+  const ex = 372, ey = 132, rx = ex + 18;
+  g += `<rect x="${ex}" y="${ey}" width="36" height="58" rx="3" fill="${bg2}" stroke="${t2}" stroke-width="1.5"/><circle cx="${ex + 18}" cy="${ey + 16}" r="9" fill="none" stroke="${t2}"/>`;
+  g += T(ex + 18, ey + 38, 'METER', { c: txt, fs: 7 }) + T(ex + 18, ey + 47, 'MAIN', { c: txt, fs: 7 });
+  g += `<line x1="${rx}" y1="${ey + 58}" x2="${rx}" y2="${G + 10}" stroke="${green}" stroke-width="2"/><rect x="${rx - 3}" y="${G + 10}" width="6" height="40" fill="#b45309"/>`;
+  g += T(rx - 8, G + 46, 'GROUND', { a: 'end', fs: 7 }) + T(rx - 8, G + 55, 'ROD', { a: 'end', fs: 7 }) + T(rx + 6, ey + 74, 'GEC', { a: 'start', fs: 7, c: green, b: 1 });
+  if (o.csst) {
+    // bond clamp on the rigid stub out of the meter — never the corrugated tubing
+    const lowC = rigidTop > 119, cy = lowC ? mTop - 9 : 127, yRun = G - 8, jx = mx + 30;   // clamp on rigid pipe; low riser → right above the meter / regulator outlet
+    g += `<rect x="${mx - 6}" y="${cy - 8}" width="12" height="16" rx="2" fill="${green}" stroke="#14532d"/>`;
+    g += lowC ? T(mx + 10, cy - 5, 'BOND CLAMP', { a: 'start', c: green, b: 1, fs: 7 }) : T(mx - 12, cy + 3, 'BOND CLAMP', { a: 'end', c: green, b: 1 });
+    o.cy = cy; o.lowC = lowC;
+    g += `<path d="M${mx + 6},${cy} L${jx},${cy} L${jx},${yRun} L${rx},${yRun} L${rx},${G + 12}" fill="none" stroke="${green}" stroke-width="2.5" stroke-dasharray="6 3"/>`;
+    const lbl = `${o.wire.replace(' Cu', '')} Cu · 75 ft max${o.L > 0 ? ' (' + o.L + ')' : ''}`;
+    g += `<rect x="${jx + 6}" y="${yRun - 18}" width="${lbl.length * 5.2 + 10}" height="13" rx="3" fill="${bg2}" stroke="${green}"/>` + T(jx + 11, yRun - 8, lbl, { c: green, b: 1, a: 'start', fs: 8.5 });
+  } else if (o.steel || o.ar) {
+    // no jumper: the piping is bonded by appliance EGCs. Draw one for every powered appliance.
+    const egcP = (d) => `<path d="${d}" fill="none" stroke="${green}" stroke-width="2" stroke-dasharray="3 3"/>`;
+    // outside appliances with power: each EGC back to the meter-main along one run at the left / grade
+    const outE = outside.map((a, i) => a.egc ? i : -1).filter(i => i >= 0);
+    if (outE.length) {
+      const top = Math.min(...outE.map(i => OY(i) - 8));
+      g += outE.map(i => egcP(`M18,${OY(i) - 8} L10,${OY(i) - 8}`)).join('') + egcP(`M10,${top} L10,${G - 2} L${ex},${G - 2} L${ex},${ey + 50}`);
+      const nm = a => a.short === 'GENERATOR' ? (a.feed === 'tankPe' ? 'generator (own tank line)' : 'generator (feeder)') : a.short.toLowerCase();
+      g += T(300, G - 6, `${outE.map(i => nm(outside[i])).join(' + ')} EGC`, { c: green, fs: outE.length > 1 ? 6.5 : 7.5 });
+    }
+    // inside appliances with power: down to a run at y 162 → meter-main
+    const insE = inside.map((a, i) => a.egc ? i : -1).filter(i => i >= 0);
+    if (insE.length) {
+      const xs = insE.map(i => ix[i] + iw - 3);
+      g += xs.map(x => egcP(`M${x},132 L${x},162`)).join('') + egcP(`M${Math.min(...xs)},162 L${ex},162`);
+      g += T(ex - 4, 172, `${insE.map(i => inside[i].short.toLowerCase()).join(' + ')} EGC`, { a: 'end', c: green, fs: 6.5 });
+    }
+    // attic appliances with power: across the attic → down into the meter-main
+    const attE = attic.map((a, i) => a.egc ? i : -1).filter(i => i >= 0);
+    if (attE.length) {
+      const xs = attE.map(i => ax[i] + 37);
+      g += xs.map(x => egcP(`M${x},${atY + 19} L${x},100`)).join('') + egcP(`M${Math.min(...xs)},100 L${ex + 30},100 L${ex + 30},${ey}`);
+      g += T(ex + 26, 96, `${attE.map(i => attic[i].short.toLowerCase()).join(' + ')} EGC`, { a: 'end', c: green, fs: 6.5 });
+    }
+  }
+  // ── numbered landing points (A.7.12.2 / 250.104(B)) + lettered clamp points (7.12.2.1)
+  const M = (x, y, n, c = green) => `<circle cx="${x}" cy="${y}" r="7.5" fill="${c}" stroke="${dark ? '#0a0e27' : '#fff'}" stroke-width="1.5"/><text x="${x}" y="${y + 3.2}" fill="#fff" font-size="8.5" font-weight="800" ${font} text-anchor="middle">${n}</text>`;
+  g += `<line x1="${ex + 6}" y1="${ey + 50}" x2="${ex + 30}" y2="${ey + 50}" stroke="${t2}" stroke-width="2"/>`;      // neutral bar inside the meter-main
+  if (o.csst) g += M(ex - 9, ey + 12, 1) + M(ex + 18, ey + 64 - 4 + 0, 2) + M(rx + 30, ey + 82, 3) + M(rx - 13, G + 24, 4);   // landing points only when a jumper is required
+  if (o.lps) {
+    const lx = 428;
+    g += `<line x1="${lx}" y1="70" x2="${lx}" y2="${G + 8}" stroke="#64748b" stroke-width="2" stroke-dasharray="2 2"/><rect x="${lx - 3}" y="${G + 8}" width="6" height="34" fill="#64748b"/>`;
+    g += T(lx - 4, G + 54, 'LPS ROD', { a: 'end', fs: 7 }) + T(lx - 6, 116, 'down', { a: 'end', fs: 6.5, c: '#ef4444' }) + T(lx - 6, 124, 'conductor ✕', { a: 'end', fs: 6.5, c: '#ef4444' }) + (o.csst ? M(lx - 12, G + 30, 5) : '');
+  }
+  if (o.csst) g += o.lowC ? M(mx - 14, o.cy, 'A', '#0ea5e9') : M(mx + 14, 115, 'A', '#0ea5e9'); if (o.csst && o.fitAttic) g += M(mx - 14, 56, 'B', '#0ea5e9'); const fitL = [];
+  if (o.fitAttic) fitL.push('attic'); if (o.fitMeter) fitL.push('meter'); if (o.fitOut) fitL.push('out');
+  const LT = k => 'BCD'[fitL.indexOf(k)];
+  if (o.csst && o.fitMeter) g += M(mx - 14, teeY + 5, LT('meter'), '#0ea5e9'); if (o.csst && o.fitOut) g += M(mx + 14, oTee, LT('out'), '#0ea5e9');
+  g += `</svg>`;
+  const sw = (c, d) => `<span style="display:inline-block;width:18px;height:6px;border-radius:3px;margin-right:6px;vertical-align:middle;background:${d ? `repeating-linear-gradient(90deg,${c} 0 4px,transparent 4px 7px)` : c}"></span>`;
+  const legend = '<div class="wire-summary" style="justify-content:center;margin:8px 0 0;">'
+    + (o.pe ? `<span class="wire-chip">${sw(yel, 1)}PE poly (underground)</span>` : '') + `<span class="wire-chip">${sw(steelC)}steel / rigid</span>`
+    + (o.csst ? `<span class="wire-chip">${sw(yel, 1)}standard CSST</span>` : '') + (o.ar ? `<span class="wire-chip">${sw(arC, 1)}arc-resistant CSST</span>` : '')
+    + (flex ? `<span class="wire-chip">${sw(brass)}CSST fitting</span>` : '') + `<span class="wire-chip" style="opacity:.75">${sw(runC, 1)}hidden (attic / in wall)</span>` + `<span class="wire-chip">${sw(green, 1)}bonding / grounding</span></div>`;
+  const key = [
+    ['1', 'Service equipment enclosure', 'the meter-main / main panel can · 250.104(B)(2)'],
+    ['2', 'Grounded (neutral) conductor at the service', 'neutral bar in the service equipment · 250.104(B)(3)'],
+    ['3', 'Grounding electrode conductor (GEC)', 'only if the GEC is big enough, with a listed or irreversible connection · 250.104(B)(4)'],
+    ['4', 'Grounding electrode', 'ground rod or Ufer · 250.104(B)(5)'],
+  ];
+  if (o.lps) key.push(['5', 'Lightning protection grounding electrode', 'only if it makes the jumper shorter, never a down conductor · A.7.12.2 / NFPA 780']);
+  const clampKey = [['A', o.lp ? 'Rigid pipe out of the 2nd-stage regulator' : 'Rigid pipe out of the meter', 'any rigid pipe or fitting works. Pick the spot that gives the shortest jumper to ground · 7.12.2.1']]
+    .concat(o.fitAttic ? [['B', 'CSST brass fitting in the attic', 'also OK with a clamp listed for the fitting. Use it if it gives a shorter jumper · 7.12.2.1 / A.7.12.2']] : [])
+    .concat(o.fitMeter ? [[LT('meter'), 'CSST brass fitting at the wall penetration', 'also OK with a clamp listed for the fitting · 7.12.2.1 / A.7.12.2']] : [])
+    .concat(o.fitOut ? [[LT('out'), `CSST brass fitting at the ${o.lp ? 'regulator' : 'meter'} tee`, 'the outside CSST run starts here. Also OK with a listed clamp · 7.12.2.1 / A.7.12.2']] : []);
+  const row = (k, c) => `<div class="kp"><span class="kn" style="background:${c}">${k[0]}</span><div><b>${k[1]}</b><small>${k[2]}</small></div></div>`;
+  const head = o.csst ? '<div class="kh">Where the 6 AWG bond can land (pick one)</div>'
+    : (o.steel || o.ar) ? `<div class="kh">No separate jumper · bond = the appliance EGC (250.104(B)(1) · NFPA 54 7.12.1.2${o.ar ? ' / 7.12.3.3' : ''})</div><div class="kp"><span class="kn" style="background:${green}">✓</span><div><b>The green dotted line is the bond</b><small>the EGC in the appliance circuit. Nothing to clamp. If the AHJ wants an extra jumper anyway, use the CSST rules: 6 AWG Cu to the service, clamp on rigid pipe or a brass fitting, never the tubing</small></div></div>`
+    : '<div class="kh">Pick the above-ground piping to see the bond</div>';
+  const keyHtml = `<div class="bond-key">${head}${o.csst ? key.map(k => row(k, green)).join('') : ''}${o.csst && clampKey.length ? '<div class="kh" style="margin-top:8px">Where the clamp goes (gas side)</div>' + clampKey.map(k => row(k, '#0ea5e9')).join('') + '<div class="kp"><span class="kn" style="background:#ef4444">✕</span><div><b>Never on the corrugated CSST</b><small>and never on the poly</small></div></div>' : ''}</div>`;
+  $('diagram').innerHTML = g + legend + keyHtml;
+}
+
+// ── COPY ───────────────────────────────────────────────────
+function copyNotes() {
+  const done = () => { const t = $('toast'); t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 1400); play('tink'); };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(summary).then(done, fb); else fb();
+  function fb() { const ta = document.createElement('textarea'); ta.value = summary; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (e) {} ta.remove(); }
+}
+
+// ── REFERENCE MODAL ────────────────────────────────────────
+function refTab(t) {
+  document.querySelectorAll('.modal-tab').forEach(x => x.classList.toggle('active', x.dataset.tab === t));
+  document.querySelectorAll('.modal-pane').forEach(x => x.classList.toggle('active', x.id === 'pane-' + t));
+}
+function openRef(t) {
+  $('egcT').innerHTML = EGC.map(r => `<tr><td>${r[0]}</td><td>${awg(r[1])}</td><td>${awg(r[2])}</td></tr>`).join('');
+  refTab(t || 'n'); $('refModal').classList.add('open'); document.body.classList.add('modal-open'); play('tink');
+}
+function closeRef() { $('refModal').classList.remove('open'); document.body.classList.remove('modal-open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRef(); });
+calc();
+</script>
+<!-- SERVICE WORKER — single registration pointing to ../sw.js -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('../sw.js', { scope: '../' })
+      .then(function(reg) {
+        console.log('[SW] Registered, scope:', reg.scope);
+        reg.addEventListener('updatefound', function() {
+          var nw = reg.installing;
+          nw.addEventListener('statechange', function() {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('[AOG SW] Update available — reload to apply.');
+            }
+          });
+        });
+      })
+      .catch(function(err) {
+        console.warn('[SW] Registration failed:', err);
+      });
+  });
+}
+</script>
+
+<script>
+function adjustTopPadding() {
+  var bar = document.getElementById('action-bar');
+  var header = document.querySelector('.header');
+  var main = document.getElementById('main');
+  if (bar && header) header.style.marginTop = bar.offsetHeight + 'px';
+}
+window.addEventListener('resize', adjustTopPadding);
+window.addEventListener('load', adjustTopPadding);
+setTimeout(adjustTopPadding, 100);
+</script>
+</body>
+</html>

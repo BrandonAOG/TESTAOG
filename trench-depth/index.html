@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<!--
+© 2026 Brandon Keilholz — All rights reserved.
+Created by Brandon Keilholz. Licensed for use by Always On Generators.
+This form, its code, layout, and content are proprietary.
+Unauthorized copying, reproduction, or distribution is prohibited and
+may result in liability for statutory damages of up to $150,000 per work
+for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>AOG Trench &amp; Burial Depth — NEC 300.5</title>
+<script src="../sounds.js" defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="../manifest.json">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="theme-color" content="#FBBF24">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AOG Forms">
+
+<style>
+:root {
+  --bg: #f8f9fa;
+  --bg2: #ffffff;
+  --bg3: #f1f3f5;
+  --border: #dee2e6;
+  --text: #1F2937;
+  --text2: #4b5563;
+  --accent: #D97706;
+  --accent2: #B45309;
+  --cyan: #0891b2;
+  --success: #059669;
+  --danger: #DC2626;
+  --warn: #d97706;
+  --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --radius: 12px;
+  --header-bg: #1a1a2e;
+  --header-text: #D97706;
+}
+.dark {
+  --bg: #0A0E27;
+  --bg2: #0f1535;
+  --bg3: #141a3a;
+  --border: #1e2a4a;
+  --text: #E0F7FF;
+  --text2: #94a3b8;
+  --accent: #00FFC8;
+  --accent2: #06B6D4;
+  --cyan: #00FFC8;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warn: #f59e0b;
+  --shadow: 0 2px 8px rgba(0,255,200,0.06);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Exo 2', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* HEADER — spec-viewer style: pulsing logo left of company name + scanline flashes */
+.header {
+  text-align: center;
+  padding: 26px 16px 20px;
+  margin-bottom: 8px;
+  position: relative;
+}
+.header::before,.header::after{content:'';position:absolute;height:2px;width:80%;left:10%;background:linear-gradient(90deg,transparent,#FBBF24,#F97316,#00D4FF,transparent);}
+.header::before{top:0;animation:scanline 4s linear infinite;}
+.header::after{bottom:0;animation:scanline 4s linear infinite reverse;}
+@keyframes scanline{0%,100%{opacity:0;transform:scaleX(0)}50%{opacity:1;transform:scaleX(1)}}
+.logo-wrap{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:nowrap;margin-bottom:10px;}
+.logo-img{width:70px;height:70px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 0 12px rgba(251,191,36,.6));animation:logoPulse 3s ease-in-out infinite;}
+@media(min-width:480px){.logo-img{width:90px;height:90px}}
+@keyframes logoPulse{0%,100%{filter:drop-shadow(0 0 12px rgba(251,191,36,.6))}50%{filter:drop-shadow(0 0 22px rgba(251,191,36,.9)) drop-shadow(0 0 36px rgba(249,115,22,.6))}}
+.title-block{text-align:left;min-width:0;}
+.company-name{font-family:'Orbitron',monospace;font-size:clamp(1.05rem,4.5vw,1.4rem);font-weight:900;letter-spacing:2px;line-height:1.1;background:linear-gradient(135deg,#FBBF24 0%,#F97316 50%,#EA580C 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;}
+@media(min-width:480px){.company-name{font-size:1.8rem;letter-spacing:3px}}
+.tagline{font-family:'Share Tech Mono',monospace;font-size:.65rem;letter-spacing:4px;color:var(--cyan);text-transform:uppercase;}
+.tool-title{font-family:'Orbitron',monospace;font-size:.7rem;letter-spacing:5px;color:var(--text2);margin-top:8px;text-transform:uppercase;}
+.tool-title span{color:#F97316;}
+.header .nec-badge{margin-top:8px;display:inline-block;}
+.home-btn {
+  background: none; border: 1px solid #D97706;
+  color: #D97706; border-radius: 8px;
+  padding: 6px 10px; font-size: 11px;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.2s;
+  text-decoration: none; display: inline-flex;
+  align-items: center; gap: 4px;
+}
+.home-btn:hover { background: #D97706; color: #000; }
+.theme-btn {
+  background: none; border: 1px solid #D97706;
+  color: #D97706; border-radius: 8px;
+  padding: 6px 10px; font-size: 14px; cursor: pointer;
+  transition: all 0.2s;
+}
+.theme-btn:hover { background: #D97706; color: #000; }
+.nec-badge {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8px; background: #D97706;
+  color: #000; padding: 3px 7px;
+  border-radius: 4px; font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* MAIN */
+.main { padding: 16px; max-width: 900px; margin: 0 auto; }
+
+/* SECTION CARDS */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+  transition: background 0.3s, border 0.3s;
+}
+.card-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px; font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title::before {
+  content: ''; display: inline-block;
+  width: 3px; height: 14px;
+  background: var(--accent); border-radius: 2px;
+}
+
+/* FORM ELEMENTS */
+label {
+  font-size: 11px; font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  display: block; margin-bottom: 5px;
+}
+select, input[type="number"], input[type="text"] {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: 'Exo 2', sans-serif;
+  outline: none;
+  transition: border 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none;
+}
+select:focus, input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(217,119,6,0.2);
+}
+.dark select:focus, .dark input:focus {
+  box-shadow: 0 0 0 2px rgba(0,255,200,0.15);
+}
+
+/* GRID LAYOUTS */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+@media(max-width:520px) {
+  .grid-2 { grid-template-columns: 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+}
+
+/* WIRE ROWS */
+.wire-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+  padding: 10px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  transition: background 0.3s;
+}
+.wire-row:hover { border-color: var(--accent); }
+.remove-btn {
+  background: var(--danger);
+  color: white; border: none;
+  border-radius: 6px; width: 32px; height: 32px;
+  font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: opacity 0.2s;
+  align-self: flex-end; margin-bottom: 0;
+}
+.remove-btn:hover { opacity: 0.8; }
+.add-btn {
+  background: var(--accent);
+  color: #000; border: none;
+  border-radius: 8px; padding: 10px 16px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  transition: opacity 0.2s, transform 0.1s;
+  width: 100%; justify-content: center;
+  margin-top: 8px;
+}
+.add-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+.add-btn:active { transform: translateY(0); }
+
+/* CALCULATE BUTTON */
+.calc-btn {
+  width: 100%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000; border: none;
+  border-radius: 10px; padding: 14px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 2px; cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(217,119,6,0.3);
+  margin-top: 4px;
+}
+.calc-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(217,119,6,0.4);
+}
+.calc-btn:active { transform: translateY(0); }
+.dark .calc-btn {
+  background: linear-gradient(135deg, #00FFC8, #06B6D4);
+  box-shadow: 0 4px 15px rgba(0,255,200,0.25);
+}
+
+/* RESULTS */
+.result-card {
+  background: var(--bg2);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 0 20px rgba(217,119,6,0.1);
+}
+.dark .result-card {
+  box-shadow: 0 0 20px rgba(0,255,200,0.08);
+}
+.result-header {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px; color: var(--accent);
+  letter-spacing: 1.5px; margin-bottom: 14px;
+  text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* CONDUIT TABLE */
+.conduit-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 12px; font-family: 'Share Tech Mono', monospace;
+}
+.conduit-table th {
+  background: var(--bg3);
+  color: var(--accent);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px; letter-spacing: 1px;
+  padding: 8px 10px; text-align: left;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+.conduit-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+.conduit-table tr:last-child td { border-bottom: none; }
+.conduit-table tr:hover td { background: var(--bg3); }
+
+/* STATUS PILLS */
+.status-pass {
+  background: var(--success);
+  color: white; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+.status-fail {
+  background: var(--danger);
+  color: white; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+.status-warn {
+  background: var(--warn);
+  color: #000; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+.status-best {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000; padding: 3px 8px;
+  border-radius: 12px; font-size: 10px;
+  font-weight: 700; white-space: nowrap;
+}
+
+/* FILL BAR */
+.fill-bar-wrap {
+  background: var(--bg3);
+  border-radius: 6px; height: 10px;
+  overflow: hidden; min-width: 60px;
+}
+.fill-bar {
+  height: 100%; border-radius: 6px;
+  transition: width 0.6s ease;
+}
+.fill-green { background: var(--success); }
+.fill-yellow { background: var(--warn); }
+.fill-red { background: var(--danger); }
+
+/* JAM SECTION */
+.jam-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+}
+.jam-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px; color: var(--accent);
+  letter-spacing: 1px; margin-bottom: 8px;
+}
+.jam-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.jam-item {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px;
+  text-align: center;
+}
+.jam-size {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px; font-weight: 700;
+  color: var(--text);
+}
+.jam-ratio {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--text2);
+  margin: 2px 0;
+}
+.jam-status {
+  font-size: 10px; font-weight: 700;
+  margin-top: 4px;
+}
+.jam-ok  { color: var(--success); }
+.jam-risk { color: var(--warn); }
+.jam-high { color: var(--danger); }
+
+/* WIRE SUMMARY */
+.wire-summary {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-bottom: 12px;
+}
+.wire-chip {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--text);
+}
+
+/* RECOMMENDATION */
+.rec-box {
+  background: linear-gradient(135deg, rgba(217,119,6,0.1), rgba(180,83,9,0.05));
+  border: 1px solid var(--accent);
+  border-radius: 8px; padding: 12px;
+  margin-top: 12px;
+}
+.dark .rec-box {
+  background: linear-gradient(135deg, rgba(0,255,200,0.05), rgba(6,182,212,0.03));
+  border-color: var(--accent);
+}
+.rec-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px; color: var(--accent);
+  letter-spacing: 1.5px; margin-bottom: 6px;
+}
+.rec-size {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px; font-weight: 900;
+  color: var(--accent);
+}
+.rec-detail {
+  font-size: 12px; color: var(--text2);
+  margin-top: 4px; font-family: 'Share Tech Mono', monospace;
+}
+
+/* STATS ROW */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px; margin-bottom: 12px;
+}
+.stat-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px;
+  text-align: center;
+}
+.stat-val {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px; font-weight: 700;
+  color: var(--accent);
+}
+.stat-lbl {
+  font-size: 9px; color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.8px; margin-top: 2px;
+}
+
+/* NIPPLE/RACEWAY TOGGLE */
+.toggle-row {
+  display: flex; gap: 8px;
+  margin-bottom: 14px;
+}
+.toggle-opt {
+  flex: 1; padding: 10px;
+  border: 2px solid var(--border);
+  border-radius: 8px; text-align: center;
+  cursor: pointer; font-family: 'Orbitron', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; color: var(--text2);
+  transition: all 0.2s;
+}
+.toggle-opt.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(217,119,6,0.08);
+}
+.dark .toggle-opt.active {
+  background: rgba(0,255,200,0.07);
+}
+
+/* OVERFLOW TABLE */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center; padding: 40px 20px;
+  color: var(--text2);
+}
+.empty-icon { font-size: 48px; margin-bottom: 8px; }
+.empty-text {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px; letter-spacing: 1px;
+}
+
+/* DIVIDER */
+.divider {
+  border: none; border-top: 1px solid var(--border);
+  margin: 12px 0;
+}
+
+/* INFO ROW */
+.info-row {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text2);
+  margin-top: 6px;
+  font-family: 'Share Tech Mono', monospace;
+}
+.info-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%; background: var(--accent);
+  flex-shrink: 0;
+}
+
+
+/* ===== QUICK REFERENCE TABLES MODAL ===== */
+.ref-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.ref-btn {
+  flex: 1; min-width: 140px;
+  background: var(--bg3); color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 8px;
+  padding: 10px; cursor: pointer;
+  font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  text-decoration: none; text-align: center; transition: all 0.2s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.ref-btn:hover { background: var(--accent); color: #000; }
+.modal-bg {
+  position: fixed; inset: 0; z-index: 100000;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(2px);
+  display: none; align-items: flex-start; justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 16px)) 12px 16px;
+  overflow-y: auto;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: var(--bg2); border: 2px solid var(--accent);
+  border-radius: var(--radius); width: 100%; max-width: 820px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+  margin: auto 0;
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--bg2); border-radius: var(--radius) var(--radius) 0 0; z-index: 1;
+}
+.modal-title { font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 1.5px; }
+.modal-close {
+  background: none; border: 1px solid var(--border); color: var(--text2);
+  border-radius: 6px; width: 32px; height: 32px; font-size: 18px; cursor: pointer; flex-shrink: 0;
+}
+.modal-close:hover { border-color: var(--danger); color: var(--danger); }
+.modal-tabs { display: flex; gap: 6px; padding: 10px 14px 0; flex-wrap: wrap; }
+.modal-tab {
+  flex: 1; min-width: 100px; padding: 8px; border: 2px solid var(--border); border-radius: 8px;
+  background: none; color: var(--text2); cursor: pointer;
+  font-family: 'Orbitron', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 1px;
+}
+.modal-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(217,119,6,0.08); }
+.dark .modal-tab.active { background: rgba(0,255,200,0.07); }
+.modal-body { padding: 14px; }
+.modal-pane { display: none; }
+.modal-pane.active { display: block; }
+.modal .conduit-table td.grp {
+  background: var(--bg3); color: var(--accent);
+  font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 1px;
+}
+.modal .conduit-table td.num, .modal .conduit-table th.num { text-align: center; }
+.rule-list { display: grid; gap: 8px; }
+.rule {
+  background: var(--bg3); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 8px; padding: 10px;
+}
+.rule-ref { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--accent); margin-bottom: 3px; }
+.rule-txt { font-size: 13px; color: var(--text); line-height: 1.45; }
+.rule-txt b { font-weight: 600; }
+.modal-foot { padding: 0 14px 14px; }
+body.modal-open { overflow: hidden; }
+@media print { .modal-bg, .ref-btns { display: none !important; } }
+
+
+/* ===== MOBILE TABLE TUNING ===== */
+.m-only { display: none; }
+@media (max-width: 520px) {
+  /* stop iOS auto-zoom on focus */
+  select, input[type="number"], input[type="text"] { font-size: 16px; }
+  .conduit-table { font-size: 11px; }
+  .conduit-table th { padding: 7px 5px; font-size: 8px; }
+  .conduit-table td { padding: 7px 5px; }
+  .hide-m { display: none; }
+  .m-only { display: inline; }
+  .wrap-m { white-space: normal !important; min-width: 96px; }
+  /* first column stays put if a table still needs to scroll */
+  .sticky-1 td:first-child, .sticky-1 th:first-child {
+    position: sticky; left: 0; z-index: 1; background: var(--bg2);
+    box-shadow: 1px 0 0 var(--border);
+  }
+  .sticky-1 thead th:first-child { background: var(--bg3); }
+  .sticky-1 tr.current-row td:first-child { background: linear-gradient(rgba(217,119,6,0.08), rgba(217,119,6,0.08)), var(--bg2); }
+  .dark .sticky-1 tr.current-row td:first-child { background: linear-gradient(rgba(0,255,200,0.06), rgba(0,255,200,0.06)), var(--bg2); }
+  .modal-bg { padding-left: 6px; padding-right: 6px; }
+  .modal-body { padding: 10px; }
+  .modal .conduit-table td.num, .modal .conduit-table th.num { padding: 7px 3px; }
+  .modal .conduit-table td.grp { position: static; box-shadow: none; }
+  .stats-row { gap: 6px; }
+  .stat-val { font-size: 14px; }
+}
+
+
+.check-detail {
+  margin-top: -9px;
+  padding: 12px 10px 10px;
+  background: var(--bg3);
+  border: 1px solid var(--accent);
+  border-top: 1px dashed var(--border);
+  border-radius: 0 0 8px 8px;
+}
+.check-row:has(input:checked) { border-color: var(--accent); }
+.check-row:has(+ .check-detail[style*="display: none"]), .check-row:has(+ .check-detail[style*="display:none"]) { border-radius: 8px; }
+.check-row:has(input:checked):has(+ .check-detail:not([style*="none"])) { border-radius: 8px 8px 0 0; border-bottom-color: transparent; }
+
+
+/* ===== RUN CARDS (IN → OUT) ===== */
+.run-card {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px; margin-bottom: 8px; transition: border 0.2s;
+}
+.run-card:hover { border-color: var(--accent); }
+.run-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.run-head .entry-tag { height: 28px; padding: 0 10px; align-self: center; }
+.run-head .remove-btn { margin-left: auto; }
+.pull-badge {
+  font-family: 'Share Tech Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 1px;
+  padding: 4px 10px; border-radius: 12px; background: var(--bg2); border: 1px solid var(--border); color: var(--text2);
+}
+.pull-badge.k-straight { color: var(--cyan); border-color: var(--cyan); }
+.pull-badge.k-angle, .pull-badge.k-u { color: var(--accent); border-color: var(--accent); }
+.pull-badge.k-splice { color: var(--warn); border-color: var(--warn); }
+.run-line { display: grid; grid-template-columns: 44px 1.2fr 0.9fr 1fr; gap: 8px; align-items: end; }
+.run-side {
+  height: 40px; display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  color: #000; background: var(--accent); border-radius: 8px;
+}
+.run-side.out { background: var(--cyan); }
+.dark .run-side.out { background: var(--accent2); }
+.run-arrow { text-align: left; padding-left: 16px; color: var(--text2); font-size: 14px; line-height: 1; margin: 2px 0; }
+.run-card.in-none .r-in-row, .run-card.in-none .r-in-size,
+.run-card.out-none .r-out-row, .run-card.out-none .r-out-size { opacity: 0.35; }
+.splice-tog {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0 0 0 auto; cursor: pointer;
+  font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text2);
+}
+.splice-tog input { position: absolute; opacity: 0; pointer-events: none; }
+.splice-tog .check-box { width: 16px; height: 16px; }
+.splice-tog input:checked + .check-box { background: var(--warn); border-color: var(--warn); }
+.splice-tog input:checked + .check-box::after { content: '✓'; color: #000; font-size: 11px; font-weight: 900; }
+.splice-tog input:disabled + .check-box { opacity: .6; }
+.splice-tog:has(input:checked) { color: var(--warn); }
+.run-head .splice-tog + .remove-btn { margin-left: 4px; }
+select:disabled { cursor: not-allowed; }
+@media (max-width: 520px) {
+  .run-line { grid-template-columns: 36px 1.25fr 0.95fr 1fr; gap: 5px; }
+  .run-line label { font-size: 9px; letter-spacing: .4px; }
+  .run-line select { padding: 9px 6px; }
+  .run-side { height: 38px; font-size: 9px; }
+}
+
+
+/* ===== WALL ROWS SIDE VIEW ===== */
+.rows-view { display: grid; gap: 14px; }
+.row-wall { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+.row-calcs { display: grid; gap: 4px; margin-top: 8px; }
+.row-calc { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--text2); padding: 4px 6px; border-radius: 6px; }
+.row-calc b { color: var(--text); font-weight: 700; }
+.row-calc.gov { color: var(--text); background: rgba(217,119,6,0.08); }
+.dark .row-calc.gov { background: rgba(0,255,200,0.07); }
+
+
+.pull-badge { white-space: nowrap; }
+@media (max-width: 520px) {
+  .run-head { gap: 6px; }
+  .pull-badge { font-size: 10px; padding: 3px 8px; letter-spacing: .5px; }
+  .splice-tog { font-size: 11px; white-space: nowrap; }
+  .splice-tog .sp-txt::before { content: 'Spliced'; }
+  .splice-tog .sp-txt { font-size: 0; }
+  .splice-tog .sp-txt::before { font-size: 11px; }
+}
+
+
+@media (max-width: 520px) { #fitCard .conduit-table td, #fitCard .conduit-table th { padding-left: 4px; padding-right: 4px; } #fitCard .status-pass, #fitCard .status-warn, #fitCard .status-fail { font-size: 9px; padding: 3px 6px; } }
+.rec-box.warn { border-color: var(--warn); background: linear-gradient(135deg, rgba(217,119,6,0.10), rgba(217,119,6,0.03)); }
+.rec-box.warn .rec-size, .rec-box.warn .rec-label { color: var(--warn); }
+
+/* ===== TOUCH & SMALL-PHONE TUNING ===== */
+.splice-tog { min-height: 40px; padding: 0 6px; border-radius: 8px; }
+.splice-tog:active { background: var(--bg2); }
+@media (max-width: 360px) {
+  .conduit-table { font-size: 10px; }
+  .conduit-table th { font-size: 7.5px; padding: 6px 3px; letter-spacing: .5px; }
+  .conduit-table td { padding: 6px 3px; }
+  .wrap-m { min-width: 78px; }
+  .modal .conduit-table th { white-space: normal; }
+  .run-line { grid-template-columns: 32px 1.2fr 0.95fr 1fr; gap: 4px; }
+  .run-line select { padding: 9px 4px; }
+}
+.run-head > * { flex-shrink: 0; }
+.run-head .pull-badge { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 360px) { .bd-spl { display: none; } .run-head .pull-badge { font-size: 9px; padding: 3px 6px; letter-spacing: .3px; } .run-head { gap: 4px; } }
+/* PRINT */
+@media print {
+  .header, .add-btn, .remove-btn, .calc-btn,
+  .theme-btn, .home-btn, .toggle-row { display: none !important; }
+  body { background: white; color: black; }
+  .card, .result-card { box-shadow: none; border: 1px solid #ccc; }
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+
+/* FOOTER */
+.footer {
+  text-align: center; padding: 20px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--text2);
+  letter-spacing: 1px;
+}
+
+
+/* ===== FIXED ACTION BAR ===== */
+.action-bar {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  z-index: 99999;
+  width: 100%;
+  background: var(--header-bg, #1e293b);
+  padding: 4px 8px;
+  padding-top: max(4px, env(safe-area-inset-top, 4px));
+  display: flex; justify-content: flex-start; gap: 4px; flex-wrap: nowrap; align-items: center;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  
+  box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+  border-bottom: 1px solid rgba(217,119,6,0.3);
+  box-sizing: border-box;
+}
+/* Center the buttons when they fit; auto-margins collapse safely when the
+   bar overflows and scrolls, so nothing gets clipped off the left edge. */
+.action-bar > :first-child { margin-left: auto; }
+.action-bar > :last-child { margin-right: auto; }
+.action-bar .ab-btn {
+  padding: 6px 8px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.07);
+  border-radius: 0; cursor: pointer; color: #D97706; text-transform: uppercase;
+  font-family: Arial, sans-serif; white-space: nowrap; flex: 1; min-width: 0;
+  text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+  clip-path: polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  overflow: hidden; text-overflow: ellipsis; transition: all 0.15s ease;
+}
+.action-bar .ab-btn:hover { border-color: #D97706; box-shadow: 0 0 8px rgba(217,119,6,0.3); }
+.action-bar .theme-toggle-ab {
+  width: 36px; height: 36px; padding: 6px; flex-shrink: 0;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.07);
+  border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: #D97706; font-size: 16px; transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.action-bar .theme-toggle-ab:hover { border-color: #D97706; box-shadow: 0 0 8px rgba(217,119,6,0.3); }
+@media (max-width: 480px) {
+  .action-bar { padding: 4px 4px; padding-top: max(4px, env(safe-area-inset-top, 4px)); gap: 3px; }
+}
+
+/* ===== BOX FILL ADDITIONS (same tokens as conduit fill) ===== */
+.wire-row.w4 { grid-template-columns: 1fr 0.7fr 1.6fr auto; }
+.wire-row.w3 { grid-template-columns: 1.6fr 1fr auto; }
+.wire-row.wd { grid-template-columns: 1.4fr 1fr 0.7fr auto; }
+@media(max-width:520px) {
+  .wire-row.w4, .wire-row.wd { grid-template-columns: 1fr 1fr; }
+  .wire-row.w4 .remove-btn, .wire-row.wd .remove-btn { grid-column: 2; justify-self: end; }
+  .wire-row.w4 .span-m, .wire-row.wd .span-m { grid-column: 1 / -1; }
+}
+.row-note {
+  grid-column: 1 / -1;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--text2);
+  letter-spacing: .5px;
+}
+.row-note b { color: var(--accent); font-weight: 400; }
+
+.check-list { display: grid; gap: 8px; }
+.check-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px; margin: 0;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer;
+  text-transform: none; letter-spacing: 0;
+  font-weight: 400; transition: border 0.2s;
+}
+.check-row:hover { border-color: var(--accent); }
+.check-row input { position: absolute; opacity: 0; pointer-events: none; }
+.check-box {
+  width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px;
+  border: 2px solid var(--border); border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; background: var(--bg2);
+}
+.check-row input:checked + .check-box { background: var(--accent); border-color: var(--accent); }
+.check-row input:checked + .check-box::after { content: '✓'; color: #000; font-size: 12px; font-weight: 900; }
+.check-row input:focus-visible + .check-box { box-shadow: 0 0 0 2px rgba(217,119,6,0.3); }
+.check-text { font-size: 13px; color: var(--text); line-height: 1.4; }
+.check-text b { font-weight: 600; }
+.check-text em {
+  font-style: normal; font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--text2); letter-spacing: .5px;
+}
+
+.total-row td {
+  font-family: 'Orbitron', sans-serif !important;
+  font-weight: 700; font-size: 11px;
+  color: var(--accent) !important;
+  border-top: 2px solid var(--border);
+  background: var(--bg3);
+}
+.ref-tag { color: var(--text2); }
+
+.warn-box {
+  display: flex; gap: 8px; align-items: flex-start;
+  background: var(--bg3);
+  border: 1px solid var(--warn);
+  border-left: 3px solid var(--warn);
+  border-radius: 8px; padding: 10px; margin-bottom: 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--text);
+}
+.warn-box.err { border-color: var(--danger); }
+.rec-box.fail { border-color: var(--danger); background: linear-gradient(135deg, rgba(220,38,38,0.10), rgba(220,38,38,0.03)); }
+.rec-box.fail .rec-size, .rec-box.fail .rec-label { color: var(--danger); }
+.rec-box.pass .rec-size { color: var(--success); }
+.current-row td { background: rgba(217,119,6,0.08); }
+.dark .current-row td { background: rgba(0,255,200,0.06); }
+
+/* ===== PULL BOX ADDITIONS ===== */
+.wire-row.we { grid-template-columns: 34px 1fr 0.8fr 0.9fr 1.1fr 1.2fr auto; }
+.entry-tag {
+  align-self: end; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700;
+  color: var(--accent); border: 1px solid var(--accent); border-radius: 8px;
+  background: var(--bg2);
+}
+@media (max-width: 720px) {
+  .wire-row.we { grid-template-columns: 1fr 1fr; }
+  .wire-row.we .entry-tag { grid-column: 1 / -1; height: 26px; justify-content: flex-start; padding: 0 10px; align-self: start; }
+  .wire-row.we .remove-btn { grid-column: 2; justify-self: end; }
+}
+.diagram-wrap { padding: 4px 0; overflow: hidden; }
+.grid-3 > div { min-width: 0; }
+@media (max-width: 520px) { .grid-3 { grid-template-columns: 1fr 1fr 1fr; gap: 6px; } }
+
+/* ===== TRENCH TOOL ===== */
+.run-card.is-elec { border-left: 3px solid var(--cyan); }
+.run-card.is-gas  { border-left: 3px solid #f59e0b; }
+.pull-badge.k-elec { color: var(--cyan); border-color: var(--cyan); }
+.pull-badge.k-gas  { color: #d97706; border-color: #f59e0b; }
+.run-card .grid-2 { gap: 10px; }
+.sub-opts { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
+.mini-chk { display: inline-flex; align-items: center; gap: 8px; margin: 0; cursor: pointer; min-height: 36px;
+  font-size: 12px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text2); }
+.mini-chk input { position: absolute; opacity: 0; pointer-events: none; }
+.mini-chk .check-box { width: 18px; height: 18px; }
+.mini-chk input:checked + .check-box { background: var(--accent); border-color: var(--accent); }
+.mini-chk input:checked + .check-box::after { content: '✓'; color: #000; font-size: 12px; font-weight: 900; }
+.mini-chk:has(input:checked) { color: var(--text); }
+.run-head .remove-btn { margin-left: auto; }
+#notesList .rule { background: var(--bg3); }
+</style>
+<script src="../update-banner.js"></script>
+</head>
+<body>
+<div class="action-bar" id="action-bar">
+  <a class="ab-btn" href="../">🏠 HOME</a>
+  <button class="ab-btn" onclick="openRef('e')">📋 CODE</button>
+  <button class="theme-toggle-ab" id="themeBtn" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo-wrap">
+    <img src="../logo.png" alt="Always On Generators Logo" class="logo-img" onerror="this.style.display='none'">
+    <div class="title-block">
+      <div class="company-name">Always On<br>Generators</div>
+      <div class="tagline">// Power When You Need It //</div>
+    </div>
+  </div>
+  <div class="tool-title">Trench &amp; <span>Burial</span> Depth &mdash; NEC 300.5 · NFPA 54 · NFPA 58</div>
+  <span class="nec-badge">NEC 2023 · NFPA 54/58 2024</span>
+</div>
+
+<div class="main" id="main">
+
+  <!-- ITEMS -->
+  <div class="card">
+    <div class="card-title">What's Going in the Trench</div>
+    <div class="info-row" style="margin:-6px 0 10px;"><div class="info-dot"></div>
+      <span>Add each run separately — electrical and gas can share a trench. The deepest requirement sets the trench.</span>
+    </div>
+    <div id="itemList"></div>
+    <div class="empty-state" id="trEmpty" style="padding:14px 0;"><div class="empty-text">NOTHING ADDED YET — PICK ELECTRICAL OR GAS BELOW</div></div>
+    <div class="grid-2" style="margin-top:4px;">
+      <button class="add-btn" onclick="addItem('elec')">⚡ ADD ELECTRICAL RUN</button>
+      <button class="add-btn" onclick="addItem('gas')">🔥 ADD GAS LINE</button>
+    </div>
+  </div>
+
+  <button class="calc-btn" onclick="calculate()">⚡ CALCULATE BURIAL DEPTH</button>
+
+  <!-- RESULTS -->
+  <div id="results" style="display:none;margin-top:14px;">
+    <div class="result-card">
+      <div class="result-header">📏 Trench Summary</div>
+      <div class="stats-row">
+        <div class="stat-box"><div class="stat-val" id="r-cover">—</div><div class="stat-lbl">Deepest Min. Cover (in)</div></div>
+        <div class="stat-box"><div class="stat-val" id="r-dig">—</div><div class="stat-lbl">Dig At Least (in)</div></div>
+        <div class="stat-box"><div class="stat-val" id="r-items">—</div><div class="stat-lbl">Runs in Trench</div></div>
+      </div>
+      <div id="r-warnings"></div>
+      <div class="rec-box" id="r-rec">
+        <div class="rec-label">◆ RESULT</div>
+        <div class="rec-size" id="r-verdict">—</div>
+        <div class="rec-detail" id="r-detail">—</div>
+      </div>
+    </div>
+
+    <div class="result-card">
+      <div class="result-header">🗺️ Trench Cross-Section</div>
+      <div id="diagram"></div>
+      <div class="info-row" style="margin-top:6px;"><div class="info-dot"></div>
+        <span id="diagNote">Cover = top of the pipe, conduit or cable up to finished grade (300.5 Note 1). Pipe sizes drawn approximately.</span>
+      </div>
+    </div>
+
+    <div class="result-card">
+      <div class="result-header">🧮 Each Run</div>
+      <div class="table-wrap">
+        <table class="conduit-table sticky-1">
+          <thead><tr><th>RUN</th><th>MIN COVER</th><th class="hide-m">DIG TO</th><th>CODE</th></tr></thead>
+          <tbody id="itemTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="result-card" id="notesCard">
+      <div class="result-header">📋 Also Required for This Trench</div>
+      <div class="rule-list" id="notesList"></div>
+    </div>
+  </div>
+
+  <!-- REFERENCE -->
+  <div class="card">
+    <div class="card-title">Reference</div>
+    <div class="ref-btns">
+      <button class="ref-btn" onclick="openRef('e')">⚡ Table 300.5(A)</button>
+      <button class="ref-btn" onclick="openRef('g')">🔥 Gas — NFPA 54 / 58</button>
+      <button class="ref-btn" onclick="openRef('n')">📖 300.5 Rules</button>
+    </div>
+    <div style="display:grid;gap:6px;">
+      <div class="info-row"><div class="info-dot"></div>Typical yard: PVC 18" · RMC/IMC 6" · direct-burial cable 24"</div>
+      <div class="info-row"><div class="info-dot"></div>Under a home driveway: 18" for PVC, RMC &amp; direct burial</div>
+      <div class="info-row"><div class="info-dot"></div>Gas (NG or LP): 12" min · 18" where damage is likely · conduit if 12" can't be met</div>
+      <div class="info-row"><div class="info-dot"></div>Plastic gas pipe: tracer (14 AWG min.) brought up at the riser · LP: wire or tape, not touching the pipe</div>
+    </div>
+  </div>
+</div>
+
+<!-- QUICK REFERENCE MODAL -->
+<div class="modal-bg" id="refModal" onclick="if(event.target===this)closeRef()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="refTitle">
+    <div class="modal-head">
+      <div class="modal-title" id="refTitle">📋 Burial Depth Quick Reference</div>
+      <button class="modal-close" onclick="closeRef()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab" data-tab="e" onclick="refTab('e')">TABLE 300.5(A)</button>
+      <button class="modal-tab" data-tab="g" onclick="refTab('g')">GAS</button>
+      <button class="modal-tab" data-tab="n" onclick="refTab('n')">300.5 RULES</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-pane" id="pane-e">
+        <div class="info-row" style="margin:0 0 10px;"><div class="info-dot"></div>
+          <span>NEC 2023 Table 300.5(A) — minimum cover, 0–1000 V ac, inches.</span>
+        </div>
+        <div class="table-wrap">
+          <table class="conduit-table">
+            <thead><tr><th style="white-space:normal;">LOCATION</th><th class="num" style="white-space:normal;">1 DIRECT BURIAL</th><th class="num" style="white-space:normal;">2 RMC / IMC</th><th class="num" style="white-space:normal;">3 PVC · HDPE · EMT</th><th class="num" style="white-space:normal;">4 RES. 120V GFCI ≤20A</th><th class="num" style="white-space:normal;">5 ≤30V LANDSCAPE</th></tr></thead>
+            <tbody id="refT"></tbody>
+          </table>
+        </div>
+        <div class="info-row" style="margin-top:10px;"><div class="info-dot"></div><span>* Under a 4" slab: Column 1 is 18 direct buried / 4 in raceway; Column 4 is 6 direct buried / 4 in raceway. Under a building: Columns 1, 4 &amp; 5 must be in raceway (or MC/MI identified for direct burial). <sup>1</sup> Less is allowed where a listed low-voltage lighting system's instructions say so. <sup>2</sup> 6" allowed for ≤30 V pool/spa/fountain lighting in nonmetallic raceway, part of a listed low-voltage lighting system. Notes 1–6: see 300.5 RULES tab.</span></div>
+      </div>
+      <div class="modal-pane" id="pane-g">
+        <div class="info-row" style="margin:0 0 10px;"><div class="info-dot"></div>
+          <span>Plain-language summary of NFPA 54 (2024) and NFPA 58 (2024) — not the official code text. Verify with the adopted code &amp; AHJ.</span>
+        </div>
+        <div class="rule-list">
+          <div class="rule"><div class="rule-ref">NFPA 54 7.1.2.1 — NATURAL GAS COVER</div><div class="rule-txt">Underground piping: <b>12" minimum cover</b>. Increase to <b>18"</b> where external damage is likely. Where 12" can't be provided, install the piping <b>in conduit</b>.</div></div>
+          <div class="rule"><div class="rule-ref">NFPA 54 7.1.2 — PROTECTION</div><div class="rule-txt">Protect against heavy vehicle traffic and settling. Protect piping where it passes through <b>flower beds, shrub beds</b> and other cultivated areas where damage is reasonably expected.</div></div>
+          <div class="rule"><div class="rule-ref">NFPA 54 7.1.2.2 / 7.1.2.3 — TRENCH &amp; BACKFILL</div><div class="rule-txt">Grade the trench so the pipe has firm, continuous bearing on the bottom. If flooding the trench to settle backfill, don't float the pipe off its bearing.</div></div>
+          <div class="rule"><div class="rule-ref">NFPA 54 7.1.3 — STEEL PIPE</div><div class="rule-txt">Galvanizing alone isn't adequate underground. Use corrosion-resistant material, factory coating (coat fittings &amp; joints), or cathodic protection. Insulating fitting where dissimilar metals join underground.</div></div>
+          <div class="rule"><div class="rule-ref">NFPA 54 7.1.7 — PLASTIC (PE) PIPE</div><div class="rule-txt">Outdoors, underground only — terminate above ground with an <b>anodeless riser</b>. Bury a continuous <b>tracer</b>: a product made for it, <b>14 AWG min. insulated copper</b>, or UL 2989 tracer wire; provide access from above ground, or bring one end up at a wall or riser.</div></div>
+          <div class="rule"><div class="rule-ref">NFPA 58 6.11.3.13 — LP METALLIC PIPE</div><div class="rule-txt"><b>12" minimum cover</b>; <b>18"</b> where external damage is likely. If 12" can't be maintained: <b>in conduit or bridged (shielded)</b>. Account for vehicles under driveways (6.11.3.14). Steel needs cathodic protection (6.11.3.15–16); dielectric fittings at building penetrations, never underground.</div></div>
+          <div class="rule"><div class="rule-ref">NFPA 58 6.11.5 — LP PLASTIC PIPE</div><div class="rule-txt">Outdoors, underground only. <b>12" cover; 18"</b> where damage is likely; conduit or bridged if 12" can't be met. Anodeless risers — horizontal part buried <b>at least 12"</b>. Tracer wire <b>14 AWG min.</b> (or tape), one end above ground at a wall or riser, and <b>not touching</b> the pipe.</div></div>
+          <div class="rule"><div class="rule-ref">FLORIDA NOTE</div><div class="rule-txt">Natural gas in Florida is enforced under the Florida Building Code – Fuel Gas, which can differ from NFPA 54 (for example, a shallower depth for an individual line to an outdoor appliance <b>where approved</b>). Confirm with the AHJ before using anything less than 12".</div></div>
+        </div>
+      </div>
+      <div class="modal-pane" id="pane-n">
+        <div class="info-row" style="margin:0 0 10px;"><div class="info-dot"></div>
+          <span>Plain-language summary of NEC 2023 300.5 — not the official code text.</span>
+        </div>
+        <div class="rule-list">
+          <div class="rule"><div class="rule-ref">NOTE 1 — HOW COVER IS MEASURED</div><div class="rule-txt">From the <b>top</b> of the cable, conduit or raceway to the top of finished grade, concrete or similar cover.</div></div>
+          <div class="rule"><div class="rule-ref">NOTE 2 — CONCRETE-ENCASED RACEWAYS</div><div class="rule-txt">A raceway approved for burial <b>only when encased in concrete</b> needs a concrete envelope at least <b>2" thick</b> all around.</div></div>
+          <div class="rule"><div class="rule-ref">NOTE 3 — RISING FOR TERMINATIONS</div><div class="rule-txt">Shallower depth is OK where the cable or conductors <b>come up</b> for terminations or splices, or where access is otherwise needed.</div></div>
+          <div class="rule"><div class="rule-ref">NOTE 4 — SHALLOWEST ALLOWED</div><div class="rule-txt">If a Column 1–3 wiring method carries a Column 4 or 5 circuit, the <b>shallower</b> depth may be used.</div></div>
+          <div class="rule"><div class="rule-ref">NOTE 5 — SOLID ROCK</div><div class="rule-txt">Where rock prevents the required depth: metal raceway or nonmetallic raceway permitted for direct burial, covered by at least <b>2" of concrete</b> down to the rock.</div></div>
+          <div class="rule"><div class="rule-ref">NOTE 6 — DIRECT-BURIED EMT</div><div class="rule-txt">EMT buried directly in the earth must meet <b>358.10</b> (corrosion protection approved for the soil conditions).</div></div>
+          <div class="rule"><div class="rule-ref">FOOTNOTE 1 — LISTED LOW-VOLTAGE LIGHTING</div><div class="rule-txt">Column 5, all other locations: <b>less than 6"</b> is allowed if the installation instructions of a <b>listed</b> low-voltage lighting system say so.</div></div>
+          <div class="rule"><div class="rule-ref">FOOTNOTE 2 — POOL / SPA / FOUNTAIN LIGHTING</div><div class="rule-txt">Column 5, all other locations: <b>6"</b> is allowed for pool, spa &amp; fountain lighting in <b>nonmetallic raceway</b>, 30 V max, when part of a listed low-voltage lighting system.</div></div>
+          <div class="rule"><div class="rule-ref">300.5(D)(1) — EMERGING FROM GRADE</div><div class="rule-txt">Direct-buried cables (Columns 1 &amp; 4) coming up out of the ground need an enclosure or raceway from the required cover depth up to <b>8 ft above grade</b> — never more than 18" below grade required.</div></div>
+          <div class="rule"><div class="rule-ref">300.5(D)(3) — WARNING RIBBON</div><div class="rule-txt"><b>Service conductors</b> not concrete-encased and buried 18" or deeper need a warning ribbon in the trench at least <b>12" above</b> them.</div></div>
+          <div class="rule"><div class="rule-ref">300.5(D)(4) — PHYSICAL DAMAGE</div><div class="rule-txt">Where subject to damage: EMT, RMC, IMC, RTRC-XW, <b>Schedule 80 PVC</b> or equivalent.</div></div>
+          <div class="rule"><div class="rule-ref">300.5(F) — BACKFILL</div><div class="rule-txt">No large rocks, paving, cinders, sharp or corrosive material against the raceway or cable. Use sand/select fill, running boards or sleeves where needed.</div></div>
+          <div class="rule"><div class="rule-ref">300.5(G) / (H) — SEALS &amp; BUSHINGS</div><div class="rule-txt">Seal or plug raceways where moisture could reach live parts (and spares). Bushing or bushed fitting where a raceway ends underground and cable continues direct-buried.</div></div>
+          <div class="rule"><div class="rule-ref">300.5(I) — SAME CIRCUIT TOGETHER</div><div class="rule-txt">All conductors of a circuit — including neutral and EGC — in the same raceway/cable or close together in the same trench.</div></div>
+          <div class="rule"><div class="rule-ref">300.5(B), (C), (J), (K)</div><div class="rule-txt">Underground raceways are <b>wet locations</b>. Cable under a building must be in a raceway (MI/MC exceptions). Allow for settling (S-loops, expansion fittings). Directional boring: cable/raceway approved for it.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  AOG FIELD OPERATIONS HUB — TRENCH &amp; BURIAL DEPTH<br>
+  NEC 2023 300.5 · NFPA 54 (2024) 7.1 · NFPA 58 (2024) 6.11 — BUILT BY BRANDON @BrandonAOG
+</div>
+
+<script>
+// ============================================================
+// TRENCH & BURIAL DEPTH — NEC 2023 Table 300.5(A) · NFPA 54 (2024) 7.1 · NFPA 58 (2024) 6.11
+// ============================================================
+// Table 300.5(A) — inches of cover. Columns: [1 direct burial, 2 RMC/IMC, 3 nonmetallic/other raceway, 4 res. 120V GFCI ≤20A, 5 ≤30V landscape]
+const LOCS = [
+  { id: 'all',    label: 'Yard / all other locations',                                   v: [24, 6, 18, 12, 6] },
+  { id: 'conc2',  label: 'Trench under 2"+ concrete (or equivalent)',                    v: [18, 6, 12, 6, 6] },
+  { id: 'slab4',  label: 'Under 4"+ exterior slab — no vehicles, slab 6"+ past the run', v: [18, 4, 4, 6, 6], raceway: { 0: 4, 3: 4 } },
+  { id: 'dwdrv',  label: 'Home driveway / parking (1- & 2-family, dwelling use only)',    v: [18, 18, 18, 12, 18] },
+  { id: 'street', label: 'Street, road, alley, commercial driveway or parking lot',      v: [24, 24, 24, 24, 24] },
+  { id: 'bldg',   label: 'Under a building',                                             v: [0, 0, 0, 0, 0] },
+  { id: 'runway', label: 'Airport runway / adjacent no-trespass area',                   v: [18, 18, 18, 18, 18] },
+];
+const METHODS = [
+  { id: 0, label: 'Direct-burial cable / conductors (UF, USE-2, DB-rated)' },
+  { id: 1, label: 'Rigid metal (RMC) or IMC conduit' },
+  { id: 2, label: 'PVC, HDPE, EMT* or other approved raceway' },
+];
+const CIRCUITS = [
+  { id: 'std', label: 'Generator, feeder or other circuit' },
+  { id: 3,     label: 'Residential branch circuit — 120 V or less, GFCI, 20 A max' },
+  { id: 4,     label: 'Irrigation / landscape lighting — 30 V max (UF or identified)' },
+];
+// Pipe/raceway outside diameter (in) by trade/nominal size — standard IPS OD
+const SIZES = [['1/2', 0.84], ['3/4', 1.05], ['1', 1.315], ['1-1/4', 1.66], ['1-1/2', 1.9], ['2', 2.375], ['2-1/2', 2.875], ['3', 3.5], ['4', 4.5]];
+const OD = Object.fromEntries(SIZES);
+const CABLE_OD = 0.75; // typical direct-burial cable thickness (in)
+const GAS_LOCS = [
+  { id: 'yard',    label: 'Yard / normal location' },
+  { id: 'damage',  label: 'Damage likely — driveway, vehicles, flower/shrub beds' },
+  { id: 'shallow', label: "Can't get 12\" of cover (rock, other utilities)" },
+  { id: 'bldg',    label: 'Under a building' },
+];
+
+let darkMode = false, itemCounter = 0;
+
+// ── THEME ──────────────────────────────────────────────────
+function toggleTheme() {
+  darkMode = !darkMode;
+  document.body.classList.toggle('dark', darkMode);
+  document.getElementById('themeBtn').textContent = darkMode ? '☀️' : '🌙';
+  try { localStorage.setItem('aog-theme', darkMode ? 'dark' : 'light'); } catch (e) {}
+  if ($('results').style.display !== 'none') calculate(true);
+}
+(function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem('aog-theme'); } catch (e) {}
+  const prefer = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (saved === 'dark' || (!saved && prefer)) {
+    darkMode = true; document.body.classList.add('dark');
+    document.getElementById('themeBtn').textContent = '☀️';
+  }
+})();
+
+function $(id) { return document.getElementById(id); }
+const opt = (list, sel) => list.map(o => `<option value="${o.id}"${String(o.id) === String(sel) ? ' selected' : ''}>${o.label}</option>`).join('');
+const sizeOpt = sel => SIZES.map(([t]) => `<option value="${t}"${t === sel ? ' selected' : ''}>${t}"</option>`).join('');
+
+// ── ITEMS ──────────────────────────────────────────────────
+function addItem(kind, preset) {
+  preset = preset || {};
+  const id = ++itemCounter;
+  const el = document.createElement('div');
+  el.className = 'run-card ' + (kind === 'gas' ? 'is-gas' : 'is-elec');
+  el.id = 'item-' + id; el.dataset.kind = kind;
+  if (kind === 'elec') {
+    el.innerHTML = `
+      <div class="run-head"><span class="entry-tag run-tag">E?</span><span class="pull-badge k-elec">⚡ ELECTRICAL</span>
+        <button class="remove-btn" onclick="removeItem(${id})" title="Remove">×</button></div>
+      <div class="grid-2">
+        <div><label>Wiring Method</label><select class="i-method" onchange="calculate(true)">${opt(METHODS, preset.method ?? 2)}</select></div>
+        <div><label>Circuit Type</label><select class="i-circ" onchange="calculate(true)">${opt(CIRCUITS, preset.circ ?? 'std')}</select></div>
+        <div><label>Location</label><select class="i-loc" onchange="calculate(true)">${opt(LOCS, preset.loc ?? 'all')}</select></div>
+        <div class="i-size-wrap"><label>Conduit Size</label><select class="i-size" onchange="calculate(true)">${sizeOpt(preset.size ?? '2')}</select></div>
+      </div>
+      <div class="sub-opts">
+        <label class="mini-chk i-race-wrap"><input type="checkbox" class="i-race" onchange="calculate(true)"><span class="check-box"></span>Cable is inside a raceway here</label>
+        <label class="mini-chk"><input type="checkbox" class="i-svc" onchange="calculate(true)"><span class="check-box"></span>These are service conductors</label>
+      </div>`;
+  } else {
+    el.innerHTML = `
+      <div class="run-head"><span class="entry-tag run-tag">G?</span><span class="pull-badge k-gas">🔥 GAS</span>
+        <button class="remove-btn" onclick="removeItem(${id})" title="Remove">×</button></div>
+      <div class="grid-2">
+        <div><label>Fuel</label><select class="i-fuel" onchange="calculate(true)">
+          <option value="ng"${preset.fuel === 'ng' ? ' selected' : ''}>Natural gas — NFPA 54</option>
+          <option value="lp"${preset.fuel !== 'ng' ? ' selected' : ''}>Propane (LP) — NFPA 58</option></select></div>
+        <div><label>Pipe Material</label><select class="i-mat" onchange="calculate(true)">
+          <option value="pe"${preset.mat !== 'steel' ? ' selected' : ''}>Polyethylene (PE) plastic</option>
+          <option value="steel"${preset.mat === 'steel' ? ' selected' : ''}>Coated steel / metallic</option></select></div>
+        <div><label>Location</label><select class="i-gloc" onchange="calculate(true)">${opt(GAS_LOCS, preset.gloc ?? 'yard')}</select></div>
+        <div><label>Pipe Size</label><select class="i-size" onchange="calculate(true)">${sizeOpt(preset.size ?? '1')}</select></div>
+      </div>`;
+  }
+  $('itemList').appendChild(el);
+  if (window.AOGSound && !preset.silent) AOGSound.play('tink');
+  calculate(true);
+}
+function removeItem(id) {
+  const el = $('item-' + id); if (el) el.remove();
+  if (window.AOGSound) AOGSound.play('tink');
+  calculate(true);
+}
+
+// ── CORE ───────────────────────────────────────────────────
+function elecReq(it) {
+  const loc = LOCS.find(l => l.id === it.loc);
+  const colVal = c => (loc.raceway && it.race && loc.raceway[c] != null) ? loc.raceway[c] : loc.v[c];
+  const methodCover = colVal(it.method);
+  let cover = methodCover, basis = `Column ${it.method + 1}`;
+  if (it.circ !== 'std') {
+    const circCover = colVal(it.circ);
+    if (circCover < cover) { cover = circCover; basis = `Column ${it.circ + 1} (Note 4 — shallower allowed)`; }
+  }
+  return { cover, basis, loc };
+}
+function gasReq(it) {
+  const code = it.fuel === 'ng' ? 'NFPA 54' : 'NFPA 58';
+  const sec = it.fuel === 'ng' ? '7.1.2.1' : (it.mat === 'pe' ? '6.11.5.2' : '6.11.3.13');
+  if (it.gloc === 'damage') return { cover: 18, code, sec: sec + (it.fuel === 'ng' ? '(A)' : (it.mat === 'pe' ? '(2)' : '(A)')), basis: 'damage likely' };
+  if (it.gloc === 'shallow') return { cover: null, code, sec: sec + (it.fuel === 'ng' ? '(B)' : (it.mat === 'pe' ? '(3)' : '(B)')), basis: it.fuel === 'ng' ? 'in conduit' : 'in conduit or bridged (shielded)' };
+  if (it.gloc === 'bldg') return { cover: null, code, sec: it.fuel === 'ng' ? '7.1.6' : '6.11', basis: 'under building' };
+  return { cover: 12, code, sec, basis: 'minimum' };
+}
+
+function readItems() {
+  return [...document.querySelectorAll('#itemList .run-card')].map((el, i) => {
+    const q = c => el.querySelector(c);
+    const kind = el.dataset.kind;
+    const n = kind === 'elec' ? 'E' : 'G';
+    if (kind === 'elec') {
+      const it = { el, kind, method: +q('.i-method').value, circ: q('.i-circ').value === 'std' ? 'std' : +q('.i-circ').value,
+        loc: q('.i-loc').value, size: q('.i-size').value, race: q('.i-race').checked, svc: q('.i-svc').checked };
+      // the "inside a raceway" choice only matters for direct-burial cable / res. circuits under a slab or building
+      const raceRelevant = (it.loc === 'slab4' || it.loc === 'bldg') && (it.method === 0 || it.circ === 3 || it.circ === 4);
+      q('.i-race-wrap').style.display = raceRelevant ? '' : 'none';
+      if (!raceRelevant) it.race = false;
+      it.bare = it.method === 0 && !it.race;  // direct-buried cable, no conduit
+      it.od = it.bare ? CABLE_OD : OD[it.size];
+      q('.i-size-wrap').style.display = it.bare ? 'none' : '';
+      return it;
+    }
+    return { el, kind, fuel: q('.i-fuel').value, mat: q('.i-mat').value, gloc: q('.i-gloc').value, size: q('.i-size').value, od: OD[q('.i-size').value] };
+  });
+}
+
+function calculate(auto) {
+  const items = readItems();
+  // number tags E1, E2… G1…
+  let ne = 0, ng = 0;
+  items.forEach(it => { it.tag = it.kind === 'elec' ? 'E' + (++ne) : 'G' + (++ng); it.el.querySelector('.run-tag').textContent = it.tag; });
+
+  const res = $('results');
+  $('trEmpty').style.display = items.length ? 'none' : '';
+  if (!items.length) { res.style.display = 'none'; return; }
+  if (auto && res.style.display === 'none') return;
+  if (!auto && window.AOGSound) AOGSound.play('clunk');
+  res.style.display = 'block';
+
+  const warns = [], notes = new Map();
+  const note = (k, ref, txt) => { if (!notes.has(k)) notes.set(k, { ref, txt }); };
+  const rows = [];
+
+  items.forEach(it => {
+    if (it.kind === 'elec') {
+      const r = elecReq(it);
+      it.cover = r.cover; it.dig = r.cover + it.od;
+      const m = METHODS[it.method].label.split(' (')[0];
+      rows.push({ it, what: `${it.tag} · ${m}${it.bare ? '' : ' ' + it.size + '"'}`, sub: `${r.loc.label}${it.circ !== 'std' ? ' · ' + CIRCUITS.find(c => c.id === it.circ).label.split(' —')[0] : ''}`,
+        cover: r.cover, dig: it.dig, code: `NEC 300.5(A) ${r.basis}` });
+      if (it.loc === 'bldg') {
+        note('bldg', '300.5(C)', 'Cable or conductors under a building must be <b>in a raceway</b> (MI and listed MC exceptions).');
+        if (it.method === 0 && !it.race) warns.push({ err: true, msg: `${it.tag}: direct-burial cable under a building must be in a raceway (300.5(C)).` });
+      }
+      if (it.method === 0) note('emerge', '300.5(D)(1)', 'Direct-buried cable coming up out of the ground: protect it in an enclosure or raceway from the required cover depth up to <b>8 ft above grade</b> (never more than 18" below grade required).');
+      if (it.svc && r.cover >= 18) note('ribbon', '300.5(D)(3)', 'Service conductors buried 18" or deeper (not concrete-encased): <b>warning ribbon</b> at least <b>12" above</b> them in the trench.');
+      if (it.svc && r.cover < 18) note('ribbon2', '300.5(D)(3)', 'Service conductors: if they end up buried 18" or deeper and not concrete-encased, add a <b>warning ribbon</b> at least 12" above them.');
+      if (it.circ === 4 && it.loc === 'all') note('fn12', 'Table 300.5(A) Footnotes 1 & 2', 'Low-voltage (≤30 V) run: <b>less than 6"</b> is allowed if a listed low-voltage lighting system\'s instructions permit it. Pool/spa/fountain lighting: 6" in nonmetallic raceway when part of a listed system.');
+      if (it.method === 2) note('emt', '300.5 Note 6 / 358.10', '*Directly buried <b>EMT</b> must meet 358.10 (corrosion protection approved for the conditions).');
+      if (it.loc === 'dwdrv' || it.loc === 'street') note('sch80', '300.5(D)(4)', 'Where the raceway is <b>subject to physical damage</b> (risers, driveway edges): EMT, RMC, IMC, RTRC-XW or <b>Schedule 80 PVC</b>.');
+      note('wet', '300.5(B)', 'Underground raceways are <b>wet locations</b> — conductors must be wet-rated (THWN-2, XHHW-2, USE-2) per 310.10(C).');
+      note('same', '300.5(I)', 'All conductors of the circuit — including neutral and EGC — in the same raceway or close together in the same trench.');
+      note('seal', '300.5(G)', '<b>Seal or plug</b> raceways where moisture could reach live parts — including spare conduits.');
+    } else {
+      const r = gasReq(it);
+      it.cover = r.cover; it.dig = r.cover != null ? r.cover + it.od : null;
+      rows.push({ it, what: `${it.tag} · ${it.fuel === 'ng' ? 'Natural gas' : 'Propane'} ${it.mat === 'pe' ? 'PE' : 'steel'} ${it.size}"`,
+        sub: GAS_LOCS.find(g => g.id === it.gloc).label,
+        cover: r.cover, dig: it.dig, code: `${r.code} ${r.sec}`, special: r.basis });
+      if (it.gloc === 'shallow') warns.push({ err: false, msg: `${it.tag}: less than 12" of cover is only allowed with the pipe ${r.basis} (${r.code} ${r.sec}).` });
+      if (it.gloc === 'bldg') {
+        warns.push({ err: true, msg: `${it.tag}: gas under a building must be in an approved, vented conduit or a piping/encasement system listed for it (${it.fuel === 'ng' ? 'NFPA 54 7.1.6' : 'NFPA 58 / AHJ'}).` });
+        if (it.mat === 'pe') warns.push({ err: true, msg: `${it.tag}: PE plastic gas pipe is permitted outdoors, underground only.` });
+      }
+      if (it.mat === 'pe') {
+        note('tracer-' + it.fuel, it.fuel === 'ng' ? 'NFPA 54 7.1.7.3' : 'NFPA 58 6.11.5.7',
+          it.fuel === 'ng' ? '<b>Tracer</b> buried with PE pipe: a product made for it, <b>14 AWG min. insulated copper</b>, or UL 2989 tracer wire. Provide access from above ground, or bring one end up at a wall or riser.'
+                           : '<b>Tracer wire 14 AWG min.</b> (or tape) with PE pipe — one end above ground at a wall or riser, and <b>not touching the pipe</b>.');
+        note('tracer-aog', 'AOG PRACTICE', 'Lay the tracer <b>6\" above the top of the pipe/poly</b> (not touching) — if the tracer signal fails, a shovel hits the tracer before the pipe. Company standard; the code doesn\'t set a position.');
+        note('riser-' + it.fuel, it.fuel === 'ng' ? 'NFPA 54 7.1.7' : 'NFPA 58 6.11.5.3',
+          it.fuel === 'ng' ? 'PE must come above ground with an <b>anodeless riser</b> (or approved wall head adapter); transition fittings per ASTM D2513 / F1973 / F2509.'
+                           : 'PE must come above ground with an <b>assembled anodeless riser</b>; the horizontal part of the riser buried <b>at least 12"</b>.');
+      } else {
+        note('steel-' + it.fuel, it.fuel === 'ng' ? 'NFPA 54 7.1.3' : 'NFPA 58 6.11.3.15–18',
+          'Steel underground: galvanizing alone isn\'t enough — factory coating (coat joints), corrosion-resistant material or <b>cathodic protection</b>. ' + (it.fuel === 'lp' ? 'Dielectric fitting at the building penetration — <b>never underground</b>.' : 'Insulating fitting where dissimilar metals join underground.'));
+      }
+      if (it.gloc === 'damage') note('beds', it.fuel === 'ng' ? 'NFPA 54 7.1.2' : 'NFPA 58 6.11.3.14', 'Protect the pipe under driveways and through <b>flower / shrub beds</b> where digging is expected; consider vehicle loads.');
+      if (it.fuel === 'ng') note('bed', 'NFPA 54 7.1.2.2–3', 'Grade the trench so the pipe has <b>firm, continuous bearing</b>; don\'t float the pipe if flooding the trench to settle backfill.');
+    }
+  });
+
+  const hasE = items.some(i => i.kind === 'elec'), hasG = items.some(i => i.kind === 'gas');
+  if (hasE) note('backfill', '300.5(F)', 'Backfill: no large rocks, paving, cinders or sharp/corrosive material against conduit or cable — use sand/select fill where needed.');
+  if (hasE && hasG) warns.push({ err: false, msg: 'Shared trench: NFPA 54 7.1.1.1 only requires "sufficient clearance" between gas pipe and other underground structures. Many utilities and AHJs require a set separation (often 12") — confirm locally.' });
+  if (hasE) note('rise', '300.5 Note 3', 'Where cable or conductors <b>come up</b> for terminations or splices (or access is needed), shallower depth is allowed at that point.');
+  if (hasE) note('rock', '300.5 Note 5', 'Solid rock: metal or direct-burial nonmetallic raceway covered by <b>2" of concrete</b> down to the rock.');
+
+  const covers = items.map(i => i.cover).filter(v => v != null);
+  const digs = items.map(i => i.dig).filter(v => v != null);
+  const maxCover = covers.length ? Math.max(...covers) : null;
+  const maxDig = digs.length ? Math.max(...digs) : null;
+  const fmt = n => (Math.round(n * 10) / 10).toString();
+  $('r-cover').textContent = maxCover != null ? fmt(maxCover) : '—';
+  $('r-dig').textContent = maxDig != null ? '≈ ' + Math.ceil(maxDig) : '—';
+  $('r-items').textContent = items.length || '—';
+
+  if (!items.length) warns.unshift({ err: false, msg: 'Add an electrical run or gas line to get a depth.' });
+  $('r-warnings').innerHTML = warns.map(x => `<div class="warn-box${x.err ? ' err' : ''}">⚠️ <span>${x.msg}</span></div>`).join('');
+
+  const rec = $('r-rec'); rec.classList.remove('pass', 'fail');
+  if (!items.length) { $('r-verdict').textContent = '—'; $('r-detail').textContent = 'No runs yet.'; }
+  else {
+    const gov = items.filter(i => i.cover === maxCover).map(i => i.tag).join(', ');
+    $('r-verdict').textContent = maxCover != null ? `${fmt(maxCover)}" MIN. COVER` : 'SEE NOTES';
+    $('r-detail').innerHTML = maxCover != null
+      ? `Governed by ${gov}. Dig the trench to about <b style="color:var(--accent)">${Math.ceil(maxDig)}"</b> so the top of the largest pipe sits at the required cover.`
+        + (items.some(i => i.cover === 0) ? '<br>0" applies only under a building, in raceway.' : '')
+      : 'Every run needs special treatment — see the warnings above.';
+  }
+
+  $('itemTbody').innerHTML = rows.length ? rows.map(r => `
+    <tr>
+      <td class="wrap-m"><b>${r.what}</b><br><span class="ref-tag">${r.sub}</span><span class="m-only ref-tag"><br>dig ≈ ${r.dig != null ? Math.ceil(r.dig) + '"' : '—'}</span></td>
+      <td style="font-weight:700;white-space:nowrap;">${r.cover != null ? fmt(r.cover) + '"' : (r.special === 'under building' ? 'encased' : '&lt;12" ' + r.special.split(' ')[0] + ' ' + (r.special.split(' ')[1] || ''))}</td>
+      <td class="hide-m">${r.dig != null ? '≈ ' + Math.ceil(r.dig) + '"' : '—'}</td>
+      <td class="ref-tag">${r.code}</td>
+    </tr>`).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text2);">No runs</td></tr>`;
+
+  $('notesCard').style.display = notes.size ? '' : 'none';
+  $('notesList').innerHTML = [...notes.values()].map(n => `<div class="rule"><div class="rule-ref">${n.ref}</div><div class="rule-txt">${n.txt}</div></div>`).join('');
+
+  drawSection(items);
+  if (!auto) res.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── CROSS-SECTION ──────────────────────────────────────────
+function drawSection(items) {
+  const cs = getComputedStyle(document.body), col = v => cs.getPropertyValue(v).trim();
+  const acc = col('--accent'), txt = col('--text'), t2 = col('--text2'), bg2 = col('--bg2'), bg3 = col('--bg3'), bd = col('--border');
+  const dark = document.body.classList.contains('dark');
+  // shallow gas (< 12" in conduit) has no code minimum — draw it at a sample 6" so it still shows in the trench
+  items.forEach(i => { i.sleeve = i.kind === 'gas' && i.gloc === 'shallow'; i.dCover = i.cover != null ? i.cover : (i.sleeve ? 6 : null); });
+  const shown = items.filter(i => i.dCover != null);
+  if (!shown.length) { $('diagram').innerHTML = '<div class="empty-state"><div class="empty-text">ADD A RUN TO SEE THE TRENCH</div></div>'; return; }
+  const maxDig = Math.max(...shown.map(i => i.dCover + i.od + (i.sleeve ? 1 : 0)), 12);
+  const depthIn = Math.ceil((maxDig + 4) / 6) * 6;
+  const W = 340, top = 34, scale = 230 / depthIn, H = top + depthIn * scale + 18;
+  const n = shown.length, tx0 = 70, tx1 = W - 24, slot = (tx1 - tx0) / n;
+  const soil = dark ? '#2a2016' : '#e8dcc6', soil2 = dark ? '#3a2c1d' : '#d9c7a6', grass = dark ? '#2f6b3a' : '#5aa05f';
+  let g = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:520px;display:block;margin:0 auto;" role="img" aria-label="Trench cross-section">
+    <defs><pattern id="dirt" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="${soil}"/><circle cx="3" cy="4" r="1" fill="${soil2}"/><circle cx="8" cy="8" r=".8" fill="${soil2}"/></pattern></defs>`;
+  g += `<rect x="0" y="${top}" width="${W}" height="${H - top}" fill="url(#dirt)"/>`;
+  g += `<rect x="${tx0 - 6}" y="${top}" width="${tx1 - tx0 + 12}" height="${depthIn * scale}" fill="${dark ? '#1c160f' : '#f4ecdc'}" stroke="${soil2}" stroke-dasharray="4 3"/>`;
+  g += `<rect x="0" y="${top - 5}" width="${W}" height="6" fill="${grass}"/><text x="6" y="${top - 10}" fill="${t2}" font-size="10" font-family="Share Tech Mono, monospace">FINISHED GRADE</text>`;
+  // depth ruler
+  for (let d = 0; d <= depthIn; d += 6) {
+    const y = top + d * scale;
+    g += `<line x1="40" y1="${y}" x2="48" y2="${y}" stroke="${t2}"/><text x="36" y="${y + 3.5}" fill="${t2}" font-size="9.5" font-family="Share Tech Mono, monospace" text-anchor="end">${d}"</text>`;
+  }
+  g += `<line x1="48" y1="${top}" x2="48" y2="${top + depthIn * scale}" stroke="${t2}"/>`;
+  let anyRibbon = false, anyTracer = false, anySleeve = false;
+  shown.forEach((it, i) => {
+    const cx = tx0 + slot * (i + 0.5), r = Math.max(it.bare ? 3 : 5, it.od * scale / 2);
+    const yTop = top + it.dCover * scale, cy = yTop + r + (it.sleeve ? 4 : 0);
+    const isGas = it.kind === 'gas';
+    // 300.5(D)(3) warning ribbon: service conductors 18"+ deep → ribbon at least 12" above
+    const ribbon = !isGas && it.svc && it.cover >= 18;
+    let yRib = null;
+    if (ribbon) {
+      anyRibbon = true;
+      yRib = top + (it.cover - 12) * scale;
+      const hw = Math.min(slot * 0.42, 70);
+      g += `<rect x="${cx - hw}" y="${yRib - 2.5}" width="${hw * 2}" height="5" fill="#dc2626"/>`;
+      g += `<line x1="${cx - hw}" y1="${yRib}" x2="${cx + hw}" y2="${yRib}" stroke="#facc15" stroke-width="1.6" stroke-dasharray="5 4"/>`;
+      g += `<text x="${cx - hw}" y="${yRib - 6}" fill="#ef4444" font-size="8.5" font-weight="700" font-family="Share Tech Mono, monospace">WARNING RIBBON</text>`;
+      // 12" dimension from ribbon to top of run
+      const dx = cx + hw - 4;
+      g += `<line x1="${dx}" y1="${yRib + 3}" x2="${dx}" y2="${yTop}" stroke="#ef4444" stroke-width="1"/>`;
+      g += `<line x1="${dx - 3}" y1="${yTop}" x2="${dx + 3}" y2="${yTop}" stroke="#ef4444"/>`;
+      g += `<text x="${dx - 3}" y="${(yRib + yTop) / 2 + 3}" fill="#ef4444" font-size="8.5" font-weight="700" font-family="Share Tech Mono, monospace" text-anchor="start" transform="translate(6,0)">≥12"</text>`;
+    }
+    const fill = isGas ? (it.mat === 'pe' ? '#facc15' : '#9ca3af') : (it.method === 1 ? '#9ca3af' : it.method === 0 ? '#111827' : '#d1d5db');
+    // cover dimension
+    g += `<line x1="${cx}" y1="${top + 1}" x2="${cx}" y2="${yTop - 1}" stroke="${acc}" stroke-width="1.2" stroke-dasharray="3 2"/>`;
+    // AOG practice: tracer 6" above the top of the pipe/poly (sleeve) — not touching
+    const hasTr = isGas && it.mat === 'pe';
+    const yTr = hasTr ? (it.sleeve ? yTop - 7 : yTop - 6 * scale) : null; // shallow sleeve: no room for 6" — drawn just above
+    let ly = yRib != null ? (top + yRib) / 2 : yTr != null ? (top + yTr) / 2 : (top + yTop) / 2, lx = cx;
+    if (yTr != null && yTr - top < 22) { ly = (top + yTr) / 2 - 2; } // no room above tracer → put depth tag beside
+    g += `<rect x="${lx - 17}" y="${ly - 8}" width="34" height="15" rx="3" fill="${bg2}" stroke="${bd}"/><text x="${lx}" y="${ly + 3.5}" fill="${txt}" font-size="10" font-weight="700" font-family="Share Tech Mono, monospace" text-anchor="middle">${it.sleeve ? '&lt;12"' : it.cover + '"'}</text>`;
+    if (it.sleeve) { // NFPA 54 7.1.2.1(B) / NFPA 58: pipe inside conduit (protective sleeve)
+      anySleeve = true;
+      g += `<circle cx="${cx}" cy="${cy}" r="${r + 4}" fill="${dark ? '#334155' : '#cbd5e1'}" stroke="${t2}" stroke-width="1.5"/>`;
+      g += `<text x="${cx}" y="${cy + r + 24}" fill="${t2}" font-size="8" font-weight="700" font-family="Share Tech Mono, monospace" text-anchor="middle">${it.fuel === 'lp' ? 'CONDUIT/BRIDGED' : 'IN CONDUIT'}</text>`;
+    }
+    g += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" stroke="${isGas ? '#b45309' : '#4b5563'}" stroke-width="1.5"/>`;
+    if (isGas && it.mat === 'pe') { // tracer wire/tape — beside the pipe, not touching (NFPA 58 6.11.5.7(B))
+      anyTracer = true;
+      const tx = cx, ty = yTr;
+      // 6" dimension, tracer → top of pipe
+      const dx = cx - 12;
+      if (!it.sleeve) g += `<line x1="${dx}" y1="${ty}" x2="${dx}" y2="${yTop}" stroke="#f97316" stroke-width="1"/><line x1="${dx - 3}" y1="${ty}" x2="${dx + 3}" y2="${ty}" stroke="#f97316"/><line x1="${dx - 3}" y1="${yTop}" x2="${dx + 3}" y2="${yTop}" stroke="#f97316"/>`;
+      if (!it.sleeve && yTop - ty > 14) g += `<text x="${dx - 4}" y="${(ty + yTop) / 2 + 3}" fill="#f97316" font-size="8.5" font-weight="700" font-family="Share Tech Mono, monospace" text-anchor="end">${Math.round(Math.min(6, (yTop - ty) / scale) * 10) / 10}"</text>`;
+      g += `<circle cx="${tx}" cy="${ty}" r="3" fill="#f97316" stroke="#9a3412" stroke-width="1"/>`;
+      g += `<line x1="${tx + 3}" y1="${ty}" x2="${tx + 14}" y2="${ty - 4}" stroke="#f97316" stroke-width="1"/>`;
+      g += `<text x="${tx + 15}" y="${ty - 3}" fill="#f97316" font-size="8.5" font-weight="700" font-family="Share Tech Mono, monospace">TRACER</text>`;
+    }
+    g += `<text x="${cx}" y="${cy + r + 12}" fill="${txt}" font-size="10" font-weight="700" font-family="Share Tech Mono, monospace" text-anchor="middle">${it.tag}</text>`;
+  });
+  g += `</svg>`;
+  const legend = '<div class="wire-summary" style="justify-content:center;margin:8px 0 0;">'
+    + (shown.some(i => i.kind === 'elec' && i.method === 2) ? '<span class="wire-chip">⚪ PVC/HDPE/EMT</span>' : '')
+    + (shown.some(i => (i.kind === 'elec' && i.method === 1) || (i.kind === 'gas' && i.mat === 'steel')) ? '<span class="wire-chip">🔘 ' + (shown.some(i => i.kind === 'elec' && i.method === 1) ? 'RMC/IMC' : '') + (shown.some(i => i.kind === 'elec' && i.method === 1) && shown.some(i => i.kind === 'gas' && i.mat === 'steel') ? ' · ' : '') + (shown.some(i => i.kind === 'gas' && i.mat === 'steel') ? 'steel gas' : '') + '</span>' : '')
+    + (shown.some(i => i.kind === 'elec' && i.method === 0) ? '<span class="wire-chip">⚫ direct-burial cable</span>' : '')
+    + (shown.some(i => i.kind === 'gas' && i.mat === 'pe') ? '<span class="wire-chip">🟡 PE gas</span>' : '')
+    + (anyTracer ? '<span class="wire-chip">🟠 tracer wire/tape (14 AWG min.)</span>' : '')
+    + (anySleeve ? '<span class="wire-chip">⭕ conduit sleeve (LP: or bridged) — under 12", no min. depth (drawn at 6")</span>' : '')
+    + (anyRibbon ? '<span class="wire-chip">🟥 warning ribbon — 300.5(D)(3)</span>' : '') + '</div>';
+  $('diagram').innerHTML = g + legend;
+  const hasE = shown.some(i => i.kind === 'elec'), hasG = shown.some(i => i.kind === 'gas');
+  $('diagNote').textContent = (hasE ? 'Electrical cover = top of the conduit or cable up to finished grade (NEC 300.5 Note 1). ' : '')
+    + (hasG ? 'Gas cover = top of the pipe (or sleeve) up to finished grade (NFPA ' + [...new Set(shown.filter(i => i.kind === 'gas').map(i => i.fuel === 'ng' ? '54 7.1.2.1' : (i.mat === 'pe' ? '58 6.11.5.2' : '58 6.11.3.13')))].join(' / NFPA ') + '). ' : '')
+    + 'Sizes drawn approximately.';
+}
+
+// ── REFERENCE MODAL ────────────────────────────────────────
+function buildRefTable() {
+  $('refT').innerHTML = LOCS.map(l => `<tr><td class="wrap-m" style="white-space:normal;">${l.label}${l.raceway ? ' *' : ''}${l.id === 'bldg' ? ' *' : ''}</td>${l.v.map((v, i) => `<td class="num">${v}${l.id === 'all' && i === 4 ? '<sup>1,2</sup>' : ''}</td>`).join('')}</tr>`).join('');
+}
+function refTab(t) {
+  document.querySelectorAll('.modal-tab').forEach(x => x.classList.toggle('active', x.dataset.tab === t));
+  document.querySelectorAll('.modal-pane').forEach(x => x.classList.toggle('active', x.id === 'pane-' + t));
+}
+function openRef(t) { buildRefTable(); refTab(t || 'e'); $('refModal').classList.add('open'); document.body.classList.add('modal-open'); if (window.AOGSound) AOGSound.play('tink'); }
+function closeRef() { $('refModal').classList.remove('open'); document.body.classList.remove('modal-open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRef(); });
+
+// ── INIT ───────────────────────────────────────────────────
+calculate(true);
+</script>
+<!-- SERVICE WORKER — single registration pointing to ../sw.js -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('../sw.js', { scope: '../' })
+      .then(function(reg) {
+        console.log('[SW] Registered, scope:', reg.scope);
+        reg.addEventListener('updatefound', function() {
+          var nw = reg.installing;
+          nw.addEventListener('statechange', function() {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('[AOG SW] Update available — reload to apply.');
+            }
+          });
+        });
+      })
+      .catch(function(err) {
+        console.warn('[SW] Registration failed:', err);
+      });
+  });
+}
+</script>
+
+<script>
+function adjustTopPadding() {
+  var bar = document.getElementById('action-bar');
+  var header = document.querySelector('.header');
+  var main = document.getElementById('main');
+  if (bar && header) header.style.marginTop = bar.offsetHeight + 'px';
+}
+window.addEventListener('resize', adjustTopPadding);
+window.addEventListener('load', adjustTopPadding);
+setTimeout(adjustTopPadding, 100);
+</script>
+</body>
+</html>
