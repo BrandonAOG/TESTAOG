@@ -101,7 +101,7 @@
     // round-trip to wake up. Acceptable; music is sacred.
     if (IS_IOS) setSession('ambient'); // no-op elsewhere — skip the work on desktop/Android
     if (ctx && ctx.state === 'closed') ctx = null; // rebuilt after zombie teardown
-    if (!ctx && !hadGesture) {  return null; }
+    if (!ctx && !hadGesture && IS_IOS) return null; // iOS only — see hadGesture note
     if (!ctx) {
       var AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return null;
@@ -171,11 +171,13 @@
       }
     }, 300);
   }
-  // DO NOT create a context at load. On some iOS builds, creating an
+  // iOS: DO NOT create a context at load. On some iOS builds, creating an
   // AudioContext before ANY user touch wedges the app's entire audio system
   // for its lifetime — every context (even later gesture-born ones) stays
-  // frozen at 0.00 until the app is backgrounded. Creation is deferred to
-  // the first gesture.
+  // frozen at 0.00 until the app is backgrounded. So on iOS creation waits
+  // for the first tap. Android / desktop have no such bug: there we create
+  // at load, so sound starts on open whenever the browser allows autoplay
+  // (installed PWAs and frequently used sites), and otherwise on first tap.
   var hadGesture = false;
   function ready() { return !muted && ctx && ctx.state === 'running'; }
 
