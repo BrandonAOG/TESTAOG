@@ -494,42 +494,6 @@ Installed, the app opens full-screen and all 21 tools work offline after the fir
 
 ---
 
-## Updating the App
-
-1. Make the changes and upload them to the **TESTAOG** test site first.
-2. In `sw.js`, bump `CACHE_VERSION` and replace the `CHANGELOG` lines (short, one change per line — techs see these):
-   ```js
-   var CACHE_VERSION = 'v2.8.1'; // bump this every time
-
-   var CHANGELOG = [
-     '🔊 SOUNDS — what changed',
-     '✅ QC CHECKLIST — what changed',
-   ];
-   ```
-3. Check it on a phone (accept the update, try offline, try a PDF / capture if a form changed), then copy the **identical** files to the public site. Never give the two sites different `sw.js` files — the test site labels itself `vTEST…` automatically.
-
-Open pages check for updates every 5 minutes and when the app comes back on screen. On the hub, the update box (bottom-right) has **Update Now** and **Remind me later**; on tool pages, a bar across the top has **Update Now**. Tapping it reloads into the new version.
-
----
-
-## Adding a New Tool Module
-
-1. Create a folder at the repo root (e.g. `my-tool/`) with an `index.html` — copy the newest calculator (e.g. `trench-depth/`) as a starting point.
-2. In `index.html` (hub): add `'my-tool': './my-tool/'` to `FORM_URLS`, add a card with `data-form="my-tool"` in the right category, and add the tool to the **Report a Bug / Suggestions** tool lists.
-3. In `offline.html`: add the tool in **two places** — the visible link list and the folder list in its script.
-4. In `sw.js`: add `'./my-tool/'` (and any data files) to `PRECACHE_URLS`, and any new CDN library to `PRECACHE_CDN`.
-5. In `manifest.json`: add a shortcut entry.
-6. In the new page's `<head>`, include the shared files instead of copying their code:
-   ```html
-   <script src="../sounds.js" defer></script>
-   <script src="../update-banner.js"></script>   <!-- offline setup + update bar -->
-   ```
-   Forms with holiday themes also add `<script src="../clean-capture.js"></script>` and `<script src="../seasonal.js"></script>`, plus their own holiday colors.
-   Save the dark / light choice under the shared key `aog-theme` (`'dark'` / `'light'`).
-7. Add a section to this README, then bump `CACHE_VERSION` and add a `CHANGELOG` line.
-
----
-
 ## Offline Behavior
 
 On first load the app saves every tool page, the shared files, the libraries and the fonts (with a progress box on the hub). After that, pages open from the saved copy and refresh quietly in the background when there's signal. Property Lookup's county data files download the first time they're needed and are kept across updates. If any saved files go missing, tool pages show "X of Y offline files are missing" with a **Fix Now** button. The hub shows **Offline Mode** and a banner when signal drops; a page that was never saved shows the offline page, which links to every tool and reloads itself when the connection returns. Live features — Property Lookup searches, address autocomplete and voice entry — need a connection.
