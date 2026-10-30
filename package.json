@@ -1,0 +1,11 @@
+{
+  "name": "aog-field-hub-tests",
+  "private": true,
+  "description": "Automated checks for the AOG Field Hub. Not part of the app — GitHub runs these on every upload.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

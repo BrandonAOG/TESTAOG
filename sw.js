@@ -1,6 +1,6 @@
 // ============================================================
 //  Always On Generators – Field Hub
-//  Service Worker  |  sw.js  |  Version: v2.8.1
+//  Service Worker  |  sw.js  |  Version: v2.8.10
 //
 //  ⚠ WHEN YOU UPDATE ANY TOOL:
 //    1. Bump CACHE_VERSION
@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v2.8.1';
+var CACHE_VERSION = 'v2.8.10';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -76,20 +76,14 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-'🌓 DARK MODE — your dark/light choice now carries across every tool',
-'⚡ LOAD CALC — now labeled NEC 2023 (parallel-wire warning cites 310.10(G))',
-'🐞 REPORT A BUG / SUGGESTIONS — all 21 tools now in the list',
-'🗺️ PROPERTY LOOKUP — intro now shows all 62 live counties',
-'🧹 Behind the scenes — holiday themes & offline setup now shared by all tools (lighter, more consistent)',
-'✅ QC CHECKLIST — "Technician" is now "Project Manager", "Elec. Crew" is now "Install Crew"; Gas Crew field removed',
-'📄 PDF & CAPTURE — holiday themes no longer show up in saved PDFs or images',
-'🔊 SOUNDS — every tool now uses the same tap sounds (no more double sounds on calculators)',
-'🔊 CONCRETE CALC — tap sounds added',
-'🔊 ANDROID & COMPUTER — sound can start as soon as the app opens',
-'🎃 HALLOWEEN — spookier background sounds on the forms (now with wolves)',
-'🎄 CHRISTMAS — crackling fireplace, sleigh bells, music box, church chimes & Santa',
-'❄️ WINTER — new icy-blue snowfall theme from Jan 8 until spring; Valentine\'s now Feb 7–15, St. Patrick\'s Mar 10–24',
-'🐣 EASTER — now follows the real Easter date each year (10 days before to 7 after)',
+  '🛠️ MAINTENANCE — saved image / PDF now comes out the same size every time on phones',
+  '🌙 LOAD CALC — dark mode added (same theme button and setting as the other tools; exports stay light); unused FULL print button removed',
+  '🧱 CONCRETE — 20 kg / 30 kg bag yields corrected (more accurate bag counts)',
+  '📐 ELECTRICAL FORMULAS — voltage drop can use AC impedance (Table 9) by conduit type; small-wire breaker limits applied; 10 A breaker added',
+  '⛏️ TRENCH DEPTH — propane steel pipe note: cathodic protection is required (NFPA 58)',
+  '🧵 CONDUIT FILL — USE-2 and MTW wire sizes corrected (USE-2 now sized as RHH/RHW-2)',
+  '🔥 GAS CALC — CSST extra-fitting tip; altitude derate uses the LP rating on Protector XG 25/30kW',
+  '⚡ LOAD CALC — Kohler natural-gas ratings corrected; result card says when managed loads are excluded (generator feeder)',
 ];
 //
 // ============================================================
