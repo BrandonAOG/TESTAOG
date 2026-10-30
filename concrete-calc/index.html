@@ -437,7 +437,8 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
 
   // ---- Bag yields (cubic feet of concrete per bag) ----
   // Standard published yields for pre-mixed concrete
-  var BAG_YIELD_CUFT = { '80': 0.60, '60': 0.45, '40': 0.30, '20kg': 0.35, '30kg': 0.52 };
+  // yields in ft³ per bag; metric bags scaled from the 80 lb = 0.60 ft³ yield (≈0.0075 ft³/lb)
+  var BAG_YIELD_CUFT = { '80': 0.60, '60': 0.45, '40': 0.30, '20kg': 0.33, '30kg': 0.50 };
   var BAG_LABEL = { '80':'80 lb Bags', '60':'60 lb Bags', '40':'40 lb Bags', '20kg':'20 kg Bags', '30kg':'30 kg Bags' };
 
   var els = {
@@ -608,7 +609,7 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
       // value is nominal inches; convert to cm if metric is active
       els.cDiameter.value = state.unit === 'imperial'
         ? v
-        : (parseFloat(v) * 2.54).toFixed(1);
+        : (parseFloat(v) * 2.54).toFixed(2);
       els.cDiameter.readOnly = true;
       els.cDiameter.classList.add('locked');
     }

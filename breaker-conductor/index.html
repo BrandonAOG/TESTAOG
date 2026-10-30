@@ -230,6 +230,7 @@ select.other{min-height:46px;font-size:.95rem;width:auto;min-width:150px}
 .big .lbl{font-family:var(--font-mono);font-size:.78rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim)}
 .big .wire{font-family:var(--font-display);font-weight:900;font-size:clamp(1.9rem,8vw,2.6rem);color:var(--yellow-bright);line-height:1.1;margin:4px 0 2px;text-shadow:0 0 18px rgba(251,191,36,.35)}
 .big .wire small{font-family:var(--font-body);font-size:1rem;font-weight:600;color:var(--text-dim);text-shadow:none}
+.big .wire.warn,[data-theme="light"] .big .wire.warn{color:var(--tag-warn-text);text-shadow:none}
 .big .wire.bad{color:var(--tag-err-text);text-shadow:none;font-size:clamp(1.4rem,6vw,1.9rem)}
 .meter{height:10px;border-radius:6px;background:var(--bg-input);border:1px solid var(--divider);overflow:hidden;margin:10px 0 6px}
 .meter i{display:block;height:100%;background:linear-gradient(90deg,#10B981,#FBBF24)}
@@ -606,7 +607,7 @@ var egcTable=[
   {ocpd:6000,cu:'800 kcmil',al:'1250 kcmil'}
 ];
 /* 240.6(A) standard ratings */
-var STD=[15,20,25,30,35,40,45,50,60,70,80,90,100,110,125,150,175,200,225,250,300,350,400,450,500,600,700,800,1000,1200,1600,2000,2500,3000,4000,5000,6000];
+var STD=[10,15,20,25,30,35,40,45,50,60,70,80,90,100,110,125,150,175,200,225,250,300,350,400,450,500,600,700,800,1000,1200,1600,2000,2500,3000,4000,5000,6000];
 /* Table 310.15(B)(1) — 30°C basis [60,75,90] */
 var AMB={10:[1.29,1.20,1.15],15:[1.22,1.15,1.12],20:[1.15,1.11,1.08],25:[1.08,1.05,1.04],30:[1,1,1],35:[0.91,0.94,0.96],40:[0.82,0.88,0.91],45:[0.71,0.82,0.87],50:[0.58,0.75,0.82],55:[0.41,0.67,0.76],60:[0,0.58,0.71],65:[0,0.47,0.65],70:[0,0.33,0.58],75:[0,0,0.50],80:[0,0,0.41],85:[0,0,0.29]};
 var AMB_LBL={10:'50°F or less',15:'51–59°F',20:'60–68°F',25:'69–77°F',30:'78–86°F (standard)',35:'87–95°F',40:'96–104°F',45:'105–113°F',50:'114–122°F',55:'123–131°F',60:'132–140°F',65:'141–149°F',70:'150–158°F',75:'159–167°F',80:'168–176°F',85:'177–185°F'};
@@ -638,7 +639,9 @@ function solve(){
     if(B<100||B>400){R.errs.push(['310.12 doesn’t apply','The 83% rule only covers 120/240V whole-home services and feeders rated 100A to 400A. Switch to “General” or change the breaker size.']);return R;}
     if(n>1){R.errs.push(['310.12 — single set only','This tool sizes 310.12 conductors as a single set. Set parallel sets to 1, or switch to “General”.']);return R;}
     var req=Math.ceil(B*0.83);
-    for(var i=0;i<tbl.length;i++){if(tbl[i].a75>=req){R.row=tbl[i];R.usable=tbl[i].a75;R.need=req;R.rule='310.12 · 83% rule';R.how=B+'A × 83% = '+req+'A minimum, from the 75°C column. Only for conductors carrying the entire load of a one- or two-family dwelling. No derating applied.';return R;}}
+    /* 310.12(A): Table 310.12(A) only applies with NO temperature/fill derating. render() switches
+       the tool to General (Table 310.16 at 100%) whenever derating is set, so k is always 1 here. */
+    for(var i=0;i<tbl.length;i++){if(tbl[i].a75>=req){R.row=tbl[i];R.usable=tbl[i].a75;R.need=req;R.dTc=75;R.rule='310.12 \u00b7 83% rule';R.how=B+'A \u00d7 83% = '+req+'A minimum, from the 75\u00b0C column (same as Table 310.12(A)). Only for conductors carrying the entire load of a one- or two-family dwelling, with no temperature or conduit-fill derating.';return R;}}
     R.errs.push(['Too big for one set','Nothing in Table 310.16 is big enough for one set.']);return R;
   }
   if(af<=0){R.errs.push(['Too hot for this wire','The air temperature is at or above this wire’s rating. Pick a higher temperature wire or a cooler route.']);return R;}
@@ -654,11 +657,17 @@ function solve(){
     var total=usable*n;
     var lim=SMALL_MAX[S.mat][row.size];
     if(lim&&B>lim) continue;                         /* 240.4(D) */
-    var direct=usable>=perSet, viaB=!direct&&roundOK&&nextStd(total)>=B&&STD.indexOf(total)===-1;
+    /* 240.4(B) next-size-up is NOT available to 14–10 AWG: 240.4(D) only permits 240.4(E)/(G) exceptions */
+    var direct=usable>=perSet, viaB=!direct&&roundOK&&!lim&&nextStd(total)>=B&&STD.indexOf(total)===-1;
     if(direct||viaB){
-      if(n>1&&j<idxOf(tbl,'1/0 AWG')){R.errs.push(['Parallel violation \u2014 310.10(G)','This needs '+row.size+' per set, which is smaller than 1/0 AWG. Conductors smaller than 1/0 can\u2019t be paralleled. Use fewer sets or a larger breaker, or check whether the load really needs paralleling.']);return R;}
+      if(n>1&&j<idxOf(tbl,'1/0 AWG')){
+        /* 310.10(G): parallel conductors must be 1/0 or larger — bump up to 1/0 and say why (shown orange) */
+        var needed=row.size; j=idxOf(tbl,'1/0 AWG'); row=tbl[j];
+        cap=S.tc===60?row.a60:row.a75; usable=Math.min(Math.floor(amp(row,S.tc)*k),cap); total=usable*n; direct=true; viaB=false;
+        R.minPar=needed;
+      }
       R.row=row;R.usable=usable;R.total=total;R.need=target;R.viaB=viaB;
-      R.rule=G?'445.13 \u00b7 '+S.gpct+'% nameplate':B>800?'240.4(C) \u00b7 exact, over 800A':viaB?'240.4(B) \u00b7 next size up':'Table 310.16 \u00b7 '+S.tc+'\u00b0C col.';
+      R.rule=R.minPar?'310.10(G) \u00b7 1/0 minimum':G?'445.13 \u00b7 '+S.gpct+'% nameplate':B>800?'240.4(C) \u00b7 exact, over 800A':viaB?'240.4(B) \u00b7 next size up':'Table 310.16 \u00b7 '+S.tc+'\u00b0C col.';
       var parts=amp(row,S.tc)+'A ('+S.tc+'°C column)';
       if(af!==1) parts+=' × '+af.toFixed(2)+' temp';
       if(cf!==1) parts+=' × '+Math.round(cf*100)+'% fill';
@@ -676,8 +685,17 @@ function solve(){
 /* ════ RENDER ════ */
 var summary='';
 function render(){
-  var dwBlock=S.gen?'Not for generator feeders':(S.breaker<100||S.breaker>400)?'Only 100\u2013400A breakers':'';
+  /* Whole-home (310.12) only without derating. If heat or conduit fill is set, the tool switches to
+     General (Table 310.16 at 100%) and switches back when the derating is removed. */
+  var derates=S.amb>30||S.ccc!==3;
+  var dwBlock=S.gen?'Not for generator feeders':(S.breaker<100||S.breaker>400)?'Only 100\u2013400A breakers':derates?'Not with heat or conduit fill':'';
   if(dwBlock&&S.app==='dwelling') S.app='general';
+  if(!dwBlock&&S.dwWanted&&S.app!=='dwelling') S.app='dwelling';
+  var autoGeneral=!!(S.dwWanted&&S.app==='general'&&derates&&!S.gen&&S.breaker>=100&&S.breaker<=400);
+  /* 90°C column isn't used for Table 310.12(A) */
+  var t90=document.querySelector('#tcSeg [data-tc="90"]');
+  if(S.app==='dwelling'&&S.tc===90) S.tc=75;
+  if(t90){t90.disabled=S.app==='dwelling'; t90.querySelector('small').textContent=S.app==='dwelling'?'Not used for 310.12':'THHN/THWN-2, XHHW-2';}
   var dw=document.querySelector('#appSeg [data-app="dwelling"]'); dw.disabled=!!dwBlock;
   dw.querySelector('small').textContent=dwBlock?dwBlock+' \u00b7 310.12':'1 & 2 family, 100\u2013400A \u00b7 310.12';
   var R=solve(), matN=S.mat==='copper'?'Copper':'Aluminum', B=S.breaker, n=S.sets;
@@ -699,19 +717,21 @@ function render(){
     var pct=Math.min(100,Math.round((R.G?R.target:B)/(R.total||R.usable)*100));
     $('ansTag').textContent=R.rule;
     h+='<div class="big"><div class="lbl">Wire'+(n>1?' — '+n+' parallel sets':'')+'</div>'+
-       '<div class="wire">'+(n>1?n+' × ':'')+R.row.size+' <small>'+matN+'</small></div>'+
+       '<div class="wire'+(R.minPar?' warn':'')+'">'+(n>1?n+' × ':'')+R.row.size+' <small>'+matN+'</small></div>'+
        (S.app==='dwelling'?'<div class="cap">Needs <b>'+R.need+'A</b> (83% of '+B+'A) · this wire is <b>'+R.usable+'A</b></div>'
         :'<div class="meter"><i style="width:'+pct+'%"></i></div><div class="cap">'+(R.G?'Needs <b>'+R.target+'A</b> ('+S.gpct+'% of '+R.maxI+'A nameplate)':'Breaker <b>'+B+'A</b>')+' · wire carries <b>'+R.total+'A</b>'+(n>1?' ('+R.usable+'A per set)':'')+(R.viaB?' · rounds up to '+nextStd(R.total)+'A':'')+'</div>')+
-       '<span class="pill'+(R.viaB?' warn':S.app==='dwelling'?' info':'')+'">'+R.rule+'</span></div>';
+       '<span class="pill'+(R.viaB||R.minPar?' warn':S.app==='dwelling'?' info':'')+'">'+R.rule+'</span></div>';
     h+='<div class="facts">'+
        '<div><span>Ground (EGC)</span><b>'+e+' '+(S.mat==='copper'?'Cu':'Al')+'</b></div>'+
        '<div><span>EGC other metal</span><b>'+(S.mat==='copper'?eAl+' Al':eCu+' Cu')+'</b></div>'+
        '<div><span>Breaker</span><b>'+B+'A</b></div>'+
-       '<div><span>Temp column</span><b>'+(S.app==='dwelling'?'75':S.tc)+'°C</b></div>'+
-       '<div><span>Derate</span><b>'+(S.app==='dwelling'?'none':'×'+R.k.toFixed(2))+'</b></div>'+
+       '<div><span>Temp column</span><b>'+(S.app==='dwelling'?R.dTc:S.tc)+'°C</b></div>'+
+       '<div><span>Derate</span><b>'+(R.k===1?'none':'×'+R.k.toFixed(2))+'</b></div>'+
        '<div><span>Sets</span><b>'+n+'</b></div></div>';
     var notes=[];
+    if(autoGeneral) notes.push(['warn','Switched to General \u2014 Table 310.16 at 100%','Whole-home (310.12) sizing can only be used with no temperature or conduit-fill derating. Because derating is set, this is sized from Table 310.16 at 100% of the breaker. Set the air temperature back to standard and 1\u20133 wires to return to Whole-home.']);
     notes.push(['','How it was sized',R.how]);
+    if(R.minPar) notes.push(['warn','Bumped up to 1/0 \u2014 310.10(G)','The load only needs '+R.minPar+' per set, but conductors smaller than 1/0 AWG can\u2019t be run in parallel. Each of the '+n+' sets is 1/0, so the wire is larger than the load requires. Fewer sets would allow a smaller wire.']);
     if(R.G) notes.push(['','Generator conductors \u2014 445.13 / 240.21(G)','Sized from the generator\u2019s rated max load current ('+S.gen.kw+'kW '+S.gen.g+': LP '+S.gen.lp+'A / NG '+S.gen.ng+'A at 240V). '+(S.gpct===100?'445.13(A) Exception allows 100% where the generator\u2019s design and operation prevent overloading (built-in main breaker).':'115% per 445.13(A).')+' Conductors meeting 445.13 may be protected by the generator\u2019s own overload protection (240.21(G)). The ground is still sized to the '+B+'A generator breaker (250.122).']);
     R.info.forEach(function(x){notes.push(['warn',x[0],x[1]]);});
     if(B>800) notes.push(['warn','Over 800A \u2014 240.4(C)','The derated ampacity must equal or exceed the breaker rating. Rounding up to the next standard size is NOT allowed over 800A.']);
@@ -721,7 +741,7 @@ function render(){
       notes.push(['warn','75\u00b0C column \u2014 multiple sets / raceways','With more than one set in more than one raceway, the ampacity must come from the 75\u00b0C column. The 90\u00b0C column may only be used as a starting point for temperature correction and fill adjustment. The final usable ampacity is limited to the 75\u00b0C value (110.14(C)).']);}
     if(S.ccc!==3){notes.push(['','Conduit fill \u2014 310.15(C)(1)','Derated '+Math.round(R.cf*100)+'% for '+CCC[S.ccc][1]+' current-carrying wires in one raceway. Temperature and fill factors are multiplied together: combined \u00d7'+R.k.toFixed(2)+'.']);
       notes.push(['','Neutral conductors \u2014 310.15(E)','A neutral that carries only the unbalanced load from other conductors in the same circuit is not counted. A neutral supplying mostly non-linear loads (electric discharge lighting, harmonics-producing equipment) is counted.']);}
-    if(S.amb!==30&&S.app!=='dwelling') notes.push(['','Temperature — 310.15(B)(1)','×'+R.af.toFixed(2)+' for '+AMB_LBL[S.amb]+' ('+AMB_C[S.amb]+'). Add 60°F if the conduit is in direct sun on a rooftop within 7/8" of the roof (310.15(B)(2)).']);
+    if(S.amb!==30) notes.push(['','Temperature — 310.15(B)(1)','×'+R.af.toFixed(2)+' for '+AMB_LBL[S.amb]+' ('+AMB_C[S.amb]+'). Add 60°F if the conduit or cable is in direct sun on a rooftop less than 3/4" (19 mm) above the roof (310.15(B)(2)); XHHW-2 is exempt.']);
     if(R.viaB) notes.push(['warn','Round-up used — 240.4(B)','Not allowed on multi-outlet branch circuits feeding receptacles for cord-and-plug loads. Set \u201cRound up\u201d back to Off under Installation conditions to size the wire at or above the breaker.']);
     notes.push(['','Ground — Table 250.122','Minimum '+eCu+' copper or '+eAl+' aluminum for a '+B+'A breaker. If you upsize the hot wires, upsize the ground by the same ratio (250.122(B)).']);
     h+='<div class="notes">'+notes.map(function(x){return '<div class="note '+x[0]+'"><strong>'+x[1]+'</strong>'+x[2]+'</div>';}).join('')+'</div>';
@@ -729,7 +749,7 @@ function render(){
       (S.gen?S.gen.kw+'kW '+S.gen.g+' — ':'')+B+'A breaker'+(R.G?' · sized to '+R.target+'A ('+S.gpct+'% of '+R.maxI+'A nameplate, 445.13)':''),
       'Wire: '+(n>1?n+' sets of ':'')+R.row.size+' '+matN+' ('+R.rule+')',
       'EGC: '+e+' '+(S.mat==='copper'?'Cu':'Al'),
-      'Conditions: '+(S.app==='dwelling'?'310.12 dwelling service/feeder':S.tc+'°C wire, '+AMB_LBL[S.amb].replace(' (standard)','')+', '+CCC[S.ccc][1]+' CCC, derate ×'+R.k.toFixed(2))
+      'Conditions: '+(S.app==='dwelling'?'310.12 dwelling service/feeder, ':'')+(S.app==='dwelling'?R.dTc:S.tc)+'°C wire, '+AMB_LBL[S.amb].replace(' (standard)','')+', '+CCC[S.ccc][1]+' CCC, derate ×'+R.k.toFixed(2)
     ].join('\n');
   }
   h+='<div class="acts"><button class="primary" onclick="copyNotes()"'+(summary?'':' disabled style="opacity:.5"')+'>Copy for job notes</button><button onclick="resetAll()">Start over</button></div>';
@@ -765,7 +785,7 @@ function on(id,attr,fn){$(id).addEventListener('click',function(e){var b=e.targe
 on('genChips','i',function(v){S.gen=GENS[+v];S.breaker=S.gen.a;});
 on('ampChips','a',function(v){S.gen=null;S.breaker=+v;});
 on('matSeg','mat',function(v){S.mat=v;});
-on('appSeg','app',function(v){S.app=v;});
+on('appSeg','app',function(v){S.app=v;S.dwWanted=(v==='dwelling');});
 on('tcSeg','tc',function(v){S.tc=+v;});
 on('cccSeg','ccc',function(v){S.ccc=+v;});
 on('rbSeg','rb',function(v){S.rb=v==='1';});

@@ -8,8 +8,6 @@ A mobile-first Progressive Web App (PWA) built for Always On Generators field te
 
 **[brandonaog.github.io/AOG](https://brandonaog.github.io/AOG)** — public site used by the team
 
-**brandonaog.github.io/TESTAOG** — test site. Upload changes here first, check them on a phone, then copy the identical files to the public site. The two sites share the same `sw.js` but keep separate offline copies; the test site shows its version as `vTEST…`.
-
 ---
 
 ## Features
@@ -18,7 +16,7 @@ A mobile-first Progressive Web App (PWA) built for Always On Generators field te
 - **Works offline** after the first load — and tells you (with a one-tap **Fix Now**) if any offline files are missing
 - **Installable** on iPhone, iPad, Android and computers, with long-press shortcuts to every tool (Android / desktop)
 - **Update prompt with a "what's new" list** — nothing changes until the tech taps **Update Now**
-- **One dark / light setting** shared by every tool (Load Calc has a single fixed look)
+- **One dark / light setting** shared by every tool
 - **Forms export a resumable PDF and an image** — and reload from that PDF later; holiday themes never appear in exports
 - **Auto-saved drafts** on every form — close the app mid-job and pick up where you left off
 - **Holiday themes** on the 8 forms (falling snow, bats, fireworks…) all year round and **50 animated hub backgrounds**
@@ -132,13 +130,13 @@ A residential load calculation using the **NEC 2023 Art. 220.82 Optional Method*
 **Features**
 - **Setup** — generator brand (Generac or Kohler), fuel (LP / NG), conductor (Cu / Al), feeder table (310.12 at 83% or 310.16 at 75°C), 1–10 feeder sets.
 - **Step 1** general lighting at 3 VA/sq ft plus small-appliance and laundry circuits · **Step 2** HVAC per air handler (blower from tonnage; heat at 65%, or 40% with four or more units per 220.82(C)) · **Steps 3–5** fixed appliances, dryers and cooking at nameplate, each with **GAS** (excluded) and **Managed** checkboxes.
-- **Managed loads** are removed from generator demand per 702.4(B)(2)(b) and listed on the report.
+- **Managed loads** are removed from generator demand per 702.4(B)(2)(b) and listed on the report. They are also left out of the service / feeder / neutral results, which then size the **generator feeder** (the card and report say so); the utility service must still carry all loads.
 - **Pool Panel** tab — sizes the pool sub-panel feeder at 125% (phase A/B amps, wire, panel rating, neutral, EGC).
-- **Results** — service demand (VA and amps at 240 V), minimum service, minimum generator (Generac 10–150 kW or Kohler 10RESV–KG150R) and feeder wire.
+- **Results** — service demand (VA and amps at 240 V), minimum service / generator feeder, minimum generator (Generac 10–150 kW or Kohler 10RESV–KG150R, NG and LP ratings from the manufacturers' spec sheets) and feeder wire.
 - **Neutral** per 220.61 with Tables 220.54 / 220.55; **EGC** per 250.122; **GEC** per 250.66 with electrode checkboxes and a 250.64(F) arrangement picker.
 - **Jobs** — collapsible customer banner, auto-save on the device, ↺ NEW JOB.
 
-**Exports:** ⎙ PDF (the job is embedded, so ⤒ LOAD reopens it) · ⤓ SAVE IMG · ⎙ FULL print · share sheet where supported.
+**Exports:** ⎙ PDF (the job is embedded, so ⤒ LOAD reopens it) · ⤓ SAVE IMG · share sheet where supported.
 
 ### Installs
 
@@ -242,7 +240,7 @@ Everyday electrical math in seven tabs (NEC 2023). Results update as you type, t
 
 **Features**
 - **⚡ kW ⇄ Amps** — 1Φ or 3Φ, voltage (1Φ 120/208/240/277; 3Φ 208/240/480/600) and power factor; enter kW, kVA or amps to solve the other two.
-- **📉 Voltage Drop** — Cu or Al, load amps, one-way length, wire size and 1–6 parallel sets against branch 3%, feeder 3% or whole-run 5% limits; shows volts dropped, % drop and volts at the load, recommends the smallest wire, and lists "max ft @ 3%" by size.
+- **📉 Voltage Drop** — Cu or Al, load amps, one-way length, wire size and 1–6 parallel sets against branch 3%, feeder 3% or whole-run 5% limits; shows volts dropped, % drop and volts at the load, recommends the smallest wire (ampacity per Table 310.16, held to the 240.4(D) small-wire limits), and lists "max ft @ 3%" by size. Resistance can be DC (Ch. 9 Table 8) or AC effective impedance (Ch. 9 Table 9) for PVC, aluminum or steel conduit at any power factor.
 - **🔋 Gen Load** — loads in A, W, kW or HP placed on each leg (1Φ 120/240, 3Φ 120/208 or 277/480); shows amps and % per leg, imbalance, the kW needed to keep the heaviest leg ≤ 80%, and an OK / TIGHT / OVERLOADED verdict (motor starting surge not included).
 - **⚙️ Motor FLA** — Table 430.248 / 430.250 FLA by HP and voltage, minimum wire amps at 125%, running kVA, and the largest breaker/fuse per Table 430.52(C)(1).
 - **🔌 Breaker Size** — load amps with optional ×125% continuous; minimum rating and the standard sizes above and below (240.6(A)).
@@ -258,8 +256,8 @@ Finds the minimum conductor per set and the equipment grounding conductor for a 
 **Features**
 - **Wire** — copper or aluminum / copper-clad aluminum.
 - **Breaker** — common-size chips (15–1200 A) or any 240.6 size from 15 to 6000 A; generator quick-pick (Guardian 10–28 kW, Protector XG 25–80 kW) sized by nameplate amps (445.13, 100% or 115%) or by the generator breaker.
-- **What it's feeding** — General (310.16) or Whole-home service (310.12 at 83%, 100–400 A).
-- **Conditions** — wire temperature 60 / 75 / 90 °C (90 °C used only for derating, result capped at 75 °C per 110.14(C)); ambient 50–185 °F (310.15(B)(1)); current-carrying conductor count chips from 1–3 up to 41+ (310.15(C)(1)); 1–10 parallel sets; optional 240.4(B) next-size-up.
+- **What it's feeding** — General (310.16) or Whole-home service (310.12 at 83%, 100–400 A). Whole-home is only available with no temperature or conduit-fill derating (and uses the 75 °C column); if heat or fill is set, the tool switches to General (Table 310.16 at 100%) with an orange note, and switches back when the derating is removed.
+- **Conditions** — wire temperature 60 / 75 / 90 °C (90 °C used only for derating, result capped at 75 °C per 110.14(C)); ambient 50–185 °F (310.15(B)(1)); current-carrying conductor count chips from 1–3 up to 41+ (310.15(C)(1)); 1–10 parallel sets (if the load would need less than 1/0 per set, it uses 1/0 — shown in orange — per 310.10(G)); optional 240.4(B) next-size-up (not for 14–10 AWG).
 - **Answer** — wire per set, usable ampacity, EGC in Cu and Al, temperature column used, combined derate factor, and notes (1/0 parallel minimum, over-800 A rule, 250.122(B)/(F)).
 - **📋 CODE** reference — 310.16 with an amps lookup, derating, 310.12, 250.122, breaker sizes (240.6(A), 240.4(D)) and rules.
 
@@ -479,7 +477,7 @@ AOG/
 - **Libraries from cdnjs / jsDelivr** (saved for offline use) — html2canvas, jsPDF, pdf-lib, PDF.js, Leaflet, SheetJS
 - **Service worker** — saved-copy-first with background refresh, a permanent data store for county files, and a user-approved update flow
 - **Web App Manifest** — home-screen install, full-screen display, per-tool shortcuts
-- **GitHub Pages** — static hosting from the `main` branch root (public `AOG` and test `TESTAOG`)
+- **GitHub Pages** — static hosting from the `main` branch root
 
 ---
 

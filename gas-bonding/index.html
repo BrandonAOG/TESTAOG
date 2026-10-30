@@ -1052,7 +1052,6 @@ details.more-opts[open] summary::after { content: '−'; }
 // ============================================================
 // NEC 2023 Table 250.122 (verified)
 const EGC = [[15,'14','12'],[20,'12','10'],[60,'10','8'],[100,'8','6'],[200,'6','4'],[300,'4','2'],[400,'3','1'],[500,'2','1/0'],[600,'1','2/0'],[800,'1/0','3/0'],[1000,'2/0','4/0'],[1200,'3/0','250'],[1600,'4/0','350'],[2000,'250','400'],[2500,'350','600'],[3000,'400','600'],[4000,'500','750'],[5000,'700','1250'],[6000,'800','1250']];
-const CU_ORDER = ['14','12','10','8','6','4','3','2','1','1/0','2/0','3/0','4/0','250','300','350','400','500','600','700','750','800'];
 const awg = s => /^\d+$/.test(s) && +s >= 250 ? s + ' kcmil' : s + ' AWG';
 const $ = id => document.getElementById(id);
 
@@ -1158,7 +1157,7 @@ function calc() {
   $('results').style.display = '';
   const csst = P.has('csst'), ar = P.has('ar'), steel = P.has('steel') || P.has('copper'), pe = P.has('pe');
   const peOnly = pe && !csst && !ar && !steel;
-  const L = parseFloat($('jLen').value), ocpd = NaN, land = '';  // auto: any appliance likely to energize the pipe has an EGC
+  const L = parseFloat($('jLen').value);  // any appliance likely to energize the pipe has an EGC
   const ug = $('ugMetal').checked, gen = apps.some(a => a.k === 'gen'), egcApps = apps.filter(a => a.egc), noEgcApps = apps.filter(a => !a.egc), lps = TOG.lps === 'yes', fuel = TOG.fuel;
   $('lenWrap').style.display = csst ? '' : 'none';
   const needAtticRun = apps.some(a => a.loc === 'attic' || a.feed === 'dropRigid' || a.feed === 'dropCsst' || a.feed === 'outAttic');
@@ -1167,11 +1166,6 @@ function calc() {
   const mainRun = $('mainRun').value;
   const csstFeeds = apps.filter(a => isCsstFeed(a.feed)).concat(needAtticRun && mainRun !== 'rigid' ? [{ n: mainRun === 'csst' ? 'Meter → attic run' : 'Attic run' }] : []);
 
-  // 250.122 size for the circuit likely to energize the piping
-  let egcRow = null;
-  if (ocpd > 0) egcRow = EGC.find(r => r[0] >= ocpd) || EGC[EGC.length - 1];
-  const egcCu = egcRow ? egcRow[1] : null;
-  const bigger = (a, b) => CU_ORDER.indexOf(a) >= CU_ORDER.indexOf(b) ? a : b;
 
   const warns = [], steps = [];
   const rec = $('rec'); rec.classList.remove('pass', 'warn', 'fail');
@@ -1183,18 +1177,14 @@ function calc() {
     $('recD').innerHTML = 'PE is plastic, so it can\'t carry current and isn\'t bonded. Bonding is decided by the <b>metal above ground</b>: the anodeless riser and the piping from it to the appliances. Check what\'s above ground too (steel, copper, CSST).';
     rec.classList.add('pass'); wire = '—'; maxLen = '—'; clamp = 'n/a';
   } else if (csst) {
-    const w = egcCu ? bigger(egcCu, '6') : '6';
-    wire = awg(w) + ' Cu'; maxLen = '75 ft'; clamp = 'UL 467';
+    wire = '6 AWG Cu'; maxLen = '75 ft'; clamp = 'UL 467';
     $('recL').textContent = '◆ RESULT · NFPA 54 7.12.2';
     $('recV').textContent = 'SEPARATE BONDING JUMPER REQUIRED';
     $('recD').innerHTML = `The system has standard (yellow) CSST, so the whole gas piping system gets a dedicated bond to the <b>electrical service grounding electrode system</b>${lps ? ' (or the lightning protection grounding electrode system)' : ''}.` +
-      (ar ? ' The arc-resistant CSST in the system doesn\'t remove this. Any standard CSST puts the whole system under 7.12.2 (7.12.3.4).' : '') +
-      (egcCu && w !== '6' ? ` Wire upsized to <b>${awg(w)}</b> because the ${ocpd} A circuit needs it per Table 250.122 (250.104(B)).` : '');
+      (ar ? ' The arc-resistant CSST in the system doesn\'t remove this. Any standard CSST puts the whole system under 7.12.2 (7.12.3.4).' : '');
     rec.classList.add('warn');
     if (L > 75) warns.push(['err', `Jumper is ${L} ft, over the 75 ft limit (7.12.2.3). Drive a grounding electrode closer to the gas piping, bond it back to the service grounding electrode system, and connect the jumper to it.`]);
     else if (L > 0) warns.push(['ok', `${L} ft jumper is within the 75 ft limit. Keep it as short as practical.`]);
-    if (land === 'gen') warns.push(['err', 'The generator frame or ground lug isn\'t the electrical service grounding electrode system. For CSST, land the jumper at the service (enclosure, neutral at the service, GEC or grounding electrode) (7.12.2).']);
-    if (land === 'lps' && !lps) warns.push(['err', 'You picked a lightning protection electrode, but there\'s no lightning protection system on this building.']);
   } else {
     $('recL').textContent = '◆ RESULT · NFPA 54 ' + (ar && !steel ? '7.12.3.3' : ar ? '7.12.1.2 / 7.12.3.3' : '7.12.1.2');
     $('recV').textContent = apps.length && !egcApps.length ? 'NO APPLIANCE EGC ON THIS PIPING' : 'BONDED THROUGH THE APPLIANCE GROUND';
@@ -1203,11 +1193,8 @@ function calc() {
     rec.classList.add(apps.length && !egcApps.length ? 'warn' : 'pass');
     if (egcApps.length && noEgcApps.length) warns.push(['ok', `<b>${noEgcApps.map(a => a.n).join(', ')}</b>: no power, so nothing there is <b>likely to energize</b> the pipe (7.12.1.1 / 250.104(B)). No bond is needed for ${noEgcApps.length > 1 ? 'them' : 'it'}.${noEgcApps.some(a => a.feed !== 'tankPe') ? ' Pipe shared with powered appliances is already bonded through their EGC.' : ''}`]);
     if (apps.length && !egcApps.length) warns.push(['ok', 'None of these appliances has power, so no EGC bonds this piping. With nothing electrical on it, the piping usually isn\'t <b>likely to become energized</b> (7.12.1.1 / 250.104(B)), so no bond is required. Bond it if the AHJ asks.']);
-    wire = egcCu ? awg(egcCu) + ' Cu' : 'Appliance EGC'; maxLen = 'No limit'; clamp = egcCu ? 'UL 467' : 'n/a';
-    if (land === 'lps' && !lps) warns.push(['err', 'You picked a lightning protection electrode, but there\'s no lightning protection system on this building.']);
+    wire = 'Appliance EGC'; maxLen = 'No limit'; clamp = 'n/a';
   }
-  if (land === 'lps' && lps) warns.push(['ok', 'Lightning protection grounding electrode is OK if it makes the jumper shorter, but <b>never a down conductor</b> (A.7.12.2).']);
-  if (land === 'gec') warns.push(['ok', 'Grounding electrode conductor only if it\'s big enough (250.104(B)(4)). Use an irreversible or listed connection that doesn\'t cut the GEC.']);
   if (ug) warns.push(['err', 'Underground metal pipe: install a <b>dielectric fitting at the building penetration</b>, above ground. Dielectric fittings are never installed underground (7.12.4.2).']);
   if (lps) warns.push(['ok', 'Lightning protection system present: bond the gas piping per <b>NFPA 780</b> (7.12.5).']);
   if (csstFeeds.length && !csst && !ar) warns.push(['err', `CSST is picked for: <b>${csstFeeds.map(a => a.n).join(', ')}</b>. Check <b>Standard CSST</b> or <b>Arc-resistant CSST</b> above. The type decides whether the 6 AWG bond is required.`]);
@@ -1257,7 +1244,7 @@ function calc() {
   S('AHJ', 'Florida: natural gas is enforced under the Florida Building Code – Fuel Gas, which has its own CSST bonding section. Follow the CSST manufacturer\'s guide too, and verify with the AHJ.');
   $('steps').innerHTML = steps.map(s => `<div class="rule"><div class="rule-ref">${s[0]}</div><div class="rule-txt">${s[1]}</div></div>`).join('');
 
-  draw({ csst, ar, steel, pe, lps, land, gen, L, wire, lp: fuel === 'lp', apps, mainRun, needAtticRun });
+  draw({ csst, ar, steel, pe, lps, gen, L, wire, lp: fuel === 'lp', apps, mainRun, needAtticRun });
   summary = [`GAS PIPE BONDING${apps.length ? ' — appliances: ' + apps.map(a => `${a.n} (${a.loc}${FL(a.feed) ? ', ' + FL(a.feed).toLowerCase() : ''}${a.egc ? ', EGC' : ''})`).join('; ') + '\n' : ' — '}${[...P].map(p => ({ pe: 'PE (poly) underground', steel: 'steel pipe', copper: 'copper tubing', csst: 'standard CSST', ar: 'arc-resistant CSST' })[p]).join(', ')}${fuel ? ' · ' + (fuel === 'ng' ? 'natural gas' : 'propane') : ''}`,
     `${$('recV').textContent} (${$('recL').textContent.replace('◆ RESULT · ', '')})`,
     `Bond wire: ${wire} · Max jumper: ${maxLen}${L > 0 ? ' · Actual: ' + L + ' ft' : ''} · Clamp: ${clamp}`,

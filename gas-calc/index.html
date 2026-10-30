@@ -513,7 +513,7 @@ body.gr-open{overflow:hidden}
   </section>
 
   <p class="fine">
-    Galvanized (Sch 40) and PE (SDR 11, ½" SDR 9) are calculated with the NFPA 54 / IFGC 402.4 sizing equations at your exact length. These are the same equations the code tables come from, and they match Tables 402.4(2), (5) and (21). Low-pressure runs use a 0.5" WC drop unless you change it. Elevated runs use the drop shown in the dropdown. NG: SG 0.60, 1,000 BTU/ft³. LP: SG 1.52, 2,516 BTU/ft³. CSST / TracPipe use approximate manufacturer tables, so confirm with the EHD chart for the product you're installing. Ordinary fittings are covered by the code method; add equivalent length for unusually fitting-heavy runs. Generator fuel use is from Generac spec sheets. Tank runtime assumes 80% fill. Verify with a licensed gas fitter and the AHJ.
+    Galvanized (Sch 40) and PE (SDR 11, ½" SDR 9) are calculated with the NFPA 54 / IFGC 402.4 sizing equations at your exact length. These are the same equations the code tables come from, and every result is held to the published NFPA 54 (2024) Tables 6.2.1 / 6.3.1 (IFGC Table 402.4). Low-pressure runs use a 0.5" WC drop unless you change it. Elevated runs use the drop shown in the dropdown. NG: SG 0.60, 1,000 BTU/ft³. LP: SG 1.52, 2,516 BTU/ft³. CSST / TracPipe use approximate manufacturer tables, so confirm with the EHD chart for the product you're installing. Ordinary fittings are covered by the code method; add equivalent length for unusually fitting-heavy runs. Generator fuel use is from Generac spec sheets. Tank runtime assumes 80% fill. Verify with a licensed gas fitter and the AHJ.
   </p>
 </main>
 
@@ -747,14 +747,14 @@ const GM = [
    ng_cfh_f:269, ng_cfh_h:154, ng_cfh_75:209, ng_cfh_25:104,
    lp_gph_f:3.0, lp_gph_h:1.6, lp_gph_75:2.3, lp_gph_25:0.9,
    ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'3.5–14" WC', req_lp:'7–14" WC',
-   snd:"51 / 59 dB(A) exercise / op no-load", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:0, cb:125, weight:"—",
+   snd:"51 / 59 dB(A) exercise / op no-load", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:0, der_lp_pct:2.6, der_lp_above:2000, cb:125, weight:"—",
    desc:"Liquid-cooled · 2.5L I-4 NA · 1,800 RPM · 1-Ph or 3-Ph · Power Zone 410 · NFPA 110 · Metro Gray"},
 
   {cooled:"liq", kw_ng:30,  kw_lp:30,  label:"LP 30kW  /  NG 30kW  ·  XG03025",  model:"30kW Protector XG",  num:"XG03025", grp:"Protector XG (2.5L I-4)",
    ng_cfh_f:320, ng_cfh_h:176, ng_cfh_75:244, ng_cfh_25:114,
    lp_gph_f:3.7, lp_gph_h:1.8, lp_gph_75:2.7, lp_gph_25:1.0,
    ng_btu_cf:1036, lp_btu_gal:91452, req_ng:'3.5–14" WC', req_lp:'7–14" WC',
-   snd:"51 / 59 dB(A) exercise / op no-load", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:0, cb:150, weight:"—",
+   snd:"51 / 59 dB(A) exercise / op no-load", warr:"5 Year / 2,000 Hr", der_pct:3.0, der_above:0, der_lp_pct:2.6, der_lp_above:2000, cb:150, weight:"—",
    desc:"Liquid-cooled · 2.5L I-4 NA · 1,800 RPM · 1-Ph or 3-Ph · Power Zone 410 · NFPA 110 · Metro Gray"},
 
   // ── PROTECTOR XG (4.5L I-4) — verified against Generac spec sheet A0005286945 Rev. F 08/03/2026
@@ -818,34 +818,9 @@ const GM = [
 const PIPE_LENGTHS = [10, 20, 30, 50, 100, 150, 200, 300, 500];
 
 const PIPE_MATERIALS = {
-  steel: {
-    label: 'Black Steel / Rigid / Galvanized (Sch 40)',
-    note:  'NFPA 54 Table 402.4(2)',
-    sizes: ['1/2"','3/4"','1"','1-1/4"','1-1/2"','2"','2-1/2"','3"'],
-    data: {
-      '1/2"':   [275000,  189000, 152000,  116000,  79000,  63000,  53000,  43000,  33000],
-      '3/4"':   [567000,  390000, 315000,  239000, 164000, 131000, 110000,  89000,  68000],
-      '1"':    [1071000,  737000, 595000,  451000, 309000, 247000, 207000, 167000, 128000],
-      '1-1/4"':[2205000, 1518000,1224000,  929000, 637000, 510000, 427000, 344000, 263000],
-      '1-1/2"':[3402000, 2341000,1888000, 1433000, 982000, 786000, 658000, 531000, 406000],
-      '2"':    [6804000, 4683000,3776000,  2866000,1964000,1573000,1316000,1061000, 812000],
-      '2-1/2"':[11340000,7803000,6293000,  4776000,3273000,2621000,2194000,1768000,1353000],
-      '3"':   [22680000,15606000,12587000, 9551000,6546000,5241000,4388000,3537000,2706000],
-    }
-  },
-  pe: {
-    label: 'PE Underground (IPS SDR-11)',
-    note:  'NFPA 54 Table 402.4(19) approx · Underground only',
-    sizes: ['1/2" IPS','3/4" IPS','1" IPS','1-1/4" IPS','1-1/2" IPS','2" IPS'],
-    data: {
-      '1/2" IPS':  [344000,  236000, 190000,  144000,  99000,  79000,  66000,  53000,  41000],
-      '3/4" IPS':  [630000,  433000, 350000,  265000, 182000, 146000, 122000,  99000,  75000],
-      '1" IPS':   [1156000,  795000, 642000,  487000, 333000, 267000, 223000, 180000, 138000],
-      '1-1/4" IPS':[2095000,1442000,1163000,  883000, 605000, 485000, 406000, 327000, 250000],
-      '1-1/2" IPS':[3096000,2130000,1719000, 1304000, 894000, 715000, 599000, 483000, 370000],
-      '2" IPS':   [5783000, 3981000,3210000,  2436000,1669000,1337000,1119000, 902000, 690000],
-    }
-  },
+  // Galvanized and PE are sized with the NFPA 54 equations (PIPE_ID below), held to the NFPA 54 tables (GR_TABLES)
+  steel: { label: 'Black Steel / Rigid / Galvanized (Sch 40)' },
+  pe:    { label: 'PE Underground (IPS SDR-11)' },
   csst: {
     label: 'CSST — Gastite / Wardflex',
     note:  'Manufacturer tables (approximate) · Verify w/ install guide',
@@ -1290,7 +1265,7 @@ function update(){
     ];
     warns.push(`Each regulator must be rated for its BTU/hr <b>at the inlet pressure it actually sees</b> (see Regulators above). Check the capacity chart at that inlet, not the max.`);
     warns.push(`Keep the second-stage PSI regulator and final regulator outdoors. A regulator inside the attic must be vented outdoors or have a listed vent limiter, and must be accessible (NFPA 54 / IFGC 410).`);
-    warns.push(`Piping inside the building is limited to 5 PSI (IFGC 402.6) — never run the 10 PSI section through the attic.`);
+    warns.push(`Piping inside the building is limited to 5 PSI (NFPA 54 5.5.1 / IFGC 402.6) — never run the 10 PSI section through the attic.`);
     if(r2.mat==='csst'||r2.mat==='tracpipe') warns.push(`CSST in the attic: bond per the manufacturer (typically 6 AWG Cu to the grounding electrode system), support it, and use striker plates through framing. Use the manufacturer's ${p2.p1} PSI chart.`);
     if(r1.mat==='pe'&&r2.mat==='pe') warns.push('Run ② goes through the building — PE is not allowed there. Use CSST or galvanized.');
   } else {
@@ -1314,7 +1289,7 @@ function update(){
   if(S.shared && S.extra===0) warns.push('House appliances selected but none added yet (Step 5).');
   if(m.grp.includes('Legacy')) warns.push('Legacy model — confirm fuel numbers on the spec sheet.');
   const used = S.svc==='one'?[runs.a]:S.svc==='three'?[runs.t1,runs.t2,runs.t3]:[runs.e1,runs.e2];
-  if(used.some(r=>r.mat==='csst'||r.mat==='tracpipe')) warns.push('CSST / TracPipe sizes are approximate — confirm with the manufacturer\'s EHD chart for the exact product.');
+  if(used.some(r=>r.mat==='csst'||r.mat==='tracpipe')) warns.push('CSST / TracPipe sizes are approximate — confirm with the manufacturer\'s EHD chart for the exact product. CSST charts already include 4 bends + 2 end fittings; add 1.3 ft to the length for each extra bend or fitting (NFPA 54 Table 6.2.1(o) Note 1).');
   if(S.drop===3 && used.some(r=>{const p=f.low.find(x=>x.v===r.press);return p&&p.wc<8;})) warns.push('3" WC drop needs at least 8" WC supply — use 0.5" or raise the pressure.');
   if(S.svc==='three'? (runs.t1.mat==='pe'||runs.t3.mat==='pe') : used.some(r=>r.mat==='pe')) warns.push('PE is underground only — transition to galvanized/CSST before it comes above grade.');
   if(S.fuel==='lp' && m.kw_lp!==m.kw_ng) {} // LP is the nameplate rating — nothing to flag
@@ -1334,8 +1309,10 @@ function update(){
     meterLine=`Meter: ${S.meter} CFH · total load ${fmt(tot)} CFH (${Math.round(pct)}%)${pct>100&&next?` — upsize to ${next} CFH`:''}`;
   }
   let derate='';
-  if(S.elev>m.der_above){
-    const k=Math.max(1-((S.elev-m.der_above)/1000)*(m.der_pct/100),0.55);
+  const lpDer=S.fuel==='lp'&&m.der_lp_pct!==undefined;            // some sheets list a separate LP derate
+  const derPct=lpDer?m.der_lp_pct:m.der_pct, derAbove=lpDer?m.der_lp_above:m.der_above;
+  if(S.elev>derAbove){
+    const k=Math.max(1-((S.elev-derAbove)/1000)*(derPct/100),0.55);
     derate=`${(f.kw(m)*k).toFixed(1)} kW`;
   }
   const btuReal = genBtu;

@@ -1083,7 +1083,7 @@ const CONDUIT_DATA = {
 
 // ============================================================
 // NEC CHAPTER 9 — TABLE 5 — CONDUCTOR AREAS (in²)
-// Verified against NEC 2023 Ch. 9 Tables 5 & 8 (NFPA LiNK). USE-2 and MTW are not in Table 5 — unchanged.
+// Verified against NEC 2023 Ch. 9 Tables 5 & 8 (NFPA LiNK). USE-2 and MTW are not in Table 5 — mapped to RHH/RHW-2 and THHN (see notes on each).
 // Bare solid #6–4/0 are not in Table 8: standard AWG solid diameters used (actual dimensions, Ch. 9 Note 5).
 // ============================================================
 const WIRE_DATA = {
@@ -1233,23 +1233,36 @@ const WIRE_DATA = {
     "1750 kcmil": { area: 2.4773,  od: 1.776 },
     "2000 kcmil": { area: 2.7818,  od: 1.882 }
   },
+  // USE-2 is not in Table 5. Most USE-2 is triple-rated USE-2/RHH/RHW-2 → Table 5 RHH/RHW-2 (without outer covering) dimensions.
   "USE-2": {
-    "14 AWG":    { area: 0.0139,  od: 0.133 },
-    "12 AWG":    { area: 0.0181,  od: 0.152 },
-    "10 AWG":    { area: 0.0243,  od: 0.176 },
-    "8 AWG":     { area: 0.0437,  od: 0.236 },
-    "6 AWG":     { area: 0.0590,  od: 0.274 },
-    "4 AWG":     { area: 0.0814,  od: 0.322 },
-    "3 AWG":     { area: 0.0962,  od: 0.350 },
-    "2 AWG":     { area: 0.1146,  od: 0.382 },
-    "1 AWG":     { area: 0.1534,  od: 0.442 },
-    "1/0 AWG":   { area: 0.1825,  od: 0.482 },
-    "2/0 AWG":   { area: 0.2190,  od: 0.528 },
-    "3/0 AWG":   { area: 0.2640,  od: 0.580 },
-    "4/0 AWG":   { area: 0.3237,  od: 0.642 },
-    "250 kcmil": { area: 0.3970,  od: 0.711 },
-    "300 kcmil": { area: 0.4608,  od: 0.766 },
-    "500 kcmil": { area: 0.7073,  od: 0.949 }
+    "14 AWG":    { area: 0.0209,  od: 0.163 },
+    "12 AWG":    { area: 0.0260,  od: 0.182 },
+    "10 AWG":    { area: 0.0333,  od: 0.206 },
+    "8 AWG":     { area: 0.0556,  od: 0.266 },
+    "6 AWG":     { area: 0.0726,  od: 0.304 },
+    "4 AWG":     { area: 0.0973,  od: 0.352 },
+    "3 AWG":     { area: 0.1134,  od: 0.380 },
+    "2 AWG":     { area: 0.1333,  od: 0.412 },
+    "1 AWG":     { area: 0.1901,  od: 0.492 },
+    "1/0 AWG":   { area: 0.2223,  od: 0.532 },
+    "2/0 AWG":   { area: 0.2624,  od: 0.578 },
+    "3/0 AWG":   { area: 0.3117,  od: 0.630 },
+    "4/0 AWG":   { area: 0.3718,  od: 0.688 },
+    "250 kcmil": { area: 0.4596,  od: 0.765 },
+    "300 kcmil": { area: 0.5281,  od: 0.820 },
+    "350 kcmil": { area: 0.5958,  od: 0.871 },
+    "400 kcmil": { area: 0.6619,  od: 0.918 },
+    "500 kcmil": { area: 0.7901,  od: 1.003 },
+    "600 kcmil": { area: 0.9729,  od: 1.113 },
+    "700 kcmil": { area: 1.1010,  od: 1.184 },
+    "750 kcmil": { area: 1.1652,  od: 1.218 },
+    "800 kcmil": { area: 1.2272,  od: 1.250 },
+    "900 kcmil": { area: 1.3561,  od: 1.314 },
+    "1000 kcmil": { area: 1.4784,  od: 1.372 },
+    "1250 kcmil": { area: 1.8602,  od: 1.539 },
+    "1500 kcmil": { area: 2.1695,  od: 1.662 },
+    "1750 kcmil": { area: 2.4773,  od: 1.776 },
+    "2000 kcmil": { area: 2.7818,  od: 1.882 }
   },
   "THHW": {
     "14 AWG":    { area: 0.0139,  od: 0.133 },
@@ -1281,6 +1294,7 @@ const WIRE_DATA = {
     "1750 kcmil": { area: 2.4773,  od: 1.776 },
     "2000 kcmil": { area: 2.7818,  od: 1.882 }
   },
+  // MTW is not in Table 5. 14 AWG+ uses THHN/THWN-2 dimensions (MTW is normally THHN/THWN/MTW triple-rated).
   "MTW": {
     "22 AWG":    { area: 0.0031,  od: 0.063 },
     "20 AWG":    { area: 0.0040,  od: 0.071 },
@@ -1288,14 +1302,14 @@ const WIRE_DATA = {
     "16 AWG":    { area: 0.0070,  od: 0.094 },
     "14 AWG":    { area: 0.0097,  od: 0.111 },
     "12 AWG":    { area: 0.0133,  od: 0.130 },
-    "10 AWG":    { area: 0.0184,  od: 0.153 },
+    "10 AWG":    { area: 0.0211,  od: 0.164 },
     "8 AWG":     { area: 0.0366,  od: 0.216 },
     "6 AWG":     { area: 0.0507,  od: 0.254 },
-    "4 AWG":     { area: 0.0669,  od: 0.292 },
-    "2 AWG":     { area: 0.0973,  od: 0.352 },
-    "1 AWG":     { area: 0.1333,  od: 0.412 },
-    "1/0 AWG":   { area: 0.1590,  od: 0.450 },
-    "2/0 AWG":   { area: 0.1901,  od: 0.492 }
+    "4 AWG":     { area: 0.0824,  od: 0.324 },
+    "2 AWG":     { area: 0.1158,  od: 0.384 },
+    "1 AWG":     { area: 0.1562,  od: 0.446 },
+    "1/0 AWG":   { area: 0.1855,  od: 0.486 },
+    "2/0 AWG":   { area: 0.2223,  od: 0.532 }
   },
   "PFA/PFAH": {
     "14 AWG":    { area: 0.0100,  od: 0.113 },
@@ -1906,7 +1920,7 @@ function cfBuildT4() {
 }
 function cfBuildT5() {
   const type = document.getElementById('cfRefWire').value, data = WIRE_DATA[type] || {};
-  const nb = { 'USE-2': 'USE-2 is not listed in NEC Table 5 — confirm dimensions with the manufacturer.', 'MTW': 'MTW is not listed in NEC Table 5 — confirm dimensions with the manufacturer.',
+  const nb = { 'USE-2': 'USE-2 is not listed in NEC Table 5 — sized as USE-2/RHH/RHW-2 (Table 5 RHH/RHW-2 without outer covering). Confirm with the manufacturer.', 'MTW': 'MTW is not listed in NEC Table 5 — 14 AWG and larger sized as THHN/THWN/MTW (Table 5 THHN). Confirm with the manufacturer.',
     'Bare Conductor (Solid)': '14–8 AWG from NEC Table 8. #6–4/0 solid are not in Table 8 — standard solid-wire diameters used (actual dimensions, Note 5).',
     'Bare Conductor (Stranded)': 'NEC Table 8 overall area & diameter (Note 8).' };
   document.getElementById('cfT5Note').textContent = nb[type] || 'NEC 2023 Chapter 9, Table 5.';

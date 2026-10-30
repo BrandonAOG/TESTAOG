@@ -1013,6 +1013,8 @@ input.is-out { border-color: var(--accent); color: var(--accent); font-weight: 7
         </select></div>
         <div id="vdOtherW"><label id="vdOtherL">Feeder Drop Already Used (%)</label><input type="number" id="vdOther" step="0.1" min="0" max="5" inputmode="decimal" placeholder="optional"></div>
         <div><label>Ampacity Column</label><select id="vdTc"><option value="auto">Auto — 110.14(C)</option><option value="60">60°C</option><option value="75">75°C</option></select></div>
+        <div><label>Resistance</label><select id="vdBasis"><option value="dc">DC — Table 8</option><option value="pvc">AC — PVC conduit (Table 9)</option><option value="alum">AC — aluminum conduit (Table 9)</option><option value="steel">AC — steel conduit (Table 9)</option></select></div>
+        <div id="vdPfW" style="display:none"><label>Power Factor</label><input type="number" id="vdPf" step="0.01" min="0.5" max="1" value="0.85" inputmode="decimal"></div>
       </div>
       <div id="vdRes" style="display:none;margin-top:14px;">
         <div class="stats-row">
@@ -1253,6 +1255,24 @@ const AMP = {
   cu: [[15,20],[20,25],[30,35],[40,50],[55,65],[70,85],[85,100],[95,115],[110,130],[125,150],[145,175],[165,200],[195,230],[215,255],[240,285],[260,310],[280,335],[320,380],[350,420],[385,460],[400,475],[410,490],[435,520],[455,545]],
   al: [null,[15,20],[25,30],[35,40],[40,50],[55,65],[65,75],[75,90],[85,100],[100,120],[115,135],[130,155],[150,180],[170,205],[195,230],[210,250],[225,270],[260,310],[285,340],[315,375],[320,385],[330,395],[355,425],[375,445]],
 };
+// NEC 2023 Ch. 9 Table 9 — AC values, Ω per 1000 ft at 75°C (no 700/800/900 kcmil rows; no #14 aluminum)
+// [size, XL PVC/Al conduit, XL steel, R Cu PVC, R Cu Al conduit, R Cu steel, R Al PVC, R Al Al conduit, R Al steel]
+const T9 = {
+  '14':[0.058,0.073,3.1,3.1,3.1,null,null,null], '12':[0.054,0.068,2.0,2.0,2.0,3.2,3.2,3.2], '10':[0.050,0.063,1.2,1.2,1.2,2.0,2.0,2.0],
+  '8':[0.052,0.065,0.78,0.78,0.78,1.3,1.3,1.3], '6':[0.051,0.064,0.49,0.49,0.49,0.81,0.81,0.81], '4':[0.048,0.060,0.31,0.31,0.31,0.51,0.51,0.51],
+  '3':[0.047,0.059,0.25,0.25,0.25,0.40,0.41,0.40], '2':[0.045,0.057,0.19,0.20,0.20,0.32,0.32,0.32], '1':[0.046,0.057,0.15,0.16,0.16,0.25,0.26,0.25],
+  '1/0':[0.044,0.055,0.12,0.13,0.12,0.20,0.21,0.20], '2/0':[0.043,0.054,0.10,0.10,0.10,0.16,0.16,0.16], '3/0':[0.042,0.052,0.077,0.082,0.079,0.13,0.13,0.13],
+  '4/0':[0.041,0.051,0.062,0.067,0.063,0.10,0.11,0.10], '250':[0.041,0.052,0.052,0.057,0.054,0.085,0.090,0.086], '300':[0.041,0.051,0.044,0.049,0.045,0.071,0.076,0.072],
+  '350':[0.040,0.050,0.038,0.043,0.039,0.061,0.066,0.063], '400':[0.040,0.049,0.033,0.038,0.035,0.054,0.059,0.055], '500':[0.039,0.048,0.027,0.032,0.029,0.043,0.048,0.045],
+  '600':[0.039,0.048,0.023,0.028,0.025,0.036,0.041,0.038], '750':[0.038,0.048,0.019,0.024,0.021,0.029,0.034,0.031], '1000':[0.037,0.046,0.015,0.019,0.018,0.023,0.027,0.025],
+};
+// 240.4(D) small-conductor overcurrent limits (A) — caps the usable ampacity of these sizes
+const SMALL = { cu: { '14': 15, '12': 20, '10': 30 }, al: { '12': 15, '10': 25 } };
+// usable ampacity: Table 310.16 value, held to the 240.4(D) limit
+function ampUse(i, al, ci) {
+  const t = (AMP[al ? 'al' : 'cu'][i] || [0, 0])[ci], cap = SMALL[al ? 'al' : 'cu'][WIRE[i][0]];
+  return cap != null ? Math.min(t, cap) : t;
+}
 // NEC Ch. 9 Table 8 conductor area, circular mils (same size order as WIRE)
 const CMIL = [4110, 6530, 10380, 16510, 26240, 41740, 52620, 66360, 83690, 105600, 133100, 167800, 211600, 250000, 300000, 350000, 400000, 500000, 600000, 700000, 750000, 800000, 900000, 1000000];
 const wl = s => /^\d+$/.test(s) && +s >= 250 ? s + ' kcmil' : (s.includes('/') ? s : '#' + s);
@@ -1280,7 +1300,7 @@ const M3 = [
   ['150', [null, 414, 396, 360, 180, 144]], ['200', [null, 552, 528, 480, 240, 192]],
 ];
 // Table 240.6(A) — standard ampere ratings
-const STD = [15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200, 225, 250, 300, 350, 400, 450, 500, 600, 700, 800, 1000, 1200, 1600, 2000, 2500, 3000, 4000, 5000, 6000];
+const STD = [10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200, 225, 250, 300, 350, 400, 450, 500, 600, 700, 800, 1000, 1200, 1600, 2000, 2500, 3000, 4000, 5000, 6000];
 const nextStd = a => STD.find(s => s >= a - 1e-9) || null;
 const prevStd = a => [...STD].reverse().find(s => s < a - 1e-9) || null;
 
@@ -1377,10 +1397,25 @@ function calcKw_() {
 // ── VOLTAGE DROP ───────────────────────────────────────────
 $('vdSize').innerHTML = '<option value="">— any —</option>' + WIRE.map((w, i) => `<option value="${i}">${wl(w[0])}</option>`).join('');
 ['vdA', 'vdL'].forEach(id => $(id).addEventListener('input', calcVd));
-['vdSize', 'vdSets', 'vdTc', 'vdKind'].forEach(id => $(id).addEventListener('change', calcVd));
+['vdSize', 'vdSets', 'vdTc', 'vdKind', 'vdBasis'].forEach(id => $(id).addEventListener('change', calcVd));
+$('vdPf').addEventListener('input', calcVd);
 $('vdOther').addEventListener('input', calcVd);
+// Ω per 1000 ft per conductor: DC (Table 8) or AC effective Z = R·PF + XL·sin(arccos PF) (Table 9, Note 2). null = no Table 9 value.
+function vdBasis() {
+  const b = $('vdBasis').value; let pf = num('vdPf'); if (!(pf > 0 && pf <= 1)) pf = 0.85;
+  return { b, pf, ac: b !== 'dc' };
+}
+function rOf(i, al) {
+  const B = vdBasis();
+  if (!B.ac) return WIRE[i][al ? 2 : 1];
+  const t = T9[WIRE[i][0]]; if (!t) return null;
+  const col = { pvc: 0, alum: 1, steel: 2 }[B.b], R = t[(al ? 5 : 2) + col], X = t[B.b === 'steel' ? 1 : 0];
+  if (R == null) return null;
+  return R * B.pf + X * Math.sin(Math.acos(B.pf));
+}
 function vdFor(i, A, L, sets, three, al) {
-  const R = WIRE[i][al ? 2 : 1] / sets;
+  const r0 = rOf(i, al); if (r0 == null) return NaN;
+  const R = r0 / sets;
   return (three ? SQ3 : 2) * A * R * L / 1000;
 }
 function calcVd() { calcVd_(); mathVd(); }
@@ -1390,6 +1425,7 @@ function calcVd_() {
   // Drop target: 3% branch or feeder, 5% total (210.19 / 215.2 Informational Notes). Other part's drop comes out of the 5%.
   const kind = $('vdKind').value, other = Math.max(0, num('vdOther') || 0);
   $('vdOtherW').style.display = kind === 'total' ? 'none' : '';
+  $('vdPfW').style.display = vdBasis().ac ? '' : 'none';
   $('vdOtherL').textContent = kind === 'branch' ? 'Feeder Drop Already Used (%)' : 'Branch Drop Planned (%)';
   const T = kind === 'total' ? 5 : Math.max(0, Math.min(3, 5 - other)), Ts = fmt(T, 2) + '%';
   const why = kind === 'total' ? '5% total, feeder + branch' : (T < 3 ? `3% ${kind}, but only ${Ts} left of the 5% total after ${fmt(other, 2)}% ${kind === 'branch' ? 'feeder' : 'branch'} drop` : `3% ${kind === 'branch' ? 'branch circuit' : 'feeder'}`);
@@ -1404,8 +1440,11 @@ function calcVd_() {
   const sel = $('vdSize').value === '' ? -1 : +$('vdSize').value;
   if (sel >= 0) {
     const vd = vdFor(sel, A, L, sets, three, al), p = vd / V * 100;
+    if (!isFinite(vd)) { ['vdOutV', 'vdOutP', 'vdOutLoad'].forEach(id => { $(id).textContent = 'n/a'; $(id).style.color = ''; }); }
+    else {
     $('vdOutV').textContent = fmt(vd, 2); $('vdOutP').textContent = fmt(p, 2) + '%'; $('vdOutLoad').textContent = fmt(V - vd, 1);
     $('vdOutP').style.color = p > Math.max(5, T) ? 'var(--danger)' : p > T ? 'var(--warn)' : 'var(--success)';
+    }
   } else {
     ['vdOutV', 'vdOutP', 'vdOutLoad'].forEach(id => { $(id).textContent = '—'; $(id).style.color = ''; });
   }
@@ -1414,7 +1453,7 @@ function calcVd_() {
   // Ampacity (Table 310.16). Auto column per 110.14(C)(1): 100A or less → 60°C, over 100A → 75°C
   const tcSel = $('vdTc').value, tc = tcSel === 'auto' ? (A <= 100 ? 60 : 75) : +tcSel, ci = tc === 60 ? 0 : 1;
   const perSet = A / sets, p10 = WIRE.findIndex(w => w[0] === '1/0');
-  const ampOf = i => (AMP[al ? 'al' : 'cu'][i] || [0, 0])[ci];
+  const ampOf = i => ampUse(i, al, ci);
   let minA = -1;
   for (let i = start; i < WIRE.length; i++) { if (sets > 1 && i < p10) continue; if (ampOf(i) >= perSet) { minA = i; break; } }
   $('vdAmpH').textContent = `AMPS ${tc}°C`;
@@ -1434,7 +1473,8 @@ function calcVd_() {
     const pick = Math.max(min3, minA), byAmp = minA > min3;
     $('vdRecL').textContent = '◆ RECOMMENDED WIRE — AMPACITY + VOLTAGE DROP';
     $('vdMin').textContent = `${wl(WIRE[pick][0])} ${mat}${setsTxt}`;
-    const ampTxt = `Ampacity: ${fmt(perSet, 0)}A${sets > 1 ? ' per set' : ''} needs ${wl(WIRE[minA][0])} ${matW} (${ampOf(minA)}A at ${tc}°C, Table 310.16${sets > 1 && minA === p10 && ampOf(p10 - 1) >= perSet ? '; 1/0 is the minimum for parallel sets, 310.10(G)' : ''}).`;
+    const capd = ampOf(minA) < (AMP[al ? 'al' : 'cu'][minA] || [0, 0])[ci] || WIRE.slice(start, minA).some((w, j) => ampOf(start + j) < (AMP[al ? 'al' : 'cu'][start + j] || [0, 0])[ci] && (AMP[al ? 'al' : 'cu'][start + j] || [0, 0])[ci] >= perSet);
+    const ampTxt = `Ampacity: ${fmt(perSet, 0)}A${sets > 1 ? ' per set' : ''} needs ${wl(WIRE[minA][0])} ${matW} (${ampOf(minA)}A at ${tc}°C, Table 310.16${capd ? ', held to the 240.4(D) small-wire limit' : ''}${sets > 1 && minA === p10 && ampOf(p10 - 1) >= perSet ? '; 1/0 is the minimum for parallel sets, 310.10(G)' : ''}).`;
     const vdTxt = `Voltage drop: ${wl(WIRE[min3][0])} keeps it at ${fmt(pct(min3), 2)}% (target ≤ ${Ts}: ${why}).`;
     let det = `<b>${byAmp ? 'Ampacity sets the size.' : (minA === min3 ? 'Both rules land on the same size.' : 'Voltage drop sets the size.')}</b> ${ampTxt} ${vdTxt} At ${wl(WIRE[pick][0])}: ${fmt(pct(pick), 2)}% drop.`;
     if (sel >= 0) {
@@ -1455,7 +1495,8 @@ function calcVd_() {
   let rows = '';
   for (let i = lo; i <= hi; i++) {
     const vd = vdFor(i, A, L, sets, three, al), p = vd / V * 100;
-    const maxL = T / 100 * V * 1000 / ((three ? SQ3 : 2) * A * (WIRE[i][al ? 2 : 1] / sets));
+    if (!isFinite(vd)) { rows += `<tr><td>${wl(WIRE[i][0])}</td><td>${ampOf(i)}A</td><td colspan="3" style="white-space:normal;">Not in Table 9</td></tr>`; continue; }
+    const maxL = T / 100 * V * 1000 / ((three ? SQ3 : 2) * A * (rOf(i, al) / sets));
     const st = p > Math.max(5, T) ? 'status-fail' : p > T ? 'status-warn' : 'status-pass';
     const ampOk = ampOf(i) >= perSet && !(sets > 1 && i < p10);
     rows += `<tr><td class="${i === sel ? 'sel-size' : ''}">${i === sel ? '▸ ' : ''}${wl(WIRE[i][0])}${i === pickI ? ' ◆' : ''}</td><td class="${ampOk ? '' : 'amp-bad'}">${ampOf(i)}A${ampOk ? '' : ' ✕'}</td><td>${fmt(vd, 2)} V</td><td class="${st}">${fmt(p, 2)}%</td><td class="hide-m">${fmt(maxL, 0)} ft</td></tr>`;
@@ -1729,23 +1770,25 @@ function mathVd() {
   const d = window.__vd; if (!d) return showMath('math-vd', null);
   const { V, A, L, sets, three, al, T, Ts, why, tc, tcSel, perSet, minA, min3, sel } = d;
   const k = three ? '1.732' : '2', kn = three ? SQ3 : 2, mat = al ? 'aluminum' : 'copper';
-  const VDF = `VD = ${k} × Amps × R × Length ÷ 1000 · %VD = VD ÷ Volts × 100`;
+  const VDF = `VD = ${k} × Amps × ${vdBasis().ac ? 'Ze' : 'R'} × Length ÷ 1000 · %VD = VD ÷ Volts × 100`;
   const vdNums = i => {
-    const R0 = WIRE[i][al ? 2 : 1], r = R0 / sets, vd = kn * A * r * L / 1000;
-    return `R = ${R0} Ω/1000 ft${sets > 1 ? ` ÷ ${sets} sets = ${+r.toPrecision(4)}` : ''} · VD = ${k} × ${f2(A, 1)} × ${+r.toPrecision(4)} × ${f2(L, 0)} ÷ 1000 = <b>${f2(vd)} V</b> · %VD = ${f2(vd)} ÷ ${f2(V, 0)} × 100 = <b>${f2(vd / V * 100)}%</b>`;
+    if (rOf(i, al) == null) return 'Not in NEC Table 9 — switch to DC (Table 8) for this size';
+    const R0 = +rOf(i, al).toPrecision(4), r = R0 / sets, vd = kn * A * r * L / 1000;
+    return `${vdBasis().ac ? 'Ze' : 'R'} = ${R0} Ω/1000 ft${sets > 1 ? ` ÷ ${sets} sets = ${+r.toPrecision(4)}` : ''} · VD = ${k} × ${f2(A, 1)} × ${+r.toPrecision(4)} × ${f2(L, 0)} ÷ 1000 = <b>${f2(vd)} V</b> · %VD = ${f2(vd)} ÷ ${f2(V, 0)} × 100 = <b>${f2(vd / V * 100)}%</b>`;
   };
   const st = [['Drop target', 'Volts allowed = Target % × System volts', `${why}: ${Ts} × ${f2(V, 0)} V = <b>${f2(T / 100 * V)} V</b>`, 'NEC 210.19 / 215.2 Informational Notes (recommendation, not a requirement)']];
   if (sets > 1) st.push(['Amps per set', 'Amps per set = Load amps ÷ Number of sets', `${f2(A, 1)} ÷ ${sets} = <b>${f2(perSet, 1)} A</b>`, '310.10(G): parallel sets must be 1/0 or larger']);
   if (minA >= 0) {
-    const amp = (AMP[al ? 'al' : 'cu'][minA] || [0, 0])[tc === 60 ? 0 : 1];
+    const amp = ampUse(minA, al, tc === 60 ? 0 : 1);
     st.push(['Ampacity', `Smallest wire where Table 310.16 ampacity ≥ amps${sets > 1 ? ' per set' : ''}`, `${tc}°C ${mat} column: ≥ ${f2(perSet, 1)} A → <b>${wl(WIRE[minA][0])} = ${amp} A</b>`,
-      tcSel === 'auto' ? `110.14(C): circuit ${A <= 100 ? '100 A or less → 60°C' : 'over 100 A → 75°C'} column` : `${tc}°C column chosen`]);
+      (tcSel === 'auto' ? `110.14(C): circuit ${A <= 100 ? '100 A or less → 60°C' : 'over 100 A → 75°C'} column` : `${tc}°C column chosen`) + ' · #14–#10 held to 240.4(D) (Cu 15/20/30 A, Al #12 15 A, #10 25 A)']);
   }
   if (min3 >= 0) {
-    const vnote = `${three ? '3Φ: 1.732' : '1Φ / DC: 2 (out and back)'} · R = NEC Ch. 9 Table 8 resistance at 75°C · Length = one-way feet`;
-    if (min3 - 1 >= (al ? 1 : 0)) st.push([`Voltage drop: ${wl(WIRE[min3 - 1][0])} (one size smaller)`, VDF, vdNums(min3 - 1) + ` → over ${Ts} ✕`, vnote]);
+    const B = vdBasis();
+    const vnote = `${three ? '3Φ: 1.732' : '1Φ / DC: 2 (out and back)'} · ${B.ac ? `Ze = R × ${B.pf} + XL × sin(arccos ${B.pf}) from NEC Ch. 9 Table 9, ${B.b === 'alum' ? 'aluminum' : B.b === 'steel' ? 'steel' : 'PVC'} conduit, 75°C (Note 2)` : 'R = NEC Ch. 9 Table 8 resistance at 75°C'} · Length = one-way feet`;
+    if (min3 - 1 >= (al ? 1 : 0) && rOf(min3 - 1, al) != null) st.push([`Voltage drop: ${wl(WIRE[min3 - 1][0])} (one size smaller)`, VDF, vdNums(min3 - 1) + ` → over ${Ts} ✕`, vnote]);
     st.push([`Voltage drop: ${wl(WIRE[min3][0])} (smallest that passes)`, VDF, vdNums(min3) + ` → within ${Ts} ✓`, min3 - 1 >= (al ? 1 : 0) ? '' : vnote]);
-    { // cross-check with the K-factor formula
+    if (!vdBasis().ac) { // cross-check with the K-factor formula (DC method only)
       const K = al ? 21.2 : 12.9, cm = CMIL[min3] * sets, vdK = kn * K * L * A / cm;
       st.push([`Cross-check: K formula (${wl(WIRE[min3][0])})`, `VD = ${k} × K × L × I ÷ CM`,
         `${k} × ${K} × ${f2(L, 0)} × ${f2(A, 1)} ÷ ${cm.toLocaleString()}${sets > 1 ? ` (${CMIL[min3].toLocaleString()} × ${sets} sets)` : ''} = <b>${f2(vdK)} V</b> = ${f2(vdK / V * 100)}%`,

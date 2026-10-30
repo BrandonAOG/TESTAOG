@@ -548,6 +548,36 @@ input[type=number][id^="pexva_"]::-webkit-inner-spin-button{-webkit-appearance:n
   .jb-toggle .jb-who{text-transform:none;letter-spacing:0;font-weight:600;
     color:var(--text);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 }
+
+/* ── DARK MODE (body.dark) — same palette and shared 'aog-theme' setting as the other tools.
+   Screen only: print and the PDF / image exports always stay light. ── */
+.action-bar .theme-toggle-ab{width:36px;height:36px;padding:6px;flex-shrink:0;border:1px solid rgba(217,119,6,0.4);background:rgba(217,119,6,0.07);border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#D97706;font-size:16px;transition:all .2s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+.action-bar .theme-toggle-ab:hover{border-color:#D97706;box-shadow:0 0 8px rgba(217,119,6,0.3);}
+@media screen{
+body.dark{
+  --bg:#0A0E27;--surface:#0f1535;--surface2:#141a3a;--border:#1e2a4a;--border2:#2a3a60;
+  --text:#E0F7FF;--text2:#94a3b8;--text3:#64748b;
+  --blue:#00FFC8;--blue-lt:rgba(0,255,200,.08);--blue-dk:#06B6D4;
+  --aog:#F59E0B;--aog-lt:rgba(217,119,6,.12);
+  --green:#10b981;--green-lt:rgba(16,185,129,.12);
+  --amber:#f59e0b;--amber-lt:rgba(245,158,11,.12);
+  --red:#ef4444;--red-lt:rgba(239,68,68,.12);
+  --shadow:0 2px 8px rgba(0,255,200,.06);
+  background:var(--bg);color:var(--text);color-scheme:dark;
+}
+/* form controls: many carry inline background:#fff, so these need !important */
+body.dark input:not([type=checkbox]):not([type=radio]):not([type=range]),body.dark select,body.dark textarea{
+  background:var(--surface2)!important;color:var(--text)!important;border-color:var(--border2)!important;}
+body.dark select option{background:#0f1535;color:#E0F7FF;}
+body.dark input::placeholder,body.dark textarea::placeholder{color:#64748b;}
+body.dark .appl-tbl td:nth-child(1) input:not(:focus){background:transparent!important;border-color:transparent!important;}
+body.dark .calc-show{background:var(--surface2);}
+body.dark .sum-panel{background:linear-gradient(135deg,#0f1535 0%,#16224a 50%,#0f1535 100%);border-color:rgba(0,255,200,.22);}
+body.dark .sc:not(.big){background:rgba(0,255,200,.04);border-color:rgba(148,163,184,.18);}
+/* yellow warning callouts written inline (#fff3cd) */
+body.dark [style*="#fff3cd"]{background:rgba(245,158,11,.12)!important;color:#FCD34D!important;}
+body.dark [style*="#fff3cd"] *{color:inherit;}
+}
 </style>
 <script src="../update-banner.js"></script>
 </head>
@@ -559,8 +589,8 @@ input[type=number][id^="pexva_"]::-webkit-inner-spin-button{-webkit-appearance:n
   <button class="ab-btn" onclick="aogLoadPick()" title="Reopen a job from a PDF this calculator exported.">⤒ LOAD</button>
   <input type="file" id="aog_job_in" accept="application/pdf,.pdf" style="display:none;" onchange="aogLoadFromFile(this)">
   <button class="ab-btn" id="ab-capture" onclick="captureReport()">⤓ SAVE IMG</button>
-  <a class="ab-btn" onclick="window.print()" style="cursor:pointer;">⎙ FULL</a>
   <a class="ab-btn" onclick="aogNewJobConfirm()" style="cursor:pointer;">↺ NEW JOB</a>
+  <button class="theme-toggle-ab" id="themeBtn" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
   <span id="aog-save-status" style="font-family:'Inter',Arial,Helvetica,sans-serif;font-size:9px;color:rgba(255,255,255,0.45);letter-spacing:.5px;align-self:center;white-space:nowrap;padding:0 4px;"></span>
 </div>
 
@@ -615,7 +645,7 @@ input[type=number][id^="pexva_"]::-webkit-inner-spin-button{-webkit-appearance:n
       <div class="sc big"><div class="sl">Min. Generator</div><div class="sv" id="s_gen">—</div><div class="su" id="s_fuel">Propane LP</div></div>
       <div class="sc"><div class="sl">Service Demand</div><div class="sv" id="s_dem">—</div><div class="su">VA</div></div>
       <div class="sc"><div class="sl">@ 240V, 1φ</div><div class="sv" id="s_amps">—</div><div class="su">Amperes</div></div>
-      <div class="sc"><div class="sl">Min. Service</div><div class="sv" id="s_svc">—</div><div class="su">Amperes</div></div>
+      <div class="sc"><div class="sl">Min. Service / Gen Feeder</div><div class="sv" id="s_svc">—</div><div class="su" id="s_svc_note">Amperes</div></div>
       <div class="sc"><div class="sl">Neutral Demand</div><div class="sv" id="s_neut">—</div><div class="su">Amperes</div></div>
       <div class="sc"><div class="sl">Feeder</div><div class="sv" id="s_feed">—</div><div class="su" id="s_mat">Copper</div></div>
       <div id="parallel_note" style="display:none;grid-column:1/-1;background:#fff3cd;border:1px solid #f0a500;border-left:4px solid #D97706;border-radius:4px;padding:8px 12px;font-size:11px;color:#7a4f00;line-height:1.5;"></div>
@@ -853,7 +883,7 @@ input[type=number][id^="pexva_"]::-webkit-inner-spin-button{-webkit-appearance:n
     <div class="card-body">
 
       <div id="room_hint" style="font-size:11px;color:var(--text3);margin-bottom:12px;line-height:1.5;">
-        <strong>Room</strong> groups appliances for <strong>Table 220.55 Note 4</strong> — a cooktop and up to two ovens in the <em>same room on one circuit</em> are added together and treated as one range, for the <em>neutral only</em>. Put a second kitchen, an outdoor kitchen or a casita on its own room number so they are not combined.
+        <strong>Room</strong> groups appliances for <strong>Table 220.55 Note 6</strong> — a cooktop and up to two ovens in the <em>same room on one circuit</em> are added together and treated as one range, for the <em>neutral only</em>. Put a second kitchen, an outdoor kitchen or a casita on its own room number so they are not combined.
       </div>
       <div id="cook_ranges"><div style="font-weight:600;font-size:12px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Ranges (freestanding / slide-in)</div></div>
       <button class="btn btn-add btn-sm" style="margin-bottom:14px;" onclick="addCookItem('range')">+ Add Range</button>
@@ -991,7 +1021,7 @@ input[type=number][id^="pexva_"]::-webkit-inner-spin-button{-webkit-appearance:n
         <p>All three caps are written to cover the <strong>grounding electrode conductor <em>or bonding jumper</em></strong>, and <strong>250.53(C)</strong> sizes a jumper between electrodes by 250.66 as well — so a jumper whose sole connection is to the rods gets the 6 AWG allowance the same as a home run would. 250.53(C) sends jumpers to 250.64(A), (B) and (E) but <em>not</em> to (C), so a jumper need not be continuous with the GEC.</p>
         <p>The GEC itself is different. <strong>250.64(F)</strong>: "The grounding electrode conductor shall be sized for the largest grounding electrode conductor required among all the electrodes <em>connected to it</em>." That reaches through the jumpers — an electrode tied to the GEC by a bonding jumper is still connected to it — so the GEC is a whole-system maximum, not a per-leg figure. There is <em>no</em> required order or hierarchy; 250.64(F)(1) says any convenient electrode. But the NFPA commentary is explicit that order changes the sizing: run the GEC to the ground rod first and then on to the water pipe, and that rod run is sized as if it went to the water pipe. So the economics run one way — land the GEC on the electrode that demands the largest conductor, and jumper out to the cheaper ones.</p>
         <p>The <strong>arrangement</strong> picker follows 250.64(F): <strong>(F)(1)</strong> one GEC to a convenient electrode with the rest jumpered off it (pick which one and the legs re-size); <strong>(F)(2)</strong> an individual GEC run to each electrode, where only that electrode is connected to that run so its cap applies on its own merits; <strong>(F)(3)</strong> GEC to a busbar (¼ in. × 2 in. minimum, accessible, listed connectors or exothermic) with a jumper from each electrode; or one unspliced conductor looped through the lot, where <strong>250.64(C)</strong> forbids necking it down partway so every leg is the maximum. Watch <strong>250.70</strong> in all of them — one conductor per clamp unless the clamp is listed for more than one.</p>
-        <p><strong>250.24(C)(1)</strong> is also enforced: the grounded (neutral) service conductor is never smaller than the GEC required by Table 250.66. A neutral raised by that rule is marked with an asterisk.</p>
+        <p><strong>250.24(D)(1)</strong> is also enforced: the grounded (neutral) service conductor is never smaller than Table 250.102(C)(1) requires (the same sizes as Table 250.66 for any residential service). A neutral raised by that rule is marked with an asterisk.</p>
         <div class="hnote">Feeder sets reduce the per-conductor ampacity required — e.g., 2 sets of conductors each carry half the load.</div>
       </div>
       <div class="help-sec">
@@ -1004,8 +1034,11 @@ input[type=number][id^="pexva_"]::-webkit-inner-spin-button{-webkit-appearance:n
         transfer, where the user manages the load.)</p>
         <p>Every managed load is listed by name and VA on the printed report under
         <em>Managed Loads — Excluded per NEC 702.4(B)(2)(b)</em>, so the exclusions are documented rather
-        than invisible. Managing a load does <strong>not</strong> change any conductor sizing: the pool
-        sub-feeder, for example, still carries its load on utility power and is sized accordingly.</p>
+        than invisible. Managed loads are also left out of <strong>Min. Service / Gen Feeder</strong>,
+        the feeder and the neutral, because those results size the <strong>generator feeder</strong>.
+        The utility service still carries every load, managed or not, and must be sized for all of them.
+        The pool sub-feeder is the exception: it is always sized for its full load, because it carries
+        that load on utility power.</p>
         <div class="hnote">Load management only justifies the smaller generator if a management system is
         actually installed and configured to shed those loads. If nothing sheds them, they belong in the
         demand.</div>
@@ -1020,7 +1053,7 @@ input[type=number][id^="pexva_"]::-webkit-inner-spin-button{-webkit-appearance:n
         <p>Cooking and dryer loads reach the neutral through <strong>Table 220.55</strong> and <strong>Table 220.54</strong>, then the 70% of <strong>220.61(B)(1)</strong>. That allowance is permitted "where the maximum unbalanced load has been determined in accordance with Table 220.55 for ranges and Table 220.54 for dryers" — so the tables are what qualify you for it. 220.82 hands the neutral to 220.61, and 220.61(A) measures "the load determined by <em>this article</em>" — Article 220, tables included.</p>
         <p><strong>This is for the neutral only.</strong> The calculated load on the ungrounded conductors is untouched: cooking and dryers stay at <em>nameplate</em> per 220.82(B)(3)b and c, and the Step 5 total on screen is the nameplate figure. Note that Table 220.54 carries its own 5,000 VA per-dryer floor — that floor belongs to the table and applies wherever the table does, which is the neutral and nowhere else.</p>
         <p>Table 220.55 is implemented in full: Column C, <em>Note 1</em> (5% per kW over 12 kW for ranges of equal rating), <em>Note 2</em> (averaging for unequal ratings over 8¾ kW, counting 12 kW for anything under 12), and <em>Note 3</em> (the Column A / Column B alternative for appliances over 1¾ through 8¾ kW, applied per column and added). Where Note 3 is available and gives a lower result than Column C, it is used — 220.55 permits it "in lieu of the method provided in Column C" — and the report prints which path was taken.</p>
-        <p><em>Note 4</em> combines a counter-mounted cooking unit with not more than two wall-mounted ovens into one equivalent range. The note requires them to be "supplied from a single branch circuit and located in the same room," so every cooktop and oven on Step 5 carries a <strong>Room</strong> selector. Appliances sharing a room number are grouped and Note 4 is applied within that room; a third wall oven in the same room, or a second cooktop, counts as its own appliance. A <strong>freestanding range never joins the combination</strong> — the note treats one range as already being one range — which is why Step 5 keeps Cooktops, Wall Ovens and Ranges as separate lists. Give a second kitchen, a lanai or outdoor kitchen, or a casita its own room number — combining cooking loads that are in different rooms understates the neutral. Room affects the neutral only; the Step 5 nameplate total never changes.</p>
+        <p><em>Note 6</em> combines a counter-mounted cooking unit with not more than two wall-mounted ovens into one equivalent range. The note requires them to be "supplied from a single branch circuit and located in the same room," so every cooktop and oven on Step 5 carries a <strong>Room</strong> selector. Appliances sharing a room number are grouped and Note 6 is applied within that room; a third wall oven in the same room, or a second cooktop, counts as its own appliance. A <strong>freestanding range never joins the combination</strong> — the note treats one range as already being one range — which is why Step 5 keeps Cooktops, Wall Ovens and Ranges as separate lists. Give a second kitchen, a lanai or outdoor kitchen, or a casita its own room number — combining cooking loads that are in different rooms understates the neutral. Room affects the neutral only; the Step 5 nameplate total never changes.</p>
         <p>The reduction in <strong>220.61(B)(2)</strong> <em>is</em> applied: first 200 A at 100%, the portion above 200 A at 70%. That one is conditioned on the system type — a 3-wire single-phase ac service qualifies — not on the Part III tables.</p>
         <p><strong>220.61(C)(1)</strong> prohibits any reduction where the circuit is 2 ungrounded conductors and the neutral of a 4-wire, 3-phase wye system. This calculator assumes a 120/240V single-phase service; a dwelling fed from two legs of a 208Y/120 wye is not yet supported.</p>
       </div>
@@ -1231,16 +1264,20 @@ function minSvc(a){var s=[100,110,125,150,175,200,225,250,300,350,400,450,500,60
 
 // ── Generators ──
 // Format: ['name', LP_kW, NG_kW]
-var GENS_GENERAC=[['AC 10KW',10,9],['AC 12KW',12,12],['AC 14KW',14,14],['AC 16KW',16,16],
+var GENS_GENERAC=[['AC 10KW',10,9],['AC 14KW',14,14],
   ['AC 18KW',18,17],['AC 22KW',22,21],['AC 24KW',24,22.5],
   ['AC 26KW',26,24],['LC 25KW',25,25],['LC 30KW',30,30],['AC 28KW',28,25],['LQ 32KW',32,32],
   ['LQ 40KW',40,40],['LQ 48KW',48,48],['LQ 60KW',60,60],
   ['LQ 80KW',75,80],['LQ 100KW',96,96],['LQ 130KW',130,130],['LQ 150KW',134,144]];
 
 // Kohler — ['name', LP_kW, NG_kW]
-var GENS_KOHLER=[['10RESV',11,10],['12RESV',12,11],['14RCA',14,14],['20RCA',20,20],
-  ['26RCA',26,26],['24RCLA',24,24],['30RCLA',30,30],['38RCLC',38,38],['48RCLC',48,48],
-  ['60RCLB',60,60],['KG80R',80,80],['KG100R',100,100],['KG125R',105,125],['KG150R',130,150]];
+// LP / NG standby kW, single-phase 120/240 — Rehlko (Kohler) spec sheets: G4-254 10/12RESV 4/26d,
+// G4-270 14RCA 4/26j, G4-272 20RCA 4/26j, G4-315 26RCA 4/26g, G4-303 24RCLA 6/21 (4E5.0),
+// G4-304 30RCLA 6/21, G4-305 38RCLC 6/21 (4E8.3), G4-306 48RCLC 2/23b, G4-307 60RCLB 4/26d,
+// G4-285 KG80R, G4-288 KG100R, G4-290 KG125R 4/23e. KG150R not yet re-verified.
+var GENS_KOHLER=[['10RESV',10,9],['12RESV',12,11],['14RCA',14,12],['20RCA',20,18],
+  ['26RCA',26,24],['24RCLA',24,21],['30RCLA',30,30],['38RCLC',38,38],['48RCLC',48,48],
+  ['60RCLB',60,58],['KG80R',80,80],['KG100R',100,100],['KG125R',105,125],['KG150R',130,150]];
 
 // Active generator list based on selected brand
 function activeGens(){
@@ -1896,7 +1933,7 @@ function drySelChange(n){
 function removeDryer(n){var e=document.getElementById('dryer_'+n);if(e)e.remove();calc();}
 
 // ── Cooking ──
-// Table 220.55 Note 4 combines "a counter-mounted cooking unit and not more
+// Table 220.55 Note 6 combines "a counter-mounted cooking unit and not more
 // than two wall-mounted ovens." A freestanding range is NOT part of that
 // combination — the note treats one range as already being one range. So the
 // three kinds are separate sections and the type is implied by the button the
@@ -1943,7 +1980,7 @@ function addCookItem(type, isGas, va, qty){
     +'<input type="checkbox" id="mgd_'+cid+'" onchange="calc()" style="accent-color:var(--amber);">  <span>Managed</span></label>'
     +'</div>'
     // Room exists only to group a cooktop with wall ovens under Table 220.55
-    // Note 4. A range never joins that combination, so it gets no Room field —
+    // Note 6. A range never joins that combination, so it gets no Room field —
     // the control would sit there doing nothing whatever you set it to.
     +'<div style="display:grid;grid-template-columns:64px'+(type==='range'?'':' 118px')+';gap:8px;">'
     +'<div class="field"><label>Qty</label>'
@@ -1951,7 +1988,7 @@ function addCookItem(type, isGas, va, qty){
     +'</div>'
     +(type==='range'?''
       :'<div class="field" id="roomwrap_'+cid+'"><label>Room</label>'
-       +'<select id="room_'+cid+'" onchange="calc()" title="Table 220.55 Note 4 groups a cooktop with up to two wall ovens in the same room on one circuit. Neutral only.">'
+       +'<select id="room_'+cid+'" onchange="calc()" title="Table 220.55 Note 6 groups a cooktop with up to two wall ovens in the same room on one circuit. Neutral only.">'
        +'<option value="1" selected>Room 1</option><option value="2">Room 2</option><option value="3">Room 3</option>'
        +'</select>'
        +'</div>')
@@ -2621,7 +2658,7 @@ function calc(){
 
   // Cooking — Table 220.55 for the electric ones, then the 70% of 220.61(B)(1).
   // Gas ignition/control loads are 120V and ride the neutral at 100%.
-  // Appliances are bucketed by the Room selector so Table 220.55 Note 4 can be
+  // Appliances are bucketed by the Room selector so Table 220.55 Note 6 can be
   // applied per room. The note requires the cooktop and ovens to be "located in
   // the same room" on "a single branch circuit" — a house with two kitchens, or
   // a lanai kitchen, must not have them combined across rooms, which would
@@ -2661,7 +2698,7 @@ function calc(){
   var t55Items=[], note4Rooms=0;
   Object.keys(rooms).sort().forEach(function(r){
     var bk=rooms[r];
-    // Ranges never join the Note 4 combination — a range is already one range.
+    // Ranges never join the Note 6 combination — a range is already one range.
     t55Items=t55Items.concat(bk.rg);
     if(bk.ct.length>0 && bk.ov.length>0){
       var combined=bk.ct[0], take=Math.min(2, bk.ov.length);
@@ -2869,8 +2906,9 @@ function calc(){
     ? ('NEC 250.66 · base '+_gecCu+' · '+(_arrTxt[gecArr]||'250.64(F)'))
     : 'NEC 250.66';
 
-  // ── NEC 250.24(C)(1) — the grounded (neutral) service conductor shall not be
-  // smaller than the GEC required by Table 250.66. Only a floor; it never
+  // ── NEC 250.24(D)(1) (2023) — the grounded (neutral) service conductor shall not be
+  // smaller than Table 250.102(C)(1). That table matches Table 250.66 up to 1100 kcmil Cu /
+  // 1750 kcmil Al (above that it becomes 12.5% of the area) — so the 250.66 size is used here. Only a floor; it never
   // shrinks a neutral that the load already made larger.
   var _n24=false;
   if(sizeRank(neutralWire)<sizeRank(_gecCu)){ neutralWire=_gecCu; _n24=true; }
@@ -2934,6 +2972,14 @@ function calc(){
   if(hd) hd.innerHTML = fmt(Math.round(svcDem))+'<span class="hs-u">VA</span>';
   sv('s_amps',amps.toFixed(1));
   sv('s_svc',svcSize);
+  // Managed loads are left out of this number ON PURPOSE — it is what sizes the generator
+  // feeder. Say so whenever any load is managed, so nobody reads it as the utility service.
+  var _anyMgd=!!document.querySelector('input[type=checkbox][id^="mgd_"]:checked, input[type=checkbox][id^="xmgd_"]:checked')
+             || [].some.call(document.querySelectorAll('select'),function(x){return x.value==='managed';});
+  window.AOG_ANYMGD=_anyMgd;
+  var _svn=document.getElementById('s_svc_note');
+  if(_svn){ _svn.textContent=_anyMgd?'Amps · managed loads excluded':'Amperes';
+            _svn.title=_anyMgd?'Sized from the generator demand (managed loads excluded). The utility service must still carry all loads.':''; }
   sv('s_neut',neutral_amps.toFixed(1));  // NEC 220.61 neutral amps
   // Add table label only on the summary card (s_feed)
   // 310.12 cannot be used with parallel conductors — force 310.16 label when sets > 1
@@ -3010,7 +3056,7 @@ function calc(){
     +'<div class="calc-line"><span>÷ 240V = demand amps</span><span class="cv">'+amps.toFixed(2)+' A</span></div>'
     +'<div class="calc-line"><span>Min. service size (NEC 230.42)</span><span class="cv">'+svcSize+' A</span></div>'
     +'<div class="calc-line"><span>Neutral (NEC 220.61) — Step 1 + 120V appliances + cooking/dryer per Tables 220.55/220.54 &times; 70%</span><span class="cv">'+neutral_amps.toFixed(2)+' A</span></div>'
-    +'<div class="calc-line" style="color:var(--text3);font-size:11px;"><span>&nbsp;&nbsp;cooking basis: '+t55.basis+(note4Used?' &middot; Note 4 combined in '+note4Rooms+' room'+(note4Rooms>1?'s':''):'')+'</span><span class="cv">'+fmt(Math.round(t55.kw*1000))+' VA &rarr; &times;0.70</span></div>'
+    +'<div class="calc-line" style="color:var(--text3);font-size:11px;"><span>&nbsp;&nbsp;cooking basis: '+t55.basis+(note4Used?' &middot; Note 6 combined in '+note4Rooms+' room'+(note4Rooms>1?'s':''):'')+'</span><span class="cv">'+fmt(Math.round(t55.kw*1000))+' VA &rarr; &times;0.70</span></div>'
     +'<div class="calc-line" style="color:var(--text3);font-size:11px;"><span>&nbsp;&nbsp;dryer basis: Table 220.54 (5,000 VA floor)</span><span class="cv">'+fmt(Math.round(t54VA))+' VA &rarr; &times;0.70</span></div>'
     +'<div class="calc-line"><span>Feeder ('+sets+' set'+(sets>1?'s':'')+', '+amps_per.toFixed(1)+'A/set)</span><span class="cv">'+feederWire+'</span></div>'
     +'<div class="calc-line"><span>Neutral wire (NEC 310.16 75°C)</span><span class="cv">'+neutralWire+'</span></div>'
@@ -3086,14 +3132,14 @@ function calc(){
 }
 
 // Room only means something once there are two cooking appliances to group.
-// With one there is nothing for Table 220.55 Note 4 to combine, so the field is
+// With one there is nothing for Table 220.55 Note 6 to combine, so the field is
 // hidden rather than sitting there implying a choice that changes nothing.
 function aogRoomVis(){
   // Count only the appliances that actually reach Table 220.55 — electric, not
   // managed, with a wattage on them. A blank cooktop card or a gas one has
-  // nothing for Note 4 to group, so Room would be a control that changes
+  // nothing for Note 6 to group, so Room would be a control that changes
   // nothing no matter what you set it to.
-  // Note 4 can only ever combine a cooktop with wall ovens. With cooktops but
+  // Note 6 can only ever combine a cooktop with wall ovens. With cooktops but
   // no wall ovens — or ovens but no cooktop — nothing can be grouped and Room
   // changes nothing, so it stays hidden. Ranges are excluded outright.
   var liveCt=0, liveOv=0;
@@ -3812,7 +3858,7 @@ function buildReportHTML(){
     return bits.length ? ' <span style="color:#8a6a3a;">'+bits.join(' \u00b7 ')+'</span>' : '';
   }
   // Cooking names the appliance types — "1 range · 2 wall ovens" tells a reader
-  // far more than "×3", and it is the difference between a Note 4 combination
+  // far more than "×3", and it is the difference between a Note 6 combination
   // and three separate units. Order is fixed (range, cooktop, oven) so the line
   // reads the same on every job.
   function aogCookQual(meta){
@@ -3921,8 +3967,8 @@ function buildReportHTML(){
       <tr><td>+ HVAC @ 100% (220.82(C))</td><td class="r">+ ${D.hvac.toLocaleString()} VA</td></tr>
       <tr class="tot"><td>Service Demand</td><td class="r">${svcDem} VA</td></tr>
       <tr><td>Demand @ 240V, 1φ</td><td class="r">${rAmps} A</td></tr>
-      <tr><td>Minimum Service Size</td><td class="r">${rMinSvc} A</td></tr>
-      <tr><td>Neutral Demand (NEC 220.61)<br><span class="br-note" style="font-size:7.5pt;color:#777;">${(function(){var N=window.AOG_NEUT||{};return 'Cooking '+esc(N.t55basis||'—')+(N.note4?' + Note 4':'')+' &middot; dryer Table 220.54 &middot; both &times;70% per 220.61(B)(1)';})()}</span></td><td class="r">${neutral} A</td></tr>
+      <tr><td>${window.AOG_ANYMGD?'Minimum Service / Gen Feeder Size<br><span class="br-note" style="font-size:7.5pt;color:#777;">Managed loads excluded (generator feeder). The utility service must still carry all loads.</span>':'Minimum Service Size'}</td><td class="r">${rMinSvc} A</td></tr>
+      <tr><td>Neutral Demand (NEC 220.61)<br><span class="br-note" style="font-size:7.5pt;color:#777;">${(function(){var N=window.AOG_NEUT||{};return 'Cooking '+esc(N.t55basis||'—')+(N.note4?' + Note 6':'')+' &middot; dryer Table 220.54 &middot; both &times;70% per 220.61(B)(1)';})()}</span></td><td class="r">${neutral} A</td></tr>
     </table>
 
     <div class="sh">Conductor Sizing — ${mat}</div>
@@ -4569,6 +4615,24 @@ document.addEventListener('DOMContentLoaded', adjustTopPadding);
 setTimeout(adjustTopPadding, 0);
 setTimeout(adjustTopPadding, 100);
 setTimeout(adjustTopPadding, 500);
+
+// ── THEME — shared 'aog-theme' key (same as every other tool) ──
+var darkMode = false;
+function toggleTheme(){
+  darkMode = !darkMode;
+  document.body.classList.toggle('dark', darkMode);
+  var b = document.getElementById('themeBtn'); if (b) b.textContent = darkMode ? '\u2600\ufe0f' : '\ud83c\udf19';
+  try { localStorage.setItem('aog-theme', darkMode ? 'dark' : 'light'); } catch (e) {}
+}
+(function initTheme(){
+  var saved = null;
+  try { saved = localStorage.getItem('aog-theme'); } catch (e) {}
+  var prefer = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (saved === 'dark' || (!saved && prefer)) {
+    darkMode = true; document.body.classList.add('dark');
+    var b = document.getElementById('themeBtn'); if (b) b.textContent = '\u2600\ufe0f';
+  }
+})();
 </script>
 </body>
 </html>

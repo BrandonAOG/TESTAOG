@@ -3114,6 +3114,11 @@ function capturePageToCanvas() {
         '#cust-info-body #name-job-date-row #date { flex: 1 1 0 !important; width: auto !important; max-width: none !important; min-width: 0 !important; }',
         // Mobile renders the form smaller; bump the root font so the content
         // reads at a comfortable size. Desktop gets a slight +1.5px bump too.
+        // Freeze transitions while capturing. Text and spacing animate (CSS transitions)
+        // when the page jumps to the capture width, and the measurement used to land
+        // part-way through that animation — so the same form exported at a different
+        // height on each run. With transitions off, the wide layout appears instantly.
+        '*, *::before, *::after { transition: none !important; }',
         (_isMobileCap ? 'html { font-size: 29.3px !important; }' : 'html { font-size: 19.3px !important; }'),
         // Footer must follow content during capture, not pin/overlap it, and
         // stay visible (it was dropping out of the capture entirely).
@@ -3296,7 +3301,22 @@ function capturePageToCanvas() {
         }
       }
 
-      requestAnimationFrame(() => {
+      // Wait until the phone has actually applied the widened viewport before
+      // measuring. The viewport change lands asynchronously: measuring two frames
+      // later sometimes caught the narrow (phone) layout and sometimes the wide
+      // one, so the same form exported at different heights from run to run.
+      // Wait for the layout width to reach CAPTURE_WIDTH and hold for two frames
+      // (max ~1.5 s, then go anyway). Desktop doesn't change the viewport, so it
+      // passes straight through.
+      var _vpWaitStart = Date.now(), _vpStable = 0;
+      function _whenViewportSettled(cb) {
+        var w = document.documentElement.clientWidth;
+        var ok = !_isMobileCap || w >= CAPTURE_WIDTH - 1;
+        _vpStable = ok ? _vpStable + 1 : 0;
+        if (_vpStable >= 2 || Date.now() - _vpWaitStart > 1500) { cb(); return; }
+        requestAnimationFrame(function () { _whenViewportSettled(cb); });
+      }
+      _whenViewportSettled(() => {
         requestAnimationFrame(() => {
           buildNoteProxies();
           buildBoxProxies();
