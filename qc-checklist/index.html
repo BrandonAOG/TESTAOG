@@ -1560,9 +1560,10 @@ body.capturing {
       <div class="info-grid">
         <div class="info-row full">
           <span class="info-label">Customer Name:</span>
-          <input class="info-input" type="text" id="cust_name2" autocomplete="off">
+          <!-- Copied from page 1 (syncPage2) — read-only so an edit here can't be silently replaced -->
+          <input class="info-input" type="text" id="cust_name2" autocomplete="off" readonly tabindex="-1" title="Filled in from page 1">
           <span class="info-label" style="margin-left:10px;">Date:</span>
-          <input class="info-input" type="date" id="cust_date2" style="max-width:120px;">
+          <input class="info-input" type="date" id="cust_date2" style="max-width:120px;" readonly tabindex="-1" title="Filled in from page 1">
         </div>
       </div>
     </div>

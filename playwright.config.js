@@ -13,6 +13,7 @@ module.exports = defineConfig({
   use: {
     baseURL: 'http://localhost:8080',
     serviceWorkers: 'block',          // test the pages themselves, not an old offline copy
+    launchOptions: { args: ['--autoplay-policy=no-user-gesture-required'] },   // let the sound checks play
   },
   webServer: {
     command: 'python3 -m http.server 8080',

@@ -1,9 +1,11 @@
 /* ============================================================
    Always On Generators – Field Hub
-   Clean Capture  |  clean-capture.js  |  v1.0.0
+   Clean Capture  |  clean-capture.js  |  v1.1.0
 
-   ONE JOB: seasonal themes (Halloween, Christmas, ...) must never show up in
-   anything a customer or office receives — PDF, print, or image capture.
+   ONE JOB: whatever a customer or office receives — PDF, print, or image
+   capture — shows the plain form exactly as filled in: no seasonal theme
+   (Halloween, Christmas, ...), no half-finished CSS fades, and no html2canvas
+   failure on styled checkboxes.
 
    HOW TO USE: add this ONE line to the <head> of every form page, right
    after sounds.js. It must NOT be deferred (it has to be in place before
@@ -47,9 +49,16 @@
       canv.push({ el: c, display: c.style.display });
       c.style.display = 'none';
     });
+    // Freeze CSS transitions so the picture shows the page's final state, not a
+    // colour or size caught part-way through a fade (e.g. a status chip that was
+    // tapped a moment before saving). Removed again in on().
+    var still = document.createElement('style');
+    still.id = 'aog-capture-still';
+    still.textContent = '*, *::before, *::after { transition: none !important; }';
+    (document.head || document.documentElement).appendChild(still);
     // stop the particle animation too (hidden canvases still burn CPU every frame)
     try { if (window._seasonalPauseAnimation) window._seasonalPauseAnimation(); } catch (e) {}
-    saved = { cls: cls, sheets: sheets, canv: canv };
+    saved = { cls: cls, sheets: sheets, canv: canv, still: still };
   }
 
   function on() {
@@ -62,6 +71,7 @@
       if (x.media === null) x.el.removeAttribute('media'); else x.el.setAttribute('media', x.media);
     });
     s.canv.forEach(function (x) { x.el.style.display = x.display; });
+    if (s.still && s.still.parentNode) s.still.parentNode.removeChild(s.still);
     try { if (window._seasonalResumeAnimation) window._seasonalResumeAnimation(); } catch (e) {}
   }
 
@@ -84,6 +94,16 @@
       if (st) st.setAttribute('media', 'not all');
       doc.querySelectorAll('#seasonal-canvas, .seasonal-canvas').forEach(function (c) {
         if (c.parentNode) c.parentNode.removeChild(c);
+      });
+    } catch (e) {}
+    // Inputs can't have children. html2canvas still copies a checkbox's CSS
+    // ::before/::after checkmark into the input as a child element; newer
+    // Chrome reports no styles for anything inside an input, and html2canvas
+    // then stops with "Error parsing CSS component value". Remove those copies —
+    // html2canvas draws checked boxes with its own checkmark.
+    try {
+      doc.querySelectorAll('input > *, textarea > *, select > :not(option):not(optgroup)').forEach(function (n) {
+        if (n.parentNode) n.parentNode.removeChild(n);
       });
     } catch (e) {}
   }

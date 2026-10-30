@@ -60,3 +60,20 @@ test('every tool uses the one shared theme setting (aog-theme)', () => {
 test('shared scripts parse', () => {
   for (const f of ['update-banner.js', 'sounds.js', 'clean-capture.js', 'seasonal.js']) new vm.Script(read(f));
 });
+
+test('every local file a page links to (scripts, styles, images, pages) exists', () => {
+  const missing = [];
+  for (const page of ['index.html', 'offline.html', ...TOOLS.map(t => `${t}/index.html`)]) {
+    const html = read(page), dir = path.dirname(path.join(ROOT, page));
+    for (const m of html.matchAll(/\s(?:src|href)="([^"]+)"/g)) {
+      const u = m[1];
+      if (/^(https?:|mailto:|tel:|#|javascript:|data:|blob:)/.test(u) || /[$+{}()\s]/.test(u)) continue;   // skip remote links and JavaScript-built ones
+      const clean = u.split(/[?#]/)[0]; if (!clean) continue;
+      const target = path.resolve(dir, clean);
+      const ok = fs.existsSync(target) && (fs.statSync(target).isFile() || fs.existsSync(path.join(target, 'index.html')));
+      if (!ok) missing.push(`${page} → ${u}`);
+    }
+  }
+  expect(missing).toEqual([]);
+});
+
