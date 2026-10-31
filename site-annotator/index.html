@@ -1584,7 +1584,9 @@ var selectedPolygon=null;var polygonDragStart=null;var measureDragHandle=-1;var 
    object can't linger on screen or be committed back. Image overlays are part of every step, and each
    PDF page keeps its own history. */
 var _undoBase=null,_undoPages={},_undoKey=null;
-function _undoNoEdit(k,v){return k==="_editing"?undefined:v}
+/* _editing (being edited) and _acroFlag (tagged for PDF export by the status-bar recount, on its own timer) are
+   bookkeeping, not drawing — they must never make an undo step on their own. */
+function _undoNoEdit(k,v){return (k==="_editing"||k==="_acroFlag")?undefined:v}
 function _undoSnap(){var cl=function(a){return JSON.parse(JSON.stringify(a||[],_undoNoEdit))};return{layerData:layers.map(function(l){if(!l.canvas.width||!l.canvas.height)return null;if(!layerAllocated(l))return null;try{return l.ctx.getImageData(0,0,l.canvas.width,l.canvas.height)}catch(ex){return null}}),activeIdx:activeLayerIdx,textObjs:cl(textObjs),shapeObjs:cl(shapeObjs),measureObjs:cl(measureObjs),pathMeasureObjs:cl(pathMeasureObjs),polylineObjs:cl(polylineObjs),penObjs:cl(penObjs),polygonObjs:cl(polygonObjs),leaderObjs:cl(leaderObjs),stampObjs:cl(stampObjs),commentObjs:cl(commentObjs),markupObjs:cl(markupObjs),imgOverlays:(typeof imgOverlays!=="undefined"&&imgOverlays)?imgOverlays.map(function(ov){return Object.assign({},ov)}):undefined}}
 var _UNDO_KEYS=["textObjs","shapeObjs","measureObjs","pathMeasureObjs","polylineObjs","penObjs","polygonObjs","leaderObjs","stampObjs","commentObjs","markupObjs"];
 var _UNDO_OV=["img","cx","cy","w","h","angle","flipH","flipV","opacity","layerIdx"];

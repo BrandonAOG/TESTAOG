@@ -103,6 +103,9 @@ test('Site Annotator: each Undo tap removes one shape, Redo puts them all back',
   for (const [i, t] of ['rect', 'ellipse', 'rect', 'ellipse', 'rect'].entries()) {
     await a.draw(t, -140 + i * 55, -40);                   // the blank page is ~310 px wide at fit zoom
     await page.keyboard.press('Escape'); await page.waitForTimeout(300);                     // deselect: shape stays, box goes
+    // the status bar recount (EDITABLE / FLAT …) runs on its own timer and tags objects for export;
+    // run it now so the check doesn't depend on that timer (it made GitHub's slower runner fail)
+    await page.evaluate(() => { try { window.AOG_statusSnapshot && window.AOG_statusSnapshot(); } catch (e) {} });
     after.push(await a.look());
   }
   expect(new Set([start, ...after]).size, 'each shape changed the drawing').toBe(6);
@@ -115,6 +118,28 @@ test('Site Annotator: each Undo tap removes one shape, Redo puts them all back',
     await a.tap('#btn-redo');
     expect(await a.look(), `Redo tap ${i + 1}`).toBe(want);
   }
+});
+
+test('Site Annotator: export tagging between steps never makes a "dead" Undo tap', async ({ page }) => {
+  // The status bar's EDITABLE / FLAT recount tags objects for PDF export on its own timer. On GitHub's
+  // slower runner it landed between steps, and tapping a shape then tapping away recorded a step with no
+  // visible change — so one Undo tap later did nothing. Run the recount by hand here to catch that every time.
+  const a = await annotatorCanvas(page);
+  await a.draw('rect', -120, -40);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+  const one = await a.look();
+  await a.draw('ellipse', 20, -40);
+  const recount = () => page.evaluate(() => { try { window.AOG_statusSnapshot && window.AOG_statusSnapshot(); } catch (e) {} });
+  await recount();
+  await page.click('[data-tool="rect"]'); await page.waitForTimeout(400);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+  const two = await a.look();
+  await recount();
+  await page.mouse.click(a.c.x + 40, a.c.y - 25); await page.waitForTimeout(400);           // tap the ellipse (select)
+  await page.mouse.click(a.c.x + 150, a.c.y + 100); await page.waitForTimeout(400);         // tap away (commit, nothing changed)
+  expect((await a.look()).split('|')[0]).toBe(two.split('|')[0]);
+  await a.tap('#btn-undo');
+  expect((await a.look()).split('|')[0], 'one tap removes the ellipse').toBe(one.split('|')[0]);
 });
 
 test('Site Annotator: Undo with a shape still selected removes it and clears the selection box', async ({ page }) => {
