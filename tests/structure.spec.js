@@ -58,7 +58,7 @@ test('every tool uses the one shared theme setting (aog-theme)', () => {
 });
 
 test('shared scripts parse', () => {
-  for (const f of ['update-banner.js', 'sounds.js', 'clean-capture.js', 'seasonal.js', 'address-lookup.js']) new vm.Script(read(f));
+  for (const f of ['update-banner.js', 'sounds.js', 'clean-capture.js', 'seasonal.js', 'address-lookup.js', 'battery-saver.js']) new vm.Script(read(f));
 });
 
 test('every local file a page links to (scripts, styles, images, pages) exists', () => {

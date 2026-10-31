@@ -174,3 +174,23 @@ test('a partial address that is not a full street address does not ask the Censu
   expect(asked).toEqual([]);
   await expect(page.locator('.aog-addr-list')).not.toHaveClass(/open/);
 });
+
+// Phones: the list must open UNDER the address box and never cover what you're typing,
+// even when the box is near the bottom of the screen (where the keyboard comes up).
+test('the suggestion list never covers the address box, even low on a phone screen', async ({ page }) => {
+  test.skip(test.info().project.name !== 'iphone', 'phone layout');
+  expect(await open(page, '/elect-install/')).toEqual([]);
+  await page.route(MAPBOX_FWD, r => r.fulfill({ json: FEATURES }));
+  const box = page.locator('input[data-aog-address]').first();
+  // put the box near the bottom of the screen
+  await box.evaluate(el => { const r = el.getBoundingClientRect(); window.scrollBy(0, r.bottom - (innerHeight - 30)); });
+  await box.tap(); await box.pressSequentially('1234 Del', { delay: 30 });
+  const list = page.locator('.aog-addr-list.open');
+  await expect(list).toBeVisible();
+  await page.waitForTimeout(300);
+  const [b, l] = [await box.boundingBox(), await list.boundingBox()];
+  expect(l.y, 'list starts below the box').toBeGreaterThanOrEqual(b.y + b.height);
+  const hit = await page.evaluate(([x, y]) => { const e = document.elementFromPoint(x, y); return e && e.matches('input[data-aog-address]'); }, [b.x + b.width / 3, b.y + b.height / 2]);
+  expect(hit, 'the box you type in is still visible, not under the list').toBe(true);
+  expect(l.y + Math.min(l.height, 100), 'some suggestions are on screen').toBeLessThanOrEqual(await page.evaluate(() => innerHeight));
+});

@@ -164,16 +164,31 @@
     var m = (getComputedStyle(el).color || '').match(/\d+(\.\d+)?/g);
     return !!m && (0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2]) > 150;   // light text → dark theme
   }
+  // The part of the page you can actually see. On a phone the keyboard covers the bottom of the
+  // screen; visualViewport says how much is left (innerHeight doesn't, on an iPhone).
+  function visible() {
+    var vv = window.visualViewport;
+    return vv ? { top: vv.offsetTop, h: vv.height } : { top: 0, h: innerHeight };
+  }
+  // The list always opens UNDER the box, so it can never cover what you're typing.
   function place() {
     if (!owner) return;
-    var r = owner.getBoundingClientRect();
-    if (!r.width || r.bottom < 0 || r.top > innerHeight) { close(); return; }
-    var below = innerHeight - r.bottom, up = below < 180 && r.top > below;
+    var r = owner.getBoundingClientRect(), v = visible();
+    if (!r.width || r.bottom < v.top || r.top > v.top + v.h) { close(); return; }
+    var below = v.top + v.h - r.bottom;
     list.style.left = Math.max(4, Math.min(r.left, innerWidth - Math.max(r.width, 260) - 4)) + 'px';
     list.style.width = Math.max(r.width, 260) + 'px';
-    list.style.maxHeight = Math.min(260, (up ? r.top : below) - 8) + 'px';
-    list.style.top = up ? '' : (r.bottom + 2) + 'px';
-    list.style.bottom = up ? (innerHeight - r.top + 2) + 'px' : '';
+    list.style.top = (r.bottom + 2) + 'px';
+    list.style.bottom = '';
+    list.style.maxHeight = Math.max(96, Math.min(260, below - 8)) + 'px';
+  }
+  // Box low on the screen (keyboard up): slide the page up so a few suggestions fit under it.
+  function makeRoom() {
+    if (!owner) return;
+    var r = owner.getBoundingClientRect(), v = visible(), need = r.bottom + 170 - (v.top + v.h);
+    var room = r.top - v.top - 8;                            // never push the box itself off the top
+    if (need > 0 && room > 0) { window.scrollBy(0, Math.min(need, room)); }
+    place();
   }
   function close() {
     list.classList.remove('open'); list.innerHTML = ''; items = []; active = -1;
@@ -190,7 +205,7 @@
       li.addEventListener('mousedown', function (e) { e.preventDefault(); pick(i); });   // mousedown: before the box loses focus
       list.appendChild(li);
     });
-    list.classList.add('open'); el.setAttribute('aria-expanded', 'true'); place();
+    list.classList.add('open'); el.setAttribute('aria-expanded', 'true'); makeRoom();
   }
   function fill(el, value) {
     el.value = value;
@@ -269,6 +284,7 @@
 
   addEventListener('scroll', place, true);
   addEventListener('resize', place);
+  if (window.visualViewport) { visualViewport.addEventListener('resize', place); visualViewport.addEventListener('scroll', place); }
   addEventListener('beforeprint', close);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { attachAll(); }); else attachAll();
 

@@ -1108,6 +1108,8 @@ function createSeasonalCanvas(theme) {
     // Paused during a capture/PDF: display:none does NOT stop requestAnimationFrame,
     // so the particles would keep competing with the renderer for the main thread.
     if (canvas._seasonalPaused) return;
+    // Battery saver (../battery-saver.js): no falling particles — the holiday colors stay.
+    if (window.AOGSaver && window.AOGSaver.on) { ctx.clearRect(0,0,W,H); animId = 0; return; }
     ctx.clearRect(0,0,W,H);
     particles.forEach(function(p) { cfg.tick(p); cfg.draw(p); });
     animId = requestAnimationFrame(loop);
@@ -1125,6 +1127,9 @@ function createSeasonalCanvas(theme) {
     }
   };
   loop();
+  if (window.AOGSaver) window.AOGSaver.onChange(function (on) {
+    if (!on && !animId && !isDead() && !canvas._seasonalPaused && !document.hidden) loop();
+  });
 
   function onVis() {
     if (isDead()) { cancelAnimationFrame(animId); document.removeEventListener('visibilitychange', onVis); return; }

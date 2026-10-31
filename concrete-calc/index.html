@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Always On Generators – Concrete Calculator</title>
+<script src="../battery-saver.js"></script>
 <script src="../sounds.js" defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -770,7 +771,11 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
       });
     }
   }
+  var drawing = false;
   function draw(){
+    // Battery saver (../battery-saver.js): no moving background
+    if(window.AOGSaver && window.AOGSaver.on){ ctx.clearRect(0,0,W,H); drawing = false; return; }
+    drawing = true;
     ctx.clearRect(0,0,W,H);
     particles.forEach(function(p){
       p.x+=p.vx; p.y+=p.vy;
@@ -797,6 +802,7 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
   }
   window.addEventListener('resize', resize);
   resize(); draw();
+  if(window.AOGSaver) window.AOGSaver.onChange(function(on){ if(!on && !drawing) draw(); });
 })();
 </script>
 

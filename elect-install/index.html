@@ -18,6 +18,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <link rel="manifest" href="../manifest.json">
 <link rel="apple-touch-icon" href="../icons/icon-192.png">
 <title>Always On Generators – Electrical Installation Forms</title>
+<script src="../battery-saver.js"></script>
 <script src="../sounds.js" defer></script>
 <script src="../address-lookup.js"></script>
 <script src="../clean-capture.js"></script>
@@ -2023,11 +2024,11 @@ setTimeout(adjustTopPadding, 100);
 
 // ===== BUILD TABLES =====
 const fittings = [
-  "PVC Pipe","Weatherproof Seals","Weatherproof Lock Rings","Fiber Bushings",
+  "PVC Pipe","Weatherproof Rings","Weatherproof Lock Rings","Fiber Bushings",
   "Lock Rings","Male Adapters","Female Adapters","Couplings","Box Adapters",
   "LB PVC","LL PVC","LR PVC","Sch40 90s","Sch40 45s","Seal Tight Straights",
   "Seal Tight 90s","Seal Tight Car-Flex Hose","Myers Hubs","PVC Offset",
-  "Mini's","Strut Clamps","Two Hole Straps PVC","K.O. Seals","Weatherproof Seals"
+  "Mini's","Strut Clamps","Two Hole Straps PVC","K.O. Seals","Weatherproof K.O."
 ];
 const fittingSizes = ['5"','4"','3-1/2"','3"','2-1/2"','2"','1-1/2"','1-1/4"','1"','¾"','½"'];
 
@@ -4144,7 +4145,7 @@ if (document.readyState === 'loading') {
   ];
   const FITTING_ROWS = [
     { label:'PVC Pipe',                phrases:['pvc pipe','pipe','pvc'] },
-    { label:'Weatherproof Seals',      phrases:['weatherproof seal','weatherproof seals','weather proof seal','weather proof seals','weatherproof'] },
+    { label:'Weatherproof Rings',      phrases:['weatherproof ring','weatherproof rings','weather proof ring','weather proof rings','weatherproof seal','weatherproof seals','weather proof seal','weather proof seals','weatherproof'] },
     { label:'Weatherproof Lock Rings', phrases:['weatherproof lock ring','weatherproof lock rings','weather proof lock ring','weather proof lock rings'] },
     { label:'Fiber Bushings',          phrases:['fiber bushing','fiber bushings','fibre bushing','bushings','bushing'] },
     { label:'Lock Rings',              phrases:['lock ring','lock rings'] },
@@ -4165,7 +4166,8 @@ if (document.readyState === 'loading') {
     { label:"Mini's",                  phrases:['mini','minis',"mini's",'minnies'] },
     { label:'Strut Clamps',            phrases:['strut clamp','strut clamps','clamps','clamp'] },
     { label:'Two Hole Straps PVC',     phrases:['two hole strap','two hole straps','2 hole strap','2 hole straps','straps','strap','two hole'] },
-    { label:'K.O. Seals',              phrases:['ko seal','ko seals','knockout seal','knockout seals','knock out seal','knock out seals','k o seal','k o seals'] }
+    { label:'K.O. Seals',              phrases:['ko seal','ko seals','knockout seal','knockout seals','knock out seal','knock out seals','k o seal','k o seals'] },
+    { label:'Weatherproof K.O.',       phrases:['weatherproof ko','weatherproof k o','weatherproof knockout','weatherproof knockouts','weatherproof knock out','weather proof ko','weather proof k o','weather proof knockout','weather proof knock out'] }
   ];
   const WIREWAY_ROWS = [
     { label:'4" x 4"',   phrases:['four by four','4 by 4','4x4'] },

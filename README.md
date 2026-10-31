@@ -398,6 +398,10 @@ These files are shared by every page so each feature works the same way everywhe
 **`clean-capture.js` — clean exports** (the 8 forms)
 - Turns the holiday theme off (and pauses its particles) while printing, saving a PDF or making an image, then turns it back on — customers never see Halloween bats on a quote.
 
+**`battery-saver.js` — battery saver** (every page)
+- No button — it follows the phone. It turns itself on when the phone's **Reduce Motion** setting is on (iPhone: Settings → Accessibility → Motion; Android: Remove animations), or at **20% battery or less** while not charging (Android / Chrome / computers report battery; iPhones don't). Web apps can't read the phone's own Battery Saver / Low Power Mode switch, so those are the signals it uses.
+- While on: the hub background becomes a still picture, holiday particles stop (holiday colors stay), pulsing / glowing effects stop, and ambient background sounds stop. Taps, alerts, and every tool's work are unchanged; "building your PDF" spinners still turn.
+
 **`address-lookup.js` — address autocomplete** (the 8 forms + Load Calc)
 - Holds the one Mapbox token, the lookups (Mapbox Geocoding v6 while typing; US Census address check when Mapbox has no match; 📍 GPS uses Mapbox, then OpenStreetMap), the suggestion list and the 📍 button. Forms mark their address box with `data-aog-address`; Estimate and QC Checklist keep their own list and GPS (street + City/State/ZIP) but use the same lookups (`AOGAddress.search` / `AOGAddress.reverse`).
 - The list and 📍 follow dark / light mode and never appear in a PDF, print or image.
@@ -451,6 +455,7 @@ AOG/
 ├── clean-capture.js        # Shared: keeps holiday themes out of every PDF / print / image
 ├── seasonal.js             # Shared holiday-theme engine for the 8 forms
 ├── address-lookup.js       # Shared address autocomplete + the one Mapbox token
+├── battery-saver.js        # Shared battery saver (follows the phone; stops decorative motion everywhere)
 ├── logo.png                # Company logo
 ├── icons/                  # App icons (192, 512, apple-touch 180)
 ├── estimate/               # Estimate form

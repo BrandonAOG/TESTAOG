@@ -20,6 +20,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AOG Hub">
+<script src="./battery-saver.js"></script>
 <script src="./sounds.js" defer></script>
 <style>
 :root {
@@ -3807,8 +3808,15 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
   var STEP = 1000 / 60;
   var last = 0, acc = 0;
 
+  // Battery saver (./battery-saver.js): run the scene ~1 second, leave that frame on screen and stop.
+  var saverStill = false;
   function loop(gen, now){
     if(gen !== generation) return; // stale loop from previous theme — stop it
+    if(window.AOGSaver && window.AOGSaver.on){
+      if(!saverStill){ for(var k=0;k<60;k++) theme.draw(); saverStill = true; }
+      raf = 0; return;
+    }
+    saverStill = false;
     if(now === undefined) now = performance.now();
     if(!last) last = now;
     acc += now - last;
@@ -3839,11 +3847,15 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     state = {};
     theme.init();
   announceScene(theme.name);
-    last = 0; acc = 0;
+    last = 0; acc = 0; saverStill = false;
     loop(generation);
   });
 
   loop(generation);
+  if (window.AOGSaver) window.AOGSaver.onChange(function(on){
+    if (on) return;                                   // the running loop sees it and stops on its next frame
+    generation++; cancelAnimationFrame(raf); last = 0; acc = 0; saverStill = false; loop(generation);
+  });
 
   // ─────────────────────────────────────────────────
   //  SCENE SWITCHER (debug/QA) — flip through all themes
@@ -3858,7 +3870,7 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
     theme.init();
     announceScene(theme.name);
     try { sessionStorage.setItem('aog_theme', idx); } catch(e){}
-    last = 0; acc = 0;
+    last = 0; acc = 0; saverStill = false;
     loop(generation);
     var lbl = document.getElementById('scene-switcher-label');
     if(lbl) lbl.textContent = (idx+1) + '/' + themes.length + ' — ' + theme.name;

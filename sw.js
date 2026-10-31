@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v2.8.20';
+var CACHE_VERSION = 'v2.8.22';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -76,6 +76,9 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
+  '🔌 ELECT INSTALL / SITE VISIT — page 2 fittings: top row is now Weatherproof Rings, bottom row Weatherproof K.O. (both said Weatherproof Seals); voice entry knows both',
+  '🔋 BATTERY SAVER — follows your phone: with Reduce Motion on, or at 20% battery (Android), the animated background, holiday particles, glow effects and ambient sounds stop in every tool',
+  '📍 ADDRESSES — the suggestion list always opens under the address box on phones, so it never covers what you are typing',
   '📍 ADDRESSES — new Mapbox key: suggestions start as you type again (house numbers in Cape Coral, Fort Myers, Naples…)',
   '📍 ADDRESSES — stronger lookup on every form: newer Mapbox search (better house numbers and units), and the US Census address check finds full addresses Mapbox misses; OpenStreetMap still suggests from partial typing if Mapbox is down',
   '🧭 FORMS — same toolbar on every form (HOME · PDF✎ · CAPTURE · LOAD · CLEAR), all on one row on iPhone; 📍 GPS in every address box; Service Work plain PDF button removed',
@@ -107,6 +110,7 @@ var PRECACHE_URLS = [
   './sounds.js',
   './clean-capture.js',
   './address-lookup.js',
+  './battery-saver.js',
   './seasonal.js',
   './estimate/',
   './maintenance/',

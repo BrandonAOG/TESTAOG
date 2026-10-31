@@ -1880,7 +1880,8 @@
       }
       if (profile) {
         var cat = (key.indexOf('scene:') === 0) ? 'animations' : 'seasonal';
-        if (!allowed(cat) || mode === 'vibrate') { profile = null; key = null; }
+        // Battery saver (battery-saver.js): no ambient background loops; taps and alerts still play
+        if (!allowed(cat) || mode === 'vibrate' || (window.AOGSaver && window.AOGSaver.on)) { profile = null; key = null; }
         else key += '|' + mode; // mode change must rebuild
       }
     }
@@ -2102,6 +2103,9 @@
   // and the queued theme (aurora g5, black hole, ...) never played at load.
   if (window.__aogPendingScene) { amb.scene = window.__aogPendingScene; window.__aogPendingScene = null; }
   startRetryLoop(); // zero-tap start attempt — everything above is now defined
+
+  // Battery saver turned on / off: stop or bring back the ambient loops right away
+  if (window.AOGSaver) window.AOGSaver.onChange(function () { try { applyScene(); } catch (e) {} });
 
   window.AOGSound = {
     version: 'v1.0.9',
