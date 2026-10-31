@@ -177,6 +177,24 @@ test('a partial address that is not a full street address does not ask the Censu
 
 // Phones: the list must open UNDER the address box and never cover what you're typing,
 // even when the box is near the bottom of the screen (where the keyboard comes up).
+for (const form of ['elect-install', 'site-visit']) test(`${form}: when the iPhone keyboard pushes the page up, the list stays stuck under the box`, async ({ page }) => {
+  test.skip(test.info().project.name !== 'iphone', 'phone layout');
+  expect(await open(page, `/${form}/`)).toEqual([]);
+  await page.route(MAPBOX_FWD, r => r.fulfill({ json: FEATURES }));
+  const box = page.locator('input[data-aog-address]').first();
+  await box.tap(); await box.pressSequentially('1234 Del', { delay: 30 });
+  await expect(page.locator('.aog-addr-list.open')).toBeVisible();
+  // The keyboard slides the page up. Measure in the SAME frame, before any scroll handler can re-place it.
+  const gap = await page.evaluate(() => {
+    window.scrollBy(0, 180);
+    const b = document.querySelector('input[data-aog-address]').getBoundingClientRect();
+    const l = document.querySelector('.aog-addr-list.open').getBoundingClientRect();
+    return Math.round(l.top - b.bottom);
+  });
+  expect(gap, 'list top sits right under the box').toBeGreaterThanOrEqual(0);
+  expect(gap).toBeLessThanOrEqual(4);
+});
+
 test('the suggestion list never covers the address box, even low on a phone screen', async ({ page }) => {
   test.skip(test.info().project.name !== 'iphone', 'phone layout');
   expect(await open(page, '/elect-install/')).toEqual([]);

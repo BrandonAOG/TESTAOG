@@ -1,6 +1,6 @@
 /* ============================================================
    Always On Generators – Field Hub
-   Address Lookup  |  address-lookup.js  |  v1.2.0
+   Address Lookup  |  address-lookup.js  |  v1.3.0
 
    ONE JOB: the same address autocomplete on every form, with the Mapbox
    token kept in ONE place (this file).
@@ -132,7 +132,7 @@
   // ── Suggestion list: one shared list on <body>, placed under whichever box is active ──
   var css = document.createElement('style');
   css.textContent =
-    '.aog-addr-list{position:fixed;z-index:2147483000;margin:0;padding:0;list-style:none;max-height:260px;overflow-y:auto;' +
+    '.aog-addr-list{position:absolute;z-index:2147483000;margin:0;padding:0;list-style:none;max-height:260px;overflow-y:auto;' +
     'border-radius:8px;font:14px/1.3 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;display:none;-webkit-overflow-scrolling:touch}' +
     '.aog-addr-list.open{display:block}' +
     '.aog-addr-list li{padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--aog-al-line)}' +
@@ -176,9 +176,15 @@
     var r = owner.getBoundingClientRect(), v = visible();
     if (!r.width || r.bottom < v.top || r.top > v.top + v.h) { close(); return; }
     var below = v.top + v.h - r.bottom;
-    list.style.left = Math.max(4, Math.min(r.left, innerWidth - Math.max(r.width, 260) - 4)) + 'px';
+    /* Placed in PAGE coordinates (position:absolute on <body>), not screen coordinates. On an iPhone
+       the keyboard slides the page up under a position:fixed element, and Safari moves fixed things
+       on its own schedule — on the long forms (Elect Install, Site Visit) the list landed on top of
+       the box. Anchored to the page, the list moves WITH the box however the keyboard scrolls it. */
+    var base = (list.offsetParent || document.documentElement).getBoundingClientRect();
+    var left = Math.max(4, Math.min(r.left, innerWidth - Math.max(r.width, 260) - 4));
+    list.style.left = (left - base.left) + 'px';
     list.style.width = Math.max(r.width, 260) + 'px';
-    list.style.top = (r.bottom + 2) + 'px';
+    list.style.top = (r.bottom + 2 - base.top) + 'px';
     list.style.bottom = '';
     list.style.maxHeight = Math.max(96, Math.min(260, below - 8)) + 'px';
   }
