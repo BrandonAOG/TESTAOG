@@ -9,7 +9,8 @@ module.exports = defineConfig({
   expect: { timeout: 10 * 1000 },
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+  // On GitHub: 'github' puts each failed check (file, line, message) right on the run's summary page.
+  reporter: process.env.CI ? [['github'], ['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: 'http://localhost:8080',
     serviceWorkers: 'block',          // test the pages themselves, not an old offline copy

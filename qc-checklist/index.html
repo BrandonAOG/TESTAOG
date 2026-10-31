@@ -353,12 +353,12 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 /* Phone toolbar: tighten the buttons so HOME … CLEAR and the theme button all fit on one
    row on a normal-size iPhone (same rule on every form). */
 @media (max-width: 430px) {
-  .action-bar { gap: 3px !important; }
-  .action-bar .btn, .action-bar .ab-btn { padding: 6px 5px !important; letter-spacing: 0.2px !important; }
+  .action-bar { gap: 2px !important; padding-left: 3px !important; padding-right: 3px !important; }
+  .action-bar .btn, .action-bar .ab-btn { padding: 6px 4px !important; letter-spacing: 0 !important; }
 }
 @media (max-width: 380px) {
   .action-bar { gap: 2px !important; padding-left: 2px !important; padding-right: 2px !important; }
-  .action-bar .btn, .action-bar .ab-btn { font-size: 9px !important; padding: 6px 3px !important; letter-spacing: 0 !important; }
+  .action-bar .btn, .action-bar .ab-btn { font-size: 8.5px !important; padding: 6px 3px !important; letter-spacing: 0 !important; }
   .action-bar .theme-toggle-btn { width: 32px !important; height: 32px !important; }
 }
 </style>
@@ -3241,79 +3241,44 @@ function getInitialTheme() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// ADDRESS AUTOCOMPLETE + GPS — ported from the estimate form. Tries Mapbox
-// first (token from ../address-lookup.js — the one place every form gets
-// it from), falls back to free OpenStreetMap Nominatim.
+// ADDRESS AUTOCOMPLETE + GPS — same list and 📍 as the estimate form. The
+// lookups themselves are shared (../address-lookup.js): Mapbox Geocoding v6
+// while typing, the US Census address check as the backup.
 // This form has a single address field (no separate city/state/zip field),
-// so a selected suggestion fills the full "street, city, state zip" line.
+// so a selected suggestion fills "street, city".
 // ═══════════════════════════════════════════════════════════════════════
-var MAPBOX_TOKEN = window.AOG_MAPBOX_TOKEN || '';   // kept in ../address-lookup.js (one place for every form)
-var SW_FLORIDA_BBOX   = '-82.2,26.0,-81.2,27.0';
-var SW_FLORIDA_CENTER = '-81.76,26.14';
 
-function isFloridaAddress(pn, addr) {
-  if (addr && addr.state) { var s=addr.state.toLowerCase(); if(s==='florida'||s==='fl') return true; }
-  if (!pn) return false;
-  var p = pn.toLowerCase();
-  return p.includes('florida') || /,\s*fl\b/.test(p) || /\bfl\s+\d{5}/.test(p);
-}
-
-// Mapbox features only expose a single pre-formatted `place_name` string
-// (".../street, city, ST 12345, United States"). To keep state/zip out of
-// the field (screen + captures), pull street + city from the structured
-// `context` array instead of using place_name directly.
-function mapboxStreetCity(item) {
-  var street = ((item.address ? item.address + ' ' : '') + (item.text || '')).trim();
-  var city = '';
-  var ctx = item.context || [];
-  for (var i = 0; i < ctx.length; i++) {
-    if (/^place\./.test(ctx[i].id)) { city = ctx[i].text; break; }
-  }
-  if (!street) street = (item.place_name || '').split(',')[0];
-  return [street, city].filter(Boolean).join(', ');
+// One way to put a looked-up address in the form (typed suggestion or 📍 GPS):
+// "street, city" — state/zip left out of the field (screen + captures).
+function fillAddr(it) {
+  var ai = document.getElementById('cust_addr');
+  if (ai) ai.value = it.value;
 }
 
 function setupAddressAutocomplete() {
   var input = document.getElementById('cust_addr');
   var list  = document.getElementById('address-suggestions');
   if (!input || !list) return;
-  var debounce;
+  var debounce, seq = 0;
 
   function updateAriaExpanded(open) {
     input.setAttribute('aria-expanded', open ? 'true' : 'false');
   }
 
-  function renderResults(results, source) {
+  function renderResults(results) {
     list.innerHTML = '';
     if (results.length === 0) { list.classList.remove('open'); updateAriaExpanded(false); return; }
     results.forEach(function(item) {
       var li = document.createElement('li');
       li.setAttribute('role','option');
-      var isFlorida, handler;
-      if (source === 'mapbox') {
-        li.textContent = item.place_name;
-        isFlorida = isFloridaAddress(item.place_name, null);
-        handler = function(e) {
-          e.preventDefault();
-          input.value = mapboxStreetCity(item);
-          list.classList.remove('open'); updateAriaExpanded(false); list.innerHTML = '';
-          saveDraft();
-        };
-      } else {
-        li.textContent = item.display_name;
-        isFlorida = isFloridaAddress(item.display_name, item.address);
-        handler = function(e) {
-          e.preventDefault();
-          var a = item.address || {};
-          var street = ((a.house_number||'') + ' ' + (a.road||'')).trim() || item.display_name.split(',')[0];
-          var city   = a.city || a.town || a.village || a.county || '';
-          // State/zip intentionally left out of the field (screen + captures).
-          input.value = [street, city].filter(Boolean).join(', ');
-          list.classList.remove('open'); updateAriaExpanded(false); list.innerHTML = '';
-          saveDraft();
-        };
-      }
-      if (isFlorida) { li.style.fontWeight='bold'; li.style.color='var(--cyan)'; }
+      li.textContent = item.label;
+      var handler = function(e) {
+        e.preventDefault();
+        fillAddr(item);
+        list.classList.remove('open'); updateAriaExpanded(false); list.innerHTML = '';
+        saveDraft();
+      };
+      if (item.fl) { li.style.fontWeight='bold'; li.style.color='var(--cyan)'; }
       li.addEventListener('mousedown', handler);
       li.addEventListener('mouseenter', function() { this.classList.add('active'); });
       li.addEventListener('mouseleave', function() { this.classList.remove('active'); });
@@ -3322,33 +3287,15 @@ function setupAddressAutocomplete() {
     list.classList.add('open'); updateAriaExpanded(true);
   }
 
-  function tryNominatim(q) {
-    fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=20&countrycodes=us&viewbox=-82.2,27.0,-81.2,26.0&bounded=1&q=' + encodeURIComponent(q), { headers: { 'Accept-Language':'en', 'User-Agent':'AOG-QC-Checklist' } })
-      .then(function(r) { return r.json(); })
-      .then(function(results) {
-        if (!results || results.length === 0) { list.classList.remove('open'); updateAriaExpanded(false); list.innerHTML=''; return; }
-        var fl = results.filter(function(r) { return isFloridaAddress(r.display_name,r.address); });
-        var ot = results.filter(function(r) { return !isFloridaAddress(r.display_name,r.address); });
-        renderResults(fl.concat(ot).slice(0,8), 'nominatim');
-      })
-      .catch(function() { list.classList.remove('open'); updateAriaExpanded(false); list.innerHTML=''; });
-  }
-
   input.addEventListener('input', function() {
     clearTimeout(debounce);
     var q = input.value.trim();
-    if (q.length < 1) { list.classList.remove('open'); updateAriaExpanded(false); return; }
+    if (q.length < 3) { list.classList.remove('open'); updateAriaExpanded(false); return; }
     debounce = setTimeout(function() {
-      fetch('https://api.mapbox.com/geocoding/v5/mapbox.places/' + encodeURIComponent(q) + '.json?access_token=' + MAPBOX_TOKEN + '&country=US&types=address&autocomplete=true&limit=20&proximity=' + SW_FLORIDA_CENTER + '&bbox=' + SW_FLORIDA_BBOX)
-        .then(function(r) { if(!r.ok) throw new Error('err'); return r.json(); })
-        .then(function(data) {
-          if (!data.features || data.features.length===0) { tryNominatim(q); return; }
-          var fl=[], ot=[];
-          data.features.forEach(function(f) { (isFloridaAddress(f.place_name,null) ? fl : ot).push(f); });
-          renderResults(fl.concat(ot).slice(0,8), 'mapbox');
-        })
-        .catch(function() { tryNominatim(q); });
-    }, 150);
+      var mine = ++seq;
+      // Shared lookup in ../address-lookup.js: Mapbox Geocoding v6, US Census check as the backup
+      AOGAddress.search(q).then(function(res) { if (mine === seq) renderResults(res); });
+    }, 200);
   });
 
   document.addEventListener('click', function(e) {
@@ -3386,21 +3333,13 @@ function setupGpsButton() {
     announce('Getting your location…');
     navigator.geolocation.getCurrentPosition(
       function(pos) {
-        fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + pos.coords.latitude + '&lon=' + pos.coords.longitude + '&addressdetails=1', { headers:{'Accept-Language':'en','User-Agent':'AOG-QC-Checklist'} })
-          .then(function(r) { return r.json(); })
-          .then(function(data) {
+        AOGAddress.reverse(pos.coords.latitude, pos.coords.longitude)
+          .then(function(it) {
             btn.disabled = false;
-            if (data && data.address) {
-              var a = data.address;
-              var street = (a.house_number && a.road) ? a.house_number+' '+a.road : (a.road || data.display_name.split(',')[0]);
-              var city   = a.city||a.town||a.village||a.county||'';
-              // State/zip intentionally left out of the field (screen + captures).
-              var ai = document.getElementById('cust_addr');
-              if (ai) ai.value = [street, city].filter(Boolean).join(', ');
-              announce('✓ Location found');
-              saveDraft();
-              setTimeout(function() { if (status) status.style.display='none'; }, 3000);
-            }
+            fillAddr(it);
+            announce('✓ Location found');
+            saveDraft();
+            setTimeout(function() { if (status) status.style.display='none'; }, 3000);
           })
           .catch(function() { btn.disabled=false; announce('Location lookup failed — please enter address manually'); });
       },

@@ -48,7 +48,7 @@ The hub (`index.html`) is the home screen. Each time it opens it plays one of **
 These behaviors are shared by the 8 forms (Estimate, Site Visit, Pre-Install, Electrical Install, Gas Install, QC Checklist, Maintenance, Service Work), so they're described once here.
 
 - **Auto-save** — every change is saved on the device (and every 30 seconds on most forms); reopening the form restores the draft, usually with a "Draft saved" badge or a "Restored draft" notice. **🗑 CLEAR** asks for confirmation before wiping the form.
-- **Address autocomplete** — every form's job address suggests Southwest-Florida addresses as you type (Mapbox, OpenStreetMap backup). Every address box has a 📍 button (inside the box) that fills in the address where you're standing. Estimate splits the result into street + City/State/ZIP; the rest fill "street, city". Load Calc's job address has it too.
+- **Address autocomplete** — every form's job address suggests Southwest-Florida addresses as you type (Mapbox Geocoding v6; when Mapbox has no match, the free US Census address check finds the full street address). Every address box has a 📍 button (inside the box) that fills in the address where you're standing. Estimate splits the result into street + City/State/ZIP; the rest fill "street, city". Load Calc's job address has it too.
 - **📝 PDF✎ — resumable PDF** — builds the form as US-Letter PDF pages with the form's data tucked inside the file. It is not a fill-in-the-blanks PDF; instead, **📂 LOAD** reads that PDF (or a `.json` draft) back in and refills the form, so a job can be reopened on any device.
 - **📸 CAPTURE — image** — a JPG of each page. iPhone/iPad opens the share sheet (or shows the image full-screen to long-press and save); Android saves to Downloads and then offers a **📤 SHARE IT** bar; computers download the file.
 - **Same toolbar on every form** — 🏠 HOME · 📝 PDF✎ · 📸 CAPTURE · 📂 LOAD · 🗑 CLEAR · theme (Electrical Install adds 🎤 VOICE). It fits on one row on an iPhone. There is no plain print-PDF button; techs use PDF✎ and CAPTURE.
@@ -65,7 +65,7 @@ These behaviors are shared by the 8 forms (Estimate, Site Visit, Pre-Install, El
 A one-page installation estimate filled out on site with the customer. It records the customer and property, then sizes up the generator, transfer switch, pad, fuel and install effort.
 
 **Features**
-- **Customer & Property Info** — name, address with live autocomplete (Mapbox, falling back to OpenStreetMap; Florida results first) and a 📍 GPS button, Community/HOA, phone, email, how they heard about us, square footage, financing, Property Survey Y/N, estimate date and time.
+- **Customer & Property Info** — name, address with live autocomplete (Mapbox v6 with the US Census address check as backup; Florida results first) and a 📍 GPS button, Community/HOA, phone, email, how they heard about us, square footage, financing, Property Survey Y/N, estimate date and time.
 - **Flood bar** — Flood Zone / Footage, Parcel / Municipality, Estimate Done On, Estimator.
 - **Generator** — size, placement (Right / Left / Back), seal window, electric run feet (Under Ground / Above Ground / Attic), Al/Cu wiring, bore.
 - **Transfer Switch** — number of panels and switches, type and placement, FPL/LCEC shutdown, grounding update, SE / Non-SE, load shed with 60A and 100A circuit counts, Whole House / Partial / Pool coverage, circuit swap.
@@ -184,7 +184,7 @@ A two-page gas installation checklist the gas crew completes during the job. Pag
 A two-page sign-off checklist used to check a finished generator install before the job is closed. Every item has a pair of answers (Good/Bad, Yes/No, Installed/Removed or Complete/Not Done) and a notes line that grows as you type.
 
 **Features**
-- **Header** — Customer Name, Date (defaults to today), Address with autocomplete (Mapbox, OpenStreetMap fallback) and 📍 GPS, Install Crew, Project Manager. Page 2 repeats the name and date automatically.
+- **Header** — Customer Name, Date (defaults to today), Address with autocomplete (Mapbox v6, US Census backup) and 📍 GPS, Install Crew, Project Manager. Page 2 repeats the name and date automatically.
 - **Page 1** — Transfer Switch, Meter (tap the header to switch between **Meter** and **Meter Main** item sets), Customer Panel, Load Shedding and Conduit Strapping.
 - **Page 2** — Generator, Gas Tank (filled, vacuumed, bonded (attic only), leak check), Gas (including leak-down check), Job Site (cleaned, placards).
 - **Summary** — Overall Job Status (Pass / Fail / Needs Follow-Up), Items Requiring Follow-Up and Additional Comments.
@@ -399,7 +399,7 @@ These files are shared by every page so each feature works the same way everywhe
 - Turns the holiday theme off (and pauses its particles) while printing, saving a PDF or making an image, then turns it back on — customers never see Halloween bats on a quote.
 
 **`address-lookup.js` — address autocomplete** (the 8 forms + Load Calc)
-- Holds the one Mapbox token, the suggestion list and the 📍 GPS button. Forms mark their address box with `data-aog-address`; Estimate and QC Checklist keep their own list and GPS (street + City/State/ZIP) but read the token from here.
+- Holds the one Mapbox token, the lookups (Mapbox Geocoding v6 while typing; US Census address check when Mapbox has no match; 📍 GPS uses Mapbox, then OpenStreetMap), the suggestion list and the 📍 button. Forms mark their address box with `data-aog-address`; Estimate and QC Checklist keep their own list and GPS (street + City/State/ZIP) but use the same lookups (`AOGAddress.search` / `AOGAddress.reverse`).
 - The list and 📍 follow dark / light mode and never appear in a PDF, print or image.
 
 **`seasonal.js` — holiday engine** (the 8 forms)

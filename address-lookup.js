@@ -1,6 +1,6 @@
 /* ============================================================
    Always On Generators – Field Hub
-   Address Lookup  |  address-lookup.js  |  v1.1.0
+   Address Lookup  |  address-lookup.js  |  v1.2.0
 
    ONE JOB: the same address autocomplete on every form, with the Mapbox
    token kept in ONE place (this file).
@@ -9,15 +9,17 @@
        <script src="../address-lookup.js" defer></script>
    and mark the address box:
        <input type="text" data-aog-address>
-   That's all. Typing shows Southwest-Florida addresses first (Mapbox, with
-   free OpenStreetMap as the backup). Picking one fills "street, city" — the
+   That's all. Typing shows Southwest-Florida addresses first (Mapbox
+   Geocoding v6). When Mapbox has no match, the US Census Bureau address
+   check (free, no key) looks up the whole address as a backup. Picking one fills "street, city" — the
    same format the QC Checklist uses — and fires the normal input/change
    events, so the form's autosave and PDFs pick it up like typed text.
    A 📍 button next to the box fills in the address where you're standing
    (add data-aog-no-gps to the box to leave it off).
 
-   Pages with their own address code (Estimate, QC Checklist) just read the
-   token from here:  window.AOG_MAPBOX_TOKEN
+   Pages with their own list (Estimate, QC Checklist) use the same lookups:
+   AOGAddress.search(text) and AOGAddress.reverse(lat, lon) both give
+   { label, street, city, state, zip, value, fl, accuracy, source }.
 
    The suggestion list is never part of a saved image, PDF or print.
    ============================================================ */
@@ -31,48 +33,84 @@
 
   var BBOX = '-82.2,26.0,-81.2,27.0';      // Southwest Florida
   var CENTER = '-81.76,26.14';
-  var NOMINATIM_BOX = '-82.2,27.0,-81.2,26.0';
+  var MAPBOX = 'https://api.mapbox.com/search/geocode/v6/';               // Geocoding v6 (better house numbers + units than v5)
+  var CENSUS = 'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?benchmark=Public_AR_Current&address=';
 
-  function isFlorida(text, addr) {
-    if (addr && addr.state) { var s = addr.state.toLowerCase(); if (s === 'florida' || s === 'fl') return true; }
-    var p = (text || '').toLowerCase();
-    return p.indexOf('florida') >= 0 || /,\s*fl\b/.test(p) || /\bfl\s+\d{5}/.test(p);
+  // Every source is turned into the same shape:
+  //   { label, street, city, state, zip, value: "street, city", fl, accuracy, source }
+  function make(street, city, state, zip, label, accuracy, source) {
+    street = (street || '').trim(); city = (city || '').trim();
+    return { label: label || [street, city, [state, zip].filter(Boolean).join(' ')].filter(Boolean).join(', '),
+             street: street, city: city, state: state || '', zip: zip || '',
+             value: [street, city].filter(Boolean).join(', '),
+             fl: /^(fl|florida)$/i.test(state || ''), accuracy: accuracy || '', source: source };
   }
   function fromMapbox(f) {
-    var street = ((f.address ? f.address + ' ' : '') + (f.text || '')).trim(), city = '';
-    (f.context || []).some(function (c) { if (/^place\./.test(c.id)) { city = c.text; return true; } return false; });
-    if (!street) street = (f.place_name || '').split(',')[0];
-    return { label: f.place_name, fl: isFlorida(f.place_name), value: [street, city].filter(Boolean).join(', ') };
+    var p = f.properties || {}, c = p.context || {}, a = c.address || {};
+    var street = (a.address_number && a.street_name) ? a.address_number + ' ' + a.street_name : (p.name || '');
+    var region = c.region || {};
+    return make(street, (c.place || {}).name, region.region_code || region.name, (c.postcode || {}).name,
+                p.full_address || [p.name, p.place_formatted].filter(Boolean).join(', '), (p.coordinates || {}).accuracy, 'mapbox');
   }
-  function fromNominatim(r) {
+  // US Census Bureau: free, no key, very good on US house numbers. It needs a whole street address
+  // (no suggest-as-you-type) and sends no CORS header, so it is called the way it supports: JSONP.
+  var KEEP_UP = /^(N|S|E|W|NE|NW|SE|SW|US|SR|CR|FL)$/;
+  function nice(t) {                                        // "1015 CULTURAL PARK BLVD N" → "1015 Cultural Park Blvd N"
+    return String(t || '').toLowerCase().replace(/[a-z0-9]+/g, function (w) {
+      var W = w.toUpperCase();
+      if (KEEP_UP.test(W)) return W;
+      if (/^\d+(st|nd|rd|th)$/.test(w)) return w;
+      return w.charAt(0).toUpperCase() + w.slice(1);
+    });
+  }
+  function fromCensus(m) {
+    var parts = String(m.matchedAddress || '').split(',').map(function (x) { return x.trim(); });  // STREET, CITY, ST, ZIP
+    var c = m.addressComponents || {};
+    return make(nice(parts[0]), nice(c.city || parts[1]), (c.state || parts[2] || '').toUpperCase(), c.zip || parts[3] || '', null, 'street range', 'census');
+  }
+  var jsonpN = 0;
+  function jsonp(url, ms) {
+    return new Promise(function (resolve, reject) {
+      var cb = '__aogCensus' + (++jsonpN), s = document.createElement('script'), t;
+      function done() { clearTimeout(t); window[cb] = function () {}; if (s.parentNode) s.parentNode.removeChild(s); }   // a late reply lands on a no-op
+      window[cb] = function (d) { done(); resolve(d); };
+      s.onerror = function () { done(); reject(new Error('census')); };
+      t = setTimeout(function () { done(); reject(new Error('census timeout')); }, ms || 8000);
+      s.src = url + '&format=jsonp&callback=' + cb;
+      document.head.appendChild(s);
+    });
+  }
+  function census(q) {
+    if (!/^\s*\d+[a-z]?\s+\S+/i.test(q) || q.length < 8) return Promise.resolve([]);   // needs "number street"
+    var full = /\b(fl|florida)\b|\b\d{5}\b/i.test(q) ? q : q + ', FL';                   // assume Florida if no state / ZIP typed
+    return jsonp(CENSUS + encodeURIComponent(full))
+      .then(function (d) { return ((d && d.result && d.result.addressMatches) || []).map(fromCensus); })
+      .catch(function () { return []; });
+  }
+  function fromNominatim(r) {                               // GPS backup only (the Census can't turn a location into an address)
     var a = r.address || {};
-    var street = ((a.house_number || '') + ' ' + (a.road || '')).trim() || (r.display_name || '').split(',')[0];
-    var city = a.city || a.town || a.village || a.county || '';
-    return { label: r.display_name, fl: isFlorida(r.display_name, a), value: [street, city].filter(Boolean).join(', ') };
-  }
-  function reverse(lat, lon) {
-    return fetch('https://api.mapbox.com/geocoding/v5/mapbox.places/' + lon + ',' + lat + '.json?types=address&limit=1&access_token=' + TOKEN)
-      .then(function (r) { if (!r.ok) throw new Error('mapbox ' + r.status); return r.json(); })
-      .then(function (d) { if (!d.features || !d.features.length) throw new Error('none'); return fromMapbox(d.features[0]).value; })
-      .catch(function () {
-        return fetch('https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&lat=' + lat + '&lon=' + lon, { headers: { 'Accept-Language': 'en' } })
-          .then(function (r) { return r.json(); })
-          .then(function (d) { if (!d || !d.address) throw new Error('none'); return fromNominatim(d).value; });
-      });
+    return make(((a.house_number || '') + ' ' + (a.road || '')).trim() || (r.display_name || '').split(',')[0],
+                a.city || a.town || a.village || a.county, /florida/i.test(a.state || '') ? 'FL' : a.state, a.postcode, null, '', 'osm');
   }
   function floridaFirst(list) { return list.filter(function (x) { return x.fl; }).concat(list.filter(function (x) { return !x.fl; })).slice(0, 8); }
 
+  // Typing: Mapbox suggestions; when Mapbox has nothing (or is down), the Census checks the whole address.
   function search(q) {
-    return fetch('https://api.mapbox.com/geocoding/v5/mapbox.places/' + encodeURIComponent(q) + '.json?access_token=' + TOKEN +
-                 '&country=US&types=address&autocomplete=true&limit=10&proximity=' + CENTER + '&bbox=' + BBOX)
+    return fetch(MAPBOX + 'forward?q=' + encodeURIComponent(q) + '&autocomplete=true&country=us&types=address&limit=8&proximity=' + CENTER +
+                 '&bbox=' + BBOX + '&access_token=' + TOKEN)
       .then(function (r) { if (!r.ok) throw new Error('mapbox ' + r.status); return r.json(); })
-      .then(function (d) { if (!d.features || !d.features.length) throw new Error('none'); return floridaFirst(d.features.map(fromMapbox)); })
+      .then(function (d) { var f = (d && d.features) || []; if (!f.length) throw new Error('none'); return floridaFirst(f.map(fromMapbox)); })
+      .catch(function () { return census(q); });
+  }
+  // 📍 GPS: where am I → address.
+  function reverse(lat, lon) {
+    return fetch(MAPBOX + 'reverse?longitude=' + lon + '&latitude=' + lat + '&types=address&limit=1&access_token=' + TOKEN)
+      .then(function (r) { if (!r.ok) throw new Error('mapbox ' + r.status); return r.json(); })
+      .then(function (d) { if (!d || !d.features || !d.features.length) throw new Error('none'); return fromMapbox(d.features[0]); })
       .catch(function () {
-        return fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=10&countrycodes=us&viewbox=' + NOMINATIM_BOX +
-                     '&bounded=1&q=' + encodeURIComponent(q), { headers: { 'Accept-Language': 'en' } })
+        return fetch('https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&lat=' + lat + '&lon=' + lon, { headers: { 'Accept-Language': 'en' } })
           .then(function (r) { return r.json(); })
-          .then(function (rs) { return floridaFirst((rs || []).map(fromNominatim)); })
-          .catch(function () { return []; });
+          .then(function (d) { if (!d || !d.address) throw new Error('none'); return fromNominatim(d); });
       });
   }
 
@@ -174,8 +212,8 @@
     b.addEventListener('click', function () {
       mount(); b.disabled = true; message(el, 'Getting your location…');
       navigator.geolocation.getCurrentPosition(function (pos) {
-        reverse(pos.coords.latitude, pos.coords.longitude).then(function (v) {
-          b.disabled = false; fill(el, v); message(el, '✓ ' + v, 2500);
+        reverse(pos.coords.latitude, pos.coords.longitude).then(function (r) {
+          b.disabled = false; fill(el, r.value); message(el, '✓ ' + r.value, 2500);
         }).catch(function () { b.disabled = false; message(el, 'Address lookup failed — type it in', 4000); });
       }, function (err) {
         b.disabled = false;
