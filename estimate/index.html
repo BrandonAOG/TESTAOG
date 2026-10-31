@@ -1633,6 +1633,18 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
      .dark-mode-pending / seasonal-* classes are still present. The unscoped variants
      below catch that case. Placed LAST so it wins the cascade over every dark rule.
    ============================================================================ */
+
+/* Phone toolbar: tighten the buttons so HOME … CLEAR and the theme button all fit on one
+   row on a normal-size iPhone (same rule on every form). */
+@media (max-width: 430px) {
+  .action-bar { gap: 3px !important; }
+  .action-bar .btn, .action-bar .ab-btn { padding: 6px 5px !important; letter-spacing: 0.2px !important; }
+}
+@media (max-width: 380px) {
+  .action-bar { gap: 2px !important; padding-left: 2px !important; padding-right: 2px !important; }
+  .action-bar .btn, .action-bar .ab-btn { font-size: 9px !important; padding: 6px 3px !important; letter-spacing: 0 !important; }
+  .action-bar .theme-toggle-btn { width: 32px !important; height: 32px !important; }
+}
 </style>
 <script src="../update-banner.js"></script>
 </head>
@@ -1680,9 +1692,9 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
   <a class="ab-btn" onclick="printForm()" style="cursor:pointer; display:none;">📄 PDF</a>
   <a class="ab-btn" onclick="saveFillablePdf()" style="cursor:pointer;">📝 PDF✎</a>
   <a class="ab-btn" id="btn-capture" onclick="saveSmart()" style="cursor:pointer;">📸 CAPTURE</a>
-  <a class="ab-btn" onclick="confirmClear()" style="cursor:pointer;">🗑 CLEAR</a>
   <a class="ab-btn" onclick="document.getElementById('load-draft-input').click()" style="cursor:pointer;">📂 LOAD</a>
   <input type="file" id="load-draft-input" accept=".json,.pdf,.xlsx" style="display:none;" onchange="loadDraftFile(this)">
+  <a class="ab-btn" onclick="confirmClear()" style="cursor:pointer;">🗑 CLEAR</a>
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
     <svg class="theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>

@@ -1,6 +1,6 @@
 /* ============================================================
    Always On Generators – Field Hub
-   Address Lookup  |  address-lookup.js  |  v1.0.0
+   Address Lookup  |  address-lookup.js  |  v1.1.0
 
    ONE JOB: the same address autocomplete on every form, with the Mapbox
    token kept in ONE place (this file).
@@ -13,6 +13,8 @@
    free OpenStreetMap as the backup). Picking one fills "street, city" — the
    same format the QC Checklist uses — and fires the normal input/change
    events, so the form's autosave and PDFs pick it up like typed text.
+   A 📍 button next to the box fills in the address where you're standing
+   (add data-aog-no-gps to the box to leave it off).
 
    Pages with their own address code (Estimate, QC Checklist) just read the
    token from here:  window.AOG_MAPBOX_TOKEN
@@ -48,6 +50,16 @@
     var city = a.city || a.town || a.village || a.county || '';
     return { label: r.display_name, fl: isFlorida(r.display_name, a), value: [street, city].filter(Boolean).join(', ') };
   }
+  function reverse(lat, lon) {
+    return fetch('https://api.mapbox.com/geocoding/v5/mapbox.places/' + lon + ',' + lat + '.json?types=address&limit=1&access_token=' + TOKEN)
+      .then(function (r) { if (!r.ok) throw new Error('mapbox ' + r.status); return r.json(); })
+      .then(function (d) { if (!d.features || !d.features.length) throw new Error('none'); return fromMapbox(d.features[0]).value; })
+      .catch(function () {
+        return fetch('https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&lat=' + lat + '&lon=' + lon, { headers: { 'Accept-Language': 'en' } })
+          .then(function (r) { return r.json(); })
+          .then(function (d) { if (!d || !d.address) throw new Error('none'); return fromNominatim(d).value; });
+      });
+  }
   function floridaFirst(list) { return list.filter(function (x) { return x.fl; }).concat(list.filter(function (x) { return !x.fl; })).slice(0, 8); }
 
   function search(q) {
@@ -78,7 +90,14 @@
     '.aog-addr-list.light li.fl{color:#b45309}' +
     '.aog-addr-list.dark{--aog-al-line:rgba(255,255,255,.08);--aog-al-hi:rgba(0,255,200,.10);background:#0f1530;color:#e0f7ff;border:1px solid rgba(0,255,200,.25);box-shadow:0 8px 24px rgba(0,0,0,.5)}' +
     '.aog-addr-list.dark li.fl{color:#00ffc8}' +
-    '@media print{.aog-addr-list{display:none!important}}';
+    '.aog-addr-list li.msg{cursor:default;font-weight:600;opacity:.85}' +
+    /* 📍 sits INSIDE the right end of the address box (overlaid), so no form layout changes */
+    'button.aog-gps{position:absolute!important;display:flex!important;align-items:center;justify-content:center;box-sizing:border-box!important;' +
+    'width:26px!important;height:26px!important;min-width:0!important;min-height:0!important;max-width:none!important;margin:0!important;padding:0!important;flex:none!important;' +
+    'border:0!important;border-radius:6px!important;background:transparent!important;box-shadow:none!important;clip-path:none!important;transform:none!important;' +
+    'font-size:15px!important;line-height:1!important;cursor:pointer;opacity:.75;z-index:5;-webkit-tap-highlight-color:transparent;touch-action:manipulation}' +
+    'button.aog-gps:hover{opacity:1}button.aog-gps:disabled{opacity:.35;cursor:wait}' +
+    '@media print{.aog-addr-list,.aog-gps{display:none!important}}';
   var list = document.createElement('ul');
   list.className = 'aog-addr-list';
   list.setAttribute('role', 'listbox');
@@ -86,7 +105,8 @@
   list.setAttribute('data-html2canvas-ignore', 'true');   // never in a capture
   var owner = null, items = [], active = -1, timer = 0, seq = 0;
 
-  function mount() { if (!list.parentNode && document.body) { document.head.appendChild(css); document.body.appendChild(list); } }
+  function styles() { if (!css.parentNode) document.head.appendChild(css); }
+  function mount() { styles(); if (!list.parentNode && document.body) document.body.appendChild(list); }
   function darkInput(el) {
     var m = (getComputedStyle(el).color || '').match(/\d+(\.\d+)?/g);
     return !!m && (0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2]) > 150;   // light text → dark theme
@@ -119,12 +139,49 @@
     });
     list.classList.add('open'); el.setAttribute('aria-expanded', 'true'); place();
   }
-  function pick(i) {
-    var el = owner, it = items[i]; if (!el || !it) return;
-    close();
-    el.value = it.value;
+  function fill(el, value) {
+    el.value = value;
     el._aogPicking = true;
     try { el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); } finally { el._aogPicking = false; }
+  }
+  function pick(i) {
+    var el = owner, it = items[i]; if (!el || !it) return;
+    close(); fill(el, it.value);
+  }
+  function message(el, text, ms) {                          // one line under the box, e.g. "Getting your location…"
+    mount(); owner = el; items = []; active = -1;
+    list.className = 'aog-addr-list ' + (darkInput(el) ? 'dark' : 'light');
+    list.innerHTML = ''; var li = document.createElement('li'); li.className = 'msg'; li.textContent = text; list.appendChild(li);
+    list.classList.add('open'); place();
+    if (ms) setTimeout(function () { if (owner === el && list.querySelector('li.msg')) close(); }, ms);
+  }
+  function addGps(el) {
+    if (el.hasAttribute('data-aog-no-gps') || !navigator.geolocation) return;
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'aog-gps'; b.textContent = '📍';
+    b.title = 'Use my current location'; b.setAttribute('aria-label', 'Use my current location');
+    b.setAttribute('data-html2canvas-ignore', 'true');      // never in a capture
+    el.insertAdjacentElement('afterend', b);
+    el.style.paddingRight = 'max(30px, ' + getComputedStyle(el).paddingRight + ')';   // typed text never runs under the pin
+    function seat() {                                       // keep the pin on the box's right end (same offset parent as the box)
+      if (!el.offsetWidth || !el.offsetHeight || getComputedStyle(el).display === 'none') { b.style.setProperty('display', 'none', 'important'); return; }
+      b.style.removeProperty('display');
+      b.style.left = (el.offsetLeft + el.offsetWidth - 28) + 'px';
+      b.style.top = (el.offsetTop + (el.offsetHeight - 26) / 2) + 'px';
+    }
+    seat(); setTimeout(seat, 300); addEventListener('load', seat); addEventListener('resize', seat);
+    try { new ResizeObserver(seat).observe(el); if (el.parentNode) new ResizeObserver(seat).observe(el.parentNode); } catch (e) {}
+    b.addEventListener('click', function () {
+      mount(); b.disabled = true; message(el, 'Getting your location…');
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        reverse(pos.coords.latitude, pos.coords.longitude).then(function (v) {
+          b.disabled = false; fill(el, v); message(el, '✓ ' + v, 2500);
+        }).catch(function () { b.disabled = false; message(el, 'Address lookup failed — type it in', 4000); });
+      }, function (err) {
+        b.disabled = false;
+        message(el, err.code === 1 ? 'Location permission is off for this app' : err.code === 3 ? 'Location timed out — try again' : 'Location unavailable', 4000);
+      }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+    });
   }
   function highlight(n) {
     var lis = list.children; if (!lis.length) return;
@@ -134,9 +191,11 @@
 
   function attach(el) {
     if (!el || el._aogAddress) return; el._aogAddress = true;
+    styles();
     el.setAttribute('autocomplete', 'off');                 // the browser's own list would cover ours
     el.setAttribute('aria-autocomplete', 'list');
     el.setAttribute('aria-expanded', 'false');
+    addGps(el);
     el.addEventListener('input', function () {
       if (el._aogPicking) return;
       mount(); owner = el; clearTimeout(timer);
@@ -160,5 +219,5 @@
   addEventListener('beforeprint', close);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { attachAll(); }); else attachAll();
 
-  window.AOGAddress = { attach: attach, attachAll: attachAll, search: search, close: close, token: TOKEN };
+  window.AOGAddress = { attach: attach, attachAll: attachAll, search: search, reverse: reverse, close: close, token: TOKEN };
 })();

@@ -1927,6 +1927,18 @@ body.mobile-printing .tbl-clear-btn { display: none !important; }
 body.printing #themed-confirm-overlay,
 body.mobile-printing #themed-confirm-overlay { display: none !important; }
 @media print { #themed-confirm-overlay { display: none !important; } }
+
+/* Phone toolbar: tighten the buttons so HOME … CLEAR and the theme button all fit on one
+   row on a normal-size iPhone (same rule on every form). */
+@media (max-width: 430px) {
+  .action-bar { gap: 3px !important; }
+  .action-bar .btn, .action-bar .ab-btn { padding: 6px 5px !important; letter-spacing: 0.2px !important; }
+}
+@media (max-width: 380px) {
+  .action-bar { gap: 2px !important; padding-left: 2px !important; padding-right: 2px !important; }
+  .action-bar .btn, .action-bar .ab-btn { font-size: 9px !important; padding: 6px 3px !important; letter-spacing: 0 !important; }
+  .action-bar .theme-toggle-btn { width: 32px !important; height: 32px !important; }
+}
 </style>
 <script src="../update-banner.js"></script>
 </head>
@@ -1950,9 +1962,9 @@ body.mobile-printing #themed-confirm-overlay { display: none !important; }
   <button class="btn" id="btn-pdf" onclick="openPrintPreview()" style="display:none;">📄 PDF</button>
   <button class="btn" id="btn-pdf-edit" onclick="saveFillablePdf()">📝 PDF✎</button>
   <button class="btn" id="btn-capture" onclick="saveSmart()">📸 CAPTURE</button>
-  <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
   <button class="btn" onclick="document.getElementById('load-draft-input').click()">📂 LOAD</button>
   <input type="file" id="load-draft-input" accept=".pdf" style="display:none;" onchange="loadDraftFile(this)">
+  <button class="btn" onclick="clearForm()">🗑 CLEAR</button>
   <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
     <svg class="theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="5"/>

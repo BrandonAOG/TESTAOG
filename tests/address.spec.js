@@ -83,3 +83,23 @@ test('the suggestion list follows dark mode and never shows in a capture or prin
   await page.emulateMedia({ media: 'print' });
   await expect(list).toBeHidden();
 });
+
+// 📍 GPS: every form's address box gets the pin INSIDE the box; tapping it fills the address where you stand.
+test.describe('GPS pin', () => {
+  test.use({ geolocation: { latitude: 26.6406, longitude: -81.8723 }, permissions: ['geolocation'] });
+  for (const p of PAGES.filter(x => !x.own)) {
+    test(`${p.dir}: 📍 sits inside the address box and fills in the current address`, async ({ page }) => {
+      page.on('dialog', d => d.accept());
+      expect(await open(page, `/${p.dir}/`)).toEqual([]);
+      await page.route(/api\.mapbox\.com\/geocoding\/v5\/mapbox\.places\/-81\.8723,26\.6406\.json/, r => r.fulfill({ json: { features: [FEATURES.features[0]] } }));
+      const box = page.locator(p.box).first(), pin = page.locator('button.aog-gps').first();
+      await box.scrollIntoViewIfNeeded();
+      const [b, q] = [await box.boundingBox(), await pin.boundingBox()];
+      const cx = q.x + q.width / 2, cy = q.y + q.height / 2;                            // pin centred on the box's right end
+      expect(q.x >= b.x && q.x + q.width <= b.x + b.width + 1 && cy >= b.y && cy <= b.y + b.height, `pin inside the box ${JSON.stringify([b, q])}`).toBe(true);
+      expect(await pin.getAttribute('data-html2canvas-ignore')).toBe('true');
+      if (test.info().project.name === 'iphone') await pin.tap(); else await pin.click();
+      await expect(box).toHaveValue('1234 Del Prado Blvd S, Cape Coral');
+    });
+  }
+});

@@ -40,10 +40,6 @@ button{font:inherit;color:inherit}
 .wrap{max-width:760px;margin:0 auto;padding:0 16px 120px}
 
 /* top bar */
-.bar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;gap:10px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top));background:var(--bg);border-bottom:1px solid var(--line)}
-.bar a,.bar button{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 14px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);text-decoration:none;font-weight:600;font-size:.9rem;cursor:pointer}
-.bar .title{flex:1;text-align:center;font-family:var(--disp);font-weight:900;font-size:.95rem;letter-spacing:1px;color:var(--accent)}
-.bar .title small{display:block;font-family:var(--font);font-weight:600;font-size:.72rem;letter-spacing:.5px;color:var(--dim)}
 
 /* steps */
 .step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:16px}
@@ -167,10 +163,6 @@ body:not(.light)::after{content:'';position:fixed;inset:0;background:radial-grad
 .wrap{position:relative;z-index:1}
 @media (prefers-reduced-motion:reduce){body{animation:none!important}}
 
-.bar{background:rgba(10,14,39,.97);border-bottom:1px solid rgba(251,191,36,.35);box-shadow:0 4px 18px rgba(0,0,0,.5)}
-.bar a,.bar button{border-radius:0;border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.07);color:#FBBF24;text-transform:uppercase;letter-spacing:.5px;clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%)}
-.bar .title{background:linear-gradient(135deg,#FBBF24 0%,#F97316 50%,#EA580C 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:2px}
-.bar .title small{-webkit-text-fill-color:#00D4FF;font-family:var(--mono);letter-spacing:1.5px;white-space:nowrap;text-transform:uppercase}
 
 .step,details.more,.answer{position:relative;border-radius:4px;border:2px solid rgba(251,191,36,.25);background:linear-gradient(135deg,rgba(15,21,53,.92) 0%,rgba(26,40,71,.75) 100%);clip-path:polygon(12px 0%,100% 0%,100% calc(100% - 12px),calc(100% - 12px) 100%,0% 100%,0% 12px)}
 .step::before,.answer::before{content:'';position:absolute;top:0;left:0;width:20px;height:20px;border-top:2px solid #FBBF24;border-left:2px solid #FBBF24}
@@ -207,8 +199,6 @@ details.more summary{font-family:var(--disp);font-size:.8rem;letter-spacing:2px;
 
 /* light mode — matches original */
 body.light{--bg:#FFFFFF;--card:#FAFAFA;--card2:#FFFFFF;--line:rgba(217,119,6,.3);--text:#1F2937;--dim:#4B5563;--accent:#D97706;--ng:#0369A1;--chip:#FFFFFF;--chipOn:#FEF3C7;--ok:#15803D;--bad:#B91C1C;--warn:#C2410C}
-body.light .bar{background:#fff;box-shadow:none}
-body.light .bar a,body.light .bar button{color:#D97706;border-color:rgba(217,119,6,.4);background:rgba(217,119,6,.05)}
 body.light .step,body.light details.more,body.light .answer{background:#FAFAFA;border-color:rgba(217,119,6,.3)}
 body.light .step h2,body.light .step h2 .n,body.light .pick .size,body.light .chip[aria-pressed="true"],body.light details.more summary,body.light .answer .ah,body.light .stepper button{color:#B45309;text-shadow:none}
 body.light .grp-label,body.light .field label,body.light th,body.light .facts span,body.light .pick .where,body.light .run-h,body.light .step h2 .val{color:#0369A1}
@@ -266,8 +256,6 @@ body.light::before{content:'';position:fixed;inset:0;background-image:linear-gra
 body.light::after{content:'';position:fixed;inset:0;background:radial-gradient(circle at 15% 10%,rgba(251,191,36,.12),transparent 45%),radial-gradient(circle at 90% 80%,rgba(56,189,248,.08),transparent 45%);pointer-events:none;z-index:0;opacity:1!important}
 
 /* top bar */
-body.light .bar{background:rgba(255,255,255,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid #E9E3D6;box-shadow:0 1px 0 rgba(0,0,0,.02)}
-body.light .bar a,body.light .bar button{clip-path:none;border-radius:10px;background:#fff;border:1px solid #E4DED1;color:#92400E;box-shadow:0 1px 2px rgba(31,41,51,.06)}
 
 /* header */
 body.light .header::before,body.light .header::after{background:linear-gradient(90deg,transparent,#F59E0B,#FB923C,#38BDF8,transparent);opacity:.55}
@@ -329,13 +317,12 @@ body.light .mini{background:rgba(255,255,255,.94);backdrop-filter:blur(10px);-we
 body.light .mini .t{color:#92400E}
 body.light .mini .t small{color:#64748B}
 
-body{padding-top:calc(61px + env(safe-area-inset-top))}
+body{padding-top:calc(52px + env(safe-area-inset-top))}
 
 /* Shared update banner (../update-banner.js) reads these names — map them to this page's colors */
 :root{--panel:#0f1535;--text-muted:var(--dim);--amber:var(--accent);--font-body:var(--font)}
 body.light{--panel:#FFFFFF;--text-muted:var(--dim);--amber:var(--accent)}
 /* ===== CODE REFERENCE (gr-) ===== */
-.bar > a,.bar > .gr-btn{flex:1}
 :root{--gr-solid:#0f1535;--gr-solid2:#141c42}
 body.light{--gr-solid:#FFFFFF;--gr-solid2:#F7F4EC}
 .gr-card .gr-btns{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
@@ -386,16 +373,58 @@ body.gr-open{overflow:hidden}
 .gr-small{width:auto;border-collapse:collapse;font-size:.85rem;margin:6px 0}
 .gr-small td,.gr-small th{padding:6px 12px;border-bottom:1px solid var(--line);text-align:left}
 @media(max-width:520px){.gr-bg{padding:0}.gr-m{max-height:100vh;max-height:100dvh;border-radius:0;height:100%}.gr-t{font-size:.74rem}.gr-t th,.gr-t td{padding:5px 6px}}
+/* ===== FIXED ACTION BAR — same bar as every calculator tool (copied from Electrical Formulas) ===== */
+.action-bar {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  z-index: 50;   /* under the Code Reference sheet (200) */
+  width: 100%;
+  background: var(--header-bg, #1e293b);
+  padding: 4px 8px;
+  padding-top: max(4px, env(safe-area-inset-top, 4px));
+  display: flex; justify-content: flex-start; gap: 4px; flex-wrap: nowrap; align-items: center;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  
+  box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+  border-bottom: 1px solid rgba(217,119,6,0.3);
+  box-sizing: border-box;
+}
+/* Center the buttons when they fit; auto-margins collapse safely when the
+   bar overflows and scrolls, so nothing gets clipped off the left edge. */
+.action-bar > :first-child { margin-left: auto; }
+.action-bar > :last-child { margin-right: auto; }
+.action-bar .ab-btn {
+  padding: 6px 8px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.07);
+  border-radius: 0; cursor: pointer; color: #D97706; text-transform: uppercase;
+  font-family: Arial, sans-serif; white-space: nowrap; flex: 1; min-width: 0;
+  text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+  clip-path: polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  overflow: hidden; text-overflow: ellipsis; transition: all 0.15s ease;
+}
+.action-bar .ab-btn:hover { border-color: #D97706; box-shadow: 0 0 8px rgba(217,119,6,0.3); }
+.action-bar .theme-toggle-ab {
+  width: 36px; height: 36px; padding: 6px; flex-shrink: 0;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.07);
+  border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: #D97706; font-size: 16px; transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.action-bar .theme-toggle-ab:hover { border-color: #D97706; box-shadow: 0 0 8px rgba(217,119,6,0.3); }
+@media (max-width: 480px) {
+  .action-bar { padding: 4px 4px; padding-top: max(4px, env(safe-area-inset-top, 4px)); gap: 3px; }
+}
 </style>
 <script src="../sounds.js" defer></script>
 <script src="../update-banner.js"></script>
 </head>
 <body>
 
-<div class="bar">
-  <a href="../" aria-label="Home">← Home</a>
-  <button class="gr-btn" onclick="grOpen()" aria-label="Code reference">📋 CODE</button>
-  <button id="themeBtn" aria-label="Toggle light or dark mode">☀︎</button>
+<div class="action-bar" id="action-bar">
+  <a class="ab-btn" href="../">🏠 HOME</a>
+  <button class="ab-btn" onclick="grOpen()" aria-label="Code reference">📋 CODE</button>
+  <button class="theme-toggle-ab" id="themeBtn" title="Toggle light/dark mode" aria-label="Toggle light or dark mode">🌙</button>
 </div>
 
 <main class="wrap">
@@ -1422,7 +1451,7 @@ function resetAll(){
 (function(){
   let t='dark';
   try{ t=localStorage.getItem('aog-theme') || (matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'); }catch(e){}
-  const apply=v=>{document.body.classList.toggle('light',v==='light');$('themeBtn').textContent=v==='light'?'☾':'☀︎';try{localStorage.setItem('aog-theme',v);}catch(e){}};
+  const apply=v=>{document.body.classList.toggle('light',v==='light');$('themeBtn').textContent=v==='light'?'🌙':'☀️';try{localStorage.setItem('aog-theme',v);}catch(e){}};
   apply(t);
   $('themeBtn').addEventListener('click',()=>apply(document.body.classList.contains('light')?'dark':'light'));
 })();

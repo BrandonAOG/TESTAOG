@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v2.8.15';
+var CACHE_VERSION = 'v2.8.16';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -76,6 +76,8 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
+  '🧭 FORMS — same toolbar on every form (HOME · PDF✎ · CAPTURE · LOAD · CLEAR), all on one row on iPhone; 📍 GPS in every address box; Service Work plain PDF button removed',
+  '🧮 GAS CALC / CONCRETE — same toolbar as the other calculators',
   '📍 ALL FORMS — address autocomplete on every job address (Maintenance, Site Visit, Pre-Install, Electrical / Gas Install, Service Work, Load Calc), same as Estimate and QC; one Mapbox token for the whole app',
   '✏️ SITE ANNOTATOR — Undo / Redo fixed: one tap undoes one change (no more dead taps), a selected shape is removed with it, and image moves / page history are included',
   '✅ QC CHECKLIST — page 2 customer name and date fill in from page 1 (no longer typed into separately)',

@@ -46,10 +46,6 @@ body.light-mode {
 }
 body.light-mode #bg-canvas { opacity: 0.35; }
 /* surfaces */
-body.light-mode .action-bar { background: #FFFFFF; border-bottom-color: rgba(217,119,6,0.35); }
-body.light-mode .action-bar .ab-btn { color: #D97706; border-color: rgba(217,119,6,0.4); background: rgba(217,119,6,0.05); }
-body.light-mode .theme-toggle-btn { color: #D97706; border-color: rgba(217,119,6,0.4); background: rgba(217,119,6,0.05); }
-body.light-mode .theme-icon { stroke: #D97706; }
 body.light-mode .unit-toggle,
 body.light-mode .shape-tabs,
 body.light-mode .panel,
@@ -82,54 +78,48 @@ body.light-mode .results-note { border-top-color: rgba(31,41,55,0.1); }
 .container { position: relative; z-index: 10; max-width: 720px; margin: 0 auto; padding: 48px 22px 40px; padding-top: max(66px, calc(50px + env(safe-area-inset-top, 0px))); padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); min-height: 100vh; display: flex; flex-direction: column; }
 
 /* ===== ACTION BAR (matches hub) ===== */
+/* ===== FIXED ACTION BAR — same bar as every calculator tool (copied from Electrical Formulas) ===== */
 .action-bar {
   position: fixed !important;
   top: 0 !important; left: 0 !important; right: 0 !important;
   z-index: 99999;
   width: 100%;
-  background: rgba(6,9,19,0.97);
+  background: var(--header-bg, #1e293b);
   padding: 4px 8px;
   padding-top: max(4px, env(safe-area-inset-top, 4px));
   display: flex; justify-content: flex-start; gap: 4px; flex-wrap: nowrap; align-items: center;
   overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
-  box-shadow: 0 4px 18px rgba(0,0,0,0.5);
-  border-bottom: 1px solid rgba(251,191,36,0.35);
+  
+  box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+  border-bottom: 1px solid rgba(217,119,6,0.3);
   box-sizing: border-box;
 }
-.action-bar::-webkit-scrollbar { display: none; }
+/* Center the buttons when they fit; auto-margins collapse safely when the
+   bar overflows and scrolls, so nothing gets clipped off the left edge. */
 .action-bar > :first-child { margin-left: auto; }
 .action-bar > :last-child { margin-right: auto; }
 .action-bar .ab-btn {
-  padding: 6px 12px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;
-  border: 1px solid rgba(251,191,36,0.4); background: rgba(251,191,36,0.07);
-  border-radius: 0; cursor: pointer; color: #FBBF24; text-transform: uppercase;
-  font-family: Arial, sans-serif; white-space: nowrap; flex: 0 1 auto; min-width: 0;
-  text-align: center; text-decoration: none; display: inline-flex; align-items: center;
-  justify-content: center; gap: 4px;
+  padding: 6px 8px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.07);
+  border-radius: 0; cursor: pointer; color: #D97706; text-transform: uppercase;
+  font-family: Arial, sans-serif; white-space: nowrap; flex: 1; min-width: 0;
+  text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
   clip-path: polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
-  overflow: hidden; text-overflow: ellipsis;
-  transition: all 0.15s ease;
+  overflow: hidden; text-overflow: ellipsis; transition: all 0.15s ease;
 }
-.action-bar .ab-btn:hover { border-color: #FBBF24; box-shadow: 0 0 8px rgba(251,191,36,0.3); }
-.action-bar .ab-btn:active { transform: translateY(1px); }
-
-.theme-toggle-btn {
-  position: relative; width: 36px; height: 36px; padding: 6px;
-  border: 1px solid rgba(251,191,36,0.4); background: rgba(251,191,36,0.07);
-  border-radius: 4px; cursor: pointer; display: flex; align-items: center;
-  justify-content: center; color: #FBBF24; transition: all 0.3s ease;
-  -webkit-tap-highlight-color: transparent; touch-action: manipulation; flex-shrink: 0;
+.action-bar .ab-btn:hover { border-color: #D97706; box-shadow: 0 0 8px rgba(217,119,6,0.3); }
+.action-bar .theme-toggle-ab {
+  width: 36px; height: 36px; padding: 6px; flex-shrink: 0;
+  border: 1px solid rgba(217,119,6,0.4); background: rgba(217,119,6,0.07);
+  border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: #D97706; font-size: 16px; transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
-.theme-toggle-btn:hover { border-color: #FBBF24; box-shadow: 0 0 12px rgba(251,191,36,0.3); }
-.theme-icon {
-  width: 18px; height: 18px; transition: all 0.3s ease; position: absolute;
-  fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
-  stroke: #FBBF24;
+.action-bar .theme-toggle-ab:hover { border-color: #D97706; box-shadow: 0 0 8px rgba(217,119,6,0.3); }
+@media (max-width: 480px) {
+  .action-bar { padding: 4px 4px; padding-top: max(4px, env(safe-area-inset-top, 4px)); gap: 3px; }
 }
-.theme-icon.theme-icon-moon { opacity: 0; }
-body.light-mode .theme-icon { opacity: 0; transform: rotate(-180deg); }
-body.light-mode .theme-icon.theme-icon-moon { opacity: 1; transform: rotate(0deg); }
 
 /* HEADER */
 .header { text-align: center; margin-bottom: 30px; position: relative; }
@@ -259,10 +249,7 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
 
 <div class="action-bar" id="action-bar">
   <a class="ab-btn" href="../">🏠 HOME</a>
-  <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle light/dark mode" aria-label="Toggle light/dark mode">
-    <svg class="theme-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-    <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-  </button>
+  <button class="theme-toggle-ab" id="theme-toggle-btn" title="Toggle light/dark mode" aria-label="Toggle light/dark mode">🌙</button>
 </div>
 
 <div class="container">
@@ -501,6 +488,7 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
   function applyTheme(t){
     var light = (t === 'light');
     document.body.classList.toggle('light-mode', light);
+    var tb = document.getElementById('theme-toggle-btn'); if (tb) tb.textContent = light ? '🌙' : '☀️';
     particleAlphaBoost = light ? 0.5 : 1;
     try { localStorage.setItem(THEME_KEY, t); } catch(e) {}
   }
