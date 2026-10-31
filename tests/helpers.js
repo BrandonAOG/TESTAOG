@@ -38,6 +38,8 @@ async function open(page, url, opts = {}) {
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   if (opts.theme) await page.addInitScript(t => { try { localStorage.setItem('aog-theme', t); } catch (e) {} }, opts.theme);
+  // address lookups never leave the test run (a check that wants them mocks them after open())
+  await page.route(/api\.mapbox\.com|nominatim\.openstreetmap\.org/, r => r.abort());
   await useLocalLibs(page);
   await page.goto(url, { waitUntil: 'load' });
   await page.waitForTimeout(opts.settle ?? 800);

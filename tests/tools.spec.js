@@ -77,28 +77,78 @@ test('Site Annotator: draw shapes, and the PNG / PDF exports contain the drawing
   expect(fs.readFileSync(pdfPath).slice(0, 5).toString()).toBe('%PDF-');
 });
 
-// KNOWN ISSUE (found by this check): the toolbar Undo needs several taps before a
-// shape disappears, and a shape that is still selected is never undone. Marked
-// "expected to fail" so the run stays green; when Undo is fixed this check will
-// report "expected to fail but passed" — then delete the test.fail line.
-test('Site Annotator: one Undo tap removes the last shape, Redo puts it back', async ({ page }) => {
-  test.fail(true, 'known issue: Undo needs extra taps and skips selected shapes');
+// Site Annotator Undo / Redo: one tap = one change, nothing left selected on screen.
+async function annotatorCanvas(page) {
   page.on('dialog', d => d.accept());
   expect(await open(page, '/site-annotator/', { settle: 1500 })).toEqual([]);
   await page.click('#new-canvas-btn'); await page.click('#nc-create-btn'); await page.waitForTimeout(1500);
-  const ink = () => page.evaluate(() => ['shapes-cv', 'sel-cv'].reduce((n, id) => { const c = document.getElementById(id); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let i = 3; i < d.length; i += 16) if (d[i] > 0) n++; return n; }, 0));
   const box = await (await page.$('#draw-cv')).boundingBox();
-  const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
-  const counts = [await ink()];
-  for (const [tool, dx, dy] of [['rect', -120, -80], ['ellipse', 40, -80]]) {
+  const c = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  // what is on screen: the drawn objects plus any selection box, as a fingerprint
+  const look = () => page.evaluate(() => ['shapes-cv', 'sel-cv'].map(id => { const cv = document.getElementById(id); const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; let n = 0, h = 0; for (let i = 3; i < d.length; i += 16) if (d[i] > 0) { n++; h = (h * 31 + i) % 1000000007; } return n + ':' + h; }).join('|'));
+  const ink = async () => (await look()).split('|').reduce((n, part) => n + +part.split(':')[0], 0);
+  const draw = async (tool, dx, dy) => {
     await page.click(`[data-tool="${tool}"]`);
-    await page.mouse.move(cx + dx, cy + dy); await page.mouse.down(); await page.mouse.move(cx + dx + 80, cy + dy + 50, { steps: 10 }); await page.mouse.up();
-    await page.waitForTimeout(400); counts.push(await ink());
+    await page.mouse.move(c.x + dx, c.y + dy); await page.mouse.down(); await page.mouse.move(c.x + dx + 45, c.y + dy + 30, { steps: 10 }); await page.mouse.up();
+    await page.waitForTimeout(400);
+  };
+  const tap = async id => { await page.click(id); await page.waitForTimeout(400); };
+  return { c, look, ink, draw, tap };
+}
+
+test('Site Annotator: each Undo tap removes one shape, Redo puts them all back', async ({ page }) => {
+  const a = await annotatorCanvas(page);
+  const start = await a.look();
+  const after = [];
+  for (const [i, t] of ['rect', 'ellipse', 'rect', 'ellipse', 'rect'].entries()) {
+    await a.draw(t, -140 + i * 55, -40);                   // the blank page is ~310 px wide at fit zoom
+    await page.keyboard.press('Escape'); await page.waitForTimeout(300);                     // deselect: shape stays, box goes
+    after.push(await a.look());
   }
-  await page.click('#btn-undo'); await page.waitForTimeout(400);
-  expect(await ink(), 'one Undo tap should remove the ellipse').toBeLessThan(counts[2]);
-  await page.click('#btn-redo'); await page.waitForTimeout(400);
-  expect(await ink(), 'Redo should bring it back').toBe(counts[2]);
+  expect(new Set([start, ...after]).size, 'each shape changed the drawing').toBe(6);
+  // 5 shapes → 5 Undo taps → back to blank, every tap stepping back exactly one shape (no "dead" taps)
+  for (let i = after.length - 2; i >= -1; i--) {
+    await a.tap('#btn-undo');
+    expect(await a.look(), `Undo tap ${after.length - 1 - i}`).toBe(i >= 0 ? after[i] : start);
+  }
+  for (const [i, want] of after.entries()) {
+    await a.tap('#btn-redo');
+    expect(await a.look(), `Redo tap ${i + 1}`).toBe(want);
+  }
+});
+
+test('Site Annotator: Undo with a shape still selected removes it and clears the selection box', async ({ page }) => {
+  const a = await annotatorCanvas(page);
+  await a.draw('rect', -120, -40);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+  const before = await a.look();
+  await a.draw('ellipse', 20, -40);                        // the new shape is left selected
+  expect((await a.look()).split('|')[1], 'new shape is selected').not.toBe('0:0');
+  await a.tap('#btn-undo');
+  expect(await a.look(), 'ellipse and its selection box both gone after ONE tap').toBe(before);
+  await page.keyboard.press('Control+y'); await page.waitForTimeout(400);
+  const redone = await a.look();
+  expect(redone).not.toBe(before);
+  expect(redone.split('|')[1], 'redo brings it back unselected').toBe('0:0');
+  await page.keyboard.press('Control+z'); await page.waitForTimeout(400);
+  expect(await a.look(), 'Ctrl+Z steps the same history as the button').toBe(before);
+});
+
+test('Site Annotator: moving a selected shape is one Undo step', async ({ page }) => {
+  const a = await annotatorCanvas(page);
+  await a.draw('rect', -60, -60);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+  const placed = await a.look();
+  await page.mouse.click(a.c.x - 38, a.c.y - 45); await page.waitForTimeout(400);             // select it
+  await page.mouse.move(a.c.x - 38, a.c.y - 45); await page.mouse.down();
+  await page.mouse.move(a.c.x + 60, a.c.y + 60, { steps: 10 }); await page.mouse.up(); await page.waitForTimeout(400);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+  const moved = await a.look();
+  expect(moved, 'the drag moved the shape').not.toBe(placed);
+  await a.tap('#btn-undo');
+  expect(await a.look(), 'one Undo puts it back where it was').toBe(placed);
+  await a.tap('#btn-redo');
+  expect(await a.look(), 'Redo moves it again').toBe(moved);
 });
 
 test('Spec Viewer and Gas Calc agree on every generator\'s fuel data', () => {

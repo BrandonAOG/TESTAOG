@@ -15,6 +15,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <meta name="mobile-web-app-capable" content="yes">
 <title>Always On Generators - Maintenance Report</title>
 <script src="../sounds.js" defer></script>
+<script src="../address-lookup.js"></script>
 <script src="../clean-capture.js"></script>
 <script src="../seasonal.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -1527,7 +1528,7 @@ body.dark-mode .action-bar {
         </div>
         <div class="field-row field-row-nowrap" id="address-tech-row">
           <label for="address">Address</label>
-          <input type="text" id="address" class="long" placeholder="Address" style="flex:0 0 50%;width:50%;min-width:0;">
+          <input type="text" id="address" data-aog-address class="long" placeholder="Address" style="flex:0 0 50%;width:50%;min-width:0;">
           <label for="tech">Tech</label>
           <input type="text" id="tech" class="med" placeholder="Tech" style="flex:1 1 0;width:auto;min-width:0;">
         </div>

@@ -15,6 +15,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <meta name="mobile-web-app-capable" content="yes">
 <title>Quality Control Checklist</title>
 <script src="../sounds.js" defer></script>
+<script src="../address-lookup.js"></script>
 <script src="../clean-capture.js"></script>
 <script src="../seasonal.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -3229,14 +3230,12 @@ function getInitialTheme() {
 
 // ═══════════════════════════════════════════════════════════════════════
 // ADDRESS AUTOCOMPLETE + GPS — ported from the estimate form. Tries Mapbox
-// first (token below — same public client-side token already shipped in
-// the estimate form; Mapbox publishable tokens are meant to be used from
-// the browser, but consider scoping/rotating it in the Mapbox dashboard if
-// you want tighter control), falls back to free OpenStreetMap Nominatim.
+// first (token from ../address-lookup.js — the one place every form gets
+// it from), falls back to free OpenStreetMap Nominatim.
 // This form has a single address field (no separate city/state/zip field),
 // so a selected suggestion fills the full "street, city, state zip" line.
 // ═══════════════════════════════════════════════════════════════════════
-var MAPBOX_TOKEN = 'pk.eyJ1IjoicHJvamVjdHdyYXBwZXIiLCJhIjoiY201d2k1eHU3MDAwajJrbzU2a2c5dW40NSJ9.WJlNJ4o5CqBhWpHKMKOzIQ';
+var MAPBOX_TOKEN = window.AOG_MAPBOX_TOKEN || '';   // kept in ../address-lookup.js (one place for every form)
 var SW_FLORIDA_BBOX   = '-82.2,26.0,-81.2,27.0';
 var SW_FLORIDA_CENTER = '-81.76,26.14';
 

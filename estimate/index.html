@@ -14,6 +14,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Generator Installation Estimate</title>
 <script src="../sounds.js" defer></script>
+<script src="../address-lookup.js"></script>
 <script src="../clean-capture.js"></script>
 <script src="../seasonal.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -4414,7 +4415,7 @@ function doClearForm() {
 }
 
 // ── ADDRESS AUTOCOMPLETE ──
-var MAPBOX_TOKEN = 'pk.eyJ1IjoicHJvamVjdHdyYXBwZXIiLCJhIjoiY201d2k1eHU3MDAwajJrbzU2a2c5dW40NSJ9.WJlNJ4o5CqBhWpHKMKOzIQ';
+var MAPBOX_TOKEN = window.AOG_MAPBOX_TOKEN || '';   // kept in ../address-lookup.js (one place for every form)
 var SW_FLORIDA_BBOX   = '-82.2,26.0,-81.2,27.0';
 var SW_FLORIDA_CENTER = '-81.76,26.14';
 

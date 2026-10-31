@@ -48,6 +48,7 @@ The hub (`index.html`) is the home screen. Each time it opens it plays one of **
 These behaviors are shared by the 8 forms (Estimate, Site Visit, Pre-Install, Electrical Install, Gas Install, QC Checklist, Maintenance, Service Work), so they're described once here.
 
 - **Auto-save** — every change is saved on the device (and every 30 seconds on most forms); reopening the form restores the draft, usually with a "Draft saved" badge or a "Restored draft" notice. **🗑 CLEAR** asks for confirmation before wiping the form.
+- **Address autocomplete** — every form's job address suggests Southwest-Florida addresses as you type (Mapbox, OpenStreetMap backup). Estimate splits it into street + City/State/ZIP and has 📍 GPS; QC Checklist adds 📍 GPS; the rest fill "street, city". Load Calc's job address has it too.
 - **📝 PDF✎ — resumable PDF** — builds the form as US-Letter PDF pages with the form's data tucked inside the file. It is not a fill-in-the-blanks PDF; instead, **📂 LOAD** (📂 IMPORT on Pre-Install) reads that PDF (or a `.json` draft) back in and refills the form, so a job can be reopened on any device.
 - **📸 CAPTURE — image** — a JPG of each page. iPhone/iPad opens the share sheet (or shows the image full-screen to long-press and save); Android saves to Downloads and then offers a **📤 SHARE IT** bar; computers download the file.
 - **📄 PDF (print)** — hidden on purpose on 7 of the 8 forms; techs use PDF✎ and CAPTURE. Service Work still shows it.
@@ -118,6 +119,7 @@ A full markup tool for site plans, permit sheets and photos. Open an image or PD
 - **Measuring to scale** — straight line, path distance (trench runs) and area; set the scale from a reference line or the sheet's scale + DPI; grid and snap.
 - **Presets** — ⚡ Labels (LP tanks 120–1000 gal, air-cooled 14–28 kW and liquid-cooled 25–150 kW generators, ATS 100–800 A, meter/panel, gas appliances), ⬡ Equipment symbols (Generac, Kohler, Cummins, Briggs & Stratton, ATS, meters, panels, NG meter, LP tank), ☰ standard-notes library, and stamps (north arrow, tree, hydrant, power pole…).
 - **Layers**, image overlays (move, resize, rotate, flip, opacity), multi-page sheets, title block and legend.
+- **Undo / Redo** — one tap per change (toolbar, Ctrl+Z / Ctrl+Y, or a 3-finger tap); covers drawings, text, measurements and image overlays, and each PDF page keeps its own history.
 - **✍ Sign-off block** with saved "prepared by" profiles.
 - **Auto-save** of the whole session on the device, with "Unsaved Session Found → Restore" on return.
 - **Keyboard shortcuts** on computers — press `?` for the full list.
@@ -307,18 +309,18 @@ Sizes pull and junction boxes for 4 AWG and larger under NEC 2023 314.28 and Tab
 ### Tools — Install Planning
 
 #### 🔥 Gas Calculator
-Step-by-step gas pipe sizing for Generac generators on natural gas or LP, using the **NFPA 54 (2024)** Chapter 6 sizing equations at your exact run length (never exceeding the published tables). Live results for every run, plus regulator, meter and inlet-pressure checks.
+Step-by-step gas pipe sizing for Generac generators on natural gas or LP, using the **NFPA 54 (2024)** Chapter 6 sizing equations at your exact run length (never exceeding the published tables), and CSST straight from the Gastite / FlashShield or TracPipe sizing charts. Live results for every run, plus regulator, meter and inlet-pressure checks.
 
 **Features**
 - **Steps** — (1) fuel, (2) generator, (3) gas delivery, (4) pipe runs, (5) other appliances.
 - **Generators** — Guardian NextGen 10–28 kW and Legacy 7–26 kW; Protector QS 22–60 kW, RG 48–150 kW and XG 25–80 kW.
 - **Gas delivery** — NG standard (7" WC, one run) or elevated (2 PSI with a regulator, two runs); LP twin-stage at the tank, two-stage, or three-stage (10 PSI → 2 PSI → 11" WC, for attic runs).
-- **Each run** — length (stepper or quick-pick 5–300 ft), material (galvanized / Sch 40, CSST Gastite / Wardflex, TracPipe, buried PE) and pressure.
+- **Each run** — length (stepper or quick-pick 5–300 ft), material (galvanized / Sch 40, CSST Gastite / FlashShield, TracPipe CounterStrike, buried PE) and pressure.
 - **House appliances** — 11 presets plus custom; generator on its own line or teed into the house line.
 - **Answer** — pipe size per run, minimum regulator ratings, NG meter check (250–1,000 CFH meters), full / half-load CFH or GPH, BTU/hr, required inlet pressure, and LP runtime on a 500-gal tank at ½ load.
-- **Warnings** — inlet pressure, PE above grade, CSST bonding, the 5 PSI indoor limit, approximate CSST data.
+- **Warnings** — inlet pressure, PE above grade, CSST bonding, the 5 PSI indoor limit, CSST brand and extra-fitting length.
 - **More options** — allowed pressure drop (0.5 / 1 / 3" WC) and elevation (derates generator kW only).
-- **📋 CODE** reference — NFPA 54 (2024) Tables 6.2.1 / 6.3.1 (Sch 40, CSST, PE) with a length/load lookup, equations 6.4.1–6.4.2, sizing rules, CSST EHD and a Florida fuel-gas note.
+- **📋 CODE** reference — NFPA 54 (2024) Tables 6.2.1 / 6.3.1 (Sch 40, CSST, PE) with a length/load lookup, the Gastite / FlashShield (Section 7, Jan 2013) and TracPipe CounterStrike (FGP-001US, Apr 2022) sizing charts the calculator uses, equations 6.4.1–6.4.2, sizing rules, CSST EHD and a Florida fuel-gas note.
 
 **Exports:** none — on-screen; **Copy for job notes** copies a text summary.
 
@@ -396,6 +398,10 @@ These files are shared by every page so each feature works the same way everywhe
 **`clean-capture.js` — clean exports** (the 8 forms)
 - Turns the holiday theme off (and pauses its particles) while printing, saving a PDF or making an image, then turns it back on — customers never see Halloween bats on a quote.
 
+**`address-lookup.js` — address autocomplete** (the 8 forms + Load Calc)
+- Holds the one Mapbox token and the suggestion list. Forms mark their address box with `data-aog-address`; Estimate and QC Checklist keep their own list (street + City/State/ZIP, GPS) but read the token from here.
+- The list follows dark / light mode and never appears in a PDF, print or image.
+
 **`seasonal.js` — holiday engine** (the 8 forms)
 - One shared copy of the holiday dates and the falling-particle layer. Each form keeps only its own holiday colors and can set its tab title and particle strength.
 - **Testing:** add `?season=halloween` (any theme name, or `?season=off`) to a form's address.
@@ -444,6 +450,7 @@ AOG/
 ├── sounds.js               # Shared sound engine (taps, holiday ambience, Sound Settings)
 ├── clean-capture.js        # Shared: keeps holiday themes out of every PDF / print / image
 ├── seasonal.js             # Shared holiday-theme engine for the 8 forms
+├── address-lookup.js       # Shared address autocomplete + the one Mapbox token
 ├── logo.png                # Company logo
 ├── icons/                  # App icons (192, 512, apple-touch 180)
 ├── estimate/               # Estimate form
