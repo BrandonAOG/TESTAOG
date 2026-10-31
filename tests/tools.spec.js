@@ -263,6 +263,24 @@ test('Property Lookup: a county file landing only re-runs the lookup when the ca
   expect(r.total, 'not missed → no second lookup').toBe(1);
 });
 
+test('Property Lookup: photo map tiles overlap by 1px so no hairline grid shows; overlays keep their size', async ({ page }) => {
+  // stand-in tiles (the real ones come from Esri / the county)
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+  await page.route(/arcgisonline\.com\/.*\/tile\//, r => r.fulfill({ contentType: 'image/png', body: png }));
+  expect(await open(page, '/property-lookup/', { settle: 1500 })).toEqual([]);
+  await page.waitForFunction(() => document.querySelectorAll('.aog-basetile img.leaflet-tile').length > 0, null, { timeout: 10000 });
+  const r = await page.evaluate(() => {
+    const t = document.querySelector('.aog-basetile img.leaflet-tile'), cs = getComputedStyle(t);
+    const probe = L.tileLayer('about:blank').addTo(map), other = probe.getContainer().classList.contains('aog-basetile');
+    map.removeLayer(probe);
+    return { w: cs.width, h: cs.height, blend: cs.mixBlendMode, satTagged: sat.getContainer().classList.contains('aog-basetile'), other };
+  });
+  expect([r.w, r.h]).toEqual(['257px', '257px']);
+  expect(r.blend).toBe('normal');
+  expect(r.satTagged).toBe(true);
+  expect(r.other, 'non-basemap layers are not enlarged').toBe(false);
+});
+
 test('Sounds: every sound plays without an error, and mute is remembered', async ({ page }) => {
   const src = read('sounds.js');
   const raw = src.slice(src.indexOf('var RAW = {'), src.indexOf('var S = {};'));

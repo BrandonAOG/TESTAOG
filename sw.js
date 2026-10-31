@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v2.8.24';
+var CACHE_VERSION = 'v2.8.25';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -76,6 +76,7 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
+  '🏠 PROPERTY LOOKUP — no more faint square grid over the Satellite and Local HD map on computers with display scaling or browser zoom (each photo tile now overlaps its neighbour by a hair)',
   '🏠 PROPERTY LOOKUP — the card finishes sooner: Lee searches no longer redo the whole lookup when the Lee address file finishes downloading (Lee living area comes from the live county GIS); Collier still fills in living area from its file, reusing the answers from your search instead of asking every service twice',
   '🏠 PROPERTY LOOKUP — faster first search after opening: background checks (Local HD aerials, elevation index, Lee / Collier address files) now wait until your first search is done instead of competing with it',
   '🔌 ELECT INSTALL / SITE VISIT — page 2 fittings: top row is now Weatherproof Rings, bottom row Weatherproof K.O. (both said Weatherproof Seals); voice entry knows both',

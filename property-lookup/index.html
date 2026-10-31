@@ -192,6 +192,13 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
      controls with it — the map appeared to lose its left edge. */
   html,body{overflow-x:hidden;overscroll-behavior-x:none;max-width:100%}
   #map{position:absolute;inset:0;z-index:1;background:var(--map-bg)}
+  /* TILE SEAMS (v2.8.25). On a computer with display scaling (Windows 125% / 150%) or while the map
+     shows a zoom level stretched between two tile sizes, the browser rounds every 256px photo tile to
+     the screen's pixel grid separately, leaving hairline gaps where the dark map background shows
+     through — a faint square grid over Satellite and Local HD. Each photo tile is drawn 1px larger so
+     its neighbour covers the edge (normal blending, so the overlap can't brighten). Basemap photo
+     layers only (.aog-basetile); see-through overlays like flood zones keep their exact size. */
+  .aog-basetile img.leaflet-tile{width:257px!important;height:257px!important;mix-blend-mode:normal!important}
   .leaflet-container{background:var(--map-bg)}
 
   /* ---- Panel ---- */
@@ -11093,6 +11100,13 @@ window.TILEGATE_STATS = { suppressed:0, releases:0, watchdogFires:0 };
 const _GATED_LAYERS = [sat, labels, street, topo, aerialClean, gray, usatopo, natgeo,
                        collier2026EsriBase, collier2026, localEsriBase, localAerial, localCollier2026];
 let _gateOn = false, _gateRelT = null, _gateDogT = null;
+// Basemap photo layers get the seam fix (see .aog-basetile in the CSS). Set on the option so a layer
+// added later builds its container with the class, and on the container when it already exists.
+_GATED_LAYERS.forEach(function(l){
+  if(!l || !l.options) return;
+  if(!/\baog-basetile\b/.test(l.options.className||'')) l.options.className = ((l.options.className||'') + ' aog-basetile').trim();
+  try{ if(l._container) l._container.classList.add('aog-basetile'); }catch(e){}
+});
 
 _GATED_LAYERS.forEach(function(l){
   if(!l || l.__gated || typeof l._update !== 'function') return;
