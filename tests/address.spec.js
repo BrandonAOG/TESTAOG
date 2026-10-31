@@ -152,6 +152,19 @@ test('Census backup also feeds Estimate (street + City/State/ZIP) and QC Checkli
   await page.locator('#address-suggestions li').first().click();
   await expect(page.locator('#cust_addr')).toHaveValue('1015 Cultural Park Blvd N, Cape Coral');
 });
+test('Mapbox down + partial typing ("201 SW 47th"): OpenStreetMap still suggests', async ({ page }) => {
+  test.skip(test.info().project.name !== 'desktop', 'once');
+  expect(await open(page, '/service-work/')).toEqual([]);
+  await censusBackup(page, { mapbox: 'down' });
+  await page.route(/geocoding\.geo\.census\.gov/, r => { const u = new URL(r.request().url()); r.fulfill({ contentType: 'text/javascript', body: `${u.searchParams.get('callback')}({"result":{"addressMatches":[]}});` }); });
+  await page.route(/nominatim\.openstreetmap\.org\/search/, r => r.fulfill({ json: [
+    { display_name: '201, Southwest 47th Terrace, Cape Coral, Lee County, Florida, 33914, United States', address: { house_number: '201', road: 'Southwest 47th Terrace', city: 'Cape Coral', state: 'Florida', postcode: '33914' } }] }));
+  await page.click('#cust_addr'); await page.keyboard.type('201 SW 47th', { delay: 20 });
+  const item = page.locator('.aog-addr-list.open li').first();
+  await expect(item).toHaveText('201 Southwest 47th Terrace, Cape Coral, FL 33914');
+  await item.click();
+  await expect(page.locator('#cust_addr')).toHaveValue('201 Southwest 47th Terrace, Cape Coral');
+});
 test('a partial address that is not a full street address does not ask the Census', async ({ page }) => {
   test.skip(test.info().project.name !== 'desktop', 'once');
   expect(await open(page, '/service-work/')).toEqual([]);

@@ -11,7 +11,8 @@
        <input type="text" data-aog-address>
    That's all. Typing shows Southwest-Florida addresses first (Mapbox
    Geocoding v6). When Mapbox has no match, the US Census Bureau address
-   check (free, no key) looks up the whole address as a backup. Picking one fills "street, city" — the
+   check (free, no key) looks up a full street address, and OpenStreetMap
+   suggests from partial typing as the last resort. Picking one fills "street, city" — the
    same format the QC Checklist uses — and fires the normal input/change
    events, so the form's autosave and PDFs pick it up like typed text.
    A 📍 button next to the box fills in the address where you're standing
@@ -87,20 +88,34 @@
       .then(function (d) { return ((d && d.result && d.result.addressMatches) || []).map(fromCensus); })
       .catch(function () { return []; });
   }
-  function fromNominatim(r) {                               // GPS backup only (the Census can't turn a location into an address)
+  function fromNominatim(r) {                               // last-resort backup (partial typing, and 📍 — the Census can't do either)
     var a = r.address || {};
     return make(((a.house_number || '') + ' ' + (a.road || '')).trim() || (r.display_name || '').split(',')[0],
                 a.city || a.town || a.village || a.county, /florida/i.test(a.state || '') ? 'FL' : a.state, a.postcode, null, '', 'osm');
   }
   function floridaFirst(list) { return list.filter(function (x) { return x.fl; }).concat(list.filter(function (x) { return !x.fl; })).slice(0, 8); }
 
-  // Typing: Mapbox suggestions; when Mapbox has nothing (or is down), the Census checks the whole address.
+  // OpenStreetMap: weakest on Florida house numbers, but it can suggest from partial typing ("201 SW"),
+  // so it stays as the safety net when Mapbox is down.
+  function osm(q) {
+    return fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=8&countrycodes=us&viewbox=-82.2,27.0,-81.2,26.0&bounded=1&q=' +
+                 encodeURIComponent(q), { headers: { 'Accept-Language': 'en' } })
+      .then(function (r) { return r.json(); })
+      .then(function (rs) { return floridaFirst((rs || []).filter(function (r) { return r.address; }).map(fromNominatim)); })
+      .catch(function () { return []; });
+  }
+
+  // Typing: Mapbox suggestions. When Mapbox has nothing (or is down), the Census checks a full street
+  // address; if it can't (partial typing) OpenStreetMap suggests instead. Both are asked at once.
   function search(q) {
     return fetch(MAPBOX + 'forward?q=' + encodeURIComponent(q) + '&autocomplete=true&country=us&types=address&limit=8&proximity=' + CENTER +
                  '&bbox=' + BBOX + '&access_token=' + TOKEN)
       .then(function (r) { if (!r.ok) throw new Error('mapbox ' + r.status); return r.json(); })
       .then(function (d) { var f = (d && d.features) || []; if (!f.length) throw new Error('none'); return floridaFirst(f.map(fromMapbox)); })
-      .catch(function () { return census(q); });
+      .catch(function () {
+        var o = osm(q);
+        return census(q).then(function (c) { return c.length ? c : o; });
+      });
   }
   // 📍 GPS: where am I → address.
   function reverse(lat, lon) {
