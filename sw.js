@@ -76,7 +76,7 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  '🏠 PROPERTY LOOKUP — the card finishes sooner: when the Lee / Collier address file arrives and fills in living area, it reuses the answers from your search instead of asking every county, flood and zoning service a second time',
+  '🏠 PROPERTY LOOKUP — the card finishes sooner: Lee searches no longer redo the whole lookup when the Lee address file finishes downloading (Lee living area comes from the live county GIS); Collier still fills in living area from its file, reusing the answers from your search instead of asking every service twice',
   '🏠 PROPERTY LOOKUP — faster first search after opening: background checks (Local HD aerials, elevation index, Lee / Collier address files) now wait until your first search is done instead of competing with it',
   '🔌 ELECT INSTALL / SITE VISIT — page 2 fittings: top row is now Weatherproof Rings, bottom row Weatherproof K.O. (both said Weatherproof Seals); voice entry knows both',
   '🔋 BATTERY SAVER — follows your phone: with Reduce Motion on, or at 20% battery (Android), the animated background, holiday particles, glow effects and ambient sounds stop in every tool',

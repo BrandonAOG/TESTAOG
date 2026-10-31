@@ -240,6 +240,29 @@ test('Property Lookup: the re-render after a county file lands reuses GIS answer
   expect(fail, 'a failed answer is never kept').toBe(2);
 });
 
+test('Property Lookup: a county file landing only re-runs the lookup when the card had to go without it', async ({ page }) => {
+  await page.route(/collier_compact_v3\.json\.gz/, async r => { await new Promise(x => setTimeout(x, 1500)); r.continue(); });
+  expect(await open(page, '/property-lookup/', { settle: 500 })).toEqual([]);
+  const r = await page.evaluate(async () => {
+    let reruns = 0; window.rerunLastLookup = () => { reruns++; };
+    window.__lastCounty = 'Collier'; const url = ADDRPOINT_FILES.COLLIER;
+    _fileReady.delete(url); _fileCache.delete(url); _fileMissed.clear();
+    const b = L.latLngBounds([26.14, -81.80], [26.15, -81.79]);
+    const quick = await queryHostedFile(url, b, 50);          // card can't wait → goes without it
+    const missed = _fileMissed.has(url);
+    await loadHostedFileIndex(url); await new Promise(x => setTimeout(x, 300));
+    const afterMiss = reruns;
+    // file already in memory, nothing missed → landing again must not re-run
+    _fileReady.delete(url); _fileCache.delete(url); _fileMissed.clear();
+    await loadHostedFileIndex(url); await new Promise(x => setTimeout(x, 300));
+    return { quick, missed, afterMiss, total: reruns };
+  });
+  expect(r.quick).toBe(null);
+  expect(r.missed).toBe(true);
+  expect(r.afterMiss, 'missed → one re-render to fill it in').toBe(1);
+  expect(r.total, 'not missed → no second lookup').toBe(1);
+});
+
 test('Sounds: every sound plays without an error, and mute is remembered', async ({ page }) => {
   const src = read('sounds.js');
   const raw = src.slice(src.indexOf('var RAW = {'), src.indexOf('var S = {};'));

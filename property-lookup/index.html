@@ -23062,7 +23062,8 @@ async function loadHostedFileIndex(url){
       const cty = window.__lastCounty ? norm(window.__lastCounty) : null;
       servesCurrentParcel = !!(cty && ADDRPOINT_FILES[cty] === url);
     }catch(e){}
-    if(servesCurrentParcel){ try{ rerunLastLookup(); }catch(e){} }
+    // …and only when the card on screen actually went without it (see _fileMissed).
+    if(servesCurrentParcel && _fileMissed.has(url)){ _fileMissed.delete(url); try{ rerunLastLookup(); }catch(e){} }
   }).catch(()=>{});   // a missing or unreachable county file is not an error worth logging
   return p;
 }
@@ -23107,6 +23108,11 @@ async function fileUnitToFolio(county, hn, streetRaw, unit){
    fl_electric_territories.geojson. Callers that block a render now pass a short budget and accept
    null; loadHostedFileIndex() schedules a re-render for them when the file arrives. Callers with no
    budget (map labels, which paint asynchronously anyway) keep the original wait-forever behaviour. */
+/* Files THIS lookup asked for and had to go without (still downloading when its short budget ran
+   out). Only these earn a re-render when they land — see the landing handler in loadHostedFileIndex.
+   v2.8.24: Lee's living area comes from the live county GIS, so a Lee search never waits on the
+   11 MB Lee file; re-running the whole lookup when it arrived redid ~60 requests for nothing. */
+const _fileMissed = new Set();
 async function queryHostedFile(url, b, budgetMs){
   let idx;
   if(budgetMs==null || _fileReady.has(url)){
@@ -23117,7 +23123,7 @@ async function queryHostedFile(url, b, budgetMs){
       loadHostedFileIndex(url),
       new Promise(r=>setTimeout(()=>r(PENDING), budgetMs))
     ]);
-    if(idx===PENDING) return null;   // still downloading — render without it, re-render when it lands
+    if(idx===PENDING){ _fileMissed.add(url); return null; }   // still downloading — render without it, re-render when it lands
   }
   if(!idx || !idx.grid) return null;   // null => load failed (lets caller fall back to live feed)
   const W=b.getWest(),E=b.getEast(),S=b.getSouth(),N=b.getNorth();
@@ -27078,6 +27084,7 @@ function renderLookupTiming(timings){
 async function runLookup(lat,lng,searchCtx){
   _lookupActive++;
   _lastLookupCtx = searchCtx || null;
+  try{ _fileMissed.clear(); }catch(e){}        // a new lookup starts with nothing missed
   const _bcRun = ++_boxCityRun;
   try{ return await _runLookupInner(lat,lng,searchCtx); }
   finally{ _lookupActive = Math.max(0, _lookupActive-1); try{ _ensureBoxCity(_bcRun); }catch(e){}
