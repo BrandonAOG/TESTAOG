@@ -2061,6 +2061,23 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <script src="https://unpkg.com/lerc@4.1.1/LercDecode.js" defer></script>
 <script>
 /* ============================================================
+   STARTUP QUIET PERIOD — the first search gets the phone to itself.
+   Background jobs that only speed up LATER features (Local HD aerial checks, the USGS elevation
+   index, warming the big Lee / Collier address files) used to start the moment the page opened:
+   ~200 requests and ~16 MB in the first second, all competing with the address you just typed.
+   They now wait until the first lookup has finished (+1.5 s), or 8 s after load if nobody searches.
+   A feature that needs one of them sooner just starts it itself (Local HD, elevation, a Lee search).
+   ============================================================ */
+var _afterFirstQ = [], _afterFirstDone = false;
+function afterFirstSearch(fn){ if(_afterFirstDone) setTimeout(fn, 0); else _afterFirstQ.push(fn); }
+function _releaseStartupWork(){
+  if(_afterFirstDone) return; _afterFirstDone = true;
+  var q = _afterFirstQ.splice(0), i = 0;
+  (function step(){ if(i < q.length){ try{ q[i++](); }catch(e){} setTimeout(step, 400); } })();   // spaced out, not all at once
+}
+window.addEventListener('load', function(){ setTimeout(_releaseStartupWork, 8000); }, { once: true });
+
+/* ============================================================
    VERIFIED OFFICIAL ENDPOINTS (checked against live REST dirs)
    ============================================================ */
 const EP = {
@@ -11363,7 +11380,7 @@ function setBasemap(which){
   _curBasemap = which;
   basemapLbl.textContent = (BM_LABEL[which]||'Satellite').replace('⛰ ','');
   basemapMenu.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.bm===which));
-  if(which==='sarco') updateLocalAerial(true);   // pick the county under the current view immediately
+  if(which==='sarco'){ try{ verifyLocalAerials(); }catch(e){} updateLocalAerial(true); }   // pick the county under the current view immediately
   // Time-lapse pulls from Esri Wayback + a couple county aerials — a DIFFERENT source stack than Local
   // HD's sharp per-county imagery, so offering it on Local HD is misleading. Hide the button there (and
   // close the panel if it's open); it stays available on Satellite / Aerial / Street / Gray / Topo.
@@ -11425,6 +11442,7 @@ function positionToolbarMenu(btn, menu, minW){
 }
 function closeBasemapMenu(){ basemapMenu.hidden=true; }
 function openBasemapMenu(){
+  try{ verifyLocalAerials(); }catch(e){}     // Local HD availability — checked now if it hasn't been yet
   basemapMenu.hidden=false;                  // must be laid out before it can be measured
   positionToolbarMenu(btnBasemap, basemapMenu, 140);
 }
@@ -11780,7 +11798,8 @@ document.addEventListener('click', closeBasemapMenu);
 // but we can't externally confirm which year is the latest published. Probe a few recent candidates;
 // use the first that responds, rewire SARCO_2025_URL + the label to it, and if NONE respond, hide the
 // button so the user never lands on a blank basemap. Runs async; the button works the moment it passes.
-(function verifyLocalAerials(){
+function verifyLocalAerials(){
+  if(verifyLocalAerials._ran) return; verifyLocalAerials._ran = true;
   const btn = document.querySelector('.basemap-menu button[data-bm="sarco"]');
   // Probe one county's candidate URLs in order; resolve with the first working {url,kind} or null.
   function probeCounty(key){
@@ -11829,7 +11848,10 @@ document.addEventListener('click', closeBasemapMenu);
     if(btn) btn.title = "Local high-res county aerials — auto-switches by location. Live: " + names + ". Falls back to Esri elsewhere.";
     if(_curBasemap==='sarco') updateLocalAerial(true);
   }).catch(()=>{});   // a county aerial being down just means it stays out of LOCAL_AERIAL_ACTIVE
-})();
+}
+/* Not at startup any more (≈100 requests to ~25 county servers): after the first search, or right
+   away when someone opens the map-style menu / picks Local HD. */
+afterFirstSearch(verifyLocalAerials);
 
 // Auto-switch the local aerial to whichever county you pan into (only while Local HD is active).
 // 'moveend' fires once panning/zooming settles, so this is cheap. Also wired to a manual refresh.
@@ -12788,7 +12810,8 @@ var S3Elev = (function(){
     return {usgs:a, ian:b};
   }
 
-  try{ ready(); readyIan(); }catch(e){}
+  // Index build/load waits for the startup quiet period; sample() runs ready() itself if needed sooner.
+  try{ afterFirstSearch(function(){ try{ ready(); readyIan(); }catch(e){} }); }catch(e){}
 
   function stats(){ return { usgs: window.__s3ElevIndex, ian: window.__s3ElevIan }; }
   function covers(lat,lng){ var u=toUTM(lat,lng); return { ian: !!(_idxB && tileForB(u)), usgs: !!(_idxA && tileForA(u)) }; }
@@ -27008,7 +27031,8 @@ async function runLookup(lat,lng,searchCtx){
   _lastLookupCtx = searchCtx || null;
   const _bcRun = ++_boxCityRun;
   try{ return await _runLookupInner(lat,lng,searchCtx); }
-  finally{ _lookupActive = Math.max(0, _lookupActive-1); try{ _ensureBoxCity(_bcRun); }catch(e){} }
+  finally{ _lookupActive = Math.max(0, _lookupActive-1); try{ _ensureBoxCity(_bcRun); }catch(e){}
+           if(!_lookupActive && !_afterFirstDone) setTimeout(_releaseStartupWork, 1500); }
 }
 /* ALWAYS SHOW THE TOWN IN THE SEARCH BOX. Several county records carry no site city (unincorporated
    Charlotte, for one), so the box ended up reading "24330 MATIAS LN, FL 33955" or just
@@ -35967,12 +35991,17 @@ window.Sheet=Sheet;
   // startup (fire-and-forget, non-blocking) means the file is parsed and cached before the first
   // search, so the first card is complete. Harmless if the user never touches Collier — one cached
   // fetch. Also warms Lee's file for the same reason.
+  /* …but no longer at the instant the page opens: 16 MB of download plus parsing on a phone was
+     fighting the very first search. The warm-up now waits for the startup quiet period (after the
+     first lookup); a search that lands in Lee or Collier first loads that one county's file itself. */
   let _warmFiles=[];
-  try{
-    _warmFiles = [ADDRPOINT_FILES.COLLIER, ADDRPOINT_FILES.LEE]
-      .filter(u => u && u.indexOf('REPLACE-ME')<0)
-      .map(u => loadHostedFileIndex(u).catch(()=>{}));
-  }catch(e){}
+  afterFirstSearch(function(){
+    try{
+      _warmFiles = [ADDRPOINT_FILES.COLLIER, ADDRPOINT_FILES.LEE]
+        .filter(u => u && u.indexOf('REPLACE-ME')<0)
+        .map(u => loadHostedFileIndex(u).catch(()=>{}));
+    }catch(e){}
+  });
   // Load the territory polygon files that ship beside this page, in parallel, and WAIT for
   // them before any initial lookup — so the Utilities + Gas cards have data on first render.
   // (We no longer read these from localStorage: the files are big and same-origin, so the
