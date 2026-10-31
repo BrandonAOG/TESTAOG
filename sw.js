@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v2.8.25';
+var CACHE_VERSION = 'v3.0.0';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -76,28 +76,17 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  '🏠 PROPERTY LOOKUP — no more faint square grid over the Satellite and Local HD map on computers with display scaling or browser zoom (each photo tile now overlaps its neighbour by a hair)',
-  '🏠 PROPERTY LOOKUP — the card finishes sooner: Lee searches no longer redo the whole lookup when the Lee address file finishes downloading (Lee living area comes from the live county GIS); Collier still fills in living area from its file, reusing the answers from your search instead of asking every service twice',
-  '🏠 PROPERTY LOOKUP — faster first search after opening: background checks (Local HD aerials, elevation index, Lee / Collier address files) now wait until your first search is done instead of competing with it',
-  '🔌 ELECT INSTALL / SITE VISIT — page 2 fittings: top row is now Weatherproof Rings, bottom row Weatherproof K.O. (both said Weatherproof Seals); voice entry knows both',
-  '🔋 BATTERY SAVER — follows your phone: with Reduce Motion on, or at 20% battery (Android), the animated background, holiday particles, glow effects and ambient sounds stop in every tool',
-  '📍 ADDRESSES — the suggestion list always opens under the address box on phones, so it never covers what you are typing',
-  '📍 ADDRESSES — new Mapbox key: suggestions start as you type again (house numbers in Cape Coral, Fort Myers, Naples…)',
-  '📍 ADDRESSES — stronger lookup on every form: newer Mapbox search (better house numbers and units), and the US Census address check finds full addresses Mapbox misses; OpenStreetMap still suggests from partial typing if Mapbox is down',
-  '🧭 FORMS — same toolbar on every form (HOME · PDF✎ · CAPTURE · LOAD · CLEAR), all on one row on iPhone; 📍 GPS in every address box; Service Work plain PDF button removed',
-  '🧮 GAS CALC / CONCRETE — same toolbar as the other calculators',
-  '📍 ALL FORMS — address autocomplete on every job address (Maintenance, Site Visit, Pre-Install, Electrical / Gas Install, Service Work, Load Calc), same as Estimate and QC; one Mapbox token for the whole app',
-  '✏️ SITE ANNOTATOR — Undo / Redo fixed: one tap undoes one change (no more dead taps, even after the status bar recounts), a selected shape is removed with it, and image moves / page history are included',
-  '✅ QC CHECKLIST — page 2 customer name and date fill in from page 1 (no longer typed into separately)',
-  '📋 FORMS — Site Visit and Elect Install PDF / CAPTURE no longer fail when YES/NO boxes are checked; saved images never catch a half-finished color change',
-  '🛠️ MAINTENANCE — saved image / PDF now comes out the same size every time on phones',
-  '🌙 LOAD CALC — dark mode added (same theme button and setting as the other tools; exports stay light); unused FULL print button removed',
-  '🧱 CONCRETE — 20 kg / 30 kg bag yields corrected (more accurate bag counts)',
-  '📐 ELECTRICAL FORMULAS — voltage drop can use AC impedance (Table 9) by conduit type; small-wire breaker limits applied; 10 A breaker added',
-  '⛏️ TRENCH DEPTH — propane steel pipe note: cathodic protection is required (NFPA 58)',
-  '🧵 CONDUIT FILL — USE-2 and MTW wire sizes corrected (USE-2 now sized as RHH/RHW-2)',
-  '🔥 GAS CALC — CSST now sized straight from the Gastite / FlashShield and TracPipe CounterStrike charts (shown with EHD); both charts added to Code Reference as their own tabs; extra-fitting tip; altitude derate uses the LP rating on Protector XG 25/30kW',
-  '⚡ LOAD CALC — Kohler natural-gas ratings corrected; result card says when managed loads are excluded (generator feeder)',
+  '🎉 VERSION 3.0 — here is what is new',
+  '📍 ADDRESSES — address suggestions on every job form, with better house numbers and units; 📍 GPS button in every address box fills in where you are standing',
+  '🧭 FORMS — same buttons on every form (HOME · PDF✎ · CAPTURE · LOAD · CLEAR), all on one row on iPhone; Site Visit and Elect Install PDF / CAPTURE fixed when YES/NO boxes are checked',
+  '🔌 ELECT INSTALL / SITE VISIT — page 2: fittings now read Weatherproof Rings and Weatherproof K.O.; empty length boxes no longer show a dash',
+  '✅ QC CHECKLIST — page 2 customer name and date fill in from page 1',
+  '🏠 PROPERTY LOOKUP — faster first search after opening the app',
+  '🔥 GAS CALC — CSST sized from the Gastite / FlashShield and TracPipe CounterStrike charts, both charts in Code Reference; LP altitude derate on Protector XG 25/30kW',
+  '⚡ LOAD CALC — dark mode; Kohler natural-gas ratings corrected; shows when managed loads are left out',
+  '📐 ELECTRICAL — voltage drop by conduit type (AC impedance), small-wire breaker limits, 10 A breaker; Conduit Fill USE-2 / MTW sizes corrected; Trench Depth: cathodic protection note for propane steel pipe',
+  '🧱 CONCRETE — 20 kg / 30 kg bag counts corrected',
+  '✏️ SITE ANNOTATOR — Undo / Redo fixed: one tap undoes one change',
 ];
 //
 // ============================================================
