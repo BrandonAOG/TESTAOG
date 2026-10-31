@@ -17,6 +17,8 @@
    events, so the form's autosave and PDFs pick it up like typed text.
    A 📍 button next to the box fills in the address where you're standing
    (add data-aog-no-gps to the box to leave it off).
+   Separate City / State / Zip box on the form? Add data-aog-city="#thatBox"
+   and the street goes in the address box, "City, ST ZIP" in the other.
 
    Pages with their own list (Estimate, QC Checklist) use the same lookups:
    AOGAddress.search(text) and AOGAddress.reverse(lat, lon) both give
@@ -170,6 +172,17 @@
     var vv = window.visualViewport;
     return vv ? { top: vv.offsetTop, h: vv.height } : { top: 0, h: innerHeight };
   }
+  // Where position:absolute measures from. With a plain <body> (the usual case) that is the top-left
+  // of the whole page — NOT the body's box, which can start lower (Load Calc's body has a top margin).
+  // If a page ever positions its body, measure from the body's padding edge instead.
+  function anchorBase() {
+    var b = document.body;
+    if (b && getComputedStyle(b).position !== 'static') {
+      var r = b.getBoundingClientRect();
+      return { top: r.top + b.clientTop, left: r.left + b.clientLeft };
+    }
+    return { top: -(window.scrollY || window.pageYOffset || 0), left: -(window.scrollX || window.pageXOffset || 0) };
+  }
   // The list always opens UNDER the box, so it can never cover what you're typing.
   function place() {
     if (!owner) return;
@@ -180,7 +193,7 @@
        the keyboard slides the page up under a position:fixed element, and Safari moves fixed things
        on its own schedule — on the long forms (Elect Install, Site Visit) the list landed on top of
        the box. Anchored to the page, the list moves WITH the box however the keyboard scrolls it. */
-    var base = (list.offsetParent || document.documentElement).getBoundingClientRect();
+    var base = anchorBase();
     var left = Math.max(4, Math.min(r.left, innerWidth - Math.max(r.width, 260) - 4));
     list.style.left = (left - base.left) + 'px';
     list.style.width = Math.max(r.width, 260) + 'px';
@@ -218,9 +231,21 @@
     el._aogPicking = true;
     try { el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); } finally { el._aogPicking = false; }
   }
+  /* A form with its own City / State / Zip box points to it:  <input data-aog-address data-aog-city="#j_city">
+     Then the address box gets just the street and the city box gets "Cape Coral, FL 33914".
+     Without it the address box gets "street, city" as before. */
+  function put(el, it) {
+    var sel = el.getAttribute('data-aog-city'), cityEl = null;
+    try { cityEl = sel ? document.querySelector(sel) : null; } catch (e) {}
+    if (!cityEl || !it.street) { fill(el, it.value); return it.value; }
+    var csz = [it.city, [it.state, it.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    fill(el, it.street);
+    if (csz) fill(cityEl, csz);
+    return it.street + (csz ? ', ' + csz : '');
+  }
   function pick(i) {
     var el = owner, it = items[i]; if (!el || !it) return;
-    close(); fill(el, it.value);
+    close(); put(el, it);
   }
   function message(el, text, ms) {                          // one line under the box, e.g. "Getting your location…"
     mount(); owner = el; items = []; active = -1;
@@ -249,7 +274,7 @@
       mount(); b.disabled = true; message(el, 'Getting your location…');
       navigator.geolocation.getCurrentPosition(function (pos) {
         reverse(pos.coords.latitude, pos.coords.longitude).then(function (r) {
-          b.disabled = false; fill(el, r.value); message(el, '✓ ' + r.value, 2500);
+          b.disabled = false; message(el, '✓ ' + put(el, r), 2500);
         }).catch(function () { b.disabled = false; message(el, 'Address lookup failed — type it in', 4000); });
       }, function (err) {
         b.disabled = false;

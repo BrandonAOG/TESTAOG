@@ -59,10 +59,26 @@ for (const p of PAGES) {
     if (p.dir === 'estimate') {
       await expect(box).toHaveValue('1234 Del Prado Blvd S');
       await expect(page.locator('#address2')).toHaveValue('Cape Coral, FL 33990');          // City, ST ZIP box
+    } else if (p.dir === 'load-calcs') {
+      await expect(box).toHaveValue('1234 Del Prado Blvd S');                               // street only…
+      await expect(page.locator('#j_city')).toHaveValue('Cape Coral, FL 33990');            // …city / state / zip in its own box
     } else await expect(box).toHaveValue('1234 Del Prado Blvd S, Cape Coral');
     if (!p.own) await expect(page.locator('.aog-addr-list')).not.toHaveClass(/open/);
   });
 }
+
+test('Load Calc: picked street and city / state / zip both come back after closing the app', async ({ page }) => {
+  test.skip(test.info().project.name !== 'desktop', 'once');
+  page.on('dialog', d => d.accept());
+  expect(await open(page, '/load-calcs/')).toEqual([]);
+  await page.route(MAPBOX_FWD, r => r.fulfill({ json: FEATURES }));
+  await page.click('#j_addr'); await page.keyboard.type('1234 Del', { delay: 30 });
+  await page.locator('.aog-addr-list.open li').first().dispatchEvent('mousedown');
+  await page.waitForTimeout(2500);
+  await page.reload({ waitUntil: 'load' }); await page.waitForTimeout(1200);
+  await expect(page.locator('#j_addr')).toHaveValue('1234 Del Prado Blvd S');
+  await expect(page.locator('#j_city')).toHaveValue('Cape Coral, FL 33990');
+});
 
 test('picked address is saved like typed text (comes back after closing the app)', async ({ page }) => {
   test.skip(test.info().project.name !== 'desktop', 'once');
@@ -105,7 +121,10 @@ test.describe('GPS pin', () => {
       expect(q.x >= b.x && q.x + q.width <= b.x + b.width + 1 && cy >= b.y && cy <= b.y + b.height, `pin inside the box ${JSON.stringify([b, q])}`).toBe(true);
       expect(await pin.getAttribute('data-html2canvas-ignore')).toBe('true');
       if (test.info().project.name === 'iphone') await pin.tap(); else await pin.click();
-      await expect(box).toHaveValue('1234 Del Prado Blvd S, Cape Coral');
+      if (p.dir === 'load-calcs') {
+        await expect(box).toHaveValue('1234 Del Prado Blvd S');
+        await expect(page.locator('#j_city')).toHaveValue('Cape Coral, FL 33990');
+      } else await expect(box).toHaveValue('1234 Del Prado Blvd S, Cape Coral');
     });
   }
 });
@@ -177,20 +196,33 @@ test('a partial address that is not a full street address does not ask the Censu
 
 // Phones: the list must open UNDER the address box and never cover what you're typing,
 // even when the box is near the bottom of the screen (where the keyboard comes up).
-for (const form of ['elect-install', 'site-visit']) test(`${form}: when the iPhone keyboard pushes the page up, the list stays stuck under the box`, async ({ page }) => {
+// Every form with an address box, including Estimate and QC which draw their own list inside the box's wrapper.
+const ADDR_FORMS = [
+  ['elect-install', 'input[data-aog-address]', '.aog-addr-list.open'],
+  ['site-visit', 'input[data-aog-address]', '.aog-addr-list.open'],
+  ['maintenance', 'input[data-aog-address]', '.aog-addr-list.open'],
+  ['gas-install', 'input[data-aog-address]', '.aog-addr-list.open'],
+  ['pre-checklist', 'input[data-aog-address]', '.aog-addr-list.open'],
+  ['service-work', 'input[data-aog-address]', '.aog-addr-list.open'],
+  ['load-calcs', 'input[data-aog-address]', '.aog-addr-list.open'],
+  ['estimate', '#address', '#address-suggestions.open'],
+  ['qc-checklist', '#cust_addr', '#address-suggestions.open'],
+];
+for (const [form, boxSel, listSel] of ADDR_FORMS) test(`${form}: when the iPhone keyboard pushes the page up, the list stays stuck under the box`, async ({ page }) => {
   test.skip(test.info().project.name !== 'iphone', 'phone layout');
   expect(await open(page, `/${form}/`)).toEqual([]);
   await page.route(MAPBOX_FWD, r => r.fulfill({ json: FEATURES }));
-  const box = page.locator('input[data-aog-address]').first();
+  const box = page.locator(boxSel).first();
+  await box.scrollIntoViewIfNeeded();
   await box.tap(); await box.pressSequentially('1234 Del', { delay: 30 });
-  await expect(page.locator('.aog-addr-list.open')).toBeVisible();
+  await expect(page.locator(listSel)).toBeVisible();
   // The keyboard slides the page up. Measure in the SAME frame, before any scroll handler can re-place it.
-  const gap = await page.evaluate(() => {
+  const gap = await page.evaluate(([bs, ls]) => {
     window.scrollBy(0, 180);
-    const b = document.querySelector('input[data-aog-address]').getBoundingClientRect();
-    const l = document.querySelector('.aog-addr-list.open').getBoundingClientRect();
+    const b = document.querySelector(bs).getBoundingClientRect();
+    const l = document.querySelector(ls).getBoundingClientRect();
     return Math.round(l.top - b.bottom);
-  });
+  }, [boxSel, listSel]);
   expect(gap, 'list top sits right under the box').toBeGreaterThanOrEqual(0);
   expect(gap).toBeLessThanOrEqual(4);
 });

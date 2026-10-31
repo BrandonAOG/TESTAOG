@@ -83,7 +83,7 @@ var CHANGELOG = [
   '✅ QC CHECKLIST — page 2 customer name and date fill in from page 1',
   '🏠 PROPERTY LOOKUP — faster first search after opening the app',
   '🔥 GAS CALC — CSST sized from the Gastite / FlashShield and TracPipe CounterStrike charts, both charts in Code Reference; LP altitude derate on Protector XG 25/30kW',
-  '⚡ LOAD CALC — dark mode; Kohler natural-gas ratings corrected; shows when managed loads are left out',
+  '⚡ LOAD CALC — picking an address fills the street and the City / State / Zip box separately; dark mode; Kohler natural-gas ratings corrected; shows when managed loads are left out',
   '📐 ELECTRICAL — voltage drop by conduit type (AC impedance), small-wire breaker limits, 10 A breaker; Conduit Fill USE-2 / MTW sizes corrected; Trench Depth: cathodic protection note for propane steel pipe',
   '🧱 CONCRETE — 20 kg / 30 kg bag counts corrected',
   '✏️ SITE ANNOTATOR — Undo / Redo fixed: one tap undoes one change',
