@@ -29,7 +29,7 @@
   if (window.AOGAddress) return; // loaded twice — keep the first
 
   // Mapbox public (pk.) token — meant to live in browser code.
-  var TOKEN = 'pk.eyJ1IjoicHJvamVjdHdyYXBwZXIiLCJhIjoiY201d2k1eHU3MDAwajJrbzU2a2c5dW40NSJ9.WJlNJ4o5CqBhWpHKMKOzIQ';
+  var TOKEN = 'pk.eyJ1Ijoic2FzaGFrbyIsImEiOiJjazBjdnNxZXowMGR6M3BtMG5iajB6cGVlIn0.eHV32lGEeGa0r82TDjM6Sw';
   window.AOG_MAPBOX_TOKEN = TOKEN;
 
   var BBOX = '-82.2,26.0,-81.2,27.0';      // Southwest Florida
