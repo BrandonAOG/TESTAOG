@@ -80,6 +80,31 @@ test('Load Calc: picked street and city / state / zip both come back after closi
   await expect(page.locator('#j_city')).toHaveValue('Cape Coral, FL 33990');
 });
 
+// The list wears the form's own theme (same variables as the Estimate sheet's list), including the seasonal ones.
+for (const [form, q, theme] of [['maintenance', '?season=halloween', 'light'], ['site-visit', '?season=halloween', 'dark'], ['elect-install', '', 'light'], ['estimate', '?season=halloween', 'light']]) {
+  test(`${form}${q} (${theme}): the suggestion list uses the form's colors, like the Estimate sheet`, async ({ page }) => {
+    test.skip(test.info().project.name !== 'desktop', 'once');
+    page.on('dialog', d => d.accept());
+    expect(await open(page, `/${form}/${q}`, { theme })).toEqual([]);
+    await page.route(MAPBOX_FWD, r => r.fulfill({ json: FEATURES }));
+    const own = form === 'estimate', boxSel = own ? '#address' : 'input[data-aog-address]', listSel = own ? '#address-suggestions.open' : '.aog-addr-list.open';
+    await page.locator(boxSel).first().scrollIntoViewIfNeeded();
+    await page.locator(boxSel).first().click(); await page.keyboard.type('1234 Del', { delay: 30 });
+    await expect(page.locator(listSel)).toBeVisible();
+    const r = await page.evaluate(ls => {
+      const probe = document.createElement('div'); probe.style.cssText = 'background:var(--panel);color:var(--cyan)'; document.body.appendChild(probe);
+      const want = getComputedStyle(probe); const l = document.querySelector(ls), fl = l.querySelector('li');
+      const out = { panel: want.backgroundColor, listBg: getComputedStyle(l).backgroundColor, cyan: want.color, fl: getComputedStyle(fl).color, season: document.body.className };
+      probe.remove(); return out;
+    }, listSel);
+    if (form !== 'estimate') {
+      expect(r.listBg, 'list background = the form panel color').toBe(r.panel);
+      expect(r.fl, 'Florida suggestions in the form accent color').toBe(r.cyan);
+    }
+    if (q) expect(r.season).toMatch(/seasonal-halloween/);
+  });
+}
+
 test('picked address is saved like typed text (comes back after closing the app)', async ({ page }) => {
   test.skip(test.info().project.name !== 'desktop', 'once');
   page.on('dialog', d => d.accept());
@@ -120,6 +145,9 @@ test.describe('GPS pin', () => {
       const cx = q.x + q.width / 2, cy = q.y + q.height / 2;                            // pin centred on the box's right end
       expect(q.x >= b.x && q.x + q.width <= b.x + b.width + 1 && cy >= b.y && cy <= b.y + b.height, `pin inside the box ${JSON.stringify([b, q])}`).toBe(true);
       expect(await pin.getAttribute('data-html2canvas-ignore')).toBe('true');
+      // same crosshair button as the Estimate sheet: same icon, size and icon color
+      const look = await pin.evaluate(el => { const s = el.querySelector('svg'); return { svg: !!s && s.querySelectorAll('circle').length, w: el.offsetWidth, h: el.offsetHeight, stroke: s && getComputedStyle(s).stroke, emoji: /📍/.test(el.textContent) }; });
+      expect(look).toEqual({ svg: 2, w: 30, h: 26, stroke: 'rgb(16, 185, 129)', emoji: false });
       if (test.info().project.name === 'iphone') await pin.tap(); else await pin.click();
       if (p.dir === 'load-calcs') {
         await expect(box).toHaveValue('1234 Del Prado Blvd S');
@@ -225,6 +253,16 @@ for (const [form, boxSel, listSel] of ADDR_FORMS) test(`${form}: when the iPhone
   }, [boxSel, listSel]);
   expect(gap, 'list top sits right under the box').toBeGreaterThanOrEqual(0);
   expect(gap).toBeLessThanOrEqual(4);
+  // Scrolling on a phone drops the keyboard (the box loses focus). Like the Estimate sheet, the list
+  // stays open and stuck under the box while you scroll up and down…
+  await page.evaluate(() => { document.activeElement && document.activeElement.blur(); window.scrollBy(0, -120); });
+  await page.waitForTimeout(500);
+  await expect(page.locator(listSel)).toBeVisible();
+  const gap2 = await page.evaluate(([bs, ls]) => Math.round(document.querySelector(ls).getBoundingClientRect().top - document.querySelector(bs).getBoundingClientRect().bottom), [boxSel, listSel]);
+  expect(gap2).toBeGreaterThanOrEqual(0); expect(gap2).toBeLessThanOrEqual(4);
+  // …and closes when you tap somewhere else on the page.
+  await page.evaluate(() => { const h = document.querySelector('h1, h2, label, .section-title') || document.body; h.click(); });
+  await expect(page.locator(listSel)).toBeHidden();
 });
 
 test('the suggestion list never covers the address box, even low on a phone screen', async ({ page }) => {

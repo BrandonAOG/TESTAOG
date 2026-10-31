@@ -15,7 +15,7 @@
    suggests from partial typing as the last resort. Picking one fills "street, city" — the
    same format the QC Checklist uses — and fires the normal input/change
    events, so the form's autosave and PDFs pick it up like typed text.
-   A 📍 button next to the box fills in the address where you're standing
+   A GPS button (the Estimate sheet's crosshair) inside the box fills in the address where you're standing
    (add data-aog-no-gps to the box to leave it off).
    Separate City / State / Zip box on the form? Add data-aog-city="#thatBox"
    and the street goes in the address box, "City, ST ZIP" in the other.
@@ -141,17 +141,27 @@
     '.aog-addr-list li:last-child{border-bottom:0}' +
     '.aog-addr-list li.fl{font-weight:700}' +
     '.aog-addr-list li.active,.aog-addr-list li:hover{background:var(--aog-al-hi)}' +
-    '.aog-addr-list.light{--aog-al-line:#eee;--aog-al-hi:rgba(217,119,6,.10);background:#fff;color:#1f2933;border:1px solid #ddd;box-shadow:0 8px 24px rgba(0,0,0,.15)}' +
-    '.aog-addr-list.light li.fl{color:#b45309}' +
-    '.aog-addr-list.dark{--aog-al-line:rgba(255,255,255,.08);--aog-al-hi:rgba(0,255,200,.10);background:#0f1530;color:#e0f7ff;border:1px solid rgba(0,255,200,.25);box-shadow:0 8px 24px rgba(0,0,0,.5)}' +
-    '.aog-addr-list.dark li.fl{color:#00ffc8}' +
+    /* Colors come from the FORM's own theme variables (--panel, --text, --border-bright, --cyan), the same
+       ones the Estimate sheet's list uses — so the list follows light / dark mode AND the seasonal themes
+       (Halloween orange, Christmas red…) on every form. The values after the commas are only used on a
+       page that doesn't define that variable. */
+    '.aog-addr-list.light{--aog-al-line:rgba(0,0,0,.07);--aog-al-hi:rgba(217,119,6,.10);background:#fff;background:var(--panel,#fff);color:#1f2933;color:var(--text,#1f2933);border:1px solid #ddd;border:1px solid var(--border-bright,#ddd);box-shadow:0 8px 24px rgba(0,0,0,.15)}' +
+    '.aog-addr-list.light li.fl{color:#b45309;color:var(--cyan,#b45309)}' +
+    '.aog-addr-list.dark{--aog-al-line:rgba(255,255,255,.08);--aog-al-hi:rgba(0,255,200,.10);background:#0f1530;background:var(--panel,#0f1530);color:#e0f7ff;color:var(--text,#e0f7ff);border:1px solid rgba(0,255,200,.25);border:1px solid var(--border-bright,rgba(0,255,200,.25));box-shadow:0 8px 24px rgba(0,0,0,.5)}' +
+    '.aog-addr-list.dark li.fl{color:#00ffc8;color:var(--cyan,#00ffc8)}' +
+    '@supports (color:color-mix(in srgb,red 10%,transparent)){.aog-addr-list.light,.aog-addr-list.dark{--aog-al-hi:color-mix(in srgb,var(--cyan,#d97706) 14%,transparent)}}' +
     '.aog-addr-list li.msg{cursor:default;font-weight:600;opacity:.85}' +
-    /* 📍 sits INSIDE the right end of the address box (overlaid), so no form layout changes */
+    /* GPS button: the SAME crosshair button the Estimate sheet and QC Checklist use (same icon, size and
+       colors), sitting INSIDE the right end of the address box (overlaid), so no form layout changes. */
     'button.aog-gps{position:absolute!important;display:flex!important;align-items:center;justify-content:center;box-sizing:border-box!important;' +
-    'width:26px!important;height:26px!important;min-width:0!important;min-height:0!important;max-width:none!important;margin:0!important;padding:0!important;flex:none!important;' +
-    'border:0!important;border-radius:6px!important;background:transparent!important;box-shadow:none!important;clip-path:none!important;transform:none!important;' +
-    'font-size:15px!important;line-height:1!important;cursor:pointer;opacity:.75;z-index:5;-webkit-tap-highlight-color:transparent;touch-action:manipulation}' +
-    'button.aog-gps:hover{opacity:1}button.aog-gps:disabled{opacity:.35;cursor:wait}' +
+    'width:30px!important;height:26px!important;min-width:0!important;min-height:0!important;max-width:none!important;margin:0!important;padding:0!important;flex:none!important;' +
+    'border:1px solid rgba(250,103,0,.3)!important;border-radius:0!important;background:rgba(250,103,0,.12)!important;box-shadow:none!important;clip-path:none!important;transform:none!important;' +
+    'line-height:1!important;cursor:pointer;z-index:5;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:background .15s,box-shadow .15s}' +
+    'button.aog-gps svg{width:16px;height:16px;stroke:#10B981!important;color:#10B981!important;fill:none!important;pointer-events:none}' +
+    'button.aog-gps:hover{background:rgba(250,103,0,.2)!important}' +
+    'button.aog-gps.dark{background:rgba(16,185,129,.1)!important;border-color:rgba(16,185,129,.3)!important}' +
+    'button.aog-gps.dark:hover{background:rgba(16,185,129,.2)!important;box-shadow:0 0 8px rgba(16,185,129,.3)!important}' +
+    'button.aog-gps:disabled{opacity:.5;cursor:wait}' +
     '@media print{.aog-addr-list,.aog-gps{display:none!important}}';
   var list = document.createElement('ul');
   list.className = 'aog-addr-list';
@@ -186,9 +196,8 @@
   // The list always opens UNDER the box, so it can never cover what you're typing.
   function place() {
     if (!owner) return;
-    var r = owner.getBoundingClientRect(), v = visible();
-    if (!r.width || r.bottom < v.top || r.top > v.top + v.h) { close(); return; }
-    var below = v.top + v.h - r.bottom;
+    var r = owner.getBoundingClientRect();
+    if (!r.width) return;                                   // box hidden (collapsed section) — leave it
     /* Placed in PAGE coordinates (position:absolute on <body>), not screen coordinates. On an iPhone
        the keyboard slides the page up under a position:fixed element, and Safari moves fixed things
        on its own schedule — on the long forms (Elect Install, Site Visit) the list landed on top of
@@ -199,7 +208,10 @@
     list.style.width = Math.max(r.width, 260) + 'px';
     list.style.top = (r.bottom + 2 - base.top) + 'px';
     list.style.bottom = '';
-    list.style.maxHeight = Math.max(96, Math.min(260, below - 8)) + 'px';
+    /* Same as the Estimate sheet: a fixed-height list that stays open under the box while you scroll
+       up or down, and only closes when you pick one, tap somewhere else, or press Esc. (It used to
+       shrink to the space above the keyboard and close once the box scrolled off screen.) */
+    list.style.maxHeight = '260px';
   }
   // Box low on the screen (keyboard up): slide the page up so a few suggestions fit under it.
   function makeRoom() {
@@ -218,6 +230,7 @@
     items = results; active = -1; list.innerHTML = '';
     if (!results.length) { close(); return; }
     list.className = 'aog-addr-list ' + (darkInput(el) ? 'dark' : 'light');
+    try { list.style.fontFamily = getComputedStyle(el).fontFamily; } catch (e) {}   // same lettering as the form's own boxes
     results.forEach(function (it, i) {
       var li = document.createElement('li');
       li.setAttribute('role', 'option'); li.textContent = it.label; if (it.fl) li.className = 'fl';
@@ -257,19 +270,24 @@
   function addGps(el) {
     if (el.hasAttribute('data-aog-no-gps') || !navigator.geolocation) return;
     var b = document.createElement('button');
-    b.type = 'button'; b.className = 'aog-gps'; b.textContent = '📍';
+    b.type = 'button'; b.className = 'aog-gps';
+    b.innerHTML = '<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8" stroke-dasharray="2 4"/></svg>';
     b.title = 'Use my current location'; b.setAttribute('aria-label', 'Use my current location');
     b.setAttribute('data-html2canvas-ignore', 'true');      // never in a capture
     el.insertAdjacentElement('afterend', b);
-    el.style.paddingRight = 'max(30px, ' + getComputedStyle(el).paddingRight + ')';   // typed text never runs under the pin
+    el.style.paddingRight = 'max(36px, ' + getComputedStyle(el).paddingRight + ')';   // typed text never runs under the pin
     function seat() {                                       // keep the pin on the box's right end (same offset parent as the box)
       if (!el.offsetWidth || !el.offsetHeight || getComputedStyle(el).display === 'none') { b.style.setProperty('display', 'none', 'important'); return; }
       b.style.removeProperty('display');
-      b.style.left = (el.offsetLeft + el.offsetWidth - 28) + 'px';
+      b.style.left = (el.offsetLeft + el.offsetWidth - 32) + 'px';
       b.style.top = (el.offsetTop + (el.offsetHeight - 26) / 2) + 'px';
+      // Green look only in the form's DARK MODE, exactly like the Estimate sheet (a seasonal theme keeps the orange look)
+      var bc = document.body.classList; b.classList.toggle('dark', bc.contains('dark-mode') || bc.contains('dark'));
     }
     seat(); setTimeout(seat, 300); addEventListener('load', seat); addEventListener('resize', seat);
     try { new ResizeObserver(seat).observe(el); if (el.parentNode) new ResizeObserver(seat).observe(el.parentNode); } catch (e) {}
+    try { new MutationObserver(seat).observe(document.body, { attributes: true, attributeFilter: ['class'] }); } catch (e) {}   // dark mode / season switched
     b.addEventListener('click', function () {
       mount(); b.disabled = true; message(el, 'Getting your location…');
       navigator.geolocation.getCurrentPosition(function (pos) {
@@ -309,10 +327,21 @@
       else if (e.key === 'Enter' && active >= 0) { e.preventDefault(); pick(active); }
       else if (e.key === 'Escape') { e.preventDefault(); close(); }
     });
-    el.addEventListener('blur', function () { setTimeout(function () { if (owner === el && document.activeElement !== el) close(); }, 150); });
+    // No close on blur: on a phone, scrolling the page drops the keyboard (the box blurs) and the
+    // list vanished mid-scroll. It closes on a tap outside instead — see the document listener below.
   }
   function attachAll(root) { (root || document).querySelectorAll('input[data-aog-address]').forEach(attach); }
 
+  // Tap anywhere that isn't the address box or the list → close it (same as the Estimate sheet).
+  document.addEventListener('click', function (e) {
+    if (!owner || !list.classList.contains('open')) return;
+    var t = e.target, gps = owner.nextElementSibling;
+    if (t === owner || list.contains(t) || (gps && gps.classList && gps.classList.contains('aog-gps') && gps.contains(t))) return;
+    close();
+  }, true);
+  document.addEventListener('focusin', function (e) {   // moved to another field with the keyboard / Next button
+    if (owner && e.target !== owner && !list.contains(e.target) && list.classList.contains('open')) close();
+  });
   addEventListener('scroll', place, true);
   addEventListener('resize', place);
   if (window.visualViewport) { visualViewport.addEventListener('resize', place); visualViewport.addEventListener('scroll', place); }
