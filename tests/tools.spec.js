@@ -218,6 +218,28 @@ test('Property Lookup: its own map and setback data files load and parse', async
   expect(counties).toBeGreaterThan(10);
 });
 
+test('Property Lookup: the re-render after a county file lands reuses GIS answers; a new search still asks the server', async ({ page }) => {
+  let hits = 0, fail = 0;
+  await page.route('**/fakegis/**', route => {
+    if (route.request().url().includes('bad')) { fail++; return route.fulfill({ status: 500, body: '{}' }); }
+    hits++; return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ n: hits }) });
+  });
+  expect(await open(page, '/property-lookup/', { settle: 1000 })).toEqual([]);
+  const r = await page.evaluate(async () => {
+    const u = location.origin + '/fakegis/arcgis/rest/services/X/MapServer/0/query?geometry=1&f=json';
+    const get = url => fetch(url).then(x => x.json()).then(j => j.n, () => 'err');
+    const a = await get(u), b = await get(u);              // normal searches: both go to the server
+    _gisReplay++; const c = await get(u); const bad1 = await get(u.replace('X', 'bad')); _gisReplay--;
+    const d = await get(u);                                // replay over → server again
+    _gisReplay++; const bad2 = await get(u.replace('X', 'bad')); _gisReplay--;
+    return { a, b, c, d, bad1, bad2 };
+  });
+  expect([r.a, r.b], 'fresh searches are never served from memory').toEqual([1, 2]);
+  expect(r.c, 're-render reuses the last answer').toBe(2);
+  expect(r.d).toBe(3);
+  expect(fail, 'a failed answer is never kept').toBe(2);
+});
+
 test('Sounds: every sound plays without an error, and mute is remembered', async ({ page }) => {
   const src = read('sounds.js');
   const raw = src.slice(src.indexOf('var RAW = {'), src.indexOf('var S = {};'));

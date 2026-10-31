@@ -3266,9 +3266,58 @@ function rerunLastLookup(){
   _rerunTimer=setInterval(()=>{
     if(_lookupActive>0) return;                // let the in-flight lookup finish; don't supersede it
     clearInterval(_rerunTimer); _rerunTimer=null;
-    try{ runLookup(lastLoc.lat, lastLoc.lng, _lastLookupCtx || undefined); }catch(e){}
+    /* Replay mode: this re-render asks the SAME county/flood/zoning services the SAME questions the
+       lookup just answered, so reuse those answers (see _gisMemo below) instead of a second full
+       round of ~60 network requests. Only the newly arrived county file adds anything new. */
+    _gisReplay++;
+    let p; try{ p = runLookup(lastLoc.lat, lastLoc.lng, _lastLookupCtx || undefined); }catch(e){}
+    Promise.resolve(p).catch(()=>{}).then(()=>{ setTimeout(()=>{ _gisReplay=Math.max(0,_gisReplay-1); }, 3000); });
   }, 400);
 }
+
+/* ⚡ GIS ANSWER MEMO (v2.8.24) — measured on the live site: a Lee search painted the card at ~1.4 s
+   and finished at ~3.8 s, then the county address file landed and the re-render above sent EVERY
+   GIS query a second time (~60 requests), dragging "Done" out another second or more on a fast
+   connection and much longer on a phone.
+   Successful GIS answers (GET, JSON, ok) are kept for 2 minutes. They are ONLY handed back while a
+   re-render is replaying (_gisReplay > 0) — a fresh search, a Retry button, or a different address
+   always goes to the network as before. Failed or aborted requests are never kept. */
+let _gisReplay = 0;
+const _gisMemo = new Map(), _GIS_MEMO_MS = 120000, _GIS_MEMO_MAX = 200;
+function _gisMemoKey(input, init){
+  try{
+    if(init && (init.body || (init.method && String(init.method).toUpperCase()!=='GET'))) return null;
+    if(typeof Request!=='undefined' && input instanceof Request) return null;
+    const u = String(input);
+    if(!/^https?:/i.test(u)) return null;
+    return /\/(MapServer|FeatureServer|ImageServer)\b|\/(query|identify)\?/i.test(u) ? u : null;
+  }catch(e){ return null; }
+}
+(function(){
+  if(typeof window==='undefined' || !window.fetch || window.fetch._aogMemo) return;
+  const raw = window.fetch.bind(window);
+  const wrapped = function(input, init){
+    const k = _gisMemoKey(input, init);
+    if(!k) return raw(input, init);
+    const hit = _gisMemo.get(k);
+    if(hit && Date.now() - hit.t > _GIS_MEMO_MS){ _gisMemo.delete(k); }
+    else if(hit && _gisReplay > 0){
+      if(init && init.signal && init.signal.aborted) return Promise.reject(new DOMException('Aborted','AbortError'));
+      return Promise.resolve(hit.r.clone());
+    }
+    return raw(input, init).then(r => {
+      try{
+        if(r && r.ok && r.type !== 'opaque'){
+          _gisMemo.set(k, { t: Date.now(), r: r.clone() });
+          if(_gisMemo.size > _GIS_MEMO_MAX) _gisMemo.delete(_gisMemo.keys().next().value);
+        }
+      }catch(e){}
+      return r;
+    });
+  };
+  wrapped._aogMemo = true;
+  window.fetch = wrapped;
+})();
 
 /* Pre-wired LIVE county parcel feeds (queryable polygon layers w/ owner; refresh cadence set by each county).
    Each county may list MULTIPLE candidate endpoints — the tool tries them in order at runtime
