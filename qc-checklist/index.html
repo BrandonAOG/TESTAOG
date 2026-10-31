@@ -651,6 +651,10 @@ body.dark-mode .gps-btn { background: rgba(0,255,200,0.1); border-color: rgba(0,
 }
 body.dark-mode #address-suggestions { background: rgba(10,14,39,0.95); border-color: rgba(0,255,200,0.2); box-shadow: 0 8px 24px rgba(0,255,200,0.15); }
 #address-suggestions.open { display: block; }
+/* Florida suggestions: bold in the accent color. In DARK MODE the whole list is teal on every theme
+   (seasonal colors are for light mode) — same as every other form's list. */
+#address-suggestions li.fl { font-weight: bold; color: var(--cyan); }
+body.dark-mode #address-suggestions li.fl { color: #00FFC8; }
 #address-suggestions li {
   padding: 8px 10px; cursor: pointer; font-size: 0.72rem; color: var(--text);
   border-bottom: 1px solid rgba(217,119,6,0.08); font-family: var(--font-mono);
@@ -3279,7 +3283,7 @@ function setupAddressAutocomplete() {
         list.classList.remove('open'); updateAriaExpanded(false); list.innerHTML = '';
         saveDraft();
       };
-      if (item.fl) { li.style.fontWeight='bold'; li.style.color='var(--cyan)'; }
+      if (item.fl) li.classList.add('fl');   // bold, accent color — teal in dark mode (CSS below)
       li.addEventListener('mousedown', handler);
       li.addEventListener('mouseenter', function() { this.classList.add('active'); });
       li.addEventListener('mouseleave', function() { this.classList.remove('active'); });

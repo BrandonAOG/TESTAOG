@@ -81,13 +81,15 @@ test('Load Calc: picked street and city / state / zip both come back after closi
 });
 
 // The list wears the form's own theme (same variables as the Estimate sheet's list), including the seasonal ones.
-for (const [form, q, theme] of [['maintenance', '?season=halloween', 'light'], ['site-visit', '?season=halloween', 'dark'], ['elect-install', '', 'light'], ['estimate', '?season=halloween', 'light']]) {
+for (const [form, q, theme] of [['maintenance', '?season=halloween', 'light'], ['site-visit', '?season=halloween', 'dark'], ['elect-install', '', 'light'],
+                                 ['estimate', '?season=halloween', 'light'], ['estimate', '?season=halloween', 'dark'], ['qc-checklist', '?season=halloween', 'dark'], ['load-calcs', '', 'dark']]) {
   test(`${form}${q} (${theme}): the suggestion list uses the form's colors, like the Estimate sheet`, async ({ page }) => {
     test.skip(test.info().project.name !== 'desktop', 'once');
     page.on('dialog', d => d.accept());
     expect(await open(page, `/${form}/${q}`, { theme })).toEqual([]);
     await page.route(MAPBOX_FWD, r => r.fulfill({ json: FEATURES }));
-    const own = form === 'estimate', boxSel = own ? '#address' : 'input[data-aog-address]', listSel = own ? '#address-suggestions.open' : '.aog-addr-list.open';
+    const own = form === 'estimate' || form === 'qc-checklist';
+    const boxSel = form === 'estimate' ? '#address' : form === 'qc-checklist' ? '#cust_addr' : 'input[data-aog-address]', listSel = own ? '#address-suggestions.open' : '.aog-addr-list.open';
     await page.locator(boxSel).first().scrollIntoViewIfNeeded();
     await page.locator(boxSel).first().click(); await page.keyboard.type('1234 Del', { delay: 30 });
     await expect(page.locator(listSel)).toBeVisible();
@@ -97,7 +99,10 @@ for (const [form, q, theme] of [['maintenance', '?season=halloween', 'light'], [
       const out = { panel: want.backgroundColor, listBg: getComputedStyle(l).backgroundColor, cyan: want.color, fl: getComputedStyle(fl).color, season: document.body.className };
       probe.remove(); return out;
     }, listSel);
-    if (form !== 'estimate') {
+    if (theme === 'dark') {
+      expect(r.fl, 'dark mode: teal on every theme').toBe('rgb(0, 255, 200)');
+      expect(r.listBg, 'dark mode: the dark navy list').toBe('rgba(10, 14, 39, 0.95)');
+    } else if (!own) {
       expect(r.listBg, 'list background = the form panel color').toBe(r.panel);
       expect(r.fl, 'Florida suggestions in the form accent color').toBe(r.cyan);
     }
@@ -124,7 +129,7 @@ test('the suggestion list follows dark mode and never shows in a capture or prin
   await page.click('#cust_addr'); await page.keyboard.type('1234 Del', { delay: 30 });
   const list = page.locator('.aog-addr-list.open');
   await expect(list).toBeVisible();
-  const dark = await page.evaluate(() => { const m = getComputedStyle(document.getElementById('cust_addr')).color.match(/\d+/g); return (0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2]) > 150; });
+  const dark = await page.evaluate(() => document.body.classList.contains('dark-mode'));
   await expect(list).toHaveClass(dark ? /dark/ : /light/);
   await expect(list).toHaveAttribute('data-html2canvas-ignore', 'true');
   await page.emulateMedia({ media: 'print' });

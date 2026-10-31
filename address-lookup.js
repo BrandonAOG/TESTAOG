@@ -147,9 +147,12 @@
        page that doesn't define that variable. */
     '.aog-addr-list.light{--aog-al-line:rgba(0,0,0,.07);--aog-al-hi:rgba(217,119,6,.10);background:#fff;background:var(--panel,#fff);color:#1f2933;color:var(--text,#1f2933);border:1px solid #ddd;border:1px solid var(--border-bright,#ddd);box-shadow:0 8px 24px rgba(0,0,0,.15)}' +
     '.aog-addr-list.light li.fl{color:#b45309;color:var(--cyan,#b45309)}' +
-    '.aog-addr-list.dark{--aog-al-line:rgba(255,255,255,.08);--aog-al-hi:rgba(0,255,200,.10);background:#0f1530;background:var(--panel,#0f1530);color:#e0f7ff;color:var(--text,#e0f7ff);border:1px solid rgba(0,255,200,.25);border:1px solid var(--border-bright,rgba(0,255,200,.25));box-shadow:0 8px 24px rgba(0,0,0,.5)}' +
-    '.aog-addr-list.dark li.fl{color:#00ffc8;color:var(--cyan,#00ffc8)}' +
-    '@supports (color:color-mix(in srgb,red 10%,transparent)){.aog-addr-list.light,.aog-addr-list.dark{--aog-al-hi:color-mix(in srgb,var(--cyan,#d97706) 14%,transparent)}}' +
+    /* DARK MODE: always the teal look, on every theme (seasonal colors are for light mode) — the same as
+       the Estimate sheet's list in dark mode. */
+    '.aog-addr-list.dark{--aog-al-line:rgba(0,255,200,.08);--aog-al-hi:rgba(0,255,200,.08);background:rgba(10,14,39,.95);color:#e0f7ff;border:1px solid rgba(0,255,200,.2);box-shadow:0 8px 24px rgba(0,255,200,.15)}' +
+    '.aog-addr-list.dark li.fl{color:#00ffc8}' +
+    '.aog-addr-list.dark li.active,.aog-addr-list.dark li:hover{color:#00ffc8}' +
+    '@supports (color:color-mix(in srgb,red 10%,transparent)){.aog-addr-list.light{--aog-al-hi:color-mix(in srgb,var(--cyan,#d97706) 14%,transparent)}}' +
     '.aog-addr-list li.msg{cursor:default;font-weight:600;opacity:.85}' +
     /* GPS button: the SAME crosshair button the Estimate sheet and QC Checklist use (same icon, size and
        colors), sitting INSIDE the right end of the address box (overlaid), so no form layout changes. */
@@ -172,10 +175,10 @@
 
   function styles() { if (!css.parentNode) document.head.appendChild(css); }
   function mount() { styles(); if (!list.parentNode && document.body) document.body.appendChild(list); }
-  function darkInput(el) {
-    var m = (getComputedStyle(el).color || '').match(/\d+(\.\d+)?/g);
-    return !!m && (0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2]) > 150;   // light text → dark theme
-  }
+  // The form's dark mode (body.dark-mode on the forms, body.dark on Load Calc). A seasonal theme with a
+  // dark background in LIGHT mode (Halloween) still gets the light-mode list, in that theme's colors.
+  function darkMode() { var c = document.body && document.body.classList; return !!c && (c.contains('dark-mode') || c.contains('dark')); }
+
   // The part of the page you can actually see. On a phone the keyboard covers the bottom of the
   // screen; visualViewport says how much is left (innerHeight doesn't, on an iPhone).
   function visible() {
@@ -229,7 +232,7 @@
     if (el !== owner || document.activeElement !== el) return;
     items = results; active = -1; list.innerHTML = '';
     if (!results.length) { close(); return; }
-    list.className = 'aog-addr-list ' + (darkInput(el) ? 'dark' : 'light');
+    list.className = 'aog-addr-list ' + (darkMode() ? 'dark' : 'light');
     try { list.style.fontFamily = getComputedStyle(el).fontFamily; } catch (e) {}   // same lettering as the form's own boxes
     results.forEach(function (it, i) {
       var li = document.createElement('li');
@@ -262,7 +265,7 @@
   }
   function message(el, text, ms) {                          // one line under the box, e.g. "Getting your location…"
     mount(); owner = el; items = []; active = -1;
-    list.className = 'aog-addr-list ' + (darkInput(el) ? 'dark' : 'light');
+    list.className = 'aog-addr-list ' + (darkMode() ? 'dark' : 'light');
     list.innerHTML = ''; var li = document.createElement('li'); li.className = 'msg'; li.textContent = text; list.appendChild(li);
     list.classList.add('open'); place();
     if (ms) setTimeout(function () { if (owner === el && list.querySelector('li.msg')) close(); }, ms);
@@ -283,7 +286,7 @@
       b.style.left = (el.offsetLeft + el.offsetWidth - 32) + 'px';
       b.style.top = (el.offsetTop + (el.offsetHeight - 26) / 2) + 'px';
       // Green look only in the form's DARK MODE, exactly like the Estimate sheet (a seasonal theme keeps the orange look)
-      var bc = document.body.classList; b.classList.toggle('dark', bc.contains('dark-mode') || bc.contains('dark'));
+      b.classList.toggle('dark', darkMode());
     }
     seat(); setTimeout(seat, 300); addEventListener('load', seat); addEventListener('resize', seat);
     try { new ResizeObserver(seat).observe(el); if (el.parentNode) new ResizeObserver(seat).observe(el.parentNode); } catch (e) {}
