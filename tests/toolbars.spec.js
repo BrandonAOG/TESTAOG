@@ -36,3 +36,34 @@ for (const t of CALCS) {
     await expect(theme).not.toHaveText(before);                                        // icon flips with the theme
   });
 }
+
+// Code Reference windows on the calculators: kept clear of the iPhone notch / Dynamic Island and home bar
+// (the browser here reports a 0 safe area, so the rule itself is checked), and the × closes the window on a phone.
+test.describe('Code Reference windows', () => {
+  const fs = require('fs'), path = require('path');
+  const { ROOT, open } = require('./helpers');
+  const PAGES = [['breaker-conductor', '.br-bg', () => brOpen && brOpen()], ['gas-calc', '.gr-bg', () => grOpen('t')],
+                 ['box-fill', '.modal-bg'], ['conduit-fill', '.modal-bg'], ['pull-box', '.modal-bg'], ['quick-calc', '.modal-bg'],
+                 ['trench-depth', '.modal-bg'], ['gas-bonding', '.modal-bg']];
+  test('every window\'s backdrop pads for the safe area (notch / island / home bar)', () => {
+    test.skip(test.info().project.name !== 'desktop', 'file check');
+    const bad = [];
+    for (const [dir, sel] of PAGES) {
+      const src = fs.readFileSync(path.join(ROOT, dir, 'index.html'), 'utf8');
+      const rule = src.match(new RegExp(sel.replace('.', '\\.') + '\\s*\\{[^}]*\\}'));
+      if (!rule || !/safe-area-inset-top/.test(rule[0])) bad.push(dir);
+    }
+    expect(bad).toEqual([]);
+  });
+  for (const [dir, sel] of PAGES.slice(0, 2)) test(`${dir}: on a phone the whole window fits and × closes it`, async ({ page }) => {
+    test.skip(test.info().project.name !== 'iphone', 'phone');
+    expect(await open(page, `/${dir}/`)).toEqual([]);
+    await page.evaluate(dir === 'gas-calc' ? () => grOpen('t') : () => { const b = [...document.querySelectorAll('button')].find(x => /code reference|nec/i.test(x.textContent)); window.brOpen ? brOpen() : b && b.click(); });
+    const x = page.locator(`${sel}.open [aria-label="Close"]`).first();
+    await expect(x).toBeVisible();
+    const box = await x.boundingBox();
+    expect(box.y, '× is on screen, not cut off at the top').toBeGreaterThanOrEqual(8);
+    await x.tap();
+    await expect(page.locator(`${sel}.open`)).toHaveCount(0);
+  });
+});
