@@ -412,10 +412,6 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
     <div class="results-note" id="results-note"></div>
   </div>
 
-  <div class="footer">
-    <div class="footer-rule"></div>
-    Field Operations · Concrete Estimator · <span id="year"></span>
-  </div>
 </div>
 
 <script>
@@ -482,7 +478,7 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
   var IMP_UNITS = ['in','ft','yd'];
   var MET_UNITS = ['mm','cm','m'];
 
-  document.getElementById('year').textContent = new Date().getFullYear();
+  var _yr = document.getElementById('year'); if (_yr) _yr.textContent = new Date().getFullYear();
 
   // ---- Theme toggle (matches hub: localStorage + prefers-color-scheme) ----
   var THEME_KEY = 'aog-theme';
@@ -822,5 +818,6 @@ body.light-mode #offline-banner { background: linear-gradient(90deg, #FFFFFF, #F
   if (!navigator.onLine) setOffline();
 })();
 </script>
+<script src="../aog-footer.js"></script>
 </body>
 </html>

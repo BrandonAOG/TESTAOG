@@ -1976,10 +1976,6 @@ body.dark-mode .ft-label { color: #7DD3FC; }
   </div>
 </div>
 
-<div class="app-footer" style="text-align:center;font-family:Arial,sans-serif;font-size:11px;color:var(--text-muted);margin:18px 16px 40px;line-height:1.6;">
-  <span class="footer-text" title="">© 2026 Always On Generators · CONFIDENTIAL</span><br>
-  <span id="ver-span" title="">v1.1</span>
-</div>
 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -5442,7 +5438,7 @@ if (document.readyState === 'loading') {
     var touch = ('ontouchstart' in window);
     var standaloneMM  = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || false;
     var standaloneNav = (navigator.standalone === true);
-    var ver = (document.getElementById('ver-span') && document.getElementById('ver-span').textContent || '?').trim();
+    var ver = (document.querySelector('.aog-foot-by') ? 'shared footer' : '?');   // the old v1.x tag left with the old footer
 
     var isCriOS  = /CriOS/.test(ua);
     var isIOS    = /iP(hone|od|ad)/.test(ua) && /WebKit/.test(ua);
@@ -5560,7 +5556,7 @@ if (document.readyState === 'loading') {
   window.__showDebug = show;
 
   function wireTrigger() {
-    var tag = document.getElementById('ver-span');
+    var tag = document.querySelector('footer.aog-foot .aog-foot-by');   // triple-tap BUILT BY BRANDON → debug report
     if (!tag) return;
     tag.style.cursor = 'pointer';
     var taps = 0, t;
@@ -5622,7 +5618,7 @@ if (document.readyState === 'loading') {
 
   // Reveal: triple-tap (or long-press) the "· CONFIDENTIAL" footer text.
   (function(){
-    var hit = document.querySelector('.footer-text');
+    var hit = document.querySelector('footer.aog-foot .aog-foot-hub');   // triple-tap the footer's first line → layout tuner
     if (!hit) return;
     hit.style.cursor = 'pointer';
     function toggle(){
@@ -6016,5 +6012,6 @@ function injectSeasonalStyles() {
 })();
 </script>
 
+<script src="../aog-footer.js"></script>
 </body>
 </html>

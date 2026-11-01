@@ -29,6 +29,41 @@
   } catch (e) { /* storage blocked — tools fall back to the phone's setting */ }
 })();
 
+// ── App version on printed paperwork (added 3.0.0) ────────────
+// Any element marked data-aog-version (the forms' printed footer) shows the app version, e.g.
+// "Ver 3.0.0" ("Ver 3.0.0 TEST" on the test site), so a printed or PDF'd form tells you which
+// version made it. The number comes from sw.js (CACHE_VERSION) — the ONE place it's set — and is
+// remembered on the phone so it's there instantly, offline too.
+(function () {
+  var KEY = 'aog-app-version';
+  function fmt(v) {
+    var m = String(v || '').match(/v(TEST)?(\d+(?:\.\d+)+)/i);
+    return m ? 'Ver ' + m[2] + (m[1] ? ' TEST' : '') : '';
+  }
+  function paint(t) {
+    if (!t) return;
+    var els = document.querySelectorAll('[data-aog-version]');
+    for (var i = 0; i < els.length; i++) if (els[i].textContent !== t) els[i].textContent = t;
+  }
+  function ask(worker) {
+    if (!worker || typeof MessageChannel === 'undefined') return;
+    var ch = new MessageChannel();
+    ch.port1.onmessage = function (e) {
+      var t = fmt(e.data && e.data.version); if (!t) return;
+      try { localStorage.setItem(KEY, t); } catch (x) {}
+      paint(t);
+    };
+    try { worker.postMessage({ action: 'GET_CHANGELOG' }, [ch.port2]); } catch (x) {}
+  }
+  function start() {
+    try { paint(localStorage.getItem(KEY)); } catch (e) {}
+    if (!('serviceWorker' in navigator)) return;
+    if (navigator.serviceWorker.controller) ask(navigator.serviceWorker.controller);
+    navigator.serviceWorker.ready.then(function (r) { ask(r.active); }).catch(function () {});
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+
 // ── Lightweight error log ─────────────────────────────────────
 // Records the last 10 JS errors (per device) so the Hub's
 // "Report a Bug" email can attach them automatically. Stored in

@@ -87,6 +87,7 @@ var CHANGELOG = [
   '📐 ELECTRICAL — voltage drop by conduit type (AC impedance), small-wire breaker limits, 10 A breaker; Conduit Fill USE-2 / MTW sizes corrected; Trench Depth: cathodic protection note for propane steel pipe',
   '🧱 CONCRETE — 20 kg / 30 kg bag counts corrected',
   '✏️ SITE ANNOTATOR — Undo / Redo fixed: one tap undoes one change',
+  '🏷️ ALL TOOLS — one matching footer on every tool and form (screen only — never on your printed forms or PDFs)',
   '🪟 POP-UP WINDOWS — Code Reference windows open in the same spot every time, at the top of the table; they scroll on their own (the page behind stays put) and clear the iPhone notch',
 ];
 //
@@ -105,6 +106,7 @@ var PRECACHE_URLS = [
   './address-lookup.js',
   './battery-saver.js',
   './scroll-lock.js',
+  './aog-footer.js',
   './seasonal.js',
   './estimate/',
   './maintenance/',
