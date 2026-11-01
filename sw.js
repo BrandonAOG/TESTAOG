@@ -80,16 +80,12 @@ var CHANGELOG = [
   '📍 ADDRESSES — address suggestions on every job form, with better house numbers and units; 📍 GPS button in every address box fills in where you are standing',
   '🧭 FORMS — same buttons on every form (HOME · PDF✎ · CAPTURE · LOAD · CLEAR), all on one row on iPhone; Site Visit and Elect Install PDF / CAPTURE fixed when YES/NO boxes are checked',
   '🔌 ELECT INSTALL / SITE VISIT — page 2: fittings now read Weatherproof Rings and Weatherproof K.O.; empty length boxes no longer show a dash; Elect Install page 2 now prints exactly like Site Visit, and CAPTURE matches PDF✎',
-  '🖨️ FORMS — every printed page shows the form name, page number and app version (e.g. Ver 3.0.0) at the bottom',
   '✅ QC CHECKLIST — page 2 customer name and date fill in from page 1',
   '🏠 PROPERTY LOOKUP — faster first search after opening the app',
   '🔥 GAS CALC — CSST sized from the Gastite / FlashShield and TracPipe CounterStrike charts, both charts in Code Reference; LP altitude derate on Protector XG 25/30kW',
-  '⚡ LOAD CALC — picking an address fills the street and the City / State / Zip box separately; dark mode; Kohler natural-gas ratings corrected; shows when managed loads are left out',
   '📐 ELECTRICAL — voltage drop by conduit type (AC impedance), small-wire breaker limits, 10 A breaker; Conduit Fill USE-2 / MTW sizes corrected; Trench Depth: cathodic protection note for propane steel pipe',
   '🧱 CONCRETE — 20 kg / 30 kg bag counts corrected',
   '✏️ SITE ANNOTATOR — Undo / Redo fixed: one tap undoes one change',
-  '🏷️ ALL TOOLS — one matching footer on every tool and form (screen only — never on your printed forms or PDFs)',
-  '🪟 POP-UP WINDOWS — Code Reference windows open in the same spot every time, at the top of the table; they scroll on their own (the page behind stays put) and clear the iPhone notch',
 ];
 //
 // ============================================================

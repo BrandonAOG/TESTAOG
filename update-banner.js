@@ -56,6 +56,9 @@
     try { worker.postMessage({ action: 'GET_CHANGELOG' }, [ch.port2]); } catch (x) {}
   }
   function start() {
+    // © year on the printed forms = the year it's printed (2026 → 2027 on its own).
+    var yr = String(new Date().getFullYear()), ys = document.querySelectorAll('[data-aog-year]');
+    for (var i = 0; i < ys.length; i++) if (ys[i].textContent !== yr) ys[i].textContent = yr;
     try { paint(localStorage.getItem(KEY)); } catch (e) {}
     if (!('serviceWorker' in navigator)) return;
     if (navigator.serviceWorker.controller) ask(navigator.serviceWorker.controller);

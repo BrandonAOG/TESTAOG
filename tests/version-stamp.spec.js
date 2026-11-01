@@ -39,3 +39,20 @@ test('every page of every form prints its footer with the page number', () => {
   }
   expect(bad).toEqual([]);
 });
+
+// Every form's printed page says "© <year> Always On Generators" — the year it's printed, so 2027 says 2027.
+test('printed forms show © with the current year (and roll over to 2027 on their own)', async ({ page }) => {
+  test.skip(test.info().project.name !== 'desktop', 'once');
+  const PAGES = { estimate: '#page', maintenance: '#page', 'qc-checklist': '#page1', 'service-work': '#page1',
+                  'site-visit': '#page1', 'pre-checklist': '#page1', 'elect-install': '#page1', 'gas-install': '#page1' };
+  await page.clock.setFixedTime(new Date('2027-01-05T09:00:00'));
+  const bad = [];
+  for (const [form, sel] of Object.entries(PAGES)) {
+    await open(page, `/${form}/`, { settle: 600 });
+    await page.emulateMedia({ media: 'print' });
+    const t = await page.evaluate(s => document.querySelector(s).innerText, sel);
+    if (!/© 2027 Always On Generators/i.test(t)) bad.push(form);
+    await page.emulateMedia({ media: 'screen' });
+  }
+  expect(bad).toEqual([]);
+});
