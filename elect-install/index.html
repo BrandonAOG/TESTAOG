@@ -2566,7 +2566,50 @@ function forceDesktopLayout() {
     di.parentNode.insertBefore(span, di.nextSibling);
     mirrors.push({ ta: di, div: span });
   });
+
+  // ── PAGE 2 = SITE VISIT'S PAGE 2 (copied look, v3.0.0) ─────────────────────────────────────────
+  // Brandon wants page 2 of PDF✎ / CAPTURE to look exactly like Site Visit's page 2. The two pages
+  // share the same markup, so these are Site Visit's capture values (measured from its page in the
+  // same capture state), applied last so they win over everything above. Two copies — if Site
+  // Visit's page 2 look ever changes, copy the new values here too (tests/page2-match.spec.js
+  // compares the two pages and fails when they drift).
+  const P2 = '#page2 ';
+  const WIRE = '#cu-wire-table, #al-wire-table, #thhn-table';
+  document.querySelectorAll(P2 + 'table.mat-table').forEach(el => setInline(el, { tableLayout: 'auto', minWidth: '100%', maxWidth: 'none' }));
+  document.querySelectorAll(P2 + 'table.mat-table th, ' + P2 + 'table.mat-table td').forEach(el => {
+    const wire = !!el.closest(WIRE), th = el.tagName === 'TH', label = el.classList.contains('row-label');
+    const pad = (wire || label) ? '2px' : '5.5px';
+    setInline(el, { paddingTop: pad, paddingBottom: pad,
+      lineHeight: th ? (wire ? '18.2px' : '18.9px') : (label ? '18.2px' : (wire ? '16.9px' : '17.55px')) });
+    if (!th) setInline(el, { borderTopColor: '#333', borderBottomColor: '#333' });
+    if (label) setInline(el, { backgroundColor: 'rgba(211,94,19,0.15)' });
+    // first column as wide as Site Visit's, so "THWN / Cable" and "POLARIS TAPS" stay on one line
+    if (label && el.closest(WIRE)) setInline(el, { minWidth: '100px' });
+    if (label && el.closest('#wireway-table, #polaris-table')) setInline(el, { minWidth: '110px' });
+  });
+  document.querySelectorAll(P2 + 'table.mat-table .ft-cell').forEach(el => setInline(el, { lineHeight: '16.9px' }));
+  document.querySelectorAll(P2 + 'table.mat-table td input[type="text"]').forEach(el => {
+    setInline(el, { fontSize: '13px', lineHeight: '16.9px', verticalAlign: 'baseline', marginLeft: '0px', marginRight: '0px',
+                    paddingTop: '0px', paddingBottom: '0px', borderTopColor: '#333', borderBottomColor: '#333' });
+    if (el.closest('#wireway-table, #polaris-table')) setInline(el, { minWidth: '28px' });
+  });
+  document.querySelectorAll(P2 + '.footer-fields').forEach(el => setInline(el, {
+    marginTop: '0.975px', paddingTop: '0.975px', borderTop: '1px solid rgba(211,94,19,0.2)' }));
+  document.querySelectorAll(P2 + '.footer-row').forEach(el => setInline(el, { marginBottom: '1.5px', rowGap: '1px', columnGap: '8px' }));
+  document.querySelectorAll(P2 + '.footer-field input.short, ' + P2 + '.footer-field input.wide').forEach(el => setInline(el, {
+    fontSize: '15.5px', lineHeight: '24px', paddingTop: '0px', paddingBottom: '3px', borderTopColor: '#333', borderBottomColor: '#333',
+    height: '24px', width: el.classList.contains('wide') ? '100px' : '45px' }));
+  document.querySelectorAll(P2 + '.footer-other-mirror').forEach(el => setInline(el, {
+    lineHeight: '18px', paddingBottom: '4px', borderBottomColor: '#777' }));
+  document.querySelectorAll(P2 + '.wireway-polaris-row').forEach(el => setInline(el, { rowGap: '10px', columnGap: '10px' }));
+  const pg2 = document.getElementById('page2');
+  if (pg2) setInline(pg2, { border: '1px solid rgba(211,94,19,0.5)', borderBottomColor: '#D35E13', backgroundColor: '#ffffff' });
+  // Empty Length boxes print blank, like Site Visit (no "—").
+  const _ph = [];
+  document.querySelectorAll(P2 + 'input[placeholder]').forEach(el => { _ph.push([el, el.getAttribute('placeholder')]); el.setAttribute('placeholder', ''); });
+
   return () => {
+    _ph.forEach(([el, v]) => el.setAttribute('placeholder', v));
     mirrors.forEach(({ ta, div }) => {
       if (div.parentNode) div.parentNode.removeChild(div);
       ta.style.removeProperty('display');
