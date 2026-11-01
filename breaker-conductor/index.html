@@ -362,7 +362,9 @@ body.br-open{overflow:hidden}
 .br-rules{display:grid;gap:8px}
 .br-rule{padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--yellow-bright);border-radius:8px;background:var(--br-solid2);font-size:.86rem;line-height:1.5}
 .br-rule .r{display:block;font-family:var(--font-mono);font-size:.7rem;letter-spacing:1px;color:var(--label-color);margin-bottom:2px}
-@media(max-width:520px){.br-bg{padding:0}.br-m{max-height:100vh;max-height:100dvh;height:100%;border-radius:0}.br-t{font-size:.76rem}.br-t th,.br-t td{padding:5px 7px}}
+/* Phones: same window as the other tools' Code Reference (inset card under the notch / island), not edge to edge —
+   edge to edge put the × right under the Dynamic Island. */
+@media(max-width:520px){.br-t{font-size:.76rem}.br-t th,.br-t td{padding:5px 7px}}
 </style>
 <script src="../update-banner.js"></script>
 </head>
@@ -876,6 +878,7 @@ setTimeout(adjustTopPadding,100);
     g('brStd').innerHTML=NEC_STD.map(function(a){return '<span'+(a===S.breaker?' style="border-color:var(--yellow-bright);color:var(--label-color);font-weight:700"':'')+'>'+a+'</span>';}).join('');
   }
   window.brTab=function(t){
+    document.querySelectorAll('.br-b').forEach(function(b){ b.scrollTop=0; });   // each tab starts at its top
     document.querySelectorAll('.br-tab').forEach(function(b){b.classList.toggle('on',b.dataset.t===t);});
     document.querySelectorAll('.br-pane').forEach(function(p){p.classList.toggle('on',p.id==='br-'+t);});
   };

@@ -1,6 +1,6 @@
 /* ============================================================
    Always On Generators – Field Hub
-   Scroll Lock  |  scroll-lock.js  |  v1.0.0
+   Scroll Lock  |  scroll-lock.js  |  v1.1.0
 
    ONE JOB: while a pop-up window is open (Code Reference, PDF preview,
    photo viewer, signature pad, "what's new"…), your finger scrolls the
@@ -11,7 +11,7 @@
    to the page underneath, so the form slides around behind the window and
    the window itself feels stuck. Safari ignores overflow:hidden on <body>,
    so the page is pinned in place instead (and put back exactly where it was
-   when the window closes).
+   when the window closes). A window also always opens scrolled to its top.
 
    It finds pop-ups by what they ARE, not by name: anything fixed to the
    screen that covers (almost) the whole screen and can be touched. So every
@@ -76,10 +76,20 @@
     h.scrollBehavior = 'auto'; window.scrollTo(0, savedY); h.scrollBehavior = sb;
   }
 
+  // A window that just opened starts at its TOP, every time — the browser otherwise remembers how far
+  // you scrolled it last time, so the next table you picked showed up halfway down.
+  var wasOpen = [];
+  function toTop(p) {
+    p.scrollTop = 0;
+    var kids = p.querySelectorAll('*');
+    for (var i = 0; i < kids.length && i < 2000; i++) if (kids[i].scrollTop) kids[i].scrollTop = 0;
+  }
   function check() {
     queued = false;
     if (!document.body) return;
     var p = openPopups();
+    p.forEach(function (el) { if (wasOpen.indexOf(el) < 0) toTop(el); });
+    wasOpen = p;
     if (p.length) lock(p); else unlock();
   }
   function soon() { if (!queued) { queued = true; requestAnimationFrame(check); } }

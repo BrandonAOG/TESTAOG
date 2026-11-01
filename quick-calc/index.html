@@ -511,7 +511,7 @@ select:focus, input:focus {
   background: var(--bg2); border: 2px solid var(--accent);
   border-radius: var(--radius); width: 100%; max-width: 820px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.4);
-  margin: auto 0;
+  margin: 0 0 auto;   /* always at the top — was centred, so short tables sat mid-screen and long ones at the top */
 }
 .modal-head {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -1951,6 +1951,7 @@ function buildRef() {
   $('refB').innerHTML = STD.map(s => `<span class="std-chip">${s}</span>`).join('');
 }
 function refTab(t) {
+  document.querySelectorAll('.modal-bg').forEach(b => { b.scrollTop = 0; });   // every table opens at its top, same spot every time
   document.querySelectorAll('.modal-tab').forEach(x => x.classList.toggle('active', x.dataset.tab === t));
   document.querySelectorAll('.modal-pane').forEach(x => x.classList.toggle('active', x.id === 'pane-' + t));
 }

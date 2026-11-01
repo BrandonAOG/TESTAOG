@@ -61,3 +61,32 @@ test('no page starts out locked (backgrounds, banners and toolbars are not pop-u
   }
   expect(bad).toEqual([]);
 });
+
+// Every Code Reference window opens in the SAME spot (top of the screen, scrolled to its top) no matter which
+// table you pick, how tall it is, or how far you scrolled the last one — and switching tabs starts at the top too.
+for (const dir of ['box-fill', 'conduit-fill', 'pull-box', 'quick-calc', 'trench-depth', 'gas-bonding', 'gas-calc', 'breaker-conductor']) test(`${dir}: every reference window opens in the same spot`, async ({ page }) => {
+  expect(await open(page, `/${dir}/`)).toEqual([]);
+  const r = await page.evaluate(async () => {
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const btns = [...document.querySelectorAll('.ref-btn, .br-card .br-btns button, [onclick^="grOpen"], [onclick^="brOpen"], [onclick^="openRef"], [onclick^="cfOpenRef"]')];
+    const tops = [], scrolled = [];
+    const scrollAll = bg => { bg.scrollTop = 400; bg.querySelectorAll('*').forEach(e => { if (e.scrollHeight > e.clientHeight + 5) e.scrollTop = 300; }); };
+    const inner = bg => [bg, ...bg.querySelectorAll('*')].reduce((a, e) => a + e.scrollTop, 0);
+    for (const b of btns) {
+      b.scrollIntoView({ block: 'center' }); await sleep(80); b.click(); await sleep(250);
+      const bg = [...document.querySelectorAll('.modal-bg, .gr-bg, .br-bg')].find(e => getComputedStyle(e).display !== 'none');
+      if (!bg) continue;
+      tops.push(Math.round(bg.firstElementChild.getBoundingClientRect().top)); scrolled.push(inner(bg));
+      scrollAll(bg);
+      const tabs = bg.querySelectorAll('.modal-tab, .gr-tab, .br-tab');
+      if (tabs.length > 1) { tabs[tabs.length - 1].click(); await sleep(150); tops.push(Math.round(bg.firstElementChild.getBoundingClientRect().top)); scrolled.push(inner(bg)); }
+      scrollAll(bg);
+      const x = bg.querySelector('[aria-label="Close"], .modal-x, .modal-close, .gr-x, .br-x'); if (x) x.click(); else bg.click(); await sleep(200);
+    }
+    return { n: btns.length, tops, scrolled };
+  });
+  expect(r.tops.length).toBeGreaterThan(1);
+  expect(new Set(r.tops).size, `same top every time: ${r.tops}`).toBe(1);
+  expect(r.tops[0]).toBeGreaterThanOrEqual(16);
+  expect(r.scrolled.every(v => v === 0), `opens scrolled to its top: ${r.scrolled}`).toBe(true);
+});

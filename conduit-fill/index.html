@@ -574,7 +574,7 @@ uit  border-radius: 12px; font-size: 10px;
   background: var(--bg2); border: 2px solid var(--accent);
   border-radius: var(--radius); width: 100%; max-width: 820px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.4);
-  margin: auto 0;
+  margin: 0 0 auto;   /* always at the top — was centred, so short tables sat mid-screen and long ones at the top */
 }
 .modal-head {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -1930,6 +1930,7 @@ function cfBuildT5() {
     `<tr><td style="white-space:nowrap;">${sz}</td><td class="num">${cfFmt(d.area, 4)}</td><td class="num">${cfFmt(d.od, 3)}</td></tr>`).join('');
 }
 function cfRefTab(t) {
+  document.querySelectorAll('.modal-bg').forEach(b => { b.scrollTop = 0; });   // every table opens at its top, same spot every time
   document.querySelectorAll('#cfRefModal .modal-tab').forEach(x => x.classList.toggle('active', x.dataset.tab === t));
   document.querySelectorAll('#cfRefModal .modal-pane').forEach(x => x.classList.toggle('active', x.id === 'cfpane-' + t));
 }

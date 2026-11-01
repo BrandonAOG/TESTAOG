@@ -379,7 +379,9 @@ body.gr-open{overflow:hidden}
 .gr-rule .r{display:block;font-family:var(--mono,inherit);font-size:.7rem;letter-spacing:1px;color:var(--accent);margin-bottom:2px}
 .gr-small{width:auto;border-collapse:collapse;font-size:.85rem;margin:6px 0}
 .gr-small td,.gr-small th{padding:6px 12px;border-bottom:1px solid var(--line);text-align:left}
-@media(max-width:520px){.gr-bg{padding:0}.gr-m{max-height:100vh;max-height:100dvh;border-radius:0;height:100%}.gr-t{font-size:.74rem}.gr-t th,.gr-t td{padding:5px 6px}}
+/* Phones: same window as the other tools' Code Reference (inset card under the notch / island), not edge to edge —
+   edge to edge put the × right under the Dynamic Island. */
+@media(max-width:520px){.gr-t{font-size:.74rem}.gr-t th,.gr-t td{padding:5px 6px}}
 /* ===== FIXED ACTION BAR — same bar as every calculator tool (copied from Electrical Formulas) ===== */
 .action-bar {
   position: fixed !important;
@@ -1523,6 +1525,7 @@ renderModels(); renderFuel(); renderApps(); update();
   }
   g('grLen').addEventListener('input',look); g('grLoad').addEventListener('input',look);
   window.grTab=function(t){
+    document.querySelectorAll('.gr-b').forEach(function(b){ b.scrollTop=0; });   // each tab starts at its top
     document.querySelectorAll('.gr-tab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
     document.querySelectorAll('.gr-pane').forEach(p=>p.classList.toggle('on',p.id==='gr-'+t));
   };

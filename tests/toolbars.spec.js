@@ -52,6 +52,8 @@ test.describe('Code Reference windows', () => {
       const src = fs.readFileSync(path.join(ROOT, dir, 'index.html'), 'utf8');
       const rule = src.match(new RegExp(sel.replace('.', '\\.') + '\\s*\\{[^}]*\\}'));
       if (!rule || !/safe-area-inset-top/.test(rule[0])) bad.push(dir);
+      // …and no phone-size rule that takes that padding away again (edge-to-edge put the × under the island)
+      if (new RegExp(sel.replace('.', '\\.') + '\\s*\\{\\s*padding\\s*:\\s*0\\b').test(src)) bad.push(dir + ' (phone rule removes the padding)');
     }
     expect(bad).toEqual([]);
   });
