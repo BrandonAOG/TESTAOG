@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v3.0.0';
+var CACHE_VERSION = 'v3.0.1';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -76,6 +76,7 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
+  '🔒 SECURITY — hardened how imported PDFs, Excel files and outside links are handled; no change to how the tools work',
   '🎉 VERSION 3.0 — here is what is new',
   '📍 ADDRESSES — address suggestions on every job form, with better house numbers and units; 📍 GPS button in every address box fills in where you are standing',
   '🧭 FORMS — same buttons on every form (HOME · PDF✎ · CAPTURE · LOAD · CLEAR), all on one row on iPhone; Site Visit and Elect Install PDF / CAPTURE fixed when YES/NO boxes are checked',
@@ -91,6 +92,7 @@ var CHANGELOG = [
 // ============================================================
 
 var PRECACHE_URLS = [
+  './xlsx.full.min.js',   // vendored SheetJS 0.20.3 (CVE-2023-30533 / CVE-2024-22363 fixed; not on cdnjs)
   './',
   './index.html',
   './offline.html',
@@ -135,7 +137,6 @@ var PRECACHE_CDN = [
   'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css',
-  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',

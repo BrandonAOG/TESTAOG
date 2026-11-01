@@ -2059,7 +2059,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script src="../xlsx.full.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 <!-- SPEED: defer — the LERC decoder is only needed for Collier's 2026 imagery in Local HD (loaded on demand)
      "Collier 2026" basemap. Loading it synchronously here forced the ENTIRE app (map init, search,
@@ -3244,6 +3244,9 @@ function handleGasFile(file){
 function clearGasData(){ GAS_TERRITORIES=null; STORE.del('fl_gas_geojson'); if(lastLoc) runLookup(lastLoc.lat,lastLoc.lng); }
 
 /* ---------- Safe persistent storage (autosave/autofill). No-ops if blocked. ---------- */
+/* SECURITY (3.0.1): links that come from an external source (the code proxy, easement / county
+   feeds, search results) are forced to http(s) so a tampered feed can't inject a javascript: link. */
+function _safeUrl(u){u=String(u==null?"":u).trim();return /^https?:\/\//i.test(u)?u:"#";}
 const STORE = {
   get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
   set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
@@ -6032,7 +6035,7 @@ function _registryCardHtml(d, client, it){
   if(client.cityNoZoning) h += `<div class="lc-meta">${esc(client.cityNoZoning)} publishes its zoning code outside Municode — showing the county code.</div>`;
   else if(client.fellBack) h += `<div class="lc-meta">${esc(it.cityName)} is not on Municode — showing the county code.</div>`;
   if(!d.zoningOnMunicode){
-    h += `<div class="note">No zoning or land-development sections found in ${esc(d.name)}'s Municode books — the zoning code is published elsewhere (usually a PDF on the planning department's site). <a class="palink" href="${esc(d.libraryUrl)}" target="_blank" rel="noopener">↗ ${esc(d.name)} on Municode</a></div>`;
+    h += `<div class="note">No zoning or land-development sections found in ${esc(d.name)}'s Municode books — the zoning code is published elsewhere (usually a PDF on the planning department's site). <a class="palink" href="${esc(_safeUrl(d.libraryUrl))}" target="_blank" rel="noopener">↗ ${esc(d.name)} on Municode</a></div>`;
     return h;
   }
   const nz=(x)=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
@@ -6125,7 +6128,7 @@ function _registryCardHtml(d, client, it){
   if(also.length){ const aid='cfa_'+Math.random().toString(36).slice(2,6); h += `<div class="lc-topic"><a href="#" class="lc-topic-h lc-also" onclick="var b=document.getElementById('${aid}');var on=b.style.display==='none';b.style.display=on?'':'none';this.textContent=(on?'▾':'▸')+' Yard encroachments & supplemental standards';return false">▸ Yard encroachments &amp; supplemental standards</a><div id="${aid}" style="display:none">${also.map(x=>row(x)).join('')}</div></div>`; }
   // FUEL
   h += group('Gas · LP · fuel', secs('fuel'), `No LP / fuel section in ${esc(d.name)}'s code — NFPA 58 (LP) and NFPA 54 (gas piping) apply through the Florida Fire Prevention Code; see the Permits card.`, {max:2});
-  h += `<a class="palink" href="${esc(d.libraryUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(d.name)} on Municode</a>`;
+  h += `<a class="palink" href="${esc(_safeUrl(d.libraryUrl))}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(d.name)} on Municode</a>`;
   h += `<div class="lc-meta" style="margin-top:6px">Sections and tables stored ${esc(d.crawled)} from Municode; the badge above confirms they still read the same today. Read opens the live text.</div>`;
   return h;
 }
@@ -6295,7 +6298,7 @@ function _fillLotNotes(){
     if(list.length){
       const lee = list.some(e=>e.link!==undefined);
       let h=`<div class="note warnbox" style="margin-top:8px"><b>${lee?'Zoning case on this lot.':'Zoning-atlas exception on this lot.'}</b> ${lee?'A variance, deviation or rezoning has been decided for this parcel — its setbacks may differ from the district table. Read the case before relying on the table above.':'Collier\'s graphic zoning atlas flags this parcel as having development standards that differ from the district table (nonconforming lot, corner-lot rule, setback exception or conditional use). Read the note and confirm with Growth Management before relying on the table above.'}`;
-      for(const e of list) h+=`<div class="lc-hit" style="padding:3px 0"><div class="lc-hit-t">${e.code?`<span class="lc-chip">${esc(e.code)}</span> `:''}${esc(e.notes||'(no note recorded)')}${e.status||e.when?`<span class="lc-meta"> · ${[e.status,e.when].filter(Boolean).map(esc).join(' · ')}</span>`:''}${e.resolution?`<span class="lc-meta"> · Res. ${esc(e.resolution)}</span>`:''}</div>${e.link?`<a class="lc-read" href="${esc(e.link)}" target="_blank" rel="noopener" style="text-decoration:none">Case file</a>`:''}</div>`;
+      for(const e of list) h+=`<div class="lc-hit" style="padding:3px 0"><div class="lc-hit-t">${e.code?`<span class="lc-chip">${esc(e.code)}</span> `:''}${esc(e.notes||'(no note recorded)')}${e.status||e.when?`<span class="lc-meta"> · ${[e.status,e.when].filter(Boolean).map(esc).join(' · ')}</span>`:''}${e.resolution?`<span class="lc-meta"> · Res. ${esc(e.resolution)}</span>`:''}</div>${e.link?`<a class="lc-read" href="${esc(_safeUrl(e.link))}" target="_blank" rel="noopener" style="text-decoration:none">Case file</a>`:''}</div>`;
       pvSlot.insertAdjacentHTML('afterbegin', h+'</div>'); }
     pvSlot.dataset.zx='1';
   }
@@ -6318,7 +6321,7 @@ document.addEventListener('aog:sketch', (ev)=>{
   if(!d.easementsLayer){ slot.innerHTML=`${dimNote?`<div class="lc-meta">${dimNote}</div>`:''}<div class="lc-meta">${esc(titleCase(d.county||''))} County doesn't publish an easements layer — platted easements are on the plat sheet above.</div>`; return; }
   if(!d.easements.length){ slot.innerHTML=`<b>Recorded easements on this lot:</b> <span class="lc-meta">none mapped in ${esc(titleCase(d.county||''))} County land records. Platted easements shown on the plat sheet still apply.</span>${dimNote?`<div class="lc-meta" style="margin-top:3px">${dimNote}</div>`:''}`; return; }
   let h=`<b>Recorded easements on this lot</b> <span class="lc-meta">· ${esc(titleCase(d.county||''))} County land records · hatched on the map</span>`;
-  for(const e of d.easements){ h+=`<div class="lc-hit" style="padding:3px 0"><div class="lc-hit-t"><span style="color:#ff73df">▨</span> <b>${esc(e.type)}</b>${e.width?` · ${(+e.width).toFixed(0)} ft`:''}${e.grantee?` · ${esc(e.grantee)}`:''}${e.orbkpg?` <span class="lc-meta">· OR ${esc(e.orbkpg)}</span>`:''}${e.blanket?' <span class="lc-flag">blanket</span>':''}</div>${e.url?`<a class="lc-read" href="${esc(e.url)}" target="_blank" rel="noopener" style="text-decoration:none">Document</a>`:''}</div>`; }
+  for(const e of d.easements){ h+=`<div class="lc-hit" style="padding:3px 0"><div class="lc-hit-t"><span style="color:#ff73df">▨</span> <b>${esc(e.type)}</b>${e.width?` · ${(+e.width).toFixed(0)} ft`:''}${e.grantee?` · ${esc(e.grantee)}`:''}${e.orbkpg?` <span class="lc-meta">· OR ${esc(e.orbkpg)}</span>`:''}${e.blanket?' <span class="lc-flag">blanket</span>':''}</div>${e.url?`<a class="lc-read" href="${esc(_safeUrl(e.url))}" target="_blank" rel="noopener" style="text-decoration:none">Document</a>`:''}</div>`; }
   if(dimNote) h+=`<div class="lc-meta" style="margin-top:3px">${dimNote}</div>`;
   h+=`<div class="lc-meta" style="margin-top:3px">Nothing goes in a utility or drainage easement — pad, LP tank or gas line. Hover a hatched strip on the map for its details.</div>`;
   slot.innerHTML=h;
@@ -6421,7 +6424,7 @@ function _fldRunRegistry(reg){
   const nothing = (lead) =>
       `<div class="lc-meta">${lead} The Florida Building Code and ASCE 24 elevation rules still apply, `
     + `and the flood zone and BFE above are unaffected.</div>`
-    + `<a class="palink" href="${esc(d.libraryUrl)}" target="_blank" rel="noopener" style="margin-top:6px">↗ Open ${esc(d.name)} on Municode and search &ldquo;flood&rdquo;</a>`;
+    + `<a class="palink" href="${esc(_safeUrl(d.libraryUrl))}" target="_blank" rel="noopener" style="margin-top:6px">↗ Open ${esc(d.name)} on Municode and search &ldquo;flood&rdquo;</a>`;
   (async()=>{
     let hits = null, err = null;
     try{ hits = await _fldLiveSearch(d.clientId); }catch(e){ err = e.message || String(e); }
@@ -6542,7 +6545,7 @@ function _finderHtml(d, it, base){
     if(inner) h += `<div class="lc-topic"><a href="#" class="lc-topic-h lc-also" onclick="var b=document.getElementById('${aid}');var on=b.style.display==='none';b.style.display=on?'':'none';this.textContent=(on?'▾':'▸')+' Also check — noise, screening, encroachments, accessory, corner lots';return false">▸ Also check — noise, screening, encroachments, accessory, corner lots</a><div id="${aid}" style="display:none">${inner}</div></div>`;
   }
   if(autoOpen.length) setTimeout(()=>{ for(const a of autoOpen){ const b=document.getElementById(a.tid+'_btn'); if(b) codeFinderRead(b, base, a.productId, a.nodeId, a.tid, d.client.id, zone); } }, 50);
-  h += `<a class="palink" href="${esc(d.client.libraryUrl)}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(d.client.name)} on Municode</a>`;
+  h += `<a class="palink" href="${esc(_safeUrl(d.client.libraryUrl))}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(d.client.name)} on Municode</a>`;
   h += `<div class="lc-meta" style="margin-top:6px">Live Municode text as published today (codes lag new ordinances by weeks to months). Tables are trimmed to ${zone?esc(zone):'this district'} where the code tabulates several districts — tap "all districts" to see the full table.</div>`;
   return h;
 }
@@ -6843,7 +6846,7 @@ function _livePanelHtml(d, base){
     if(v.nodeId) h+=`<button type="button" class="lc-read" id="${rid}_btn" onclick="codeFinderRead(this,'${esc(base)}','${esc(v.productId)}','${esc(v.nodeId)}','${rid}','${esc(d.clientId||'')}','')">Read</button>`;
     h+=`</div><div id="${rid}" class="lc-body"></div>`;
   }
-  h+=`<a class="palink" href="${esc(d.libraryUrl||'https://library.municode.com/fl')}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(d.label)} on Municode</a>`;
+  h+=`<a class="palink" href="${esc(_safeUrl(d.libraryUrl||'https://library.municode.com/fl'))}" target="_blank" rel="noopener" style="margin-top:8px">↗ ${esc(d.label)} on Municode</a>`;
   h+=`<div class="lc-meta" style="margin-top:6px">Green = the section reads exactly as it did when the table was verified. Amber = the city has amended it; read it and re-check the numbers above. The badge can't tell whether a number moved — only that the words did.</div>`;
   return h;
 }
@@ -14749,7 +14752,7 @@ function renderCommunityBlock(c, countyName, pa){
       h += `<div class="note">A planned-development polygon almost always comes with a homeowners&rsquo; or master association that maintains the common areas, gates and roads. Search Sunbiz for the community name to find the registered corporation.</div>`;
       h += `<a class="palink" href="${esc(_sunbizQ(c.pd.name))}" target="_blank" rel="noopener" style="margin-top:8px">↗ Sunbiz: &ldquo;${esc(c.pd.name)}&rdquo;</a>`;
     }
-    if(c.pd.link) h += `<a class="palink" href="${esc(c.pd.link)}" target="_blank" rel="noopener" style="margin-top:6px">↗ County record for this development</a>`;
+    if(c.pd.link) h += `<a class="palink" href="${esc(_safeUrl(c.pd.link))}" target="_blank" rel="noopener" style="margin-top:6px">↗ County record for this development</a>`;
   }
   if(c.cdd){
     h += `<div class="freshline" style="margin-top:8px"><span class="badge live">● CDD</span> Community Development District</div>`;
@@ -21103,7 +21106,7 @@ function renderFdemHits(){
     return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;line-height:1.3;">
       <span style="flex-shrink:0;">📝</span>
       <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#cfe6cf;">${label}</span>
-      <a href="${esc(h.url)}" target="_blank" rel="noopener"
+      <a href="${esc(_safeUrl(h.url))}" target="_blank" rel="noopener"
          style="flex-shrink:0;color:#7fd08a;text-decoration:underline;font-weight:600;">PDF</a>
     </div>`;
   }).join('');

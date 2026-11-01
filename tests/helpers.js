@@ -22,7 +22,6 @@ async function useLocalLibs(page) {
     [/leaflet(\.min)?\.css/, 'leaflet/dist/leaflet.css'],
     [/pdf-lib(\.min)?\.js/, 'pdf-lib/dist/pdf-lib.min.js'],
     [/fontkit(\.umd)?(\.min)?\.js/, '@pdf-lib/fontkit/dist/fontkit.umd.min.js'],
-    [/xlsx(\.full)?(\.min)?\.js/, 'xlsx/dist/xlsx.full.min.js'],
   ];
   // Registered first: Playwright tries the most recently added route first,
   // so the local copies below win and everything else from a CDN is blocked.
