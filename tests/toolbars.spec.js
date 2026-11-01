@@ -55,6 +55,19 @@ test.describe('Code Reference windows', () => {
     }
     expect(bad).toEqual([]);
   });
+  for (const [dir, sel, tabSel] of [['gas-calc', '.gr-bg', '.gr-tab'], ['breaker-conductor', '.br-bg', '.br-tab']]) test(`${dir}: switching Code Reference tabs doesn't move the window or the tab row`, async ({ page }) => {
+    test.skip(test.info().project.name !== 'iphone', 'phone');
+    expect(await open(page, `/${dir}/`)).toEqual([]);
+    await page.evaluate(dir === 'gas-calc' ? () => grOpen('t') : () => brOpen());
+    const tabs = page.locator(`${sel}.open ${tabSel}`);
+    const n = await tabs.count(); expect(n).toBeGreaterThan(1);
+    const ys = [];
+    for (let i = 0; i < n; i++) {
+      await tabs.nth(i).tap(); await page.waitForTimeout(150);
+      ys.push(await page.evaluate(([s, t]) => { const a = document.querySelector(s + '.open ' + t).parentElement.getBoundingClientRect(); return [Math.round(a.top), Math.round(a.bottom)]; }, [sel, tabSel]));
+    }
+    expect(ys.every(y => y[0] === ys[0][0] && y[1] === ys[0][1]), `tab row stays put: ${JSON.stringify(ys)}`).toBe(true);
+  });
   for (const [dir, sel] of PAGES.slice(0, 2)) test(`${dir}: on a phone the whole window fits and × closes it`, async ({ page }) => {
     test.skip(test.info().project.name !== 'iphone', 'phone');
     expect(await open(page, `/${dir}/`)).toEqual([]);

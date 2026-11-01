@@ -329,14 +329,19 @@ body.light{--gr-solid:#FFFFFF;--gr-solid2:#F7F4EC}
 .gr-card .gr-btns button{min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--chip);color:var(--text);font-weight:700;font-size:.85rem;cursor:pointer;padding:8px 10px}
 .gr-card .gr-btns button:hover{border-color:var(--accent)}
 /* Clear of the iPhone notch / Dynamic Island and the home bar, like the other tools' Code Reference windows,
-   so the × is never under the island. */
-.gr-bg{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:16px;padding:max(16px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))}
+   so the × is never under the island. Anchored to the TOP (not centred): switching tabs changes how tall the
+   window is, and a centred window jumped up and down on every tap — the tab row with it. */
+.gr-bg{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);display:none;align-items:flex-start;justify-content:center;padding:16px;padding:max(16px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))}
 .gr-bg.open{display:flex}
 body.gr-open{overflow:hidden}
 .gr-m{width:100%;max-width:820px;max-height:calc(100vh - 32px);max-height:calc(100dvh - max(16px,env(safe-area-inset-top,0px)) - max(16px,env(safe-area-inset-bottom,0px)));display:flex;flex-direction:column;background:var(--gr-solid);border:1px solid var(--accent);border-radius:14px;overflow:hidden;color:var(--text)}
 .gr-h{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
 .gr-h b{flex:1;font-family:var(--disp);font-size:.85rem;letter-spacing:1.5px;color:var(--accent)}
 .gr-x{width:40px;height:40px;border:1px solid var(--line);border-radius:10px;background:var(--chip);color:var(--text);font-size:1.3rem;cursor:pointer}
+/* Header, tab row and footer never squeeze: in the column layout a tall tab (long table) used to
+   shrink the tab row, so its line moved on every tab tap. Only the content area (.gr-b) scrolls. */
+.gr-h,.gr-tabs,.gr-f{flex-shrink:0}
+.gr-b{flex:1 1 auto;min-height:0}
 .gr-tabs{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line);overflow-x:auto}
 .gr-tab{flex:1;min-width:max-content;min-height:40px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--chip);color:var(--dim);font-family:var(--mono,inherit);font-size:.78rem;letter-spacing:1px;cursor:pointer}
 .gr-tab.on{border-color:var(--accent);color:var(--accent);background:var(--chipOn)}
