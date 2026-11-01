@@ -439,6 +439,14 @@ body.dark-mode input::placeholder, body.dark-mode textarea::placeholder { color:
   .action-bar .btn, .action-bar .ab-btn { font-size: 8.5px !important; padding: 6px 3px !important; letter-spacing: 0 !important; }
   .action-bar .theme-toggle-btn { width: 32px !important; height: 32px !important; }
 }
+
+/* PRINTED FORM FOOTER (v3.0.0) — prints at the bottom of every page of the form, on PDF✎, CAPTURE and
+   paper: form name · Always On Generators · Confidential · page number · app version (filled in from
+   sw.js by update-banner.js). Same look on Site Visit, Pre-Install, Elect Install and Gas Install. */
+.aog-printfoot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; padding: 5px 2px 0;
+  border-top: 1px solid rgba(211,94,19,0.35); font-family: Arial, Helvetica, sans-serif; font-size: 9px; line-height: 1.4;
+  letter-spacing: 1.5px; text-transform: uppercase; color: #9CA3AF; }
+.aog-printfoot .aog-pf-num { white-space: nowrap; letter-spacing: 0.5px; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js" defer></script>
@@ -667,7 +675,9 @@ body.dark-mode input::placeholder, body.dark-mode textarea::placeholder { color:
     <textarea class="notes-field" rows="4" placeholder=""></textarea>
   </div>
 
-</div><!-- /form-page -->
+
+  <div class="aog-printfoot"><span>PRE-INSTALL CHECKLIST · ALWAYS ON GENERATORS · CONFIDENTIAL</span><span class="aog-pf-num">Page 1 of 1 · <span data-aog-version></span></span></div>
+  </div><!-- /form-page -->
 </div><!-- /page-wrapper -->
 
 <script>

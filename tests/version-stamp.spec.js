@@ -3,7 +3,8 @@ const { test, expect } = require('@playwright/test');
 const fs = require('fs'), path = require('path');
 const { ROOT, open } = require('./helpers');
 const SW_VER = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8').match(/var CACHE_VERSION = 'v([\d.]+)'/)[1];
-const PRINTED = { estimate: '#page', maintenance: '#page', 'qc-checklist': '#page1', 'service-work': '#page1' };
+const PRINTED = { estimate: '#page', maintenance: '#page', 'qc-checklist': '#page1', 'service-work': '#page1',
+                  'site-visit': '#page1', 'pre-checklist': '#page1', 'elect-install': '#page1', 'gas-install': '#page1' };
 
 test.use({ serviceWorkers: 'allow' });
 for (const [form, pageSel] of Object.entries(PRINTED)) test(`${form}: the printed footer shows Ver ${SW_VER}`, async ({ page }) => {
@@ -26,4 +27,15 @@ test('the version is remembered for offline use', async ({ page }) => {
   await open(page, '/maintenance/', { settle: 600 });
   await page.evaluate(() => navigator.serviceWorker.ready); await page.waitForTimeout(600);
   expect(await page.evaluate(() => localStorage.getItem('aog-app-version'))).toBe(`Ver ${SW_VER}`);
+});
+
+test('every page of every form prints its footer with the page number', () => {
+  test.skip(test.info().project.name !== 'desktop', 'file check');
+  const bad = [];
+  for (const f of ['site-visit', 'pre-checklist', 'elect-install', 'gas-install', 'qc-checklist', 'service-work']) {
+    const src = fs.readFileSync(path.join(ROOT, f, 'index.html'), 'utf8');
+    const pages = (src.match(/<div class="form-page" id="page\d">/g) || []).length;
+    for (let i = 1; i <= pages; i++) if (!src.includes(`Page ${i} of ${pages} · <span data-aog-version></span>`)) bad.push(`${f} page ${i}`);
+  }
+  expect(bad).toEqual([]);
 });
