@@ -211,6 +211,7 @@
     '  box-shadow: 0 2px 8px rgba(0,0,0,0.4); border-bottom: 1px solid rgba(255,180,60,0.5);',
     '}',
     '#aog-repair-bar .aog-rtext { flex: 1; line-height: 1.4; }',
+    '#aog-repair-bar .aog-rsub { margin-top: 3px; font-size: 11px; opacity: 0.8; word-break: break-word; font-family: ui-monospace, Menlo, Consolas, monospace; }',
     '#aog-repair-bar .aog-btn {',
     '  background: #FBBF24; color: #201200; border: none; border-radius: 6px;',
     '  padding: 7px 13px; font-weight: bold; font-size: 12px; cursor: pointer; white-space: nowrap;',
@@ -320,14 +321,32 @@
     });
   }
 
-  function showRepairBar(worker, missing, total) {
+  // Turn a precache URL into a short, readable name (last path segment, minus any query).
+  function shortName(u) {
+    try { var p = new URL(u, location.href).pathname.split('/').filter(Boolean).pop() || u; return p; }
+    catch (e) { return String(u).split('/').pop() || String(u); }
+  }
+  function escName(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  function showRepairBar(worker, missing, total, missingList) {
     if (document.getElementById('aog-repair-bar')) return;
     if (document.getElementById('aog-update-banner')) return;   // update supersedes repair
+    // Name the files so a tech (or whoever uploaded the build) can see exactly what to re-upload,
+    // and log the full list to the console for a closer look.
+    var names = (missingList || []).map(shortName);
+    if (names.length) { try { console.warn('[AOG] Offline files missing (' + names.length + '):', missingList); } catch (e) {} }
+    var nameLine = names.length
+      ? '<div class="aog-rsub">' + names.slice(0, 6).map(escName).join(', ') + (names.length > 6 ? ' +' + (names.length - 6) + ' more' : '') + '</div>'
+      : '';
     var bar = document.createElement('div');
     bar.id = 'aog-repair-bar';
     bar.innerHTML =
       '<div class="aog-rtext">⚠ <b>' + missing + ' of ' + total + ' offline files are missing.</b>' +
-      ' Some tools may not work without signal.</div>' +
+      ' Some tools may not work without signal.' + nameLine + '</div>' +
       '<button class="aog-btn" id="aog-repair-btn">Fix Now</button>' +
       '<button class="aog-x" id="aog-repair-x" aria-label="Dismiss">✕</button>';
     document.body.insertBefore(bar, document.body.firstChild);
@@ -363,7 +382,7 @@
     if (!worker) return;                       // uncontrolled load (e.g. hard reload) — skip
     askWorker(worker, 'GET_CACHE_HEALTH', 15000).then(function (h) {
       if (!h || h.error || typeof h.missing !== 'number') return;
-      if (h.missing > 0) showRepairBar(worker, h.missing, h.total);
+      if (h.missing > 0) showRepairBar(worker, h.missing, h.total, h.missingList);
     }).catch(function () {});
   }
 

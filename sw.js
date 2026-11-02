@@ -78,6 +78,7 @@ var cacheProgress = { percent: 0, label: '', done: false };
 var CHANGELOG = [
   '🔒 SECURITY — hardened how imported PDFs, Excel files and outside links are handled; no change to how the tools work',
   '🗺️ SITE ANNOTATOR — fixed a PDF export that could come out blank-white with only your markups; site plans built from scanned/printed image strips now always keep their background',
+  '🔧 OFFLINE FILES — "Fix Now" now re-downloads anything that didn\'t finish caching (even on a flaky connection), and the message names exactly which files are missing',
 ]
 //
 // ============================================================
@@ -294,7 +295,11 @@ function ensurePrecached() {
       return cache.match(absUrl).then(function(hit) {
         if (hit) return;
         console.log('[SW] Repairing missing precache entry:', absUrl);
-        return cache.add(absUrl).catch(function(err) {
+        // {cache:'reload'} forces a fresh network fetch, bypassing a stale 404 the browser
+        // may have cached for this URL (e.g. the file was fetched before GitHub Pages finished
+        // deploying it). Without this, "Fix Now" can keep re-storing the same stale miss and
+        // never recover — which is exactly the "Fix does nothing on wifi" symptom.
+        return cache.add(new Request(absUrl, { cache: 'reload' })).catch(function(err) {
           console.warn('[SW] Repair failed (will retry next activation):', absUrl, err);
         });
       });
@@ -664,12 +669,15 @@ self.addEventListener('message', function(event) {
         var all = PRECACHE_URLS.concat(PRECACHE_CDN).concat(PRECACHE_FONTS);
         return Promise.all(all.map(function (url) {
           var absUrl = url.startsWith('http') ? url : new URL(url, scope).href;
-          return cache.match(absUrl).then(function (hit) { return hit ? 0 : 1; })
-                      .catch(function () { return 0; });   // unreadable != missing
-        })).then(function (misses) {
-          var missing = misses.reduce(function (a, b) { return a + b; }, 0);
+          return cache.match(absUrl).then(function (hit) { return hit ? null : absUrl; })
+                      .catch(function () { return null; });   // unreadable != missing
+        })).then(function (results) {
+          // Report WHICH files are missing, not just how many — so the page (and the tech)
+          // can see exactly what to re-upload instead of guessing.
+          var missingList = results.filter(function (u) { return u; });
           port.postMessage({ action: 'CACHE_HEALTH', total: all.length,
-                             missing: missing, version: DISPLAY_VERSION });
+                             missing: missingList.length, missingList: missingList,
+                             version: DISPLAY_VERSION });
         });
       }).catch(function () {
         // Never leave the page hanging on a reply it is awaiting.
