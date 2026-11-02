@@ -796,6 +796,8 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
         </div>
         <div style="font-size:10px;color:var(--acc2);margin-bottom:6px;line-height:1.4" id="auto-scale-hint">Upload a plan to auto-detect scale</div>
         <div class="prop-row"><label for="dpi-notation">Scale notation</label><input class="prop-input" id="dpi-notation" type="text" placeholder='1"=30ft' style="width:80px"></div>
+        <div class="prop-row"><label for="scale-preset">Common</label><select class="prop-input" id="scale-preset" style="width:120px"><option value="">— pick a scale —</option><option>1"=10ft</option><option>1"=20ft</option><option>1"=30ft</option><option>1"=40ft</option><option>1"=50ft</option><option>1"=60ft</option><option>1"=100ft</option></select></div>
+        <script>(function(){var sel=document.getElementById('scale-preset'),note=document.getElementById('dpi-notation');if(sel&&note){sel.addEventListener('change',function(){if(!sel.value)return;note.value=sel.value;try{note.dispatchEvent(new Event('input',{bubbles:true}));}catch(e){}sel.selectedIndex=0;/* leave the keyboard closed — just fill the box, tap Calculate */});}})();</script>
         <div class="prop-row">
           <label for="dpi-value">File DPI</label>
           <input class="prop-input" id="dpi-value" type="number" min="1" step="1" placeholder="300" style="width:52px">
