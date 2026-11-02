@@ -77,17 +77,8 @@ var cacheProgress = { percent: 0, label: '', done: false };
 // ============================================================
 var CHANGELOG = [
   '🔒 SECURITY — hardened how imported PDFs, Excel files and outside links are handled; no change to how the tools work',
-  '🎉 VERSION 3.0 — here is what is new',
-  '📍 ADDRESSES — address suggestions on every job form, with better house numbers and units; 📍 GPS button in every address box fills in where you are standing',
-  '🧭 FORMS — same buttons on every form (HOME · PDF✎ · CAPTURE · LOAD · CLEAR), all on one row on iPhone; Site Visit and Elect Install PDF / CAPTURE fixed when YES/NO boxes are checked',
-  '🔌 ELECT INSTALL / SITE VISIT — page 2: fittings now read Weatherproof Rings and Weatherproof K.O.; empty length boxes no longer show a dash; Elect Install page 2 now prints exactly like Site Visit, and CAPTURE matches PDF✎',
-  '✅ QC CHECKLIST — page 2 customer name and date fill in from page 1',
-  '🏠 PROPERTY LOOKUP — faster first search after opening the app',
-  '🔥 GAS CALC — CSST sized from the Gastite / FlashShield and TracPipe CounterStrike charts, both charts in Code Reference; LP altitude derate on Protector XG 25/30kW',
-  '📐 ELECTRICAL — voltage drop by conduit type (AC impedance), small-wire breaker limits, 10 A breaker; Conduit Fill USE-2 / MTW sizes corrected; Trench Depth: cathodic protection note for propane steel pipe',
-  '🧱 CONCRETE — 20 kg / 30 kg bag counts corrected',
-  '✏️ SITE ANNOTATOR — Undo / Redo fixed: one tap undoes one change',
-];
+  '🗺️ SITE ANNOTATOR — fixed a PDF export that could come out blank-white with only your markups; site plans built from scanned/printed image strips now always keep their background',
+]
 //
 // ============================================================
 
