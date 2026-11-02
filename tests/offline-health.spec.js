@@ -21,6 +21,15 @@ test('sw.js: the repair re-fetch bypasses a stale cached 404', () => {
   expect(s).toMatch(/cache\.add\(new Request\([^)]*cache:\s*'reload'/);
 });
 
+test('sw.js: the service worker does NOT precache its own script', () => {
+  const s = read('sw.js');
+  const vm = require('vm'); const ctx = {};
+  const i = s.indexOf('var PRECACHE_URLS');
+  vm.runInNewContext(s.slice(i, s.indexOf('];', i) + 2), ctx);
+  // caching the SW script is pointless offline and reads back as a phantom "missing"
+  expect(ctx.PRECACHE_URLS.some(u => /(^|\/)sw\.js$/.test(u))).toBe(false);
+});
+
 test('update-banner.js: the repair bar names the missing files', () => {
   const s = read('update-banner.js');
   expect(s).toMatch(/function showRepairBar\(worker, missing, total, missingList\)/);

@@ -90,7 +90,11 @@ var PRECACHE_URLS = [
   './offline.html',
   './manifest.json',
   './logo.png',
-  './sw.js',
+  // NOTE: the service worker's own script is deliberately NOT precached. The browser
+  // keeps and runs the active sw.js offline on its own, so caching it adds nothing — and
+  // the Cache API treats the SW script specially (revalidation/redirect handling), so it
+  // could persistently read back as "missing" in the health check and never repair. That
+  // was the stuck "1 offline file missing: sw.js" report. Leaving it out fixes it for good.
   './update-banner.js',
   './sounds.js',
   './clean-capture.js',
