@@ -170,7 +170,14 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
 .fav-star.active { color: var(--yellow-bright); text-shadow: 0 0 10px rgba(251,191,36,0.7); border-color: rgba(251,191,36,0.4); }
 /* Favorites hold-and-drag reorder */
 /* Stop iOS Safari's long-press link preview/callout so hold-to-drag can take over */
-.card-group[data-group="favorites"] .form-card { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.card-group[data-group="favorites"] .form-card { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-user-drag: none; }
+/* Up/down reorder arrows — bottom-right, clear of the ☆ (top-right) */
+.fav-move { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 5px; z-index: 6; }
+.fav-move-btn { width: 34px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: var(--text-dim); background: rgba(5,9,22,0.72); border: 1px solid rgba(255,255,255,0.1); cursor: pointer; padding: 0; -webkit-tap-highlight-color: transparent; transition: all 0.18s; }
+.fav-move-btn:hover:not(:disabled) { color: var(--yellow-bright); border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.12); }
+.fav-move-btn:active:not(:disabled) { transform: scale(0.9); }
+.fav-move-btn:disabled { opacity: 0.25; cursor: default; }
+.fav-move-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .card-group[data-group="favorites"] .form-card.fav-dragging { opacity: 0.96; transform: scale(1.03); box-shadow: 0 12px 34px rgba(0,0,0,0.55), 0 0 26px rgba(251,191,36,0.28); border-color: rgba(251,191,36,0.55) !important; z-index: 50; }
 body.fav-dragging-active, body.fav-dragging-active * { cursor: grabbing !important; }
 .fav-reorder-hint { text-align: center; font-family: var(--font-mono); font-size: 0.5rem; letter-spacing: 3px; text-transform: uppercase; color: var(--text-dim); opacity: 0.5; margin: 2px 0 8px; }
@@ -3985,7 +3992,7 @@ function renderFavorites(){
     group.appendChild(empty);
     return;
   }
-  favs.forEach(function(key){
+  favs.forEach(function(key, i){
     // find the first real source card with this key (not inside favorites group)
     var src = null;
     document.querySelectorAll('.form-card[data-form="'+key+'"]').forEach(function(c){
@@ -3995,15 +4002,45 @@ function renderFavorites(){
     var clone = src.cloneNode(true);
     var oldStar = clone.querySelector('.fav-star');
     if(oldStar) oldStar.remove();
+    clone.setAttribute('draggable', 'false');    // kill the browser's native link-drag ghost
     group.appendChild(clone);
-    addStar(clone); // restore a working star on the clone
+    addStar(clone);                              // restore a working star on the clone
+    addMoveControls(clone, key, i, favs.length); // up/down arrows to reorder
   });
   if(favs.length >= 2){
     var hint = document.createElement('div');
     hint.className = 'fav-reorder-hint';
-    hint.textContent = 'Hold & drag to reorder';
+    hint.textContent = 'Reorder with the arrows, or hold & drag';
     group.appendChild(hint);
   }
+}
+
+// Move a favorite up (dir -1) or down (dir +1) and save the new order
+function moveFav(key, dir){
+  var favs = getFavs(), i = favs.indexOf(key), j = i + dir;
+  if(i === -1 || j < 0 || j >= favs.length) return;
+  var t = favs[i]; favs[i] = favs[j]; favs[j] = t;
+  saveFavs(favs);
+  renderFavorites();
+}
+
+// Add up/down reorder arrows to a favorite card (bottom-right, clear of the ☆ so it's never
+// mistaken for un-favoriting). A reliable alternative to hold-and-drag.
+function addMoveControls(card, key, idx, total){
+  if(card.querySelector('.fav-move')) return;
+  var box = document.createElement('div');
+  box.className = 'fav-move';
+  function mk(dir, label, path, disabled){
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'fav-move-btn'; b.setAttribute('aria-label', label);
+    b.innerHTML = '<svg viewBox="0 0 16 16"><path d="'+path+'"/></svg>';
+    b.disabled = disabled;
+    b.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); moveFav(key, dir); });
+    return b;
+  }
+  box.appendChild(mk(-1, 'Move up',   'M4 10l4-4 4 4', idx === 0));
+  box.appendChild(mk(1,  'Move down', 'M4 6l4 4 4-4',  idx === total - 1));
+  card.appendChild(box);
 }
 
 // Initialize stars on all source cards
@@ -4051,7 +4088,7 @@ document.querySelectorAll('.form-card').forEach(function(card){
     if(dragging) return;
     var card = e.target.closest ? e.target.closest('.form-card') : null;
     if(!card || !group.contains(card)) return;
-    if(e.target.closest('.fav-star')) return;          // star handles its own taps
+    if(e.target.closest('.fav-star') || e.target.closest('.fav-move')) return;   // star + arrows handle their own taps
     if(e.pointerType==='mouse' && e.button!==0) return;
     if(favCards().length < 2) return;                  // nothing to reorder
     startX=e.clientX; startY=e.clientY;
@@ -4102,6 +4139,7 @@ document.querySelectorAll('.form-card').forEach(function(card){
   }
 
   group.addEventListener('contextmenu', function(e){ if(e.target.closest && e.target.closest('.form-card')) e.preventDefault(); });
+  group.addEventListener('dragstart', function(e){ if(e.target.closest && e.target.closest('.form-card')) e.preventDefault(); }, true);
   group.addEventListener('pointerdown', onDown, true);
 })();
 

@@ -28,9 +28,22 @@ test('favorites hold-and-drag reorder is wired and persists order', () => {
   // new order is read from the DOM and saved
   expect(s).toMatch(/saveFavs\(order\)/);
   // the hint appears when there are 2+ favorites
-  expect(s).toContain('Hold & drag to reorder');
+  expect(s).toContain('hold & drag');
   // iOS long-press link preview must be suppressed, or the hold can't start a drag
   expect(s).toMatch(/\.card-group\[data-group="favorites"\] \.form-card \{[^}]*-webkit-touch-callout:\s*none/);
+  // the browser's native link-drag must be disabled (it was hijacking the reorder)
+  expect(s).toMatch(/-webkit-user-drag:\s*none/);
+  expect(s).toContain("setAttribute('draggable', 'false')");
+  expect(s).toMatch(/addEventListener\('dragstart'/);
+});
+
+test('favorites have up/down reorder arrows that persist the new order', () => {
+  const s = read('index.html');
+  expect(s).toContain('function moveFav(');
+  expect(s).toContain('function addMoveControls(');
+  expect(s).toMatch(/\.fav-move-btn\s*\{/);        // the arrow buttons are styled
+  expect(s).toContain("'Move up'");
+  expect(s).toContain("'Move down'");
 });
 
 test("the 'Select a Category' label is hidden (density pass)", () => {

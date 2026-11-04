@@ -76,7 +76,7 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  '🔒 SECURITY — hardened how imported PDFs, Excel files and outside links are handled; no change to how the tools work',
+  '🔒 SECURITY — hardened how imported PDFs, Excel files and outside links are handled',
   '🗺️ SITE ANNOTATOR — fixed a PDF export that could come out blank-white with only your markups; site plans built from scanned/printed image strips now always keep their background',
   '🔧 OFFLINE FILES — "Fix Now" now re-downloads anything that didn\'t finish caching (even on a flaky connection), and the message names exactly which files are missing',
   '🔺 SITE ANNOTATOR — the ATS equipment symbol is now a point-down triangle with "ATS" upright, so it reads right when you drop it on the plan',
