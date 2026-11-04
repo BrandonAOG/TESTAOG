@@ -169,6 +169,8 @@ body { font-family: var(--font-body); background: var(--bg-dark); color: var(--t
 .fav-star:hover { color: var(--yellow-bright); border-color: rgba(251,191,36,0.35); background: rgba(251,191,36,0.1); transform: scale(1.1); }
 .fav-star.active { color: var(--yellow-bright); text-shadow: 0 0 10px rgba(251,191,36,0.7); border-color: rgba(251,191,36,0.4); }
 /* Favorites hold-and-drag reorder */
+/* Stop iOS Safari's long-press link preview/callout so hold-to-drag can take over */
+.card-group[data-group="favorites"] .form-card { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 .card-group[data-group="favorites"] .form-card.fav-dragging { opacity: 0.96; transform: scale(1.03); box-shadow: 0 12px 34px rgba(0,0,0,0.55), 0 0 26px rgba(251,191,36,0.28); border-color: rgba(251,191,36,0.55) !important; z-index: 50; }
 body.fav-dragging-active, body.fav-dragging-active * { cursor: grabbing !important; }
 .fav-reorder-hint { text-align: center; font-family: var(--font-mono); font-size: 0.5rem; letter-spacing: 3px; text-transform: uppercase; color: var(--text-dim); opacity: 0.5; margin: 2px 0 8px; }
@@ -4099,6 +4101,7 @@ document.querySelectorAll('.form-card').forEach(function(card){
     }
   }
 
+  group.addEventListener('contextmenu', function(e){ if(e.target.closest && e.target.closest('.form-card')) e.preventDefault(); });
   group.addEventListener('pointerdown', onDown, true);
 })();
 

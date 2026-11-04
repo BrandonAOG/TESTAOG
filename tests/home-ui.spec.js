@@ -29,6 +29,8 @@ test('favorites hold-and-drag reorder is wired and persists order', () => {
   expect(s).toMatch(/saveFavs\(order\)/);
   // the hint appears when there are 2+ favorites
   expect(s).toContain('Hold & drag to reorder');
+  // iOS long-press link preview must be suppressed, or the hold can't start a drag
+  expect(s).toMatch(/\.card-group\[data-group="favorites"\] \.form-card \{[^}]*-webkit-touch-callout:\s*none/);
 });
 
 test("the 'Select a Category' label is hidden (density pass)", () => {
