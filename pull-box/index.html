@@ -1408,6 +1408,31 @@ function compute(st) {
     }
   });
 
+  // 314.28(A)(2) last sentence — U pull (both same-conductor entries on ONE wall): that wall's
+  // length must actually seat the two entries their required distance apart (6 × larger raceway).
+  // The opposite-wall rule only sizes the perpendicular dimension, so without this the along-wall
+  // dimension (e.g. width for a bottom-wall U pull) was never driven and showed "—".
+  {
+    const gapU = Math.max(0, parseFloat($('fitGap').value) || 0);   // not used in the span, kept for parity
+    const endU = Math.max(0, parseFloat($('fitEnd').value) || 0);
+    const edgeU = $('measMode') && $('measMode').value === 'edge';
+    pairs.forEach(p => {
+      if (p.val == null) return;                       // straight / spliced → no same-conductor spacing
+      if (p.a.wall === 'K' || p.b.wall === 'K') return;
+      if (p.a.wall !== p.b.wall) return;               // U pull = same wall (angle pulls handled by placement)
+      const sep = p.val + (edgeU ? (p.a.size + p.b.size) / 2 : 0);          // center-to-center, matches the solver
+      const span = sep + fitW(p.a.ts) / 2 + fitW(p.b.ts) / 2 + 2 * endU;    // seat both fittings inside the wall
+      const axisKey = (p.a.wall === 'T' || p.a.wall === 'B') ? 'w' : 'h';
+      const axisName = axisKey === 'w' ? 'Width (L↔R)' : 'Height (T↕B)';
+      if (span > req[axisKey] + 1e-9) {
+        req[axisKey] = span;
+        lines.push({ dim: axisName, rule: '314.28(A)(2) U-pull spacing', who: `${p.a.label} ↔ ${p.b.label} on ${WALLS[p.a.wall]}`,
+          calc: `6 × ${fmt(Math.max(p.a.size, p.b.size))} = ${fmt(p.val)} apart${edgeU ? ` + Ø ${fmt((p.a.size + p.b.size) / 2)}` : ''} + fittings ${fmt(fitW(p.a.ts) / 2 + fitW(p.b.ts) / 2)}${endU ? ` + 2×end ${fmt(2 * endU)}` : ''}`,
+          val: span });
+      }
+    });
+  }
+
   // Applicability & notes
   if (condIdx(st.cond) < condIdx('4')) warnings.unshift({ err: false, msg: `314.28(A) sizing applies to conductors 4 AWG and larger. With ${condLabel(st.cond)} as the largest, size the box by 314.16 (box fill) — results shown for reference only.` });
   warnings.push(...st.runWarn);
