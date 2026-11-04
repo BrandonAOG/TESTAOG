@@ -81,6 +81,7 @@ var CHANGELOG = [
   '🔧 OFFLINE FILES — "Fix Now" now re-downloads anything that didn\'t finish caching (even on a flaky connection), and the message names exactly which files are missing',
   '🔺 SITE ANNOTATOR — the ATS equipment symbol is now a point-down triangle with "ATS" upright, so it reads right when you drop it on the plan',
   '📐 SITE ANNOTATOR — the scale box now has a dropdown of the common engineer\'s scales (1"=10ft through 1"=100ft); you can still type any odd scale by hand',
+  '🏠 HOME SCREEN — tightened up so your tools show without scrolling, calmer background, and you can now hold-and-drag your favorites to reorder them',
 ]
 //
 // ============================================================
