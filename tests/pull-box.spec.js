@@ -27,6 +27,25 @@ test('U pull on the bottom wall drives the WIDTH (2" + 2" → ≥12" separation)
   expect(r.hasULine).toBe(true);
 });
 
+test('a SPLICED U pull has no same-conductor spacing (width not forced, no min arrow)', async ({ page }) => {
+  expect(await open(page, '/pull-box/')).toEqual([]);
+  const r = await page.evaluate(() => {
+    const st = { valid: [
+      { id: 'a', wall: 'B', row: 1, run: 1, size: 2, ts: '2', label: 'P1', pair: 'b', geo: 'u', spliced: true },
+      { id: 'b', wall: 'B', row: 1, run: 1, size: 2, ts: '2', label: 'P1', pair: 'a', geo: 'u', spliced: true },
+    ], cond: '4', condType: 'std', cover: false, actW: 0, actH: 0, actD: 0, runWarn: [] };
+    const c = compute(st);
+    return { w: c.req.w, h: c.req.h, pairVal: (c.pairs[0] || {}).val,
+             hasULine: c.lines.some(l => /U-pull spacing/.test(l.rule)) };
+  });
+  // splice = conductor in isn't conductor out → the 6× same-conductor separation does NOT apply
+  expect(r.pairVal).toBe(null);
+  expect(r.w).toBe(0);            // no NEC width minimum from separation (physical fit still applies, shown elsewhere)
+  expect(r.hasULine).toBe(false);
+  // opposite-wall rule still applies to splices: 6×2 + 2 = 14
+  expect(r.h).toBeCloseTo(14, 5);
+});
+
 test('a pair on OPPOSITE walls gets no U-pull width line (only same-wall U pulls do)', async ({ page }) => {
   expect(await open(page, '/pull-box/')).toEqual([]);
   const r = await page.evaluate(() => {

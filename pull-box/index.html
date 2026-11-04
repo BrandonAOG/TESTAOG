@@ -2025,7 +2025,11 @@ function calculate(auto) {
 
   // drawing always stays at the box being checked (code minimum or your actual box); when spacing is tight it shows the closest layout found
   const pv = place ? { W: place.W, H: place.H, sol: place.sol } : null;
-  drawDiagram(st, pv ? pv.W : Math.max(w, st.actW || 0), pv ? pv.H : Math.max(h, st.actH || 0), r.pairs, pv ? { P: place.P, x: pv.sol.x, W: pv.W, H: pv.H } : null);
+  // No enforceable spacing (e.g. an all-spliced U pull — splices have no same-conductor separation),
+  // so there's no placement box. Fall back to the physical fitting fit so the box isn't drawn 0" wide.
+  const physW = Math.max(0, ...fit.rows.filter(x => x.axis === 'Width' && typeof x.need === 'number').map(x => x.need));
+  const physH = Math.max(0, ...fit.rows.filter(x => x.axis === 'Height' && typeof x.need === 'number').map(x => x.need));
+  drawDiagram(st, pv ? pv.W : Math.max(w, st.actW || 0, physW), pv ? pv.H : Math.max(h, st.actH || 0, physH), r.pairs, pv ? { P: place.P, x: pv.sol.x, W: pv.W, H: pv.H } : null);
   renderPlacement(place);
   drawRows(st);
   renderFit(fit, st);
