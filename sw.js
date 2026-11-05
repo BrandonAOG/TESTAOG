@@ -83,6 +83,8 @@ var CHANGELOG = [
   '📐 SITE ANNOTATOR — the scale box now has a dropdown of the common engineer\'s scales (1"=10ft through 1"=100ft); you can still type any odd scale by hand',
   '🏠 HOME SCREEN — tightened up so your tools show without scrolling, calmer background, and you can now hold-and-drag your favorites to reorder them',
   '📦 PULL BOX — U-pulls now size the box WIDTH for the 6× same-conductor spacing (314.28(A)(2)); before, that spacing was only drawn, so the width could read "—" and pass too small',
+  '⚡ VOLTAGE DROP — single-phase, three-phase and DC are now three separate modes; DC uses Table 8 resistance only (no power factor or reactance), and power factor stays available on the AC modes',
+  '💡 QUICK CALC — added plain-English hints under the fields for beginners (Voltage Drop and Generator Load), a fuller nominal-voltage dropdown per mode, power factor now defaults to 1, and the Ohm\'s-law wheel key now spells out Amps / Volts / Ohms / Watts in full',
 ]
 //
 // ============================================================

@@ -966,7 +966,7 @@ input.is-out { border-color: var(--accent); color: var(--accent); font-weight: 7
       </div>
       <div class="grid-2">
         <div><label>Voltage</label><span id="kwVwrap"></span></div>
-        <div><label>Power Factor</label><input type="number" id="kwPf" step="0.01" min="0.1" max="1" inputmode="decimal" placeholder="1.0"></div>
+        <div><label>Power Factor</label><input type="number" id="kwPf" step="0.01" min="0.1" max="1" inputmode="decimal" placeholder="1.0"><div class="fx-note" style="margin-top:5px;">Home standby generators (1Φ) are rated at 1.0 PF; 3Φ generators at 0.8 PF.</div></div>
       </div>
       <label style="margin-top:12px;">I know the…</label>
       <div class="toggle-row" data-tog="kwMode">
@@ -982,9 +982,6 @@ input.is-out { border-color: var(--accent); color: var(--accent); font-weight: 7
       </div>
       <div class="formula" id="kwFormula"></div>
       <details class="math" id="math-kw" style="display:none"><summary>🧮 Show the math</summary><div class="math-b"></div></details>
-      <div class="info-row" style="margin-top:8px;"><div class="info-dot"></div>
-        <span id="kwNote">Home standby generators (1Φ) are rated at 1.0 PF. 3Φ generators are rated at 0.8 PF.</span>
-      </div>
     </div>
   </div>
 
@@ -998,25 +995,27 @@ input.is-out { border-color: var(--accent); color: var(--accent); font-weight: 7
           <button class="toggle-opt" data-v="al">ALUMINUM</button>
         </div>
         <div class="toggle-row" data-tog="vdPh" style="margin-bottom:0;">
-          <button class="toggle-opt active" data-v="1">1Φ / DC</button>
+          <button class="toggle-opt active" data-v="1">1Φ</button>
           <button class="toggle-opt" data-v="3">3Φ</button>
+          <button class="toggle-opt" data-v="dc">DC</button>
         </div>
       </div>
+      <div class="fx-note" style="margin-top:6px;">1Φ for 120/240 V residential &amp; light commercial · 3Φ for 208/480 V · DC for battery, solar string, or control circuits.</div>
       <div class="grid-2" style="margin-top:12px;">
         <div><label>System Voltage</label><span id="vdVwrap"></span></div>
         <div><label>Load Amps</label><input type="number" id="vdA" step="any" min="0" inputmode="decimal" placeholder="Amps"></div>
-        <div><label>One-Way Length (ft)</label><input type="number" id="vdL" step="any" min="0" inputmode="decimal" placeholder="Feet, one way"></div>
+        <div><label>One-Way Length (ft)</label><input type="number" id="vdL" step="any" min="0" inputmode="decimal" placeholder="Feet, one way"><div class="fx-note" style="margin-top:5px;">Distance one way only — the formula already counts the return leg.</div></div>
         <div><label>Wire Size</label><select id="vdSize"></select></div>
         <div><label>Parallel Sets</label><select id="vdSets"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></div>
         <div><label>Circuit Type</label><select id="vdKind">
           <option value="branch">Branch circuit — 3%</option>
           <option value="feeder">Feeder — 3%</option>
           <option value="total">Whole run, feeder + branch — 5%</option>
-        </select></div>
+        </select><div class="fx-note" style="margin-top:5px;">3% is the target for one branch or one feeder; 5% is the combined limit. These are NEC recommendations (Informational Notes), not hard rules.</div></div>
         <div id="vdOtherW"><label id="vdOtherL">Feeder Drop Already Used (%)</label><input type="number" id="vdOther" step="0.1" min="0" max="5" inputmode="decimal" placeholder="optional"></div>
-        <div><label>Ampacity Column</label><select id="vdTc"><option value="auto">Auto — 110.14(C)</option><option value="60">60°C</option><option value="75">75°C</option></select></div>
-        <div><label>Resistance</label><select id="vdBasis"><option value="dc">DC — Table 8</option><option value="pvc">AC — PVC conduit (Table 9)</option><option value="alum">AC — aluminum conduit (Table 9)</option><option value="steel">AC — steel conduit (Table 9)</option></select></div>
-        <div id="vdPfW" style="display:none"><label>Power Factor</label><input type="number" id="vdPf" step="0.01" min="0.5" max="1" value="0.85" inputmode="decimal"></div>
+        <div><label>Ampacity Column</label><select id="vdTc"><option value="auto">Auto — 110.14(C)</option><option value="60">60°C</option><option value="75">75°C</option></select><div class="fx-note" style="margin-top:5px;">60°C for most #14–#1 terminations, 75°C for larger or listed gear; Auto picks the right one per 110.14(C).</div></div>
+        <div><label>Resistance</label><select id="vdBasis"><option value="dc">DC — Table 8</option><option value="pvc">AC — PVC conduit (Table 9)</option><option value="alum">AC — aluminum conduit (Table 9)</option><option value="steel">AC — steel conduit (Table 9)</option></select><div class="fx-note" style="margin-top:5px;">DC / Table 8 is standard for small or resistive single-phase; use an AC basis for large conductors with motor / low-PF loads.</div></div>
+        <div id="vdPfW" style="display:none"><label>Power Factor</label><input type="number" id="vdPf" step="0.01" min="0.5" max="1" value="1" inputmode="decimal"><div class="fx-note" style="margin-top:5px;">Leave at 1 for resistive loads (heat, lighting); drop to ~0.85 for motors and other inductive loads.</div></div>
       </div>
       <div id="vdRes" style="display:none;margin-top:14px;">
         <div class="stats-row">
@@ -1055,7 +1054,7 @@ input.is-out { border-color: var(--accent); color: var(--accent); font-weight: 7
             <option value="w480">3Φ 277/480 V wye</option>
           </select>
         </div>
-        <div><label>Generator Size (kW)</label><input type="number" id="genKw" step="any" min="0" inputmode="decimal" placeholder="e.g. nameplate kW"></div>
+        <div><label>Generator Size (kW)</label><input type="number" id="genKw" step="any" min="0" inputmode="decimal" placeholder="e.g. nameplate kW"><div class="fx-note" style="margin-top:5px;">Use the running (continuous) kW rating, not the surge/peak number.</div></div>
       </div>
       <div class="info-row" style="margin:10px 0;"><div class="info-dot"></div>
         <span>Add each load. Enter it in amps, watts, kW or HP (HP uses NEC Table 430.248 / 430.250 motor amps).</span>
@@ -1208,9 +1207,9 @@ input.is-out { border-color: var(--accent); color: var(--accent); font-weight: 7
       </div>
       <div class="modal-pane" id="pane-w">
         <div class="wheel-wrap" id="ohmWheel"></div>
-        <div class="wk-head">Wheel key · know these two → use this</div>
+        <div class="wk-head">Wheel key — find the formula for the two values you already have</div>
         <div class="wk" id="wheelKey"></div>
-        <div class="info-row" style="margin-top:8px;"><div class="info-dot"></div><span>Find the letter you need in the center, then use the wedge built from the two values you already know. Numbers run clockwise from the top. P = watts · I = amps · V = volts · R = ohms.</span></div>
+        <div class="info-row" style="margin-top:8px;"><div class="info-dot"></div><span>Find the letter you need in the center, then use the wedge built from the two values you already know. Numbers run clockwise from the top. <b>√ means square root</b> — multiply the two values, then press √ on your calculator (#3 and #9). <b>² means squared</b> — the number times itself, e.g. Volts² = Volts × Volts (#5, #6, #11, #12). P = watts · I = amps · V = volts · R = ohms.</span></div>
       </div>
       <div class="modal-pane" id="pane-r">
         <div class="table-wrap">
@@ -1367,7 +1366,13 @@ function onToggle(key) {
     $('kwPf').placeholder = TOG.kwPh === '3' ? '0.8' : '1.0';
   }
   if (key === 'kwMode') $('kwValLbl').textContent = { kw: 'kW', kva: 'kVA', a: 'Amps' }[TOG.kwMode];
-  if (key === 'vdPh') voltSel('vdVwrap', 'vdV', TOG.vdPh === '3' ? [208, 240, 480, 600] : [12, 24, 48, 120, 208, 240, 277], TOG.vdPh === '3' ? 480 : 240);
+  if (key === 'vdPh') {
+    const dc = TOG.vdPh === 'dc', three = TOG.vdPh === '3';
+    voltSel('vdVwrap', 'vdV', three ? [208, 240, 480, 600] : dc ? [12, 24, 48, 120, 125, 240, 250] : [120, 208, 240, 277, 480], three ? 480 : dc ? 48 : 240);
+    // DC has no reactance or power factor — lock the resistance to Table 8 (R only)
+    const basis = $('vdBasis');
+    if (dc) { basis.value = 'dc'; basis.disabled = true; } else { basis.disabled = false; }
+  }
   if (key === 'moPh') moFill();
   recalc();
 }
@@ -1404,7 +1409,8 @@ $('vdPf').addEventListener('input', calcVd);
 $('vdOther').addEventListener('input', calcVd);
 // Ω per 1000 ft per conductor: DC (Table 8) or AC effective Z = R·PF + XL·sin(arccos PF) (Table 9, Note 2). null = no Table 9 value.
 function vdBasis() {
-  const b = $('vdBasis').value; let pf = num('vdPf'); if (!(pf > 0 && pf <= 1)) pf = 0.85;
+  if (TOG.vdPh === 'dc') return { b: 'dc', pf: 1, ac: false };   // DC: resistance only, no PF/reactance
+  const b = $('vdBasis').value; let pf = num('vdPf'); if (!(pf > 0 && pf <= 1)) pf = 1;
   return { b, pf, ac: b !== 'dc' };
 }
 function rOf(i, al) {
@@ -1787,7 +1793,7 @@ function mathVd() {
   }
   if (min3 >= 0) {
     const B = vdBasis();
-    const vnote = `${three ? '3Φ: 1.732' : '1Φ / DC: 2 (out and back)'} · ${B.ac ? `Ze = R × ${B.pf} + XL × sin(arccos ${B.pf}) from NEC Ch. 9 Table 9, ${B.b === 'alum' ? 'aluminum' : B.b === 'steel' ? 'steel' : 'PVC'} conduit, 75°C (Note 2)` : 'R = NEC Ch. 9 Table 8 resistance at 75°C'} · Length = one-way feet`;
+    const vnote = `${three ? '3Φ: 1.732' : (TOG.vdPh === 'dc' ? 'DC: 2 (out and back), resistance only — no reactance/PF' : '1Φ: 2 (out and back)')} · ${B.ac ? `Ze = R × ${B.pf} + XL × sin(arccos ${B.pf}) from NEC Ch. 9 Table 9, ${B.b === 'alum' ? 'aluminum' : B.b === 'steel' ? 'steel' : 'PVC'} conduit, 75°C (Note 2)` : 'R = NEC Ch. 9 Table 8 resistance at 75°C'} · Length = one-way feet`;
     if (min3 - 1 >= (al ? 1 : 0) && rOf(min3 - 1, al) != null) st.push([`Voltage drop: ${wl(WIRE[min3 - 1][0])} (one size smaller)`, VDF, vdNums(min3 - 1) + ` → over ${Ts} ✕`, vnote]);
     st.push([`Voltage drop: ${wl(WIRE[min3][0])} (smallest that passes)`, VDF, vdNums(min3) + ` → within ${Ts} ✓`, min3 - 1 >= (al ? 1 : 0) ? '' : vnote]);
     if (!vdBasis().ac) { // cross-check with the K-factor formula (DC method only)
@@ -1939,9 +1945,9 @@ function ohmWheel() {
 function buildRef() {
   if ($('ohmWheel') && !$('ohmWheel').innerHTML) {
     $('ohmWheel').innerHTML = ohmWheel();
-    const KEY = [['I = V ÷ R', 'volts & ohms'], ['I = P ÷ V', 'watts & volts'], ['I = √(P ÷ R)', 'watts & ohms'], ['R = V ÷ I', 'volts & amps'], ['R = V² ÷ P', 'volts & watts'], ['R = P ÷ I²', 'watts & amps'],
-                 ['V = I × R', 'amps & ohms'], ['V = P ÷ I', 'watts & amps'], ['V = √(P × R)', 'watts & ohms'], ['P = V × I', 'volts & amps'], ['P = I² × R', 'amps & ohms'], ['P = V² ÷ R', 'volts & ohms']];
-    $('wheelKey').innerHTML = KEY.map((k, i) => `<div><b>${i + 1}</b><span>${k[0]}</span><small>know ${k[1]}</small></div>`).join('');
+    const KEY = [['Amps = Volts ÷ Ohms', 'volts & ohms'], ['Amps = Watts ÷ Volts', 'watts & volts'], ['Amps = √(Watts ÷ Ohms)', 'watts & ohms'], ['Ohms = Volts ÷ Amps', 'volts & amps'], ['Ohms = Volts² ÷ Watts', 'volts & watts'], ['Ohms = Watts ÷ Amps²', 'watts & amps'],
+                 ['Volts = Amps × Ohms', 'amps & ohms'], ['Volts = Watts ÷ Amps', 'watts & amps'], ['Volts = √(Watts × Ohms)', 'watts & ohms'], ['Watts = Volts × Amps', 'volts & amps'], ['Watts = Amps² × Ohms', 'amps & ohms'], ['Watts = Volts² ÷ Ohms', 'volts & ohms']];
+    $('wheelKey').innerHTML = KEY.map((k, i) => `<div><b>${i + 1}</b><span>${k[0]}</span><small>you have: ${k[1]}</small></div>`).join('');
   }
   $('refR').innerHTML = WIRE.map(w => `<tr><td>${wl(w[0])}</td><td class="num">${w[1]}</td><td class="num">${w[0] === '14' ? '—' : w[2]}</td></tr>`).join('');
   $('refM1h').innerHTML = `<tr><th>HP</th>${M1V.map(v => `<th class="num">${v} V</th>`).join('')}</tr>`;
