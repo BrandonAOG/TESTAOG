@@ -1291,9 +1291,10 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
          two rows, which is why it looked fine at first and then "got wide".
          --tbh is the measured toolbar height (see the --abh sync block). */
       height:var(--sheet-h, 50vh);
-      /* 28px gap (was 14) keeps the address field clear of the pinned toolbar on tall-inset devices
-         (Dynamic Island) where the sheet could otherwise sit tight under it. */
-      max-height:calc(100vh - var(--abh,48px) - var(--tbh,40px) - 28px);
+      /* Sheet sits ABOVE the map toolbar on phones: its top reaches just under the action bar and
+         the toolbar (z-index lowered below the panel, see .layerswitch) tucks behind it while you
+         search. Drag the sheet down when you want the toolbar for map work. No --tbh math needed. */
+      max-height:calc(100vh - var(--abh,48px) - 8px);
       border-radius:18px 18px 0 0;border-left:none;border-right:none;border-bottom:none;
       box-shadow:0 -10px 40px var(--shadow-strong);
       transition:height .28s cubic-bezier(.22,1,.36,1),transform .28s cubic-bezier(.22,1,.36,1);
@@ -1351,6 +1352,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
        nothing needs reordering. Safe because .basemap-menu is position:fixed and therefore escapes
        this container's overflow — an absolutely-positioned dropdown would have been clipped. */
     .layerswitch{bottom:auto;top:calc(var(--abh,48px) + 8px);left:12px;right:12px;margin-inline:0;
+      z-index:999;   /* below #panel (1000): toolbar shows over the map when the sheet is down, tucks behind the sheet when it's up */
       width:auto;overflow-x:auto;overflow-y:hidden;justify-content:flex-start;
       /* ⚠️ NO -webkit-overflow-scrolling:touch HERE. On iOS that promotes the scroller to its own
          hardware-composited layer, and a composited scroller acts as the CONTAINING BLOCK for
