@@ -41,9 +41,12 @@ test('Box Fill: 314.16(B) allowances add up', async ({ page }) => {
 test('Electrical Formulas: 240.4(D) limits, 10 A breaker, Table 9 voltage drop', async ({ page }) => {
   expect(await open(page, '/quick-calc/')).toEqual([]);
   const r = await page.evaluate(() => {
-    const vd = (A, L, tc, basis, size) => { $('vdA').value = A; $('vdL').value = L; $('vdTc').value = tc; $('vdBasis').value = basis; $('vdSize').value = size; calcVd(); return [$('vdMin').textContent, $('vdOutP').textContent]; };
+    // pf is set explicitly for the AC/Table-9 case so this check exercises the reactance math at a
+    // known power factor, independent of the UI default (which is 1.0 as of v3.0.1 — at PF 1 the
+    // reactance term drops out, so a defaulted AC basis would read like DC resistance).
+    const vd = (A, L, tc, basis, size, pf) => { $('vdA').value = A; $('vdL').value = L; $('vdTc').value = tc; $('vdBasis').value = basis; $('vdSize').value = size; if (pf != null) $('vdPf').value = pf; calcVd(); return [$('vdMin').textContent, $('vdOutP').textContent]; };
     const i350 = String(WIRE.findIndex(w => w[0] === '350'));
-    const out = { a: vd(18, 30, '75', 'dc', '')[0], b: vd(25, 30, '75', 'dc', '')[0], dc: vd(300, 200, '75', 'dc', i350)[1], ac: vd(300, 200, '75', 'steel', i350)[1] };
+    const out = { a: vd(18, 30, '75', 'dc', '')[0], b: vd(25, 30, '75', 'dc', '')[0], dc: vd(300, 200, '75', 'dc', i350)[1], ac: vd(300, 200, '75', 'steel', i350, '0.85')[1] };
     $('brA').value = 7; $('brCont').checked = true; calcBr(); out.br = $('brStd').textContent;
     return out;
   });

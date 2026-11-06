@@ -241,6 +241,13 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     font-size:13px;letter-spacing:.04em;padding:0 15px;border-radius:7px;cursor:pointer;text-transform:uppercase;
   }
   .search #go:hover{background:var(--signal-hover)}
+  .search .srbtns{display:flex;gap:7px}
+  .search #gps{
+    background:var(--input-bg);color:var(--ink);border:1px solid var(--line);
+    font-size:15px;line-height:1;padding:0 13px;border-radius:7px;cursor:pointer;
+  }
+  .search #gps:hover{border-color:var(--signal);color:var(--signal)}
+  .search #gps.locating{opacity:.55;pointer-events:none}
   .hint{margin-top:8px;font-size:10.5px;color:var(--faint);font-family:var(--mono);line-height:1.5}
   .hint b{color:var(--dim)}
 
@@ -1323,6 +1330,9 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     .searchrow{flex-direction:column;gap:8px}
     .search input,.search button{font-size:16px}   /* 16px stops iOS zoom-on-focus */
     .search button{padding:13px 18px;width:100%}
+    .search .srbtns{width:100%}
+    .searchrow #go{flex:1;width:auto}
+    .searchrow #gps{width:auto;flex:0 0 auto}
     .search input{padding:13px}
     .hint{font-size:11px}
     /* keep body scrolling inside the sheet only */
@@ -2003,7 +2013,10 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
           <input id="addr" type="text" placeholder="Enter a Florida address…" autocomplete="off" autocapitalize="words" inputmode="text">
           <button class="clearbtn" id="clearBtn" aria-label="Clear search" tabindex="-1">×</button>
         </div>
-        <button id="go">Find</button>
+        <div class="srbtns">
+          <button id="gps" type="button" aria-label="Use my current location" title="Use my current location">📍</button>
+          <button id="go">Find</button>
+        </div>
       </div>
       <div class="suggest" id="suggest"></div>
       <div class="history" id="historyDrop"></div>
@@ -35205,6 +35218,48 @@ const _onClear = e => {
 };
 clearBtn.addEventListener('touchstart', _onClear, { passive:false });
 clearBtn.addEventListener('mousedown',  _onClear);
+
+/* ---------- GPS: use my current location ----------
+   Reuses the map-tap path (runLookup with viaMap:true) — the most reliable way to land on the right
+   parcel — so "where I'm standing" behaves exactly like tapping that spot on the map. No geocoding
+   and no map token needed: the browser supplies the coordinates, the existing point lookup does the
+   rest. */
+const gpsBtn = document.getElementById('gps');
+if (gpsBtn) {
+  gpsBtn.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      setSearchStatus('err', 'This device can’t share its location — type the address instead.');
+      return;
+    }
+    gpsBtn.classList.add('locating');
+    const done = () => gpsBtn.classList.remove('locating');
+    setSearchStatus('busy', 'Getting your location…');
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        done();
+        const { latitude, longitude } = pos.coords || {};
+        if (!isFinite(latitude) || !isFinite(longitude)) {
+          setSearchStatus('err', 'Couldn’t read your location — type the address instead.');
+          return;
+        }
+        try { addrEl.value = ''; updateClearBtn(); hideSuggest(); hideHistory(); } catch (e) {}
+        try { map.setView([latitude, longitude], 19); } catch (e) {}
+        newSearch();
+        runLookup(latitude, longitude, { viaMap: true });   // same path as a map tap
+      },
+      err => {
+        done();
+        const msg = (err && err.code === 1)
+            ? 'Location permission denied — allow it in your browser, or type the address.'
+          : (err && err.code === 3)
+            ? 'Location timed out — try again, or type the address.'
+            : 'Couldn’t get your location — type the address instead.';
+        setSearchStatus('err', msg);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  });
+}
 
 /* ---------- Search history ---------- */
 const histEl = document.getElementById('historyDrop');

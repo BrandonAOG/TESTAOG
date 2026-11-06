@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v3.0.1';
+var CACHE_VERSION = 'v3.0.2';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -76,15 +76,7 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  '🔒 SECURITY — hardened how imported PDFs, Excel files and outside links are handled',
-  '🗺️ SITE ANNOTATOR — fixed a PDF export that could come out blank-white with only your markups; site plans built from scanned/printed image strips now always keep their background',
-  '🔧 OFFLINE FILES — "Fix Now" now re-downloads anything that didn\'t finish caching (even on a flaky connection), and the message names exactly which files are missing',
-  '🔺 SITE ANNOTATOR — the ATS equipment symbol is now a point-down triangle with "ATS" upright, so it reads right when you drop it on the plan',
-  '📐 SITE ANNOTATOR — the scale box now has a dropdown of the common engineer\'s scales (1"=10ft through 1"=100ft); you can still type any odd scale by hand',
-  '🏠 HOME SCREEN — tightened up so your tools show without scrolling, calmer background, and you can now hold-and-drag your favorites to reorder them',
-  '📦 PULL BOX — U-pulls now size the box WIDTH for the 6× same-conductor spacing (314.28(A)(2)); before, that spacing was only drawn, so the width could read "—" and pass too small',
-  '⚡ VOLTAGE DROP — single-phase, three-phase and DC are now three separate modes; DC uses Table 8 resistance only (no power factor or reactance), and power factor stays available on the AC modes',
-  '💡 QUICK CALC — added plain-English hints under the fields for beginners (Voltage Drop and Generator Load), a fuller nominal-voltage dropdown per mode, power factor now defaults to 1, and the Ohm\'s-law wheel key now spells out Amps / Volts / Ohms / Watts in full',
+  '📍 PROPERTY LOOKUP — new location button in the search bar: tap it to look up the parcel where you\'re standing, no typing (uses your device GPS)',
 ]
 //
 // ============================================================
