@@ -241,13 +241,14 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     font-size:13px;letter-spacing:.04em;padding:0 15px;border-radius:7px;cursor:pointer;text-transform:uppercase;
   }
   .search #go:hover{background:var(--signal-hover)}
-  .search .srbtns{display:flex;gap:7px}
-  .search #gps{
-    background:var(--input-bg);color:var(--ink);border:1px solid var(--line);
-    font-size:15px;line-height:1;padding:0 13px;border-radius:7px;cursor:pointer;
-  }
-  .search #gps:hover{border-color:var(--signal);color:var(--signal)}
-  .search #gps.locating{opacity:.55;pointer-events:none}
+  /* GPS lives INSIDE the field (shares the spot with the × clear button), so the search row keeps
+     its baseline height — no extra element in the flow that could nudge the mobile sheet layout. */
+  .search #gps{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;
+    padding:0;margin:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center;
+    font-size:17px;line-height:1;cursor:pointer;opacity:.75}
+  .search #gps:hover{opacity:1}
+  .search #gps.locating{opacity:.4;pointer-events:none}
+  .search #gps.hidden{display:none}
   .hint{margin-top:8px;font-size:10.5px;color:var(--faint);font-family:var(--mono);line-height:1.5}
   .hint b{color:var(--dim)}
 
@@ -1330,10 +1331,8 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     .searchrow{flex-direction:column;gap:8px}
     .search input,.search button{font-size:16px}   /* 16px stops iOS zoom-on-focus */
     .search button{padding:13px 18px;width:100%}
-    .search .srbtns{width:100%}
-    .searchrow #go{flex:1;width:auto}
-    .searchrow #gps{width:auto;flex:0 0 auto}
-    .search input{padding:13px}
+    .search #gps{width:24px;padding:0}   /* in-field icon stays compact even where buttons go full-width */
+    .search input{padding:13px;padding-right:34px}   /* room for the in-field icon */
     .hint{font-size:11px}
     /* keep body scrolling inside the sheet only */
     .body{-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
@@ -2011,12 +2010,10 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
       <div class="searchrow">
         <div class="inputwrap">
           <input id="addr" type="text" placeholder="Enter a Florida address…" autocomplete="off" autocapitalize="words" inputmode="text">
+          <button id="gps" type="button" aria-label="Use my current location" title="Use my current location">📍</button>
           <button class="clearbtn" id="clearBtn" aria-label="Clear search" tabindex="-1">×</button>
         </div>
-        <div class="srbtns">
-          <button id="gps" type="button" aria-label="Use my current location" title="Use my current location">📍</button>
-          <button id="go">Find</button>
-        </div>
+        <button id="go">Find</button>
       </div>
       <div class="suggest" id="suggest"></div>
       <div class="history" id="historyDrop"></div>
@@ -35175,7 +35172,10 @@ addrEl.addEventListener('blur',()=>setTimeout(()=>{
 /* ---------- Clear button ---------- */
 const clearBtn = document.getElementById('clearBtn');
 function updateClearBtn(){
-  clearBtn.classList.toggle('visible', addrEl.value.trim().length > 0);   // was untrimmed: a single space showed the ×
+  const has = addrEl.value.trim().length > 0;
+  clearBtn.classList.toggle('visible', has);   // was untrimmed: a single space showed the ×
+  const g = document.getElementById('gps');    // GPS icon shares the slot: show it only when the box is empty
+  if (g) g.classList.toggle('hidden', has);
 }
 /* An empty box means "show me Recent" — whatever emptied it. Backspacing the last character used
    to leave the field empty with nothing offered, because the only thing that ever opened Recent was
