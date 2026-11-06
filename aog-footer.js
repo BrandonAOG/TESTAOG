@@ -24,6 +24,7 @@
 
   var TOOLS = {
     'estimate':          'Estimate',
+    'walkthrough':       'Walkthrough → Estimate · AI draft',
     'site-visit':        'Site Visit',
     'pre-checklist':     'Pre-Install Checklist',
     'elect-install':     'Electrical Installation',
