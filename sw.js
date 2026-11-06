@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v3.0.2';
+var CACHE_VERSION = 'v3.1.0';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -76,6 +76,7 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
+  '✨ NEW — WALKTHROUGH → ESTIMATE (beta, under the Estimate tab): snap a few photos on the job, add notes, and Claude drafts the equipment, electrical + gas materials and a scope to start the estimate. Needs internet and a one-time API-key setup on the device — try it and tell us what you think.',
   '📍 PROPERTY LOOKUP — new location button in the search bar: tap it to look up the parcel where you\'re standing, no typing (uses your device GPS)',
 ]
 //
@@ -102,6 +103,7 @@ var PRECACHE_URLS = [
   './aog-footer.js',
   './seasonal.js',
   './estimate/',
+  './walkthrough/',
   './maintenance/',
   './site-visit/',
   './gas-install/',
