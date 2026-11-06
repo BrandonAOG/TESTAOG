@@ -1291,7 +1291,9 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
          two rows, which is why it looked fine at first and then "got wide".
          --tbh is the measured toolbar height (see the --abh sync block). */
       height:var(--sheet-h, 50vh);
-      max-height:calc(100vh - var(--abh,48px) - var(--tbh,40px) - 14px);
+      /* 28px gap (was 14) keeps the address field clear of the pinned toolbar on tall-inset devices
+         (Dynamic Island) where the sheet could otherwise sit tight under it. */
+      max-height:calc(100vh - var(--abh,48px) - var(--tbh,40px) - 28px);
       border-radius:18px 18px 0 0;border-left:none;border-right:none;border-bottom:none;
       box-shadow:0 -10px 40px var(--shadow-strong);
       transition:height .28s cubic-bezier(.22,1,.36,1),transform .28s cubic-bezier(.22,1,.36,1);

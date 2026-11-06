@@ -34,7 +34,7 @@ Proprietary. Unauthorized copying or distribution is prohibited.
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:'Exo 2',system-ui,sans-serif;transition:background .3s,color .3s;-webkit-text-size-adjust:100%}
-.action-bar{display:flex;gap:8px;align-items:center;padding:10px 12px;background:#1a1a2e;position:sticky;top:0;z-index:50}
+.action-bar{display:flex;gap:8px;align-items:center;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top,10px));background:#1a1a2e;position:sticky;top:0;z-index:50}
 .ab-btn{background:rgba(255,255,255,.08);color:#D97706;border:1px solid rgba(217,119,6,.35);border-radius:8px;padding:8px 13px;font-family:'Orbitron',sans-serif;font-weight:700;font-size:12px;text-decoration:none;cursor:pointer}
 .ab-btn:hover{background:rgba(217,119,6,.15)}
 .theme-toggle-ab{margin-left:auto;background:rgba(255,255,255,.08);border:1px solid rgba(217,119,6,.35);border-radius:8px;padding:8px 11px;font-size:15px;cursor:pointer}
