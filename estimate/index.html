@@ -2438,18 +2438,17 @@ function _patchCharSpacing(pdf) {
   }
   function flushRun(b, str) {
     if (b.chars.length < 2) { orig.call(c2d, str, b.x0, b.y); return; }
-    var fs = pdf.internal.getFontSize(), sum = 0, n = 0;
-    for (var i = 0; i < b.chars.length - 1; i++) { var adv = pdf.getStringUnitWidth(b.chars[i]) * fs; sum += (b.xs[i + 1] - b.xs[i]) - adv; n++; }
-    var csPx = n ? sum / n : 0;
-    var t = c2d.ctx && c2d.ctx.transform, sx = 1;
-    if (t && typeof t.a === 'number') sx = Math.sqrt(t.a * t.a + t.b * t.b) || 1;
+    // Replay each glyph EXACTLY where html2canvas placed it — this keeps real word
+    // spaces, commas, hyphens and @ in their true positions (stitching into one
+    // jsPDF string reflowed them with different metrics, which crushed punctuation
+    // and dropped spaces). We still wrap the run in an /ActualText span so copy +
+    // search read whole words, not letter-by-letter.
     var pageBefore = pdf.internal.getCurrentPageInfo().pageNumber;
     var hex = 'FEFF';
     for (var k = 0; k < str.length; k++) hex += ('000' + str.charCodeAt(k).toString(16).toUpperCase()).slice(-4);
     pdf.internal.write('/Span << /ActualText <' + hex + '> >> BDC');
-    try { if (csPx >= 0.25) pdf.setCharSpace(csPx * sx); orig.call(c2d, str, b.x0, b.y); }
+    try { for (var j = 0; j < b.chars.length; j++) orig.call(c2d, b.chars[j], b.xs[j], b.y); }
     finally {
-      pdf.setCharSpace(0);
       var pageAfter = pdf.internal.getCurrentPageInfo().pageNumber;
       if (pageAfter !== pageBefore) { pdf.setPage(pageBefore); pdf.internal.write('EMC'); pdf.setPage(pageAfter); }
       else pdf.internal.write('EMC');
@@ -2471,6 +2470,45 @@ function _patchCharSpacing(pdf) {
     c2d[m] = function () { flush(); return o.apply(this, arguments); };
   });
   return flush;
+}
+
+// Measure the sheet's height as it will actually RENDER in the PDF — i.e. laid out
+// at the 1050px window jsPDF uses, NOT at the phone's narrow viewport. On a phone
+// the live page measures much taller (phone CSS), but jsPDF renders the desktop
+// layout, so centering from the live height mis-places the frame. We clone the
+// prepared page into a hidden 1050px-wide iframe (where the phone media queries
+// don't apply) and read its height. Returns a Promise<number>; falls back to the
+// live scrollHeight if anything goes wrong.
+function _measureSheetHeight(srcPage) {
+  return new Promise(function (resolve) {
+    var fallback = srcPage.scrollHeight || 1;
+    var ifr;
+    try {
+      ifr = document.createElement('iframe');
+      ifr.setAttribute('aria-hidden', 'true');
+      ifr.style.cssText = 'position:fixed!important;left:-10000px!important;top:0!important;width:1050px!important;height:5000px!important;border:0!important;visibility:hidden!important;';
+      document.body.appendChild(ifr);
+      var d = ifr.contentDocument || (ifr.contentWindow && ifr.contentWindow.document);
+      if (!d) { document.body.removeChild(ifr); return resolve(fallback); }
+      d.open(); d.write('<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>'); d.close();
+      // Copy styles + font links only (never scripts — they'd re-run).
+      document.querySelectorAll('style, link[rel="stylesheet"]').forEach(function (n) { try { d.head.appendChild(n.cloneNode(true)); } catch (e) {} });
+      d.body.style.margin = '0';
+      var clone = srcPage.cloneNode(true);
+      clone.style.setProperty('width', '1050px', 'important');
+      clone.style.setProperty('max-width', '1050px', 'important');
+      d.body.appendChild(clone);
+      var done = false;
+      var finish = function () {
+        if (done) return; done = true;
+        var h = 0; try { h = clone.scrollHeight || clone.getBoundingClientRect().height; } catch (e) {}
+        try { document.body.removeChild(ifr); } catch (e) {}
+        resolve(h || fallback);
+      };
+      setTimeout(function () { try { (d.fonts && d.fonts.ready ? d.fonts.ready : Promise.resolve()).then(finish, finish); } catch (e) { finish(); } }, 60);
+      setTimeout(finish, 400);
+    } catch (e) { try { if (ifr) document.body.removeChild(ifr); } catch (e2) {} resolve(fallback); }
+  });
 }
 
 // Build the estimate as a REAL-TEXT pdf (selectable / editable in Acrobat) by
@@ -2630,26 +2668,33 @@ async function _estimateTextPdf() {
 
   void document.body.offsetHeight;
   var pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter', compress: true });
-  // The estimate is a one-page form by design, but its captured height is not
-  // identical on every device (phones measure a taller sheet — the image export
-  // hides this by always scaling the whole sheet onto one letter page). Do the
-  // same here: if the sheet is over one page, shrink it (centered) to fit a
-  // single page, targeting a hair under 792pt so border/rounding can't tip a
-  // sliver onto a blank second page. A floor keeps the text from going
-  // microscopic — anything that tall paginates normally instead.
-  var _baseScale = 612 / CAPTURE_W;
-  var _hPt = page.scrollHeight * _baseScale;
-  var _drawW = 612, _drawX = 0;
-  if (_hPt > 792) {
-    var _fit = 782 / _hPt;
-    if (_fit >= 0.6) { _drawW = 612 * _fit; _drawX = (612 - _drawW) / 2; }
-  }
+  // Fit the whole sheet inside an EVEN margin and center it both ways, so the
+  // frame sits with equal space top/bottom (and left/right) — like the image
+  // export's uniform margin. The estimate is one page by design; scaling to the
+  // available box keeps it on one page on every device (phones measure a taller
+  // sheet). PAGE is 612×792pt; MARGIN is the paper margin around the frame.
+  var MARGIN = 18;
+  var _availW = 612 - 2 * MARGIN, _availH = 792 - 2 * MARGIN;
+  // Height as it will RENDER (1050px layout), not the live phone-viewport height.
+  var _renderH = await _measureSheetHeight(page);
+  if (!_renderH || _renderH < 100) _renderH = page.scrollHeight || 1;
+  // Pin the page box to the measured render height so jsPDF lays it out to exactly
+  // that height on every device (otherwise the phone render comes out a touch
+  // shorter and the frame sits high). overflow is already hidden, and the height
+  // equals the natural content height, so nothing is clipped.
+  page.style.setProperty('height', _renderH + 'px', 'important');
+  page.style.setProperty('min-height', _renderH + 'px', 'important');
+  var _scale = Math.min(_availW / CAPTURE_W, _availH / _renderH);
+  var _drawW = CAPTURE_W * _scale;
+  var _drawH = _renderH * _scale;
+  var _drawX = (612 - _drawW) / 2;
+  var _drawY = (792 - _drawH) / 2;
   // Stitch letter-spaced runs into evenly-spaced words (fixes the uneven gaps in
   // headings/labels); flushed right after the render completes.
   var _flushCharSpacing = _patchCharSpacing(pdf);
   try {
     await pdf.html(page, {
-      x: _drawX, y: 0, width: _drawW, windowWidth: CAPTURE_W, margin: 0, autoPaging: 'slice',
+      x: _drawX, y: _drawY, width: _drawW, windowWidth: CAPTURE_W, margin: 0, autoPaging: 'slice',
       // Do NOT set scale / width / windowWidth inside html2canvas — jsPDF computes
       // the html2canvas scale as (width / windowWidth) = 612/1050 and merges it in,
       // but anything set here OVERRIDES that, which is what spilled the right column
