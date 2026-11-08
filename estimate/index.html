@@ -2415,6 +2415,64 @@ function _loadJsPDFlib() {
   });
 }
 
+// html2canvas draws LETTER-SPACED text (the headings + ALL-CAPS labels) one glyph
+// at a time, and the per-glyph positions come out with uneven gaps in the PDF —
+// "Customer Info" becomes "C u s t o m e r  In fo". This intercepts those single
+// character draws, stitches each run back into ONE string rendered with a uniform
+// PDF char-space (even spacing), and tags it with /ActualText so copy + search
+// still read whole words. Returns flush(), to call once the page is rendered.
+// (Ported from the load-calcs real-text PDF, where it's been proven.)
+function _patchCharSpacing(pdf) {
+  var c2d = pdf.context2d;
+  if (!c2d || !c2d.fillText) return function () {};
+  var orig = c2d.fillText, buf = null;
+  function flush() {
+    if (!buf) return;
+    var b = buf; buf = null;
+    var str = b.chars.join('');
+    var curFont = c2d.font, curFill = c2d.fillStyle;
+    if (curFont !== b.font) c2d.font = b.font;
+    if (curFill !== b.fill) c2d.fillStyle = b.fill;
+    try { flushRun(b, str); }
+    finally { if (curFont !== b.font) c2d.font = curFont; if (curFill !== b.fill) c2d.fillStyle = curFill; }
+  }
+  function flushRun(b, str) {
+    if (b.chars.length < 2) { orig.call(c2d, str, b.x0, b.y); return; }
+    var fs = pdf.internal.getFontSize(), sum = 0, n = 0;
+    for (var i = 0; i < b.chars.length - 1; i++) { var adv = pdf.getStringUnitWidth(b.chars[i]) * fs; sum += (b.xs[i + 1] - b.xs[i]) - adv; n++; }
+    var csPx = n ? sum / n : 0;
+    var t = c2d.ctx && c2d.ctx.transform, sx = 1;
+    if (t && typeof t.a === 'number') sx = Math.sqrt(t.a * t.a + t.b * t.b) || 1;
+    var pageBefore = pdf.internal.getCurrentPageInfo().pageNumber;
+    var hex = 'FEFF';
+    for (var k = 0; k < str.length; k++) hex += ('000' + str.charCodeAt(k).toString(16).toUpperCase()).slice(-4);
+    pdf.internal.write('/Span << /ActualText <' + hex + '> >> BDC');
+    try { if (csPx >= 0.25) pdf.setCharSpace(csPx * sx); orig.call(c2d, str, b.x0, b.y); }
+    finally {
+      pdf.setCharSpace(0);
+      var pageAfter = pdf.internal.getCurrentPageInfo().pageNumber;
+      if (pageAfter !== pageBefore) { pdf.setPage(pageBefore); pdf.internal.write('EMC'); pdf.setPage(pageAfter); }
+      else pdf.internal.write('EMC');
+    }
+  }
+  c2d.fillText = function (text, x, y, maxWidth) {
+    if (typeof text === 'string' && text.length === 1 && maxWidth === undefined) {
+      var font = this.font, fill = this.fillStyle;
+      if (buf && buf.y === y && buf.font === font && buf.fill === fill
+        && x >= buf.xs[buf.xs.length - 1] && x - buf.xs[buf.xs.length - 1] < pdf.internal.getFontSize() * 2) {
+        buf.chars.push(text); buf.xs.push(x); return;
+      }
+      flush(); buf = { chars: [text], xs: [x], x0: x, y: y, font: font, fill: fill }; return;
+    }
+    flush(); return orig.call(this, text, x, y, maxWidth);
+  };
+  ['fillRect', 'fill', 'stroke', 'drawImage', 'clip', 'save', 'restore', 'clearRect', 'strokeText'].forEach(function (m) {
+    var o = c2d[m]; if (typeof o !== 'function') return;
+    c2d[m] = function () { flush(); return o.apply(this, arguments); };
+  });
+  return flush;
+}
+
 // Build the estimate as a REAL-TEXT pdf (selectable / editable in Acrobat) by
 // rendering the LIVE #page with jsPDF .html() under the SAME print stylesheet the
 // image capture uses (so the two-column layout fits and nothing clips), after
@@ -2480,6 +2538,19 @@ async function _estimateTextPdf() {
   var pdfColorFix = document.createElement('style');
   pdfColorFix.id = 'pdf-color-fix';
   pdfColorFix.textContent = [
+    // Kill text-shadow/glow everywhere: in the vector PDF a shadow becomes a
+    // second glyph pass, which the char-spacing stitcher then merges into the
+    // word and prints every letter twice ("CCuussttoommeerr"). Shadows add nothing
+    // to a printed PDF anyway.
+    '#page, #page * { text-shadow:none !important; }',
+    // On phones (≤600px) the CSS drops the page frame for full-bleed on screen.
+    // The text PDF renders the live page at the phone viewport, so force the frame
+    // back on (matches the image export's orange border on every device).
+    '#page { border:2px solid #D35E13 !important; box-shadow:none !important; }',
+    // Drop the decorative corner brackets + outline shadow: layered over the 2px
+    // border they make the frame look doubled / uneven at the corners. One clean,
+    // even border on every device.
+    '#page::before, #page::after, #page .page-corner-bl, #page .page-corner-br { display:none !important; }',
     '#page .check-item, #page .opt { background:#ffffff !important; box-shadow:none !important; border-color:#E79A5E !important; }',
     '#page .check-item:has(input:checked), #page .opt:has(input:checked) { background:#F7CDAB !important; border-color:#FA6700 !important; box-shadow:none !important; }',
     '#page .yn-group .yn-label, #page .yn-group .yn-label-y, #page .yn-group .yn-label-n { background:#ffffff !important; box-shadow:none !important; }',
@@ -2573,6 +2644,9 @@ async function _estimateTextPdf() {
     var _fit = 782 / _hPt;
     if (_fit >= 0.6) { _drawW = 612 * _fit; _drawX = (612 - _drawW) / 2; }
   }
+  // Stitch letter-spaced runs into evenly-spaced words (fixes the uneven gaps in
+  // headings/labels); flushed right after the render completes.
+  var _flushCharSpacing = _patchCharSpacing(pdf);
   try {
     await pdf.html(page, {
       x: _drawX, y: 0, width: _drawW, windowWidth: CAPTURE_W, margin: 0, autoPaging: 'slice',
@@ -2582,6 +2656,7 @@ async function _estimateTextPdf() {
       // off the page. Leave the scale to jsPDF; only pass real html2canvas options.
       html2canvas: { backgroundColor: '#ffffff', useCORS: true, logging: false, ignoreElements: _estimatePdfIgnoreEl }
     });
+    try { _flushCharSpacing(); } catch (e) {}
   } finally {
     swaps.forEach(function (s) {
       if (s.span.parentNode) s.span.parentNode.removeChild(s.span);
