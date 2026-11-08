@@ -2163,7 +2163,14 @@ async function _maintenanceTextPdf() {
     // Option boxes: plain white unless selected (their faint tint renders solid in
     // the PDF). The checked ones get a value-based colour set inline below.
     '\n#page .check-item, #page .opt { background:#ffffff !important; box-shadow:none !important; border-color:#E79A5E !important; }' +
-    '\n#page .check-item span, #page .opt span { color:#1F2937 !important; }';
+    '\n#page .check-item span, #page .opt span { color:#1F2937 !important; }' +
+    // Y/N groups: plain white unless selected, then green Y / red N. Drop the inset
+    // box-shadow — jsPDF renders it as a solid BLACK fill over the box. Let the
+    // label stretch so the colour fills the cell top-to-bottom.
+    '\n#page .yn-group { align-items:stretch !important; }' +
+    '\n#page .yn-group .yn-label { background:#ffffff !important; box-shadow:none !important; color:#1F2937 !important; height:auto !important; min-height:0 !important; align-self:stretch !important; }' +
+    '\n#page .yn-group .yn-y:checked + .yn-label-y { background:#059669 !important; color:#ffffff !important; box-shadow:none !important; }' +
+    '\n#page .yn-group .yn-n:checked + .yn-label-n { background:#DC2626 !important; color:#ffffff !important; box-shadow:none !important; }';
   document.head.appendChild(forceStyle);
 
   // wait for the (mobile) viewport widen to settle, so measurements are stable

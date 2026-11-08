@@ -2569,9 +2569,9 @@ async function _estimateTextPdf() {
     // Let the Y/N label stretch to the full cell height so the selected colour fills
     // the box top-to-bottom (the fixed label height left a gap at the edges).
     '#page .yn-group { align-items:stretch !important; }',
-    '#page .yn-group .yn-label { height:auto !important; min-height:0 !important; align-self:stretch !important; }',
-    '#page .yn-group .yn-y:checked + .yn-label-y { background:#BFE6CE !important; color:#047857 !important; box-shadow:none !important; }',
-    '#page .yn-group .yn-n:checked + .yn-label-n { background:#F3C9C9 !important; color:#B91C1C !important; box-shadow:none !important; }'
+    '#page .yn-group .yn-label { height:auto !important; min-height:0 !important; align-self:stretch !important; background:#ffffff !important; color:#1F2937 !important; box-shadow:none !important; }',
+    '#page .yn-group .yn-y:checked + .yn-label-y { background:#059669 !important; color:#ffffff !important; box-shadow:none !important; }',
+    '#page .yn-group .yn-n:checked + .yn-label-n { background:#DC2626 !important; color:#ffffff !important; box-shadow:none !important; }'
   ].join('');
   document.head.appendChild(pdfColorFix);
 
