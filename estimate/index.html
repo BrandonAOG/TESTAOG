@@ -2550,10 +2550,10 @@ async function _estimateTextPdf() {
     // word and prints every letter twice ("CCuussttoommeerr"). Shadows add nothing
     // to a printed PDF anyway.
     '#page, #page * { text-shadow:none !important; }',
-    // On phones (≤600px) the CSS drops the page frame for full-bleed on screen.
-    // The text PDF renders the live page at the phone viewport, so force the frame
-    // back on (matches the image export's orange border on every device).
-    '#page { border:2px solid #D35E13 !important; box-shadow:none !important; }',
+    // No CSS page border — it renders as a near-invisible hairline on the left when
+    // scaled down on phones. The frame is drawn directly in the PDF with pdf.rect()
+    // after render (even weight on all four sides, every device).
+    '#page { border:none !important; box-shadow:none !important; }',
     // Drop the decorative corner brackets + outline shadow: layered over the 2px
     // border they make the frame look doubled / uneven at the corners. One clean,
     // even border on every device.
@@ -2677,6 +2677,13 @@ async function _estimateTextPdf() {
       // off the page. Leave the scale to jsPDF; only pass real html2canvas options.
       html2canvas: { backgroundColor: '#ffffff', useCORS: true, logging: false, ignoreElements: _estimatePdfIgnoreEl }
     });
+    // Draw the page frame directly in the PDF — even weight on all four sides on
+    // every device (the CSS border scaled to a near-invisible hairline on phones).
+    try {
+      pdf.setDrawColor(211, 94, 19); pdf.setLineWidth(1.4);
+      var _np = pdf.getNumberOfPages();
+      for (var _pi = 1; _pi <= _np; _pi++) { pdf.setPage(_pi); pdf.rect(_drawX, _drawY, _drawW, _drawH); }
+    } catch (e) {}
   } finally {
     swaps.forEach(function (s) {
       if (s.span.parentNode) s.span.parentNode.removeChild(s.span);

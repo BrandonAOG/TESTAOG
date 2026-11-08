@@ -2158,7 +2158,9 @@ async function _maintenanceTextPdf() {
   forceStyle.id = 'pdf-text-force-style';
   forceStyle.textContent = _maintenanceForceCSS(isMobile) +
     '\n#page, #page * { letter-spacing: normal !important; text-shadow: none !important; }' +
-    '\n#page { border: 1.5px solid #D35E13 !important; box-shadow: none !important; }' +
+    // No CSS page border — it clips at the element's left edge when scaled on
+    // mobile. The frame is drawn directly in the PDF with pdf.rect() after render.
+    '\n#page { border: none !important; box-shadow: none !important; }' +
     '\n#page::before, #page::after, #page .page-corner-bl, #page .page-corner-br { display: none !important; }' +
     // Option boxes: plain white unless selected (their faint tint renders solid in
     // the PDF). The checked ones get a value-based colour set inline below.
@@ -2305,6 +2307,18 @@ async function _maintenanceTextPdf() {
       x: drawX, y: drawY, width: drawW, windowWidth: CW, margin: htmlMargin, autoPaging: 'slice',
       html2canvas: { backgroundColor: '#ffffff', useCORS: true, logging: false, ignoreElements: _maintPdfIgnoreEl }
     });
+    // Draw the page frame directly in the PDF (even weight on all four sides on
+    // every device — the CSS border rendered as a near-invisible hairline on the
+    // left when scaled down on phones).
+    try {
+      pdf.setDrawColor(211, 94, 19); pdf.setLineWidth(1.4);
+      var _np = pdf.getNumberOfPages();
+      for (var _pi = 1; _pi <= _np; _pi++) {
+        pdf.setPage(_pi);
+        if (onePage) pdf.rect(drawX, drawY, drawW, drawH);
+        else pdf.rect(MARGIN, MARGIN, 612 - 2 * MARGIN, 792 - 2 * MARGIN);
+      }
+    } catch (e) {}
   } finally {
     swaps.forEach(function (s) { if (s.span.parentNode) s.span.parentNode.removeChild(s.span); if (s.disp) s.c.style.setProperty('display', s.disp, s.prio); else s.c.style.removeProperty('display'); });
     boxProxies.forEach(function (p) { if (p.box.parentNode) p.box.parentNode.removeChild(p.box); p.input.style.display = ''; if (p.ci) { if (p.ciStyle == null) p.ci.removeAttribute('style'); else p.ci.setAttribute('style', p.ciStyle); } });
