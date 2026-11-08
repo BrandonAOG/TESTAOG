@@ -19,6 +19,47 @@ test('Maintenance: the saved image is the same size every run', async ({ page })
   expect(new Set(sizes).size, `sizes: ${sizes.join(', ')}`).toBe(1);
 });
 
+test('Estimate: PDF✎ builds a real-text PDF on one page and restores the form', async ({ page }) => {
+  expect(await open(page, '/estimate/', { settle: 1500 })).toEqual([]);
+  const res = await page.evaluate(async () => {
+    const nameInp = [...document.querySelectorAll('#page input[type=text], #page input:not([type])')][0];
+    nameInp.value = 'ZZSPECCHECK'; nameInp.dispatchEvent(new Event('input', { bubbles: true }));
+    const pdf = await _estimateTextPdf();
+    const head = new TextDecoder().decode(new Uint8Array(pdf.output('arraybuffer')).slice(0, 5));
+    return {
+      pages: pdf.getNumberOfPages(),
+      isPdf: head === '%PDF-',
+      leftoverSpans: document.querySelectorAll('[data-pdf-text]').length,
+      leftoverForceStyle: !!document.getElementById('capture-force-style'),
+      leftoverDots: document.querySelectorAll('[data-capture-dot]').length,
+      leftoverIcons: document.querySelectorAll('[data-capture-icon]').length,
+      leftoverIconImgs: document.querySelectorAll('[data-pdf-icon]').length,
+      nameStillThere: getComputedStyle(nameInp).display !== 'none' && nameInp.value === 'ZZSPECCHECK',
+      pageWidthReset: document.getElementById('page').style.width === ''
+    };
+  });
+  expect(res.isPdf, 'output is a PDF').toBe(true);
+  expect(res.pages, 'a lightly-filled estimate fits one page (no blank 2nd page)').toBe(1);
+  expect(res.leftoverSpans, 'text spans removed after export').toBe(0);
+  expect(res.leftoverForceStyle, 'print stylesheet removed after export').toBe(false);
+  expect(res.leftoverDots).toBe(0);
+  expect(res.leftoverIcons).toBe(0);
+  expect(res.leftoverIconImgs, 'temporary icon images removed after export').toBe(0);
+  expect(res.nameStillThere, 'form controls restored and still editable after export').toBe(true);
+  expect(res.pageWidthReset, '#page width reset after export').toBe(true);
+});
+
+test('Estimate: the saved image is the same size every run', async ({ page }) => {
+  expect(await open(page, '/estimate/', { settle: 1500 })).toEqual([]);
+  const sizes = await page.evaluate(async () => {
+    const seen = [];
+    for (let i = 0; i < 3; i++) { const c = await capturePageToCanvas(); seen.push(c.width + 'x' + c.height); await new Promise(r => setTimeout(r, 200)); }
+    return seen;
+  });
+  expect(sizes.length).toBe(3);
+  expect(new Set(sizes).size, `sizes: ${sizes.join(', ')}`).toBe(1);
+});
+
 test('Load Calc: SAVE IMG is identical in light and dark mode', async ({ browser }, info) => {
   test.skip(info.project.name !== 'desktop', 'runs once');
   const shot = async theme => {

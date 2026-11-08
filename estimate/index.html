@@ -2403,6 +2403,199 @@ function _downloadBlob(blob, filename) {
   setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
 }
 
+// Load jsPDF on demand — its .html() renderer draws the page as TRUE vector text.
+function _loadJsPDFlib() {
+  return new Promise(function (res, rej) {
+    if (window.jspdf && window.jspdf.jsPDF) return res(window.jspdf.jsPDF);
+    var sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    sc.onload = function () { res(window.jspdf.jsPDF); };
+    sc.onerror = function () { rej(new Error('Could not load the PDF text engine.')); };
+    document.head.appendChild(sc);
+  });
+}
+
+// Build the estimate as a REAL-TEXT pdf (selectable / editable in Acrobat) by
+// rendering the LIVE #page with jsPDF .html() under the SAME print stylesheet the
+// image capture uses (so the two-column layout fits and nothing clips), after
+// swapping the form controls for text spans so the typed VALUES render as real
+// text too. The page is fully restored in the finally block.
+// Elements to leave OUT of the PDF (same set the image capture ignores).
+function _estimatePdfIgnoreEl(el) {
+  return el.id === 'theme-toggle-btn' ||
+         (el.classList && (el.classList.contains('toolbar') ||
+          el.classList.contains('theme-toggle-btn') || el.classList.contains('gps-btn') ||
+          el.classList.contains('confirm-modal-backdrop') ||
+          el.classList.contains('page-corner-bl') || el.classList.contains('page-corner-br'))) ||
+         el.id === 'gps-status' || el.id === 'gps-live' || el.id === 'offline-banner' ||
+         el.id === 'address-suggestions' || el.id === 'seasonal-canvas';
+}
+
+async function _estimateTextPdf() {
+  var jsPDF = await _loadJsPDFlib();
+  if (document.fonts && document.fonts.ready) {
+    try { await document.fonts.ready; await document.fonts.load("12px 'Share Tech Mono'"); } catch (e) {}
+  }
+  // Reuse the EXACT print-layout prep the image capture uses (1050px width, the
+  // forceStyle print sheet, every per-element fit tweak, dots + baked icons), so
+  // the real-text render matches the image render and nothing clips off the page.
+  var _prep = _estimatePreparePage();
+  var page = _prep.page, CAPTURE_W = _prep.CAPTURE_W;
+  // The image path clips stray overflow to CAPTURE_W via its html2canvas width;
+  // jsPDF renders the live element, so clip here instead — otherwise a field
+  // underline that runs a few px past the 1050 sheet pokes out beyond the frame.
+  page.style.setProperty('overflow', 'hidden', 'important');
+  try { await _prep.ready; } catch (e) {}
+
+  // The shared prep bakes each section icon into a <canvas> (reliable for the
+  // image capture). jsPDF's renderer paints a <canvas> on an OPAQUE BLACK box,
+  // so for the text PDF swap each baked canvas for a transparent PNG <img> of the
+  // same pixels — the renderer honors PNG alpha, so the icon shows with no black
+  // background. These imgs are removed in the finally block before _prep.restore.
+  // (The capture CSS forces the icon canvas to display:inline-block !important, so
+  // hiding it won't do — replace the node outright. _prep.restore then re-shows the
+  // original <svg>, so the live DOM ends up correct either way.)
+  var iconImgs = [];
+  var _iconDecodes = [];
+  page.querySelectorAll('canvas[data-capture-icon]').forEach(function (cv) {
+    try {
+      var img = document.createElement('img');
+      img.setAttribute('data-pdf-icon', '1');
+      img.style.cssText = cv.style.cssText;
+      img.style.setProperty('display', 'inline-block', 'important');
+      img.style.setProperty('background', 'transparent', 'important');
+      img.src = cv.toDataURL('image/png');
+      cv.parentNode.replaceChild(img, cv);
+      iconImgs.push({ img: img, cv: cv });
+      if (img.decode) _iconDecodes.push(img.decode().catch(function () {}));
+    } catch (e) {}
+  });
+  try { await Promise.all(_iconDecodes); } catch (e) {}
+
+  // The option boxes (RIGHT/LEFT, SE/NON-SE, EASY/MED/HARD, Y/N …) carry a very
+  // faint orange tint — rgba(250,103,0,0.04) unchecked, 0.12 checked. jsPDF's
+  // renderer ignores the low alpha and paints BOTH solid orange, so every option
+  // looks selected. Override with OPAQUE colors for the text render only: plain
+  // white unless the option is actually checked. Removed in the finally block.
+  var pdfColorFix = document.createElement('style');
+  pdfColorFix.id = 'pdf-color-fix';
+  pdfColorFix.textContent = [
+    '#page .check-item, #page .opt { background:#ffffff !important; box-shadow:none !important; border-color:#E79A5E !important; }',
+    '#page .check-item:has(input:checked), #page .opt:has(input:checked) { background:#F7CDAB !important; border-color:#FA6700 !important; box-shadow:none !important; }',
+    '#page .yn-group .yn-label, #page .yn-group .yn-label-y, #page .yn-group .yn-label-n { background:#ffffff !important; box-shadow:none !important; }',
+    '#page .yn-group .yn-y:checked + .yn-label-y { background:#BFE6CE !important; color:#047857 !important; box-shadow:none !important; }',
+    '#page .yn-group .yn-n:checked + .yn-label-n { background:#F3C9C9 !important; color:#B91C1C !important; box-shadow:none !important; }'
+  ].join('');
+  document.head.appendChild(pdfColorFix);
+
+  // Swap the live form controls for text spans so the TYPED VALUES render as real
+  // selectable text too. Computed styles are read AFTER prep, so values pick up
+  // the capture font sizes and widths. Reverted below before _prep.restore().
+  var swaps = [];
+  page.querySelectorAll('input, select, textarea').forEach(function (c) {
+    var type = (c.getAttribute('type') || c.type || '').toLowerCase();
+    if (type === 'file' || type === 'hidden' || type === 'range' || type === 'button' || type === 'submit') return;
+    if (_estimatePdfIgnoreEl(c)) return;
+    // Y/N groups hide their radios (display:none) and show the selection by
+    // styling the Y / N labels — exactly as the image export does. Only draw a
+    // box/mark for check-item boxes; leave every other checkbox/radio alone so we
+    // don't paint stray, off-centre circles over the Y/N labels.
+    if ((type === 'checkbox' || type === 'radio') && !(c.closest && c.closest('.check-item'))) return;
+    var cs = getComputedStyle(c), txt = '';
+    var span = document.createElement('span');
+    span.setAttribute('data-pdf-text', '1');
+    span.style.fontFamily = cs.fontFamily; span.style.fontSize = cs.fontSize; span.style.fontWeight = cs.fontWeight;
+    span.style.color = '#1F2937'; span.style.textAlign = cs.textAlign; span.style.boxSizing = 'border-box';
+    span.style.display = 'inline-block';
+    if (type === 'checkbox' || type === 'radio') {
+      span.textContent = '';
+      span.style.width = '13px'; span.style.height = '13px';
+      // Orange box + orange CHECKMARK (not an X) so a ticked option reads as one
+      // color. The tick is drawn with CSS borders — the same way the image export
+      // draws it — so it renders reliably in the PDF (a ✓ glyph isn't in the PDF
+      // base font and would garble).
+      span.style.border = '1.3px solid #FA6700';
+      span.style.color = '#FA6700';
+      span.style.borderRadius = type === 'radio' ? '50%' : '2px';
+      span.style.verticalAlign = 'middle';
+      span.style.display = 'inline-flex';
+      span.style.alignItems = 'center';
+      span.style.justifyContent = 'center';
+      if (c.checked) {
+        var _tick = document.createElement('span');
+        _tick.style.cssText = 'display:block;width:3.5px;height:7px;box-sizing:border-box;border:solid #FA6700;border-width:0 1.8px 1.8px 0;transform:rotate(45deg);margin-top:-2px;';
+        span.appendChild(_tick);
+      }
+    } else if (c.tagName === 'TEXTAREA') {
+      // Notes fields (Generator, Precast Pad, Fuel Tank, Install Details) are a
+      // FULL bordered box the estimator writes in — draw all four borders like the
+      // image export, not just an underline, so the box shows up in the PDF.
+      span.textContent = pdfSafeText(c.value);
+      span.style.display = 'block';
+      span.style.width = '100%';
+      span.style.whiteSpace = 'pre-wrap';
+      span.style.wordWrap = 'break-word';
+      span.style.height = cs.height;
+      span.style.minHeight = cs.height;
+      span.style.padding = cs.padding;
+      span.style.border = '1px solid #FA6700';
+      span.style.borderRadius = '2px';
+      span.style.background = '#ffffff';
+      span.style.overflow = 'hidden';
+      span.style.verticalAlign = 'top';
+    } else {
+      if (c.tagName === 'SELECT') { var o = c.options[c.selectedIndex]; txt = o ? o.text : ''; } else { txt = c.value; }
+      span.textContent = pdfSafeText(txt || '');
+      var w = parseFloat(cs.width) || 0; if (w > 1) span.style.width = cs.width;
+      span.style.whiteSpace = 'nowrap'; span.style.overflow = 'hidden'; span.style.verticalAlign = 'bottom';
+      span.style.borderBottom = '1px solid #FA6700'; span.style.minHeight = '20px';
+      if (!txt) span.innerHTML = '&nbsp;';
+    }
+    var prevDisp = c.style.getPropertyValue('display'), prevPrio = c.style.getPropertyPriority('display');
+    c.style.setProperty('display', 'none', 'important');
+    c.parentNode.insertBefore(span, c);
+    swaps.push({ c: c, span: span, disp: prevDisp, prio: prevPrio });
+  });
+
+  void document.body.offsetHeight;
+  var pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter', compress: true });
+  // The estimate is a one-page form by design, but its captured height is not
+  // identical on every device (phones measure a taller sheet — the image export
+  // hides this by always scaling the whole sheet onto one letter page). Do the
+  // same here: if the sheet is over one page, shrink it (centered) to fit a
+  // single page, targeting a hair under 792pt so border/rounding can't tip a
+  // sliver onto a blank second page. A floor keeps the text from going
+  // microscopic — anything that tall paginates normally instead.
+  var _baseScale = 612 / CAPTURE_W;
+  var _hPt = page.scrollHeight * _baseScale;
+  var _drawW = 612, _drawX = 0;
+  if (_hPt > 792) {
+    var _fit = 782 / _hPt;
+    if (_fit >= 0.6) { _drawW = 612 * _fit; _drawX = (612 - _drawW) / 2; }
+  }
+  try {
+    await pdf.html(page, {
+      x: _drawX, y: 0, width: _drawW, windowWidth: CAPTURE_W, margin: 0, autoPaging: 'slice',
+      // Do NOT set scale / width / windowWidth inside html2canvas — jsPDF computes
+      // the html2canvas scale as (width / windowWidth) = 612/1050 and merges it in,
+      // but anything set here OVERRIDES that, which is what spilled the right column
+      // off the page. Leave the scale to jsPDF; only pass real html2canvas options.
+      html2canvas: { backgroundColor: '#ffffff', useCORS: true, logging: false, ignoreElements: _estimatePdfIgnoreEl }
+    });
+  } finally {
+    swaps.forEach(function (s) {
+      if (s.span.parentNode) s.span.parentNode.removeChild(s.span);
+      if (s.disp) s.c.style.setProperty('display', s.disp, s.prio); else s.c.style.removeProperty('display');
+    });
+    iconImgs.forEach(function (ic) {
+      if (ic.img.parentNode) ic.img.parentNode.removeChild(ic.img);
+    });
+    if (pdfColorFix.parentNode) pdfColorFix.parentNode.removeChild(pdfColorFix);
+    try { _prep.restore(); } catch (e) {}
+  }
+  return pdf;
+}
+
 async function saveFillablePdf() {
   if (typeof PDFLib === 'undefined') {
     setStatus('PDF library not loaded — try refreshing.');
@@ -2420,25 +2613,30 @@ async function saveFillablePdf() {
     saveDraft();
     var data = pdfCollectFormData();
 
-    // ── 1) Render the styled page to a canvas (your exact print look). ──
-    var canvas = await capturePageToCanvas(false);
-    _hideRenderOverlay();
-
     var PDFDocument = PDFLib.PDFDocument;
-    var pdfDoc = await PDFDocument.create();
+    var pdfDoc;
 
-    // ── 2) Embed the canvas as the full-page image. No form fields are added —
-    //        the data needed to resume editing rides in the embedded JSON below,
-    //        which is what LOAD reads. The visible PDF is purely the styled image.
-    var imgData = canvas.toDataURL('image/png');
-    var pngBytes = Uint8Array.from(atob(imgData.split(',')[1]), function(c){ return c.charCodeAt(0); });
-    var png = await pdfDoc.embedPng(pngBytes);
-
-    var PAGE_W = 612;                                   // US Letter width (pt)
-    var scale = PAGE_W / png.width;
-    var PAGE_H = png.height * scale;
-    var page = pdfDoc.addPage([PAGE_W, PAGE_H]);
-    page.drawImage(png, { x: 0, y: 0, width: PAGE_W, height: PAGE_H });
+    // ── 1) Real-text PDF (preferred): draw the page as TRUE selectable/editable
+    //        text via jsPDF .html(), so it can be edited in Acrobat. The resume
+    //        JSON is still injected below, so LOAD works on either path. If the
+    //        text engine throws for any reason, fall back to the image PDF so a
+    //        tech never leaves without a file.
+    try {
+      var _textDoc = await _estimateTextPdf();
+      _hideRenderOverlay();
+      pdfDoc = await PDFDocument.load(_textDoc.output('arraybuffer'));
+    } catch (textErr) {
+      console.warn('Text PDF failed, using image fallback:', textErr);
+      var canvas = await capturePageToCanvas(false);
+      _hideRenderOverlay();
+      pdfDoc = await PDFDocument.create();
+      var imgData = canvas.toDataURL('image/png');
+      var pngBytes = Uint8Array.from(atob(imgData.split(',')[1]), function(c){ return c.charCodeAt(0); });
+      var png = await pdfDoc.embedPng(pngBytes);
+      var PAGE_W = 612, scale = PAGE_W / png.width, PAGE_H = png.height * scale;
+      var page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+      page.drawImage(png, { x: 0, y: 0, width: PAGE_W, height: PAGE_H });
+    }
 
 
     // ── 3) Embed full JSON for a lossless reload round-trip. ──
@@ -3571,55 +3769,10 @@ function cropCanvasToContent(canvas) {
   }
 }
 
-function capturePageToCanvas(_fontsReady, _rectSink) {
-  return new Promise(function(resolve, reject) {
-    // Wait for web fonts to finish loading before rendering. Without this, a
-    // capture fired before 'Share Tech Mono' loads falls back to the heavier
-    // system monospace — which is why the footer "© 2026…" line came out bold.
-    if (!_fontsReady && document.fonts && document.fonts.ready) {
-      var fontPromises = [document.fonts.ready];
-      try { fontPromises.push(document.fonts.load("12px 'Share Tech Mono'")); } catch (e) {}
-      var rerun = function () { capturePageToCanvas(true, _rectSink).then(resolve, reject); };
-      Promise.all(fontPromises).then(rerun, rerun);
-      return;
-    }
-    if (typeof html2canvas === 'undefined') {
-      reject(new Error('html2canvas not loaded'));
-      return;
-    }
-    var page = document.getElementById('page');
-    var prevWidth    = page.style.width;
-    var prevMaxWidth = page.style.maxWidth;
-    var prevMinH     = page.style.minHeight;
-    var prevHeight   = page.style.height;
-    var prevOverflow = page.style.overflow;
-    var prevBorderColor = page.style.getPropertyValue('border-color');
-    var prevBorderColorPrio = page.style.getPropertyPriority('border-color');
-    var prevBodyPad  = document.body.style.padding;
-
-    var CAPTURE_W = 1050;
-    var PAPER_H   = Math.round(CAPTURE_W * 11 / 8.5);
-
-    page.style.width     = CAPTURE_W + 'px';
-    page.style.maxWidth  = CAPTURE_W + 'px';
-    page.style.height    = 'auto';
-    page.style.minHeight = PAPER_H + 'px';
-    page.style.overflow  = 'visible';
-    // Image capture renders the on-screen styles, where the page frame is teal.
-    // Match the maintenance capture (and the printed PDF): render the frame in
-    // #D35E13 orange. Inline !important beats the @media screen #page teal rule.
-    page.style.setProperty('border-color', '#D35E13', 'important');
-    document.body.style.padding = '0';
-
-    // ── Holiday theme off for the capture (shared: ../clean-capture.js), dark mode off too ──
-    var seasonOff = !!window.AOGSeason; if (seasonOff) AOGSeason.off();
-    var wasDarkCapture = document.body.classList.contains('dark-mode');
-    document.body.classList.remove('dark-mode');
-    document.documentElement.classList.remove('dark-mode');
-
-    var forceStyle = document.createElement('style');
-    forceStyle.id = 'capture-force-style';
-    forceStyle.textContent = [
+  // Shared print stylesheet for both the image capture and the real-text PDF, so the two stay
+  // in lock-step. Takes the capture width + paper height (the only interpolated values).
+  function _estimateCaptureCSS(CAPTURE_W, PAPER_H) {
+    return [
       '.toolbar, #theme-toggle-btn, .theme-toggle-btn, .gps-btn,',
       '#gps-status, #gps-live, #offline-banner, #address-suggestions,',
       '.confirm-modal-backdrop, .page-corner-bl, .page-corner-br { display: none !important; }',
@@ -3715,6 +3868,42 @@ function capturePageToCanvas(_fontsReady, _rectSink) {
          (or --w-print-ipad-tank-size on iPad) and it now flows through to the saved PDF too. */
       '#new_tank_size, #existing_tank_size { width: var(--w-print-tank-size) !important; min-width: var(--w-print-tank-size) !important; max-width: var(--w-print-tank-size) !important; flex: 0 0 auto !important; }',
     ].join('\n');
+  }
+
+function _estimatePreparePage() {
+    var page = document.getElementById('page');
+    var prevWidth    = page.style.width;
+    var prevMaxWidth = page.style.maxWidth;
+    var prevMinH     = page.style.minHeight;
+    var prevHeight   = page.style.height;
+    var prevOverflow = page.style.overflow;
+    var prevBorderColor = page.style.getPropertyValue('border-color');
+    var prevBorderColorPrio = page.style.getPropertyPriority('border-color');
+    var prevBodyPad  = document.body.style.padding;
+
+    var CAPTURE_W = 1050;
+    var PAPER_H   = Math.round(CAPTURE_W * 11 / 8.5);
+
+    page.style.width     = CAPTURE_W + 'px';
+    page.style.maxWidth  = CAPTURE_W + 'px';
+    page.style.height    = 'auto';
+    page.style.minHeight = PAPER_H + 'px';
+    page.style.overflow  = 'visible';
+    // Image capture renders the on-screen styles, where the page frame is teal.
+    // Match the maintenance capture (and the printed PDF): render the frame in
+    // #D35E13 orange. Inline !important beats the @media screen #page teal rule.
+    page.style.setProperty('border-color', '#D35E13', 'important');
+    document.body.style.padding = '0';
+
+    // ── Holiday theme off for the capture (shared: ../clean-capture.js), dark mode off too ──
+    var seasonOff = !!window.AOGSeason; if (seasonOff) AOGSeason.off();
+    var wasDarkCapture = document.body.classList.contains('dark-mode');
+    document.body.classList.remove('dark-mode');
+    document.documentElement.classList.remove('dark-mode');
+
+    var forceStyle = document.createElement('style');
+    forceStyle.id = 'capture-force-style';
+    forceStyle.textContent = _estimateCaptureCSS(CAPTURE_W, PAPER_H);
     document.head.appendChild(forceStyle);
 
     // Force a layout flush so forceStyle takes effect before cloning
@@ -3955,8 +4144,28 @@ function capturePageToCanvas(_fontsReady, _rectSink) {
       _captureTweaks = [];
       var fs = document.getElementById('capture-force-style'); if (fs) fs.remove();
     };
+  return { page: page, restore: restore, CAPTURE_W: CAPTURE_W, PAPER_H: PAPER_H, ready: Promise.all(_iconPromises) };
+}
 
-    Promise.all(_iconPromises).then(function() {
+function capturePageToCanvas(_fontsReady, _rectSink) {
+  return new Promise(function(resolve, reject) {
+    // Wait for web fonts to finish loading before rendering. Without this, a
+    // capture fired before 'Share Tech Mono' loads falls back to the heavier
+    // system monospace — which is why the footer "© 2026…" line came out bold.
+    if (!_fontsReady && document.fonts && document.fonts.ready) {
+      var fontPromises = [document.fonts.ready];
+      try { fontPromises.push(document.fonts.load("12px 'Share Tech Mono'")); } catch (e) {}
+      var rerun = function () { capturePageToCanvas(true, _rectSink).then(resolve, reject); };
+      Promise.all(fontPromises).then(rerun, rerun);
+      return;
+    }
+    if (typeof html2canvas === 'undefined') {
+      reject(new Error('html2canvas not loaded'));
+      return;
+    }
+    var _prep = _estimatePreparePage();
+    var page = _prep.page, restore = _prep.restore, CAPTURE_W = _prep.CAPTURE_W, PAPER_H = _prep.PAPER_H;
+    _prep.ready.then(function() {
     requestAnimationFrame(function() { requestAnimationFrame(function() {
       // +24px of slack so a sub-pixel rounding difference between the live page and
       // the html2canvas clone can never shave the last border line off the bottom.
