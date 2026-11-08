@@ -2134,6 +2134,14 @@ async function _maintenanceTextPdf() {
   var isMobile = document.body.classList.contains('mobile-safari') || document.body.classList.contains('mobile-chrome');
   var CW = isMobile ? 1180 : 1000;   // same capture widths the image path uses
 
+  // pdf.html() clones the page (radios keep their name) into the live document,
+  // which merges the duplicate radio groups and UNCHECKS the originals. Snapshot
+  // every radio/checkbox state now and restore it in the finally so the live form
+  // keeps its selections after an export.
+  var _checkedSnap = Array.prototype.map.call(
+    page.querySelectorAll('input[type="radio"], input[type="checkbox"]'),
+    function (el) { return { el: el, checked: el.checked }; });
+
   // --- save state ---
   var prevPageStyle = page.getAttribute('style');
   var prevBodyPad = document.body.style.padding;
@@ -2313,11 +2321,21 @@ async function _maintenanceTextPdf() {
     try {
       pdf.setDrawColor(211, 94, 19); pdf.setLineWidth(1.4);
       var _np = pdf.getNumberOfPages();
+      var _fX = onePage ? drawX : MARGIN, _fW = onePage ? drawW : (612 - 2 * MARGIN), _fY = onePage ? drawY : MARGIN;
       for (var _pi = 1; _pi <= _np; _pi++) {
         pdf.setPage(_pi);
         if (onePage) pdf.rect(drawX, drawY, drawW, drawH);
         else pdf.rect(MARGIN, MARGIN, 612 - 2 * MARGIN, 792 - 2 * MARGIN);
       }
+      // Thicker header divider on page 1 so it reads crisp when zoomed out.
+      try {
+        var _hdrEl = page.querySelector('.header');
+        if (_hdrEl) {
+          var _hdrBottomPt = _fY + (_hdrEl.getBoundingClientRect().bottom - page.getBoundingClientRect().top) * scale;
+          pdf.setPage(1); pdf.setLineWidth(1.6);
+          pdf.line(_fX, _hdrBottomPt, _fX + _fW, _hdrBottomPt);
+        }
+      } catch (e) {}
     } catch (e) {}
   } finally {
     swaps.forEach(function (s) { if (s.span.parentNode) s.span.parentNode.removeChild(s.span); if (s.disp) s.c.style.setProperty('display', s.disp, s.prio); else s.c.style.removeProperty('display'); });
@@ -2330,6 +2348,8 @@ async function _maintenanceTextPdf() {
     document.body.style.padding = prevBodyPad;
     if (wasDark) { document.body.classList.add('dark-mode'); }
     if (typeof _seasonalCaptureOn === 'function') _seasonalCaptureOn(wasSeasonal);
+    // Restore every radio/checkbox the clone may have reset.
+    _checkedSnap.forEach(function (s) { if (s.el.checked !== s.checked) s.el.checked = s.checked; });
   }
   return pdf;
 }

@@ -2506,6 +2506,12 @@ async function _estimateTextPdf() {
   // the real-text render matches the image render and nothing clips off the page.
   var _prep = _estimatePreparePage();
   var page = _prep.page, CAPTURE_W = _prep.CAPTURE_W;
+  // pdf.html() clones the page (radios keep their name) into the live document and
+  // merges the duplicate radio groups, unchecking the originals. Snapshot every
+  // radio/checkbox now and restore in the finally so selections survive an export.
+  var _checkedSnap = Array.prototype.map.call(
+    page.querySelectorAll('input[type="radio"], input[type="checkbox"]'),
+    function (el) { return { el: el, checked: el.checked }; });
   // The image path clips stray overflow to CAPTURE_W via its html2canvas width;
   // jsPDF renders the live element, so clip here instead — otherwise a field
   // underline that runs a few px past the 1050 sheet pokes out beyond the frame.
@@ -2668,6 +2674,10 @@ async function _estimateTextPdf() {
   var _drawH = _renderH * _scale;
   var _drawX = (612 - _drawW) / 2;
   var _drawY = (792 - _drawH) / 2;
+  // Header divider Y (so we can draw it at a proper weight — the 1px CSS border
+  // scales to a faint hairline). Measured while the page is at capture width.
+  var _hdrEl = page.querySelector('.header');
+  var _hdrBottomPt = _hdrEl ? _drawY + (_hdrEl.getBoundingClientRect().bottom - page.getBoundingClientRect().top) * _scale : 0;
   try {
     await pdf.html(page, {
       x: _drawX, y: _drawY, width: _drawW, windowWidth: CAPTURE_W, margin: 0, autoPaging: 'slice',
@@ -2683,6 +2693,8 @@ async function _estimateTextPdf() {
       pdf.setDrawColor(211, 94, 19); pdf.setLineWidth(1.4);
       var _np = pdf.getNumberOfPages();
       for (var _pi = 1; _pi <= _np; _pi++) { pdf.setPage(_pi); pdf.rect(_drawX, _drawY, _drawW, _drawH); }
+      // Thicker header divider (page 1), so it reads cleanly when zoomed out.
+      if (_hdrBottomPt) { pdf.setPage(1); pdf.setLineWidth(1.6); pdf.line(_drawX, _hdrBottomPt, _drawX + _drawW, _hdrBottomPt); }
     } catch (e) {}
   } finally {
     swaps.forEach(function (s) {
@@ -2694,6 +2706,8 @@ async function _estimateTextPdf() {
     });
     if (pdfColorFix.parentNode) pdfColorFix.parentNode.removeChild(pdfColorFix);
     try { _prep.restore(); } catch (e) {}
+    // Restore every radio/checkbox the clone may have reset.
+    _checkedSnap.forEach(function (s) { if (s.el.checked !== s.checked) s.el.checked = s.checked; });
   }
   return pdf;
 }

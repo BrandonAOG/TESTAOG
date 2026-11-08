@@ -24,11 +24,14 @@ test('Estimate: PDF✎ builds a real-text PDF on one page and restores the form'
   const res = await page.evaluate(async () => {
     const nameInp = [...document.querySelectorAll('#page input[type=text], #page input:not([type])')][0];
     nameInp.value = 'ZZSPECCHECK'; nameInp.dispatchEvent(new Event('input', { bubbles: true }));
+    const ynRadio = document.querySelector('#page .yn-group input[type=radio]');
+    if (ynRadio) { ynRadio.checked = true; ynRadio.dispatchEvent(new Event('change', { bubbles: true })); }
     const pdf = await _estimateTextPdf();
     const head = new TextDecoder().decode(new Uint8Array(pdf.output('arraybuffer')).slice(0, 5));
     return {
       pages: pdf.getNumberOfPages(),
       isPdf: head === '%PDF-',
+      ynStillChecked: ynRadio ? ynRadio.checked : true,
       leftoverSpans: document.querySelectorAll('[data-pdf-text]').length,
       leftoverForceStyle: !!document.getElementById('capture-force-style'),
       leftoverDots: document.querySelectorAll('[data-capture-dot]').length,
@@ -46,6 +49,7 @@ test('Estimate: PDF✎ builds a real-text PDF on one page and restores the form'
   expect(res.leftoverIcons).toBe(0);
   expect(res.leftoverIconImgs, 'temporary icon images removed after export').toBe(0);
   expect(res.nameStillThere, 'form controls restored and still editable after export').toBe(true);
+  expect(res.ynStillChecked, 'Y/N radio stays checked after export').toBe(true);
   expect(res.pageWidthReset, '#page width reset after export').toBe(true);
 });
 
@@ -54,11 +58,14 @@ test('Maintenance: PDF✎ builds a real-text PDF and restores the form', async (
   const res = await page.evaluate(async () => {
     const nameInp = document.getElementById('name');
     nameInp.value = 'ZZSPECCHECK'; nameInp.dispatchEvent(new Event('input', { bubbles: true }));
+    const ynRadio = document.querySelector('#page .yn-group input[type=radio]');
+    if (ynRadio) { ynRadio.checked = true; ynRadio.dispatchEvent(new Event('change', { bubbles: true })); }
     const pdf = await _maintenanceTextPdf();
     const head = new TextDecoder().decode(new Uint8Array(pdf.output('arraybuffer')).slice(0, 5));
     return {
       pages: pdf.getNumberOfPages(),
       isPdf: head === '%PDF-',
+      ynStillChecked: ynRadio ? ynRadio.checked : true,
       leftoverSpans: document.querySelectorAll('[data-pdf-text]').length,
       leftoverProxies: document.querySelectorAll('[data-pdf-proxy]').length,
       leftoverForceStyle: !!document.getElementById('pdf-text-force-style'),
@@ -72,6 +79,7 @@ test('Maintenance: PDF✎ builds a real-text PDF and restores the form', async (
   expect(res.leftoverProxies, 'note/box proxies removed after export').toBe(0);
   expect(res.leftoverForceStyle, 'print stylesheet removed after export').toBe(false);
   expect(res.nameStillThere, 'form controls restored and still editable after export').toBe(true);
+  expect(res.ynStillChecked, 'Y/N radio stays checked after export').toBe(true);
   expect(res.textareaVisible, 'notes textarea restored after export').toBe(true);
 });
 
