@@ -49,6 +49,32 @@ test('Estimate: PDF✎ builds a real-text PDF on one page and restores the form'
   expect(res.pageWidthReset, '#page width reset after export').toBe(true);
 });
 
+test('Maintenance: PDF✎ builds a real-text PDF and restores the form', async ({ page }) => {
+  expect(await open(page, '/maintenance/', { settle: 1500 })).toEqual([]);
+  const res = await page.evaluate(async () => {
+    const nameInp = document.getElementById('name');
+    nameInp.value = 'ZZSPECCHECK'; nameInp.dispatchEvent(new Event('input', { bubbles: true }));
+    const pdf = await _maintenanceTextPdf();
+    const head = new TextDecoder().decode(new Uint8Array(pdf.output('arraybuffer')).slice(0, 5));
+    return {
+      pages: pdf.getNumberOfPages(),
+      isPdf: head === '%PDF-',
+      leftoverSpans: document.querySelectorAll('[data-pdf-text]').length,
+      leftoverProxies: document.querySelectorAll('[data-pdf-proxy]').length,
+      leftoverForceStyle: !!document.getElementById('pdf-text-force-style'),
+      nameStillThere: getComputedStyle(nameInp).display !== 'none' && nameInp.value === 'ZZSPECCHECK',
+      textareaVisible: (function () { const t = document.querySelector('#page textarea'); return t ? getComputedStyle(t).display !== 'none' : true; })()
+    };
+  });
+  expect(res.isPdf, 'output is a PDF').toBe(true);
+  expect(res.pages, 'maintenance fits one page').toBe(1);
+  expect(res.leftoverSpans, 'text spans removed after export').toBe(0);
+  expect(res.leftoverProxies, 'note/box proxies removed after export').toBe(0);
+  expect(res.leftoverForceStyle, 'print stylesheet removed after export').toBe(false);
+  expect(res.nameStillThere, 'form controls restored and still editable after export').toBe(true);
+  expect(res.textareaVisible, 'notes textarea restored after export').toBe(true);
+});
+
 test('Estimate: the saved image is the same size every run', async ({ page }) => {
   expect(await open(page, '/estimate/', { settle: 1500 })).toEqual([]);
   const sizes = await page.evaluate(async () => {

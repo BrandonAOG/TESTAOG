@@ -76,7 +76,7 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  '📝 ESTIMATE — the PDF✎ button now saves a real-text PDF: the typed values and labels are selectable and editable right inside Acrobat and other PDF apps, not a flat picture. CAPTURE (image) is unchanged.',
+  '📝 ESTIMATE + MAINTENANCE — the PDF✎ button now saves a real-text PDF: typed values and labels are selectable and editable right inside Acrobat and other PDF apps, in the real AOG fonts, not a flat picture. CAPTURE (image) is unchanged.',
   '✨ NEW — WALKTHROUGH → ESTIMATE (beta, under the Estimate tab): snap a few photos on the job, add notes, and Claude drafts the equipment, electrical + gas materials and a scope to start the estimate. Needs internet and a one-time API-key setup on the device — try it and tell us what you think.',
   '📍 PROPERTY LOOKUP — new location button in the search bar: tap it to look up the parcel where you\'re standing, no typing (uses your device GPS)',
 ]
