@@ -62,7 +62,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .modal-close{background:none;border:1px solid var(--border);color:var(--txt2);border-radius:6px;width:32px;height:32px;font-size:18px;cursor:pointer;flex-shrink:0;}
   .modal-close:hover{border-color:var(--danger);color:var(--danger);}
   .modal-tabs{display:flex;gap:6px;padding:10px 14px 0;flex-wrap:wrap;flex-shrink:0;}
-  .modal-tab{flex:1;min-width:100px;padding:8px;border:2px solid var(--border);border-radius:8px;background:none;color:var(--txt2);cursor:pointer;font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;}
+  .modal-tab{flex:1;min-width:84px;padding:8px;border:2px solid var(--border);border-radius:8px;background:none;color:var(--txt2);cursor:pointer;font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;}
   .modal-tab.active{border-color:var(--accent);color:var(--accent);background:rgba(217,119,6,.08);}
   .dark .modal-tab.active{background:rgba(0,255,200,.07);}
   .modal-body{padding:14px;}
@@ -237,7 +237,7 @@ var svcOff=false, lcMainOff=false, utilOff=false, utilNote='';   // utilOff = ut
 function utilAvail(){ return !svcOff && !utilOff; }
 function toggleUtil(){ utilOff=!utilOff; if(utilOff){ clearActiveFaultState(); utilNote='<b style="color:#ff8a8a">UTILITY POWER FAILURE</b> — the utility is down: the transformer, meter and the LINE side of the service are dead too (the line-side probes read 0 V). '+(genOK()?'':'With no generator, everything in the building is out.')+' Still treat the service as live — power can come back at any moment.'; } else utilNote='<b style="color:#8fd6a3">UTILITY POWER RESTORED</b>'+(genOK()?'.':' — the service is back.'); render(); }
 /* ===== standby generator + automatic transfer switch (ATS) ===== */
-var GMODE='auto', GEN=false, ATSN='solid', SRC='util', GST='off', genBrkOff=false, gTimer=null, gUntil=0, gWhat='', genNote='', lastSvc=false, GSPEED=1;
+var ESTOP=false, GMODE='auto', GEN=false, ATSN='solid', SRC='util', GST='off', genBrkOff=false, gTimer=null, gUntil=0, gWhat='', genNote='', lastSvc=false, GSPEED=1;
 var GEN_T={start:5, xfer:7, retx:15, cool:60};   // seconds: utility lost → start · warm-up → transfer · utility back → retransfer · cool-down → stop
 function genOK(){ return GEN && (MODE==='single'||MODE==='v208'||MODE==='v480'); }
 function genAmps(){ return MODE==='single'?200:(MODE==='v208'?150:60); }   // 48 kW: 200 A @240 · 133 A→150 A @208 · 58 A→60 A @480
@@ -252,6 +252,7 @@ function nNote(){ return ATSN==='solid'
 function genXfer(){ if(genBrkOff){ genNote='<b style="color:#ffd27a">GENERATOR BREAKER OFF</b> — the transfer switch sees no generator voltage, so it will not transfer. Turn the generator breaker on.'; return; }
   SRC='gen'; genNote='<b style="color:#ff8a8a">ON GENERATOR</b> — the transfer switch moved to the generator side. Every load now runs from the 48 kW generator. The utility side of the switch is still hot from the line side (meter side).'+nNote(); }
 function onUtilLost(){
+  if(ESTOP){ genNote='<b style="color:#ff8a8a">UTILITY LOST — E-STOP PRESSED</b> — the emergency stop disables every start circuit, so the generator will not start in AUTO or MANUAL. The building stays dark until utility returns or someone resets the E-stop (445.19(A)).'; return; }
   if(GMODE==='off'){ genNote='<b style="color:#ff8a8a">UTILITY LOST — GENERATOR IN OFF</b> — the controller is switched OFF, so it will not start. The building stays dark. (OFF is what you use while servicing the generator.)'; return; }
   if(GMODE==='run'&&GST==='run'&&SRC==='util'){ genNote='<b style="color:#ff8a8a">UTILITY LOST</b> — the generator is already running in MANUAL; transfer in '+genCD()+'.'; genSched('xfer',GEN_T.xfer,genXfer); return; }
   if(SRC==='gen'&&GST==='off'){ GST='sense'; genNote='<b style="color:#ffd27a">AUTO — UTILITY STILL OUT</b> — the transfer switch is already on the generator side, so the controller starts the engine in '+genCD()+'. No transfer is needed.';
@@ -279,8 +280,8 @@ function onUtilBack(){
   if(GST==='run'){ GST='cool'; genNote='<b style="color:#8fd6a3">UTILITY BACK</b> before transfer — the generator cools down unloaded and stops in '+genCD()+'.';
     genSched('cool',GEN_T.cool,function(){ GST='off'; genNote='<b style="color:#8fd6a3">GENERATOR STOPPED</b> — back in standby.'; }); }
 }
-function genReset(){ genCancel(); GMODE='auto'; SRC='util'; GST='off'; genBrkOff=false; genNote=''; lastSvc=!utilAvail(); }
-function setGenMode(m){ if(m===GMODE) return; GMODE=m; genCancel(); if(faultZone==='genfdr') clearActiveFaultState(); var lost=!utilAvail();
+function genReset(){ ESTOP=false; genCancel(); GMODE='auto'; SRC='util'; GST='off'; genBrkOff=false; genNote=''; lastSvc=!utilAvail(); }
+function setGenMode(m){ if(m===GMODE) return; if(ESTOP){ genNote='<b style="color:#ff8a8a">ALARM · EMERGENCY STOP</b> — the controller is locked in <b>OFF</b> while the E-stop is pressed. Reset the E-stop first, then select '+({auto:'AUTO',off:'OFF',run:'MANUAL'}[m])+'.'; render(); return; } GMODE=m; genCancel(); if(faultZone==='genfdr') clearActiveFaultState(); var lost=!utilAvail();
   if(m==='off'){ GST='off'; if(SRC==='gen'&&!lost){ quickRetx('IN OFF'); render(); return; }
     genNote='<b style="color:#ff8a8a">GENERATOR OFF</b> — the engine stops right away (no cool-down) and it will not start on an outage.'+(SRC==='gen'?' The transfer switch is still on the generator side, so the building is dark until utility returns.':''); }
   else if(m==='run'){ GST='run'; genNote='<b style="color:#ff8a8a">MANUAL RUN</b> — the engine starts and runs. '+(lost&&SRC==='gen'?'The transfer switch is already on the generator side, so the loads are live right away.':lost?'Utility is out, so the switch transfers after warm-up in '+genCD()+'.':'Utility is fine, so the transfer switch stays on utility — the generator runs unloaded (like a weekly exercise).');
@@ -288,6 +289,12 @@ function setGenMode(m){ if(m===GMODE) return; GMODE=m; genCancel(); if(faultZone
   else { genNote='<b style="color:#8fd6a3">AUTO</b> — the generator now follows the transfer switch.';
     if(lost){ if(GST!=='run'){ GST='off'; onUtilLost(); } else if(SRC==='util'){ genNote+=' Utility is out — transfer in '+genCD()+'.'; genSched('xfer',GEN_T.xfer,genXfer); } }
     else { if(SRC==='gen') onUtilBack(); else if(GST==='run'){ GST='cool'; genNote+=' Utility is fine — cool-down, then stop in '+genCD()+'.'; genSched('cool',GEN_T.cool,function(){ GST='off'; genNote='<b style="color:#8fd6a3">GENERATOR STOPPED</b> — back in standby (AUTO).'; }); } } }
+  render(); }
+function toggleEstop(){ ESTOP=!ESTOP; genCancel(); var lost=!utilAvail();
+  if(ESTOP){ if(faultZone==='genfdr') clearActiveFaultState(); GST='off'; GMODE='off';
+    if(SRC==='gen'&&!lost){ quickRetx('E-STOPPED'); render(); return; }
+    genNote='<b style="color:#ff8a8a">E-STOP PRESSED</b> — the engine shuts down instantly (no cool-down) and every start circuit is disabled, and the controller drops to <b>OFF</b> with an <b>EMERGENCY STOP</b> alarm. It can\'t leave OFF until the button is reset by hand (445.19(A)(1),(2)). '+(SRC==='gen'?'The transfer switch is still on the generator side, so <b>the building is dark</b> until utility returns.':'The loads stay on utility.')+' Dwellings: this shutdown has to be outside at a readily accessible spot — one on the generator enclosure counts (445.19(C)).'; }
+  else { genNote='<b style="color:#8fd6a3">E-STOP RESET</b> — the alarm clears, but the controller <b>stays in OFF</b>. Nothing starts until someone puts it back in AUTO'+(lost?' — utility is still out, so the building stays dark until you do.':'.'); }
   render(); }
 function toggleGenBrk(){ genBrkOff=!genBrkOff; if(faultZone==='genfdr') clearActiveFaultState(); if(genBrkOff){ if(faultZone==='feeder')clearActiveFaultState(); genNote='<b style="color:#ffd27a">GENERATOR BREAKER OFF</b>'+(SRC==='gen'?' — the generator is running but nothing reaches the transfer switch: every load is dead.':' — the generator can run but cannot feed the transfer switch.'); }
   if(genBrkOff&&SRC==='gen'&&utilAvail()){ render(); quickRetx('BREAKER OPEN'); render(); return; }
@@ -918,19 +925,26 @@ function drawGen(svg,g){
   svg.appendChild(el('circle',{cx:acx,cy:acy,r:20,fill:'none',stroke:red?FRED:'#aeb6c9','stroke-width':1.8}));
   svg.appendChild(txt(acx,acy+5,'G',{anchor:'middle',size:15,w:700,fill:red?'#ff8a8a':COL.txt}));
   svg.appendChild(el('path',{d:'M '+(acx-9)+' '+(acy+12)+' q 4.5 -5 9 0 t 9 0',stroke:red?FRED:'#aeb6c9','stroke-width':1.2,fill:'none'}));
-  var st=GMODE==='off'?'OFF':GST==='off'?'STANDBY':(GST==='sense'?'START IN':(GST==='cool'?'COOL-DOWN':(genBrkOff?'BREAKER OFF':(g.onGen?'ON LOAD':'RUNNING'))));
-  svg.appendChild(txt(acx,y1-20,st,{anchor:'middle',size:8.5,w:700,fill:red?'#ff8a8a':COL.txt2}));
+  var st=ESTOP?'ALARM: E-STOP':GMODE==='off'?'OFF':GST==='off'?'STANDBY':(GST==='sense'?'START IN':(GST==='cool'?'COOL-DOWN':(genBrkOff?'BREAKER OFF':(g.onGen?'ON LOAD':'RUNNING'))));
+  svg.appendChild(txt(acx,y1-20,st,{anchor:'middle',size:8.5,w:700,fill:(red||ESTOP)?'#ff8a8a':COL.txt2}));
   var cd=txt(acx,y1-8,'',{anchor:'middle',size:9,w:700,fill:red?'#ff8a8a':'#ffd27a'}); cd.setAttribute('id','genCount'); cd.setAttribute('data-pre','');
   if(gWhat) cd.textContent=genLeft()+' s'; svg.appendChild(cd);
   svg.appendChild(txt(acx+26,top0+17,MODE==='single'?'120/240 V 1Ø':(MODE==='v208'?'208Y/120 V 3Ø':'480Y/277 V 3Ø'),{anchor:'start',size:10.5,w:700,fill:COL.txt2}));
   // controller mode switch: AUTO / OFF / MANUAL (RUN)
-  (function(){ var opts=[['auto','AUTO','#1f6f45','#8fd6a3'],['off','OFF','#5a1a1f','#ff8a8a'],['run','MANUAL','#6a5212','#f5c542']], my=y1+7, mw=(x1-x0), sw=mw/3, mh=22;
+  (function(){ var opts=[['auto','AUTO','#1f6f45','#8fd6a3'],['off','OFF','#5a1a1f','#ff8a8a'],['run','MANUAL','#6a5212','#f5c542']], my=y1+7, mw=(x1-x0)-34, sw=mw/3, mh=22;
     svg.appendChild(el('rect',{x:x0,y:my,width:mw,height:mh,rx:6,fill:'#101a30',stroke:'#4a5b80','stroke-width':1.3}));
     opts.forEach(function(o,i){ var ox=x0+i*sw, on=(GMODE===o[0]), sg=el('g'); sg.style.cursor='pointer'; sg.addEventListener('click',function(e){e.stopPropagation();setGenMode(o[0]);});
       if(on) sg.appendChild(el('rect',{x:ox+1.5,y:my+1.5,width:sw-3,height:mh-3,rx:4,fill:o[2]}));
       sg.appendChild(el('rect',{x:ox,y:my,width:sw,height:mh,fill:'transparent'}));
       sg.appendChild(txt(ox+sw/2,my+15,o[1],{anchor:'middle',size:9.5,w:700,fill:on?o[3]:'#8695b5'})); svg.appendChild(sg);
       if(i>0) svg.appendChild(el('path',{d:'M '+ox+' '+(my+3)+' L '+ox+' '+(my+mh-3),stroke:'#2b3a5e','stroke-width':1})); }); })();
+  // EMERGENCY STOP — 445.19: mushroom head; pressed = latched, needs a hand reset
+  (function(){ var ex=x1-13, ey=y1+18, eg=el('g'); eg.style.cursor='pointer'; eg.addEventListener('click',function(e){e.stopPropagation();toggleEstop();});
+    eg.appendChild(el('rect',{x:ex-13,y:ey-13,width:26,height:26,rx:4,fill:'#f5c542',stroke:'#8a6a12','stroke-width':1}));
+    eg.appendChild(el('circle',{cx:ex,cy:ey,r:ESTOP?8:10,fill:ESTOP?'#8b1a1a':'#e5322d',stroke:ESTOP?'#ff8a8a':'#7a0f0f','stroke-width':ESTOP?2:1.2}));
+    if(!ESTOP) eg.appendChild(el('circle',{cx:ex-3,cy:ey-3,r:3,fill:'rgba(255,255,255,.35)'}));
+    svg.appendChild(eg);
+    svg.appendChild(txt(ex,ey+24,ESTOP?'PRESSED':'E-STOP',{anchor:'middle',size:7.5,w:700,fill:ESTOP?'#ff8a8a':COL.txt2})); })();
   // generator main breaker (clickable) across the hot rows
   var hy0=rowY(2)-9, hy1=rowY(order.length-1)+9, bx0=x1-42, bx1=x1-14;
   var bg=el('g'); bg.style.cursor='pointer'; bg.addEventListener('click',function(e){e.stopPropagation();toggleGenBrk();});
@@ -1228,6 +1242,23 @@ var REF={
   ['680.26(B) — Equipotential bonding','Solid copper, 8 AWG or larger, ties the pool steel, deck, ladder, rails, water and pool equipment together so everything a swimmer can touch is at the same voltage. It is NOT run back to the panel and it is not a fault-clearing path.'],
   ['Why it matters','If an EGC is open and a non-GFCI circuit faults to its frame, that frame — and everything bonded to the grid — rises toward 120 V above remote earth. Inside the grid the voltage is equal; touching something grounded from outside it completes the circuit.'],
  ],
+ gen:[
+  ['445.6 — Listing','Stationary generators shall be listed (UL 2200).'],
+  ['445.11 — Neutral bond marking','The generator must be marked whether its neutral is bonded to the frame, and re-marked if that bond is changed in the field. Solid-neutral transfer switch → the bond comes out; switched neutral → it stays (250.30 · 250.35).'],
+  ['445.12(A) — Overcurrent protection','Constant-voltage generators shall be protected from overload by inherent design, circuit breakers, fuses, protective relays, or other identified means. In the demo it\'s the generator breaker — the only device that clears a fault on the generator feeder.'],
+  ['445.13(A) — Conductor ampacity','Conductors from the generator terminals to the first overcurrent device: at least <b>115 %</b> of the nameplate current (100 % if the design prevents overload). Conductors that carry ground-fault current are sized by 250.30(A).'],
+  ['445.18(A) — Disconnecting means','One or more disconnects that open every ungrounded conductor at once and lock open (110.25). It may be inside the generator behind a cover, with a field label showing where (110.21(B)).'],
+  ['445.19(A) — Emergency shutdown','A shutdown that disables all start circuits and needs a <b>mechanical reset</b>. Tap the E-STOP in the demo: the engine stops and the controller drops to OFF with an EMERGENCY STOP alarm. It stays in OFF until the button is reset and someone puts it back in AUTO — like a real controller.'],
+  ['445.19(C) — Dwellings','One- and two-family dwellings: the emergency shutdown must be <b>outside</b> at a readily accessible location; one on the generator enclosure counts. Label it "Generator Emergency Shutdown" (110.21(B)). Other than dwellings, over 15 kW: a remote E-stop outside the room/enclosure (445.19(B)).'],
+  ['702.4(A)(2) — Capacity (automatic transfer)','An automatic transfer switch must either let the generator carry the full load it picks up, or use an energy-management system (750.30) that sheds load to what the generator can carry — calculated per Article 220.'],
+  ['702.5(A) — Transfer equipment','Required, listed, and built so the utility and generator can never be connected together. Hence break-before-make — probe a utility hot and a generator hot and watch the drifting voltage.'],
+  ['702.6 — Signals','Where practicable, audible/visual signals for generator malfunction and for "carrying load".'],
+  ['702.7(A) — Standby sign','Dwellings: a sign at the outdoor emergency disconnect (230.85) showing where the generator disconnect or emergency shutdown (445.19(C)) is. Other occupancies: a sign at the service equipment showing the type and location of each standby source.'],
+  ['702.7(B) — Grounding warning','When removing a bonding or GEC connection in the normal-source equipment would cut the generator\'s grounded conductor off from the electrode — the solid-neutral case, where the generator relies on the MBJ — a warning sign is required there: SHOCK HAZARD EXISTS IF GEC OR BONDING JUMPER IS REMOVED WHILE ALTERNATE SOURCE IS ENERGIZED.'],
+  ['702.12(A) — Outdoor generator disconnect','If the generator\'s own readily accessible disconnect (445.18) is within sight of the building, no extra disconnect is needed where the conductors enter. If they land on a disconnect in or on the building, it must meet 225.36.'],
+  ['250.30(C) · 250.53(A)(2),(A)(3) — Electrodes','Switched neutral (separately derived) with the generator outside: a GEC at the generator to its own electrode(s). One rod needs a second electrode at least 6 ft away, unless the single rod tests 25 Ω or less.'],
+  ['250.35(A),(B) — Generator feeder bonding','Separately derived: bond per 250.30. Not separately derived (solid neutral): a supply-side bonding jumper / EGC sized per 250.102(C) back to the service.'],
+ ],
  tcc:[
   ['Inverse-time breaker','A thermal-magnetic breaker trips faster the higher the current. Small overloads take time (thermal); a big fault hits the magnetic element and trips almost instantly.'],
   ['Unlatching band','It clears somewhere between a min and max. On a 20 A breaker: ~40 A clears in 25–150 s, ~100 A in 5–20 s.'],
@@ -1285,6 +1316,7 @@ render();
       <button class="modal-tab" data-tab="sys" onclick="refTab('sys')">SYSTEMS</button>
       <button class="modal-tab" data-tab="panel" onclick="refTab('panel')">PANEL</button>
       <button class="modal-tab" data-tab="pool" onclick="refTab('pool')">POOL</button>
+      <button class="modal-tab" data-tab="gen" onclick="refTab('gen')">GEN</button>
     </div>
     <div class="modal-body">
       <div class="modal-pane active" id="pane-flow"><div id="rl-flow"></div></div>
@@ -1294,6 +1326,7 @@ render();
       <div class="modal-pane" id="pane-sys"><div id="rl-sys"></div></div>
       <div class="modal-pane" id="pane-panel"><div id="rl-panel"></div></div>
       <div class="modal-pane" id="pane-pool"><div id="rl-pool"></div></div>
+      <div class="modal-pane" id="pane-gen"><div id="rl-gen"></div></div>
     </div>
   </div>
 </div>

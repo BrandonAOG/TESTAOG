@@ -177,3 +177,27 @@ test('generator: switched neutral draws the SBJ and two ground rods; solid neutr
   expect(await txt()).not.toContain('GEN GEC · 2 rods');
   expect(await txt()).toContain('no N–G bond here');
 });
+
+test('generator E-stop: drops the controller to OFF, locks it there until reset, AUTO restarts it', async ({ page }) => {
+  const errs = await open(page, '/electrical-theory/');
+  await genOn(page, 'single', 'solid');
+  await page.evaluate(() => toggleUtil()); await page.waitForTimeout(600);
+  await page.evaluate(() => toggleEstop());
+  expect(await gs(page)).toMatchObject({ SRC: 'gen', GST: 'off', live: false });
+  expect(await page.evaluate(() => GMODE)).toBe('off');                  // E-stop drops the controller to OFF
+  await page.evaluate(() => setGenMode('auto'));                          // locked in OFF while pressed
+  expect(await page.evaluate(() => GMODE)).toBe('off');
+  await page.evaluate(() => toggleEstop()); await page.waitForTimeout(400);
+  expect(await page.evaluate(() => GMODE)).toBe('off');                  // reset clears the alarm, stays OFF
+  expect(await gs(page)).toMatchObject({ live: false });
+  await page.evaluate(() => setGenMode('auto')); await page.waitForTimeout(400);
+  expect(await gs(page)).toMatchObject({ SRC: 'gen', GST: 'run', live: true });
+  expect(errs).toEqual([]);
+});
+
+test('CODE window has a GEN tab with 445 and 702 references', async ({ page }) => {
+  expect(await open(page, '/electrical-theory/')).toEqual([]);
+  await page.evaluate(() => openRef('gen'));
+  const t = await page.locator('#rl-gen').innerText();
+  for (const ref of ['445.13(A)', '445.19(C)', '702.5(A)', '702.7(B)', '250.30(C)']) expect(t).toContain(ref);
+});
