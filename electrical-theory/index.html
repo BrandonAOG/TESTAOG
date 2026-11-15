@@ -168,6 +168,11 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     <div class="toggle-row2">
       <button class="toggle on" id="detailBtn">Show neutral / ground</button>
       <button class="toggle" id="poolBtn" title="120/240 V single-phase only">Pool panel</button>
+      <button class="toggle" id="genBtn" title="120/240 V, 208Y/120 V or 480Y/277 V">Generator</button>
+    </div>
+    <div class="grp" id="atsGrp" style="display:none;margin-top:10px">
+      <button data-atsn="solid" class="on">ATS: solid neutral</button>
+      <button data-atsn="switched">ATS: switched neutral</button>
     </div>
     <span class="lbl" style="display:none">Panel</span>
   <div class="grp" id="mainGrp" style="display:none">
@@ -228,24 +233,86 @@ var STACKED=false;   // stacked-bus (I-Line style) distribution panelboard: righ
 function rowPh(row,isL){ var n=SYS[MODE].ph.length, p=row%n; return (STACKED&&!isL)?(n-1-p):p; }
 var MODE='single', MLO=false, DETAIL=true, offCkts={};
 var faultCkt=null, faultType='LG', egcPath='intact', downstreamBond=false, ocpdOn=true, tripped=false, FAULT_A=0, tripSec=Infinity, tripTimer=null;
-var svcOff=false, lcMainOff=false;   // service disconnect open / load-center main breaker open
+var svcOff=false, lcMainOff=false, utilOff=false, utilNote='';   // utilOff = utility POWER FAILURE (the line side goes dead too)
+function utilAvail(){ return !svcOff && !utilOff; }
+function toggleUtil(){ utilOff=!utilOff; if(utilOff){ clearActiveFaultState(); utilNote='<b style="color:#ff8a8a">UTILITY POWER FAILURE</b> — the utility is down: the transformer, meter and the LINE side of the service are dead too (the line-side probes read 0 V). '+(genOK()?'':'With no generator, everything in the building is out.')+' Still treat the service as live — power can come back at any moment.'; } else utilNote='<b style="color:#8fd6a3">UTILITY POWER RESTORED</b>'+(genOK()?'.':' — the service is back.'); render(); }
+/* ===== standby generator + automatic transfer switch (ATS) ===== */
+var GMODE='auto', GEN=false, ATSN='solid', SRC='util', GST='off', genBrkOff=false, gTimer=null, gUntil=0, gWhat='', genNote='', lastSvc=false, GSPEED=1;
+var GEN_T={start:5, xfer:7, retx:15, cool:60};   // seconds: utility lost → start · warm-up → transfer · utility back → retransfer · cool-down → stop
+function genOK(){ return GEN && (MODE==='single'||MODE==='v208'||MODE==='v480'); }
+function genAmps(){ return MODE==='single'?200:(MODE==='v208'?150:60); }   // 48 kW: 200 A @240 · 133 A→150 A @208 · 58 A→60 A @480
+function srcLive(){ if(!genOK()) return utilAvail(); return SRC==='util' ? utilAvail() : (GST==='run' && !genBrkOff); }
+function genSched(what,sec,fn){ genCancel(); gWhat=what; gUntil=Date.now()+sec*1000/GSPEED; gTimer=setTimeout(function(){ gTimer=null; gWhat=''; fn(); render(); }, sec*1000/GSPEED); }
+function genCancel(){ if(gTimer)clearTimeout(gTimer); gTimer=null; gWhat=''; }
+function genLeft(){ return Math.max(0,Math.ceil((gUntil-Date.now())*GSPEED/1000)); }
+function genCD(){ return '<span id="genCountR"></span> s'; }
+function nNote(){ return ATSN==='solid'
+  ? ' <b>Solid neutral:</b> the neutral is not switched, so the generator is <b>not</b> a separately derived system (250.30 Informational Note No. 1) — N and G stay bonded only at the service (MBJ) and the generator has <b>no</b> N–G bond.'
+  : ' <b>Switched neutral:</b> the neutral transfers too, so the generator <b>is</b> a separately derived system with its own N–G bond (system bonding jumper) at the generator (250.30(A)(1)).'; }
+function genXfer(){ if(genBrkOff){ genNote='<b style="color:#ffd27a">GENERATOR BREAKER OFF</b> — the transfer switch sees no generator voltage, so it will not transfer. Turn the generator breaker on.'; return; }
+  SRC='gen'; genNote='<b style="color:#ff8a8a">ON GENERATOR</b> — the transfer switch moved to the generator side. Every load now runs from the 48 kW generator. The utility side of the switch is still hot from the line side (meter side).'+nNote(); }
+function onUtilLost(){
+  if(GMODE==='off'){ genNote='<b style="color:#ff8a8a">UTILITY LOST — GENERATOR IN OFF</b> — the controller is switched OFF, so it will not start. The building stays dark. (OFF is what you use while servicing the generator.)'; return; }
+  if(GMODE==='run'&&GST==='run'&&SRC==='util'){ genNote='<b style="color:#ff8a8a">UTILITY LOST</b> — the generator is already running in MANUAL; transfer in '+genCD()+'.'; genSched('xfer',GEN_T.xfer,genXfer); return; }
+  if(SRC==='gen'&&GST==='off'){ GST='sense'; genNote='<b style="color:#ffd27a">AUTO — UTILITY STILL OUT</b> — the transfer switch is already on the generator side, so the controller starts the engine in '+genCD()+'. No transfer is needed.';
+    genSched('start',GEN_T.start,function(){ GST='run'; genNote='<b style="color:#ff8a8a">GENERATOR RUNNING — ON LOAD</b> — the transfer switch never left the generator side, so the loads come back live as soon as the engine is up.'+nNote(); }); return; }
+  if(SRC==='gen'){ genCancel(); genNote='<b style="color:#ffd27a">UTILITY LOST AGAIN</b> — retransfer cancelled; staying on generator.'+nNote(); return; }
+  if(GST==='off'){ GST='sense'; genNote='<b style="color:#ffd27a">'+(utilOff?'UTILITY POWER FAILURE':'UTILITY LOST')+'</b> — '+(utilOff?'the transfer switch senses the utility is gone.':'the transfer switch senses no voltage on the load side of its service breaker (opening that breaker is how a tech tests it, with the line side still hot).')+' It signals the generator to start in '+genCD()+'.';
+    genSched('start',GEN_T.start,function(){ GST='run'; genNote='<b style="color:#ff8a8a">GENERATOR RUNNING</b> — warming up. The transfer switch waits for stable voltage and frequency, then transfers in '+genCD()+'.';
+      genSched('xfer',GEN_T.xfer,genXfer); }); return; }
+  if(GST==='run'||GST==='cool'){ GST='run'; genNote='<b style="color:#ff8a8a">UTILITY LOST</b> — the generator is already running; transfer in '+genCD()+'.'; genSched('xfer',GEN_T.xfer,genXfer); }
+}
+function quickRetx(why){   // the generator side is dead → the ATS skips its retransfer timer (source-failure bypass)
+  genNote='<b style="color:#8fd6a3">UTILITY RESTORED — GENERATOR '+why+'</b> — the generator side has no voltage, so the transfer switch skips its retransfer delay and goes straight back to utility (about 1 s).';
+  genSched('retx',1,function(){ SRC='util'; var cool=(GST==='run'&&GMODE==='auto');
+    genNote='<b style="color:#8fd6a3">BACK ON UTILITY</b> — the switch transferred right away because the generator side was dead.'+(GMODE==='run'?' The engine is still in MANUAL.':(cool?' The engine cools down and stops in '+genCD()+'.':''));
+    if(cool){ GST='cool'; genSched('cool',GEN_T.cool,function(){ GST='off'; genNote='<b style="color:#8fd6a3">GENERATOR STOPPED</b> — back in standby.'+(genBrkOff?' Its breaker is still open — reset it so it can pick up the next outage.':''); }); } }); }
+function genDead(){ return GST!=='run'||genBrkOff; }
+function onUtilBack(){
+  if(SRC==='gen'&&genDead()){ quickRetx(GMODE==='off'?'IN OFF':(genBrkOff?'BREAKER OPEN':'NOT RUNNING')); return; }
+  if(GMODE==='off'){ if(SRC==='gen'){ SRC='util'; } genNote='<b style="color:#8fd6a3">UTILITY BACK</b> — loads are on utility. The generator is still in OFF.'; return; }
+  if(GMODE==='run'){ if(SRC==='gen'){ genNote='<b style="color:#8fd6a3">UTILITY RESTORED</b> — retransfer in '+genCD()+'. The generator keeps running afterwards because it is in MANUAL.'; genSched('retx',GEN_T.retx,function(){ SRC='util'; genNote='<b style="color:#8fd6a3">BACK ON UTILITY</b> — the generator keeps running unloaded in MANUAL until you put it back in AUTO or OFF.'; }); } return; }
+  if(GST==='sense'){ genCancel(); GST='off'; genNote='<b style="color:#8fd6a3">UTILITY BACK</b> before the start delay ran out — the generator never started.'; return; }
+  if(SRC==='gen'){ genNote='<b style="color:#8fd6a3">UTILITY RESTORED</b> — the switch waits to be sure utility is stable, then retransfers in '+genCD()+'. Loads stay on the generator until then.';
+    genSched('retx',GEN_T.retx,function(){ SRC='util'; GST='cool'; genNote='<b style="color:#8fd6a3">BACK ON UTILITY</b> — the generator runs unloaded to cool down, then stops in '+genCD()+'.';
+      genSched('cool',GEN_T.cool,function(){ GST='off'; genNote='<b style="color:#8fd6a3">GENERATOR STOPPED</b> — back in standby, ready for the next outage.'; }); }); return; }
+  if(GST==='run'){ GST='cool'; genNote='<b style="color:#8fd6a3">UTILITY BACK</b> before transfer — the generator cools down unloaded and stops in '+genCD()+'.';
+    genSched('cool',GEN_T.cool,function(){ GST='off'; genNote='<b style="color:#8fd6a3">GENERATOR STOPPED</b> — back in standby.'; }); }
+}
+function genReset(){ genCancel(); GMODE='auto'; SRC='util'; GST='off'; genBrkOff=false; genNote=''; lastSvc=!utilAvail(); }
+function setGenMode(m){ if(m===GMODE) return; GMODE=m; genCancel(); if(faultZone==='genfdr') clearActiveFaultState(); var lost=!utilAvail();
+  if(m==='off'){ GST='off'; if(SRC==='gen'&&!lost){ quickRetx('IN OFF'); render(); return; }
+    genNote='<b style="color:#ff8a8a">GENERATOR OFF</b> — the engine stops right away (no cool-down) and it will not start on an outage.'+(SRC==='gen'?' The transfer switch is still on the generator side, so the building is dark until utility returns.':''); }
+  else if(m==='run'){ GST='run'; genNote='<b style="color:#ff8a8a">MANUAL RUN</b> — the engine starts and runs. '+(lost&&SRC==='gen'?'The transfer switch is already on the generator side, so the loads are live right away.':lost?'Utility is out, so the switch transfers after warm-up in '+genCD()+'.':'Utility is fine, so the transfer switch stays on utility — the generator runs unloaded (like a weekly exercise).');
+    if(lost&&SRC==='util') genSched('xfer',GEN_T.xfer,genXfer); }
+  else { genNote='<b style="color:#8fd6a3">AUTO</b> — the generator now follows the transfer switch.';
+    if(lost){ if(GST!=='run'){ GST='off'; onUtilLost(); } else if(SRC==='util'){ genNote+=' Utility is out — transfer in '+genCD()+'.'; genSched('xfer',GEN_T.xfer,genXfer); } }
+    else { if(SRC==='gen') onUtilBack(); else if(GST==='run'){ GST='cool'; genNote+=' Utility is fine — cool-down, then stop in '+genCD()+'.'; genSched('cool',GEN_T.cool,function(){ GST='off'; genNote='<b style="color:#8fd6a3">GENERATOR STOPPED</b> — back in standby (AUTO).'; }); } } }
+  render(); }
+function toggleGenBrk(){ genBrkOff=!genBrkOff; if(faultZone==='genfdr') clearActiveFaultState(); if(genBrkOff){ if(faultZone==='feeder')clearActiveFaultState(); genNote='<b style="color:#ffd27a">GENERATOR BREAKER OFF</b>'+(SRC==='gen'?' — the generator is running but nothing reaches the transfer switch: every load is dead.':' — the generator can run but cannot feed the transfer switch.'); }
+  if(genBrkOff&&SRC==='gen'&&utilAvail()){ render(); quickRetx('BREAKER OPEN'); render(); return; }
+  else if(!genBrkOff){ genNote='<b style="color:#8fd6a3">GENERATOR BREAKER ON</b>'; if(GST==='run'&&SRC==='util'&&!utilAvail()&&!gTimer){ genSched('xfer',GEN_T.xfer,genXfer); genNote+=' — transfer in '+genCD()+'.'; } }
+  render(); }
+setInterval(function(){ if(!gWhat) return; var n=genLeft(); var a=document.getElementById('genCount'); if(a) a.textContent=a.getAttribute('data-pre')+n+' s'; var b=document.getElementById('genCountR'); if(b) b.textContent=n; },200);   // service disconnect open / load-center main breaker open
 var probePick=[];
 var poolOn=false, poolOff={}, poolFault=null, poolMsg='', poolTimer=null, poolBond=false, poolEgc='intact', poolLive=false, poolGPh=-1, poolGFrac=0, poolFdrK=0;   // pool subpanel (120/240 V 1Ø only)                    // up to 2 probe nodes selected for a voltage reading
 function cP(m,deg){var r=deg*Math.PI/180;return {re:m*Math.cos(r),im:m*Math.sin(r)};}
 function cSub(a,b){return {re:a.re-b.re,im:a.im-b.im};}
 function cMag(a){return Math.hypot(a.re,a.im);}
 var BRK={}, SVCPROBE=[];   // breaker load-terminal probe nodes, rebuilt every render: id → {ph, live, n, name, pool}
+function rawV(ph){ var a=svcOff,b=utilOff,c=GEN; svcOff=false; utilOff=false; GEN=false; var v=nodeVph(ph); svcOff=a; utilOff=b; GEN=c; return v; }
 function nodeVph(id){
+  if(id.indexOf('GN:')===0){ var k=id.slice(3); if(k==='N'||k==='G') return {re:0,im:0}; return (genOK()&&GST==='run'&&!genBrkOff)?rawV(k):{re:0,im:0}; }   // generator output terminals (after its breaker)
   if(id==='SN'||id==='SN2') return nodeVph('N'); if(id==='SG') return nodeVph('EGC');
-  if(id.indexOf('SL:')===0){ var sv=svcOff; svcOff=false; var vl=nodeVph(id.slice(3)); svcOff=sv; return vl; }   // LINE side of the service disconnect: always hot — only the utility can kill it
-  if(id.indexOf('SD:')===0) return nodeVph(id.slice(3));                                                   // LOAD side: dead when the disconnect is open
+  if(id.indexOf('SL:')===0){ if(utilOff) return {re:0,im:0}; var sv=svcOff; svcOff=false; var vl=nodeVph(id.slice(3)); svcOff=sv; return vl; }   // LINE side of the service disconnect: always hot — only the utility can kill it
+  if(id.indexOf('SD:')===0){ if(svcOff||utilOff) return {re:0,im:0}; return nodeVph('SL:'+id.slice(3)); }   // load side of the utility service breaker                                                   // LOAD side: dead when the disconnect is open
   if(BRK[id]){ var bk=BRK[id]; if(!bk.live) return {re:0,im:0}; return nodeVph(bk.pool?('P:'+bk.ph):bk.ph); }
   if(id.indexOf('P:')===0){ var k=id.slice(2); if(!poolLive) return (k==='G'&&poolGPh>=0)?{re:0,im:0}:{re:0,im:0};
     if(k==='N') return {re:0,im:0};
     if(k==='G'){ if(poolGPh<0) return {re:0,im:0}; var v=nodeVph(poolGPh?'L2':'L1'); return {re:v.re*poolGFrac,im:v.im*poolGFrac}; }
     return nodeVph(k); }
   if(id==='N'||id==='EGC') return {re:0,im:0};
-  if(svcOff) return {re:0,im:0};   // service disconnect open: the feeder is dead. (The probes sit on the LINE side of the panel main, so opening the main does NOT kill them.)
+  if(!srcLive()) return {re:0,im:0};   // no source on the feeder (utility breaker open and the generator not on line): the feeder is dead. (The probes sit on the LINE side of the panel main, so opening the main does NOT kill them.)
   var sys=SYS[MODE];
   if(MODE==='ungd'){ var vg=240/Math.sqrt(3), base={A:cP(vg,0),B:cP(vg,-120),C:cP(vg,120)}; var v=base[id]; if(!v)return {re:0,im:0}; return ugGnd?cSub(v,base[ugGnd]):v; }
   if(MODE==='cgd'){ if(id==='A')return cP(240,0); if(id==='B')return {re:0,im:0}; if(id==='C')return cP(240,60); }
@@ -255,32 +322,39 @@ function nodeVph(id){
   return cP(sys.vln,ang);
 }
 function voltBetween(a,b){ return Math.round(cMag(cSub(nodeVph(a),nodeVph(b)))); }
-function nodeLabel(id){ if(id==='SN') return 'Service neutral (line side)'; if(id==='SN2') return 'Service neutral (load side)'; if(id==='SG') return 'Service ground (G terminal)'; if(id.indexOf('SL:')===0) return 'Service disconnect LINE side '+id.slice(3); if(id.indexOf('SD:')===0) return 'Service disconnect LOAD side '+id.slice(3); if(BRK[id]){ var bk=BRK[id]; return (bk.pool?'Pool breaker ':'Breaker ')+bk.n+' ('+bk.ph+')'; } if(id.indexOf('P:')===0){ var k=id.slice(2); return 'Pool '+(k==='N'?'neutral':(k==='G'?'ground':k)); } return id==='N'?'Neutral':(id==='EGC'?'Ground (EGC)':('Phase '+id+((MODE==='cgd'&&id==='B')?' (grounded)':''))); }
+function nodeLabel(id){ if(id.indexOf('GN:')===0){ var k=id.slice(3); return 'Generator '+(k==='N'?'neutral':(k==='G'?'EGC':k)); } if(id==='SN') return 'Service neutral (line side)'; if(id==='SN2') return 'Service neutral (load side)'; if(id==='SG') return 'Service ground (G terminal)'; if(id.indexOf('SL:')===0) return 'Service disconnect LINE side '+id.slice(3); if(id.indexOf('SD:')===0) return 'Service disconnect LOAD side '+id.slice(3); if(BRK[id]){ var bk=BRK[id]; return (bk.pool?'Pool breaker ':'Breaker ')+bk.n+' ('+bk.ph+')'; } if(id.indexOf('P:')===0){ var k=id.slice(2); return 'Pool '+(k==='N'?'neutral':(k==='G'?'ground':k)); } return id==='N'?'Neutral':(id==='EGC'?'Ground (EGC)':('Phase '+id+((MODE==='cgd'&&id==='B')?' (grounded)':''))); }
 function onProbe(id){ var i=probePick.indexOf(id); if(i>=0)probePick.splice(i,1); else { probePick.push(id); if(probePick.length>2)probePick.shift(); } render(); }
 function probeText(){ var a=probePick[0],b=probePick[1],v=voltBetween(a,b);
+  var gH=function(x){return x.indexOf('GN:')===0&&x!=='GN:N'&&x!=='GN:G';}, uH=function(x){return x.indexOf('SL:')===0||x.indexOf('SD:')===0;};
+  if((gH(a)&&uH(b))||(gH(b)&&uH(a))){ var ma=Math.round(cMag(nodeVph(a))), mb=Math.round(cMag(nodeVph(b)));
+    if(ma>0&&mb>0) return '<span style="font-size:22px;font-weight:800;color:#00d4ff">'+Math.abs(ma-mb)+'–'+(ma+mb)+' V</span> <span style="color:var(--txt2);font-size:11px">drifting</span>&nbsp;&nbsp;·&nbsp;&nbsp;<b>'+nodeLabel(a)+' → '+nodeLabel(b)+'</b><br><span style="color:var(--txt2)"><b style="color:#ffd27a">Two separate sources, NOT in sync.</b> The generator and the utility run at slightly different speeds, so the meter swings anywhere between '+Math.abs(ma-mb)+' and '+(ma+mb)+' V. That is why the transfer switch is break-before-make and mechanically interlocked — they must never be connected together.&nbsp;&nbsp;·&nbsp;&nbsp;tap a probe again to clear</span>'; }
   var pk=Math.round(v*Math.SQRT2), pp=Math.round(v*2*Math.SQRT2);
-  var hot=function(x){return ['N','EGC','P:N','P:G','SN','SN2','SG'].indexOf(x)<0;};
+  var hot=function(x){return ['N','EGC','P:N','P:G','SN','SN2','SG','GN:N','GN:G'].indexOf(x)<0;};
   var desc, dk=[a,b].filter(function(x){return BRK[x]&&!BRK[x].live;})[0];
   var pool=function(x){return x.indexOf('P:')===0;};
   var sl=[a,b].some(function(x){return x.indexOf('SL:')===0;}), sd=[a,b].some(function(x){return x.indexOf('SD:')===0;});
   var samePole=sl&&sd&&a.slice(3)===b.slice(3);
   if(samePole) desc=svcOff?'<b style="color:#ffd27a">Across the OPEN pole</b> — line side hot, load side dead, so the meter reads the voltage across the open contacts.':'Across a CLOSED pole — both ends are the same conductor, so 0 V.';
+  else if(utilOff&&sl) desc='<b style="color:#ffd27a">Utility power failure — even the LINE side reads 0 V.</b> Still treat it as live: power can come back at any moment.';
   else if(svcOff&&sl&&!sd&&!dk) desc='<b style="color:#ffd27a">The service disconnect is OPEN — but its LINE side is still hot.</b> Only the utility can kill it (pull the meter / call the POCO). Treat it as energized.';
   else if(svcOff&&sd) desc='<b style="color:#ffd27a">Service disconnect is OPEN — its LOAD side reads 0 V.</b> The line side (meter side) is still hot.';
   else if(dk){ var bk=BRK[dk], why;
     if(bk.pool&&!bk.bus) why=svcOff?'the service disconnect is open':(lcMainOff?'the panel main is OFF':'the 100 A pool breaker is OFF');
-    else if(!bk.bus) why=svcOff?'the service disconnect is open':'the panel main is OFF';
+    else if(!bk.bus) why=!srcLive()?(genOK()?'the utility breaker is open and the generator is not on line':'the service disconnect is open'):'the panel main is OFF';
     desc = !bk.bus
       ? '<b style="color:#ffd27a">The '+(bk.pool?'pool panel':'panel')+' bus is dead — '+why+' — so '+nodeLabel(dk)+' reads 0 V</b>, even though the breaker itself is '+(bk.on?'ON':'OFF')+'.'
       : '<b style="color:#ffd27a">'+nodeLabel(dk)+' is OFF — its load terminal reads 0 V.</b> The bus side of the breaker is still hot; the breaker is what opened the circuit.'; }
   else if(BRK[a]&&BRK[b]&&BRK[a].ph===BRK[b].ph) desc='Same phase on both breakers — '+v+' V. (Two breakers on the same leg read zero between them.)';
-  else if(svcOff&&(hot(a)||hot(b))) desc='Service disconnect is open — the feeder is de-energized.';
+  else if(!srcLive()&&(hot(a)||hot(b))) desc=genOK()?'No source on the feeder — utility breaker open and the generator is not on line yet.':'Service disconnect is open — the feeder is de-energized.';
+  else if(genOK()&&SRC==='gen'&&hot(a)&&hot(b)) desc='Phase-to-phase from the <b>generator</b>.';
   else if(lcMainOff&&(hot(a)||hot(b))&&!(pool(a)||pool(b))) desc='<b style="color:#ffd27a">Panel main is OFF — but these probes are on its LINE side, so the feeder is still live.</b> Only the bus and branch circuits are dead.';
   else if((lcMainOff||!poolLive)&&(pool(a)||pool(b))&&(hot(a)||hot(b))&&v<1) desc='Pool feeder is de-energized (load side of the panel main / 100 A breaker).';
-  else if((['N','SN','SN2'].indexOf(a)>=0&&['EGC','SG'].indexOf(b)>=0)||(['N','SN','SN2'].indexOf(b)>=0&&['EGC','SG'].indexOf(a)>=0)) desc='Neutral-to-ground — 0 V: they are bonded together right here at the service (MBJ, 250.28).';
+  else if([a,b].some(function(x){return x.indexOf('GN:')===0&&hot(x);})&&v<1&&!(genOK()&&GST==='run'&&!genBrkOff)) desc='<b style="color:#ffd27a">Generator output reads 0 V</b> — '+(GMODE==='off'?'the controller is in OFF.':(genBrkOff?'its breaker is OFF.':'it is not running.'));
+  else if((a==='GN:N'&&b==='GN:G')||(a==='GN:G'&&b==='GN:N')) desc=(ATSN==='switched'?'Generator neutral to EGC — 0 V: they are bonded right at the generator (SBJ), because the neutral is switched.':'Generator neutral to EGC — 0 V: there is NO bond at the generator, but its N and EGC both run back to the transfer switch, where the MBJ joins them.');
+  else if((['N','SN','SN2','GN:N'].indexOf(a)>=0&&['EGC','SG','GN:G'].indexOf(b)>=0)||(['N','SN','SN2','GN:N'].indexOf(b)>=0&&['EGC','SG','GN:G'].indexOf(a)>=0)) desc='Neutral-to-ground — 0 V: they are bonded together right here at the service (MBJ, 250.28).';
   else if(!hot(a)&&!hot(b)) desc=(v>5?'<b style="color:#ff8a8a">Ground is elevated — the pool bonding grid is energized.</b>':'Neutral / ground — ~0 V. (In the pool panel they read the same but must NOT be bonded together.)');
   else if(hot(a)&&hot(b)) desc='Phase-to-phase (line-to-line) voltage.';
-  else if(['N','SN','SN2'].indexOf(a)>=0||['N','SN','SN2'].indexOf(b)>=0) desc='Phase-to-neutral voltage.';
+  else if(['N','SN','SN2','GN:N'].indexOf(a)>=0||['N','SN','SN2','GN:N'].indexOf(b)>=0) desc='Phase-to-neutral voltage.';
   else desc='Phase-to-ground voltage.';
   return '<span style="font-size:22px;font-weight:800;color:#00d4ff;letter-spacing:.3px">'+v+' V</span> <span style="color:var(--txt2);font-size:11px">RMS</span>'+
     '&nbsp;&nbsp;·&nbsp;&nbsp;<b>'+nodeLabel(a)+' → '+nodeLabel(b)+'</b>'+
@@ -359,14 +433,21 @@ function egcOf(num){ return (poolOn&&MODE==='single'&&num===2)?poolEgc:(ckEgc[MO
 function poolEgcOf(i){ return ckEgc['P:'+i]||poolEgc; }
 function effEgc(){ return faultCkt==null?egcPath:egcOf(faultCkt); }   // a fault on the pool feeder returns on the POOL feeder EGC
 function faultActive(){ return (faultCkt!=null||faultZone!=='branch') && !tripped; }
-function faultFeeder(ph){ if(svcOff)return; clearActiveFaultState(); faultZone='feeder'; faultPhase=ph; var sys=SYS[MODE]; FAULT_A=Math.max(1,Math.round(sys.vln/0.08)); tripSec=ocpdOn?0.02:Infinity;
+function faultFeeder(ph){ if(!srcLive())return; clearActiveFaultState(); faultZone='feeder'; faultPhase=ph; var sys=SYS[MODE]; FAULT_A=Math.max(1,Math.round(sys.vln/0.08)); if(genOK()&&SRC==='gen') FAULT_A=Math.min(FAULT_A,genAmps()*3); tripSec=ocpdOn?0.02:Infinity;
   if(tripTimer){clearTimeout(tripTimer);tripTimer=null;}
-  if(ocpdOn){ tripTimer=setTimeout(function(){ svcOff=true; faultZone='branch'; faultPhase=null; render(); }, 900); }  // the SERVICE DISCONNECT clears a feeder fault
+  if(ocpdOn){ var onG=genOK()&&SRC==='gen'; tripTimer=setTimeout(function(){ if(onG){ genBrkOff=true; genNote='<b style="color:#ffd27a">GENERATOR BREAKER TRIPPED</b> — it cleared the feeder fault (about '+FAULT_A+' A, generator-limited). Every load is dead until you reset it: tap the generator breaker.'; } else svcOff=true; tripped=true; render(); }, onG?2200:900); }  // the SERVICE DISCONNECT clears a feeder fault
   render(); }
-function faultService(ph){ if(svcOff)return; clearActiveFaultState(); faultZone='service'; faultPhase=ph; var sys=SYS[MODE]; FAULT_A=Math.max(1,Math.round(sys.vln/0.05)); tripSec=Infinity; render(); }  // line side = unprotected
+function genFdrLive(){ return genOK()&&GST==='run'&&!genBrkOff; }
+function faultGenFdr(ph){ if(!genFdrLive()){ clearActiveFaultState(); genNote='<b style="color:#8fd6a3">GENERATOR FEEDER IS DEAD</b> — the generator is '+(genBrkOff?'running but its breaker is open':'not running')+', so a fault here draws no current. Start it (MANUAL, or AUTO with an outage) and try again.'; render(); return; }
+  clearActiveFaultState(); faultZone='genfdr'; faultPhase=ph; var sys=SYS[MODE]; FAULT_A=Math.min(Math.max(1,Math.round(sys.vln/0.08)),genAmps()*3); tripSec=ocpdOn?0.1:Infinity;
+  if(ocpdOn){ tripTimer=setTimeout(function(){ tripped=true; genBrkOff=true; var wasOn=(SRC==='gen');
+    genNote='<b style="color:#ffd27a">GENERATOR BREAKER TRIPPED</b> — it cleared the fault on the generator feeder ('+ph+', about '+FAULT_A+' A, generator-limited).'+(wasOn?' The transfer switch is on the generator side, so <b>every load is dead</b> until the fault is fixed and the breaker is reset.':(utilAvail()?' The transfer switch was on utility, so the loads never noticed — but the generator can\'t pick up the next outage until the breaker is reset.':' The generator can\'t transfer until the breaker is reset.'))+' Tap the generator breaker to reset it.';
+    render(); }, 2200); }
+  render(); }
+function faultService(ph){ if(utilOff)return; clearActiveFaultState(); faultZone='service'; faultPhase=ph; var sys=SYS[MODE]; FAULT_A=Math.max(1,Math.round(sys.vln/0.05)); tripSec=Infinity; render(); }  // line side = unprotected
 /* ---------------- fault model (ported from Electrical Theory) ---------------- */
 function applyFault(num){
-  ckMsg='';
+  ckMsg=''; utilNote='';
   var sys=SYS[MODE];
   if(tripTimer){clearTimeout(tripTimer);tripTimer=null;}
   if(faultCkt!=null) delete offCkts[MODE+':'+faultCkt];   // re-arm the previously faulted circuit
@@ -384,6 +465,7 @@ function applyFault(num){
   else if(faultType==='LN'){ V=sys.vln; Z=0.22; }
   else { V=sys.vln; Z=(effEgc()==='broken')?(downstreamBond?2.0:45):(effEgc()==='loose'?1.5:0.35); }  // LG
   FAULT_A=Math.max(1,Math.round(V/Z));
+  if(genOK()&&SRC==='gen') FAULT_A=Math.min(FAULT_A,genAmps()*3);   // a generator can only push about 3× its rating into a fault
   tripSec = ocpdOn ? tripSeconds(FAULT_A) : Infinity;
   if(tripTimer){clearTimeout(tripTimer);tripTimer=null;}
   if(isFinite(tripSec)){ tripTimer=setTimeout(function(){ tripped=true; offCkts[MODE+':'+num]=1; render(); }, Math.min(2200, 400+tripSec*120)); }
@@ -391,12 +473,16 @@ function applyFault(num){
 }
 function clearFault(){ ckMsg=''; noNeutralMsg=false; poolFault=null; poolOff={}; poolMsg=''; if(poolTimer){clearTimeout(poolTimer);poolTimer=null;} ugGnd=null; ugFirst=false; ug2=false; if(tripTimer){clearTimeout(tripTimer);tripTimer=null;} if(faultCkt!=null){delete offCkts[MODE+':'+faultCkt];} faultCkt=null; faultZone='branch'; faultPhase=null; tripped=false; FAULT_A=0; tripSec=Infinity; render(); }
 function clearActiveFaultState(){ if(tripTimer){clearTimeout(tripTimer);tripTimer=null;} if(faultCkt!=null){delete offCkts[MODE+':'+faultCkt];} faultCkt=null; faultZone='branch'; faultPhase=null; tripped=false; FAULT_A=0; tripSec=Infinity; }
-function toggleSvc(){ svcOff=!svcOff; if(svcOff)clearActiveFaultState(); render(); }
+function toggleSvc(){ svcOff=!svcOff; if(svcOff&&!(genOK()&&SRC==='gen'))clearActiveFaultState(); render(); }
 function toggleLcMain(){ lcMainOff=!lcMainOff; if(lcMainOff)clearActiveFaultState(); render(); }
 function faultWhy(){
   if(noNeutralMsg) return '<b style="color:#ffd27a">NO NEUTRAL</b> — a corner-grounded delta is 3-wire. There is no neutral to fault; phase B is the grounded conductor. Try a Line–Ground or Line–Line fault.';
   if(faultZone==='service') return '<b style="color:#ff8a8a">LINE-SIDE SERVICE FAULT · '+FAULT_A+' A</b> — ahead of the service disconnect there\'s no overcurrent device in the building, so <b>nothing here trips</b>; only the utility transformer fuse can clear it. The fault current goes from the line-side conductor into the service enclosure, across the <b>MBJ</b>, and home on the <b>service neutral</b> to the transformer. The feeder EGC and the panel ground bars carry none of it, because they are downstream of the fault. This is why line-side conductors are kept short and in conduit.';
-  if(faultZone==='feeder') return tripped?'<b style="color:#8fd6a3">CLEARED</b> — the <b>service disconnect</b> opened to clear the feeder fault ('+FAULT_A+' A).':'<b style="color:#ff8a8a">FEEDER FAULT · '+FAULT_A+' A</b> — on the feeder between the service disconnect and the panel. It\'s cleared by the <b>service disconnect</b> (the upstream OCPD), not the branch breakers.';
+  if(faultZone==='genfdr'&&!tripped) return '<b style="color:#ff8a8a">GENERATOR FEEDER FAULT · '+faultPhase+' · '+FAULT_A+' A</b> — between the generator breaker and the transfer switch. Only the <b>generator breaker</b> can clear it (the service and panel breakers are downstream). A generator can only push about 3× its rating into a fault, so it trips on the long-time / short-time element, not instantly. '+(ATSN==='switched'
+    ?'<b>Switched neutral:</b> the fault current comes back on the generator feeder <b>EGC</b> straight to the generator, across its <b>SBJ</b> into the neutral, and home to the windings — it never goes near the service MBJ (250.30(A)(1)).'
+    :'<b>Solid neutral:</b> there is no N–G bond at the generator, so the fault current rides the generator feeder <b>EGC</b> to the service ground bar, crosses the <b>MBJ</b>, and goes back to the generator on the <b>neutral</b>. Break that EGC or that neutral and the generator frame stays live (250.4(A)(5)).');
+  var upO=(genOK()&&SRC==='gen')?'generator breaker':'service disconnect';
+  if(faultZone==='feeder') return tripped?'<b style="color:#8fd6a3">CLEARED</b> — the <b>'+upO+'</b> opened to clear the feeder fault ('+FAULT_A+' A'+((genOK()&&SRC==='gen')?', generator-limited to about 3× its rating':'')+').':'<b style="color:#ff8a8a">FEEDER FAULT · '+FAULT_A+' A</b> — on the feeder between the '+((genOK())?'transfer switch':'service disconnect')+' and the panel. It\'s cleared by the <b>'+upO+'</b> (the upstream OCPD), not the branch breakers.';
   if(faultCkt==null) return 'Tap a <b>breaker</b> to switch it on/off. Tap a <b>conductor</b> to fault it (branch, feeder, or line-side service). Tap a piece of <b>equipment</b> for its menu: fault it, break its EGC, or reverse its polarity.';
   var c=DEMO[SYS[MODE].demo][faultCkt]; var nm=c?c.n:('#'+faultCkt);
   if(poolOn&&MODE==='single'&&faultCkt===2) nm='the 100 A pool feeder ('+(poolFdrK?'L2':'L1')+')';
@@ -411,6 +497,7 @@ function faultWhy(){
   if(effEgc()==='broken'&&!downstreamBond) return '<b style="color:#ff8a8a">GROUND FAULT · EGC OPEN</b> on '+nm+' — the only path home is high-resistance earth, so just ~'+FAULT_A+' A flows. <b>The breaker never trips and the frame stays live</b> (shock/fire hazard).';
   if(effEgc()==='broken'&&downstreamBond) return '<b style="color:#ff8a8a">GROUND FAULT · EGC OPEN + illegal bond</b> on '+nm+' — current sneaks back through the illegal N–G bond (~'+FAULT_A+' A). Trip is slow/uncertain and the bond carries objectionable current the rest of the time.';
   if(effEgc()==='loose') return '<b style="color:#ffd27a">GROUND FAULT · HIGH-R EGC</b> on '+nm+' — a loose/undersized EGC drops the fault to ~'+FAULT_A+' A, so the breaker takes ~'+(isFinite(tripSec)?Math.round(tripSec)+' s':'minutes')+' to trip. Metal is live the whole time.';
+  if(genOK()&&SRC==='gen') return '<b style="color:#8fd6a3">GROUND FAULT ON GENERATOR</b> on '+nm+' — the EGC carries <b>'+FAULT_A+' A</b> (a generator can only push about 3× its rating) '+(ATSN==='solid'?'back to the <b>MBJ in the transfer switch</b>, then home to the generator on the <b>neutral</b> — that single bond at the service is why a solid-neutral generator must NOT have its own N–G bond.':'back to the transfer switch G bar and out the <b>generator EGC</b> to the generator\'s own <b>N–G bond (SBJ)</b> — with a switched neutral the MBJ is cut off from the generator.')+' Still far above the 20 A breaker\'s magnetic pickup, so it trips fast.';
   return '<b style="color:#8fd6a3">GROUND FAULT</b> on '+nm+' — a good low-Z EGC carries <b>'+FAULT_A+' A</b> back to the MBJ → magnetic trip in ~1 cycle. That\'s the EGC\'s whole job (250.4(A)(5)).';
 }
 
@@ -422,14 +509,19 @@ function render(){
   while(svg.firstChild)svg.removeChild(svg.firstChild);
   if(anim){cancelAnimationFrame(anim);anim=null;}dotPool=[];
   var sys=SYS[MODE], phases=sys.ph.map(function(a){return {id:a[0],c:a[1]};}), N=phases.length, demo=DEMO[sys.demo];
-  var FRED='#ff3b30', fA=faultActive(), fGnd=fA&&(faultType==='LG'||faultType==='NG')&&!ugFirst, fNeu=fA&&(faultType==='LN'||faultType==='NG');
-  var feederLive=!svcOff, busLive=!svcOff&&!lcMainOff, DEAD='#3a4b6b';
+  var genRet=null;
+  var FRED='#ff3b30', gF=faultActive()&&faultZone==='genfdr', fA=faultActive()&&!gF, fGnd=fA&&(faultType==='LG'||faultType==='NG')&&!ugFirst, fNeu=fA&&(faultType==='LN'||faultType==='NG');
+  if(!genOK()&&(SRC!=='util'||GST!=='off')) genReset();
+  var uLost=!utilAvail(); if(genOK()){ if(uLost!==lastSvc){ lastSvc=uLost; if(uLost) onUtilLost(); else onUtilBack(); } } else lastSvc=uLost;
+  var GN=genOK(), onGen=GN&&SRC==='gen', genRunning=GN&&(GST==='run'||GST==='cool');
+  var feederLive=srcLive(), busLive=feederLive&&!lcMainOff, DEAD='#3a4b6b';
   var OBJ='#f5c542', bondActive=downstreamBond&&busLive&&!fGnd&&!sys.noNeutral;
   var poolObj=poolOn&&MODE==='single'&&poolBond&&busLive&&isOn(2);   // illegal N-G bond: objectionable current rides the grounding system
   document.getElementById('sub').textContent=sys.title+' · '+sys.wires;
 
   var poolActive=poolOn&&MODE==='single';
-  var W=poolActive?1560:1020,rows=21,rowH=25,svcH=150,top=svcH+70,rowTop=top,H=top+rows*rowH+56;
+  var gapH=GN?28:14, tyN0=52+N*gapH+6, tyG0=tyN0+14;   // the transfer switch needs room between phase rows for the generator contacts
+  var W=poolActive?1560:1020,rows=21,rowH=25,svcH=GN?(tyG0+146+16*(N+1)+66+(ATSN==='switched'?46:0)):150,top=svcH+70,rowTop=top,H=top+rows*rowH+56;
   if(poolActive){ demo=Object.assign({},demo); demo[26]=demo[2]; demo[28]=demo[4]; delete demo[4]; demo[2]={p:2,n:'Pool panel',pool:true}; }   // 100 A 2-pole pool feeder breaker
   svg.setAttribute('viewBox','0 0 '+W+' '+H);svg.setAttribute('width',W);svg.setAttribute('height',H);
   (function(){ var phone=window.matchMedia&&window.matchMedia('(max-width:760px)').matches, card=svg.closest('.card-scope');
@@ -453,12 +545,14 @@ function render(){
   // ===== LOAD CENTER enclosure (separate from the service) =====
   svg.appendChild(el('rect',{x:brkLout-14,y:top-40,width:(brkRout+14)-(brkLout-14),height:H-(top-40)-30,rx:10,fill:COL.can,stroke:COL.canStroke,'stroke-width':1.5}));
 
-  var tyH=phases.map(function(p,i){return 52+i*14;}), tyN=52+N*14+6, tyG=tyN+14, mainY=top-30, hotLandY=(MLO?busTopZ:mainY);
+  var tyH=phases.map(function(p,i){return 52+i*gapH;}), tyN=tyN0, tyG=tyG0, mainY=top-30, hotLandY=(MLO?busTopZ:mainY);
   var swX0=316, swX1=348;                 // service-disconnect switch span
-  var sdX0=272, sdX1=404;                 // service enclosure
+  var sdX0=272, sdX1=GN?448:404;          // service enclosure (wider when it is a transfer switch)
+  var XUC=404, XPV=432, XGR0=358;           // ATS: utility/generator contact column · blade pivot · first generator riser
   // ===== utility transformer =====
-  svg.appendChild(el('rect',{x:34,y:40,width:86,height:tyG-40+16,rx:8,fill:COL.box,stroke:'#6f80a8','stroke-width':1.3}));
-  svg.appendChild(txt(77,34,'UTILITY XFMR',{anchor:'middle',size:9,fill:COL.txt2}));
+  svg.appendChild(el('rect',{x:34,y:40,width:86,height:tyG-40+16,rx:8,fill:utilOff?'#2a1620':COL.box,stroke:utilOff?COL.off:'#6f80a8','stroke-width':1.3}));
+  svg.appendChild(txt(77,34,utilOff?'UTILITY · NO POWER':'UTILITY XFMR',{anchor:'middle',size:utilOff?7.5:9,w:utilOff?700:400,fill:utilOff?'#ff8a8a':COL.txt2}));
+  diagPill(svg,18,4,118,18,utilOff,'UTILITY ON','POWER FAILURE',toggleUtil);
   (function(){ var parts=sys.title.split(' · '), vV=parts[0], vT=(parts.slice(1).join(' ')).replace(/\s*\(.*\)/,'').replace('3-wire corner-grounded delta','corner-gnd Δ').replace('high-leg delta','high-leg Δ').replace('3-wire ungrounded delta','ungrounded Δ');
     var xb=40, yb=tyG+16;
     svg.appendChild(txt(77,xb+14,vV,{anchor:'middle',size:8.5,fill:COL.txt}));
@@ -478,8 +572,10 @@ function render(){
   sdEnc.appendChild(el('rect',{x:sdX0,y:36,width:sdX1-sdX0,height:tyG-36+34,rx:8,fill:'#101a30',stroke:svcOff?COL.off:'#9fb0d6','stroke-width':1.4,'stroke-dasharray':'5 4'}));
   sdEnc.appendChild(el('rect',{x:sdX0,y:36,width:sdX1-sdX0,height:tyG-36+34,rx:8,fill:'transparent'}));
   svg.appendChild(sdEnc);
-  svg.appendChild(txt((sdX0+sdX1)/2,30,'SERVICE DISCONNECT · tap to open/close',{anchor:'middle',size:7.5,fill:COL.txt2}));
-  svg.appendChild(txt((sdX0+sdX1)/2,tyG+30,(svcOff?'OPEN':'CLOSED')+' · '+N+'-pole',{anchor:'middle',size:8,w:700,fill:svcOff?'#ff8a8a':'#8fd6a3'}));
+  if(GN){ svg.appendChild(txt(sdX0,30,'TRANSFER SWITCH (service rated) · ',{anchor:'start',size:7.5,w:700,fill:COL.txt2}));
+    svg.appendChild(txt(sdX0+146,30,onGen?'ON GENERATOR':'ON UTILITY',{anchor:'start',size:7.5,w:700,fill:onGen?'#ff8a8a':'#8fd6a3'})); }
+  else { svg.appendChild(txt((sdX0+sdX1)/2,30,'SERVICE DISCONNECT · tap to open/close',{anchor:'middle',size:7.5,fill:COL.txt2}));
+  svg.appendChild(txt((sdX0+sdX1)/2,tyG+30,(svcOff?'OPEN':'CLOSED')+' · '+N+'-pole',{anchor:'middle',size:8,w:700,fill:svcOff?'#ff8a8a':'#8fd6a3'})); }
 
   // ===== feeder hots: utility -> meter -> [disconnect switch] -> feeder -> panel =====
   // ===== service disconnect drawn as a MAIN BREAKER (multi-pole, handle tie) =====
@@ -488,10 +584,12 @@ function render(){
     bg.appendChild(el('rect',{x:bx0,y:by0,width:bx1-bx0,height:by1-by0,rx:3,fill:svcOff?'#2a1620':'#16233f',stroke:svcOff?COL.off:'#9fb0d6','stroke-width':1.3}));
     bg.appendChild(el('rect',{x:bx1-8,y:by0+3,width:5,height:(by1-by0)-6,rx:2.5,fill:svcOff?COL.off:'#f5c542',opacity:0.9}));   // handle tie
     svg.appendChild(bg);
-    svg.appendChild(txt(bx1+4,by0+6,(MODE==='single'?'200 A':'400 A')+' '+N+'P',{anchor:'start',size:7,fill:COL.txt2}));
-    svg.appendChild(txt(bx1+4,by0+15,svcOff?'OFF':'ON',{anchor:'start',size:7,w:700,fill:svcOff?'#ff8a8a':'#f5c542'}));
+    if(GN){ svg.appendChild(txt(bx0-4,by0+6,(MODE==='single'?'200 A':'400 A')+' '+N+'P',{anchor:'end',size:6.5,fill:COL.txt2})); svg.appendChild(txt(bx0-4,by0+15,svcOff?'OFF':'ON',{anchor:'end',size:7,w:700,fill:svcOff?'#ff8a8a':'#f5c542'})); }
+    else { svg.appendChild(txt(bx1+4,by0+6,(MODE==='single'?'200 A':'400 A')+' '+N+'P',{anchor:'start',size:7,fill:COL.txt2}));
+    svg.appendChild(txt(bx1+4,by0+15,svcOff?'OFF':'ON',{anchor:'start',size:7,w:700,fill:svcOff?'#ff8a8a':'#f5c542'})); }
   })();
-  SVCPROBE=phases.map(function(p,i){ return [[262-(i%2)*14,tyH[i],'SL:'+p.id,p.c],[sdX1+16+(i%2)*14,tyH[i],'SD:'+p.id,p.c]]; });   // staggered so neighbours never touch
+  var GENH=[];
+  SVCPROBE=phases.map(function(p,i){ return [[262-(i%2)*14,tyH[i],'SL:'+p.id,p.c],[GN?380:sdX1+16+(i%2)*14,tyH[i],'SD:'+p.id,p.c]]; });   // staggered so neighbours never touch
   if(!sys.noNeutral) SVCPROBE.push([[262-(N%2)*14,tyN,'SN',COL.neu],[sdX1+16+(N%2)*14,tyN,'SN2',COL.neu]]);   // service neutral (not switched — same conductor both sides)
   if(DETAIL) SVCPROBE.push([[sdX1+16+((N+1)%2)*14,tyG+4,'SG',COL.egc]]);                                        // service ground: the EGC leaving the G terminal
   phases.forEach(function(p,i){var y=tyH[i];var dx=busC+(i-(N-1)/2)*22;
@@ -500,17 +598,34 @@ function render(){
     // high-leg delta: in the METER ONLY the high leg sits on C (ANSI C12 meter wiring — on B it would destroy the meter electronics);
     // it rolls back to B right after the meter, so it lands on B at the disconnect and the panel (NEC 408.3(E)(1)).
     var yM=(MODE==='highleg')?tyH[[0,2,1][i]]:y, xr=mcx+mr+6;
-    var dL=(yM===y)?('M 120 '+y+' L '+swX0+' '+y):('M 120 '+yM+' L '+xr+' '+yM+' L '+(xr+12)+' '+y+' L '+swX0+' '+y); svg.appendChild(el('path',{d:dL,stroke:svcF?FRED:p.c,'stroke-width':svcF?3.2:2.6,fill:'none'})); addDots(svg,dL,svcF?1:dirPh(i),24,svcF?FRED:null,svcF?null:angPh(i));
+    var dL=(yM===y)?('M 120 '+y+' L '+swX0+' '+y):('M 120 '+yM+' L '+xr+' '+yM+' L '+(xr+12)+' '+y+' L '+swX0+' '+y); svg.appendChild(el('path',{d:dL,stroke:svcF?FRED:(utilOff?DEAD:p.c),'stroke-width':svcF?3.2:2.6,fill:'none'})); var utilI=svcF||(utilAvail()&&!onGen&&feederLive); if(utilI)addDots(svg,dL,svcF?1:dirPh(i),24,svcF?FRED:null,svcF?null:angPh(i));
     var hl=el('path',{d:dL,stroke:'transparent','stroke-width':13,fill:'none'}); hl.style.cursor='pointer'; (function(pid){hl.addEventListener('click',function(e){e.stopPropagation();faultService(pid);});})(p.id); svg.appendChild(hl);
     // service disconnect BREAKER pole: closed = contact through; open = contacts parted (gap)
     if(svcOff){ svg.appendChild(el('line',{x1:swX0,y1:y,x2:swX0+7,y2:y,stroke:p.c,'stroke-width':2.6})); svg.appendChild(el('line',{x1:swX1-7,y1:y,x2:swX1,y2:y,stroke:DEAD,'stroke-width':2.6})); svg.appendChild(el('line',{x1:swX0+11,y1:y-3,x2:swX1-11,y2:y+3,stroke:COL.off,'stroke-width':1.6})); }
     else { svg.appendChild(el('line',{x1:swX0,y1:y,x2:swX1,y2:y,stroke:p.c,'stroke-width':2.6})); }
     // feeder side (switch-out -> panel): live only if the disconnect is closed
-    var dF='M '+swX1+' '+y+' L '+dx+' '+y+' L '+dx+' '+hotLandY; svg.appendChild(el('path',{d:dF,stroke:fdrF?FRED:(feederLive?p.c:DEAD),'stroke-width':fdrF?3.2:2.6,fill:'none'})); if(fdrF)addDots(svg,dF,1,20,FRED); else if(feederLive)addDots(svg,dF,dirPh(i),24,null,angPh(i));
+    if(GN){   // transfer switch pole: utility contact (top) · generator contact (below) · blade from the load pivot
+      var uLive=utilAvail(), dU='M '+swX1+' '+y+' L '+XUC+' '+y; svg.appendChild(el('path',{d:dU,stroke:uLive?p.c:DEAD,'stroke-width':2.6,fill:'none'})); if(uLive&&!onGen&&feederLive)addDots(svg,dU,dirPh(i),24,null,angPh(i));
+      var gy2=y+14, onC=onGen?gy2:y, bLive=onGen?genRunning&&!genBrkOff:uLive;
+      svg.appendChild(el('path',{d:'M '+XPV+' '+y+' L '+(XUC+2)+' '+onC,stroke:bLive?p.c:DEAD,'stroke-width':3,'stroke-linecap':'round',fill:'none'}));
+      [[XUC,y],[XUC,gy2],[XPV,y]].forEach(function(q){ svg.appendChild(el('circle',{cx:q[0],cy:q[1],r:2.8,fill:'#0b1020',stroke:'#aeb6c9','stroke-width':1.2})); });
+      if(i===0){ svg.appendChild(txt(XUC-4,y-7,'U',{anchor:'end',size:6.5,w:700,fill:COL.txt2})); svg.appendChild(txt(XUC-4,gy2+3,'G',{anchor:'end',size:6.5,w:700,fill:COL.txt2})); }
+      GENH.push({i:i,y:gy2,c:p.c});
+    }
+    var dF='M '+(GN?XPV:swX1)+' '+y+' L '+dx+' '+y+' L '+dx+' '+hotLandY; svg.appendChild(el('path',{d:dF,stroke:fdrF?FRED:(feederLive?p.c:DEAD),'stroke-width':fdrF?3.2:2.6,fill:'none'})); if(fdrF)addDots(svg,dF,1,20,FRED); else if(feederLive)addDots(svg,dF,dirPh(i),24,null,angPh(i));
     var hf=el('path',{d:dF,stroke:'transparent','stroke-width':13,fill:'none'}); hf.style.cursor='pointer'; (function(pid){hf.addEventListener('click',function(e){e.stopPropagation();faultFeeder(pid);});})(p.id); svg.appendChild(hf);
   });
   if(DETAIL){
-    if(!sys.noNeutral){ var dN='M 120 '+tyN+' L '+xNR+' '+tyN+' L '+xNR+' '+busTopZ;svg.appendChild(el('path',{d:dN,stroke:fNeu?FRED:(feederLive?COL.neu:DEAD),'stroke-width':fNeu?3:2.2,fill:'none'}));if(feederLive)addDots(svg,dN,-1,24,fNeu?FRED:null); }
+    if(!sys.noNeutral){
+      if(GN&&ATSN==='switched'){   // the neutral is a transfer-switch pole too
+        var dNu='M 120 '+tyN+' L '+XUC+' '+tyN, dNf='M '+XPV+' '+tyN+' L '+xNR+' '+tyN+' L '+xNR+' '+busTopZ;
+        svg.appendChild(el('path',{d:dNu,stroke:COL.neu,'stroke-width':2.2,fill:'none'})); if(!onGen&&feederLive&&!utilOff)addDots(svg,dNu,-1,24,fNeu?FRED:null);
+        svg.appendChild(el('path',{d:dNf,stroke:fNeu?FRED:(feederLive?COL.neu:DEAD),'stroke-width':fNeu?3:2.2,fill:'none'})); if(feederLive)addDots(svg,dNf,-1,24,fNeu?FRED:null);
+        svg.appendChild(el('path',{d:'M '+XPV+' '+tyN+' L '+(XUC+2)+' '+(onGen?tyN+9:tyN),stroke:COL.neu,'stroke-width':3,'stroke-linecap':'round',fill:'none'}));
+        [[XUC,tyN],[XUC,tyN+9],[XPV,tyN]].forEach(function(q){ svg.appendChild(el('circle',{cx:q[0],cy:q[1],r:2.8,fill:'#0b1020',stroke:'#aeb6c9','stroke-width':1.2})); });
+      } else {
+        var dN='M 120 '+tyN+' L '+xNR+' '+tyN+' L '+xNR+' '+busTopZ;svg.appendChild(el('path',{d:dN,stroke:fNeu?FRED:(feederLive?COL.neu:DEAD),'stroke-width':fNeu?3:2.2,fill:'none'}));
+        if(feederLive){ if(onGen) addDots(svg,'M '+(sdX0+22)+' '+tyN+' L '+xNR+' '+tyN+' L '+xNR+' '+busTopZ,-1,24,fNeu?FRED:null); else addDots(svg,dN,-1,24,fNeu?FRED:null); } } }
     var cy=tyG+4, nX=sdX0+22, gX=sdX0+62;
     var dG='M '+(gX+9)+' '+cy+' L '+xGR+' '+cy+' L '+xGR+' '+busTopZ;var fGndP=fGnd&&faultZone!=='service'&&effEgc()!=='broken';   /* line-side fault never touches the feeder EGC */ svg.appendChild(el('path',{d:dG,stroke:fGndP?FRED:((bondActive||poolObj)?OBJ:COL.egc),'stroke-width':(fGndP||bondActive||poolObj)?3:2.2,fill:'none'}));if(fGnd&&effEgc()!=='broken')addDots(svg,dG,-1,22,FRED);else if(bondActive||poolObj)addDots(svg,dG,-1,22,OBJ);
     // neutral drops into the N terminal; MBJ (250.28) ties N terminal to G terminal — the only N-G bond
@@ -518,14 +633,14 @@ function render(){
     var gcy=sys.noNeutral?tyH[1]:tyN;   // corner-grounded: the grounded phase (B) lands on the grounded-conductor terminal
     svg.appendChild(el('line',{x1:nX,y1:gcy,x2:nX,y2:cy-7,stroke:COL.neu,'stroke-width':2.2}));
     // every ground fault that makes it to the MBJ goes home on the grounded service conductor: N terminal -> back to the transformer
-    var retN=fGnd&&!sys.ungrounded&&(faultZone==='service'||effEgc()!=='broken');
+    var retN=fGnd&&!sys.ungrounded&&(faultZone==='service'||effEgc()!=='broken'); genRet=(retN&&onGen&&faultZone!=='service')?ATSN:null; if(genRet==='switched') retN=false;
     if(retN){ var dR='M '+(gX-9)+' '+cy+' L '+(nX+9)+' '+cy; addDots(svg,dR,1,10,FRED);
-      var dR2='M '+nX+' '+(cy-7)+' L '+nX+' '+gcy+' L 120 '+gcy; svg.appendChild(el('path',{d:dR2,stroke:FRED,'stroke-width':3,fill:'none'})); addDots(svg,dR2,1,20,FRED); }
+      if(!genRet){ var dR2='M '+nX+' '+(cy-7)+' L '+nX+' '+gcy+' L 120 '+gcy; svg.appendChild(el('path',{d:dR2,stroke:FRED,'stroke-width':3,fill:'none'})); addDots(svg,dR2,1,20,FRED); } }
     svg.appendChild(el('line',{x1:nX+9,y1:cy,x2:gX-9,y2:cy,stroke:fGnd?FRED:COL.egc,'stroke-width':3,'stroke-dasharray':'3 3'}));
     svg.appendChild(el('rect',{x:nX-9,y:cy-7,width:18,height:14,rx:2,fill:'#e6eaf2',stroke:'#aeb6c9','stroke-width':1}));svg.appendChild(txt(nX,cy+4,sys.noNeutral?'B':'N',{anchor:'middle',size:9,w:700,fill:'#0b1020'}));
     svg.appendChild(el('rect',{x:gX-9,y:cy-7,width:18,height:14,rx:2,fill:'#1f7a45',stroke:COL.egc,'stroke-width':1}));svg.appendChild(txt(gX,cy+4,'G',{anchor:'middle',size:9,w:700,fill:'#fff'}));
     svg.appendChild(txt((nX+gX)/2,cy-9,'MBJ',{anchor:'middle',size:7,fill:fGnd?'#ff8a8a':COL.egc}));
-    svg.appendChild(txt((nX+gX)/2,cy+16,'NEC 250.28',{anchor:'middle',size:7,fill:COL.txt2}));
+    if(GN) svg.appendChild(txt(nX-12,cy+16,'250.28',{anchor:'end',size:7,fill:COL.txt2})); else svg.appendChild(txt((nX+gX)/2,cy+16,'NEC 250.28',{anchor:'middle',size:7,fill:COL.txt2}));
     if((bondActive||poolObj)&&!fGnd){   // objectionable current from a downstream illegal bond rejoins the neutral HERE, at the first legal N-G bond
       addDots(svg,'M '+(gX-9)+' '+cy+' L '+(nX+9)+' '+cy,1,10,OBJ);
       var ct=txt(nX-14,cy+48,'↑ objectionable current returns to N here (MBJ)',{anchor:'start',size:7.5,w:700,fill:OBJ}); ct.setAttribute('stroke',lc('#0b1020')); ct.setAttribute('stroke-width','4'); ct.setAttribute('paint-order','stroke'); svg.appendChild(ct);
@@ -543,13 +658,16 @@ function render(){
     svg.appendChild(txt(rodX+14,tyG+40,sys.ungrounded?'GEC → enclosure / EGC (ungrounded)':'GEC · 250.24(A)(1)',{anchor:'start',size:7,fill:COL.egc}));
     // ground detector lamps (250.21(B)): brightness = phase voltage to ground
     if(sys.ungrounded){ var lx0=gX+24; svg.appendChild(txt(lx0-6,tyG+40,'GROUND DETECTOR · 250.21(B)',{anchor:'start',size:6.5,fill:'#f5c542'}));
-      ['A','B','C'].forEach(function(L,k){ var v=svcOff?0:cMag(nodeVph(L)), f=Math.min(1,v/240), x=lx0+k*26, y=tyG+54;
+      ['A','B','C'].forEach(function(L,k){ var v=!srcLive()?0:cMag(nodeVph(L)), f=Math.min(1,v/240), x=lx0+k*26, y=tyG+54;
         svg.appendChild(el('circle',{cx:x,cy:y,r:7,fill:'rgba(245,197,66,'+(0.08+0.85*f).toFixed(2)+')',stroke:'#f5c542','stroke-width':1.2}));
         if(f>0.05)svg.appendChild(el('circle',{cx:x,cy:y,r:7+5*f,fill:'none',stroke:'rgba(245,197,66,'+(0.35*f).toFixed(2)+')','stroke-width':2}));
         svg.appendChild(txt(x,y+17,L+' '+Math.round(v)+'V',{anchor:'middle',size:6.5,fill:COL.txt2})); }); }
     svg.appendChild(txt(rodX,rodY+21,'ROD/UFER',{anchor:'middle',size:7.5,fill:COL.txt2}));
     svg.appendChild(txt(rodX,rodY+30,'NEC 250.52(A)',{anchor:'middle',size:7,fill:COL.txt2}));
   }
+  if(GN&&DETAIL) drawGen(svg,{N:N,phases:phases,tyH:tyH,tyN:tyN,tyG:tyG,cy:tyG+4,nX:sdX0+22,gX:sdX0+62,XUC:XUC,XGR0:XGR0,swX1:swX1,GENH:GENH,
+     onGen:onGen,running:genRunning,feederLive:feederLive,FRED:FRED,DEAD:DEAD,dirPh:dirPh,angPh:angPh,fGnd:fGnd,fNeu:fNeu,genRet:genRet,
+     fPh:(faultZone==='feeder'?phases.map(function(q){return q.id;}).indexOf(faultPhase):(faultCkt!=null?phases.map(function(q){return q.id;}).indexOf(phaseOfCkt(faultCkt)):-1)), fA:fA, gF:gF, xGR:xGR});
   // ===== MAIN breaker (clickable) or lugs =====
   if(!MLO){
     var mg=el('g'); mg.style.cursor='pointer'; mg.addEventListener('click',function(e){e.stopPropagation();toggleLcMain();});
@@ -562,7 +680,7 @@ function render(){
     svg.appendChild(txt(busC-mlOff,mainY+14,'MAIN LUGS',{anchor:'end',size:8.5,w:700,fill:COL.txt2})); svg.appendChild(txt(busC+mlOff,mainY+14,'(MLO)',{anchor:'start',size:8.5,w:700,fill:COL.txt2}));
   }
   svg.appendChild(txt(busC,22,'42-CIRCUIT PANELBOARD · '+sys.title,{anchor:'middle',size:12.5,w:700}));
-  if(!busLive){ svg.appendChild(txt(busC,busBotZ+14,(svcOff?'SERVICE OPEN — whole panel de-energized':'MAIN OPEN — bus dead, feeder live'),{anchor:'middle',size:8.5,w:700,fill:'#ff8a8a'})); }
+  if(!busLive){ svg.appendChild(txt(busC,busBotZ+14,(!feederLive?(GN?'NO SOURCE — utility breaker open, generator not on line':'SERVICE OPEN — whole panel de-energized'):'MAIN OPEN — bus dead, feeder live'),{anchor:'middle',size:8.5,w:700,fill:'#ff8a8a'})); }
 
   // N/G buses
   if(DETAIL){
@@ -686,7 +804,7 @@ function render(){
   // labels drawn LAST with a dark halo so the hot feeder drops behind them don't break up the text
   function haloTxt(x,y,str,o){ var t=txt(x,y,str,o); t.setAttribute('stroke',lc('#0b1020')); t.setAttribute('stroke-width','4'); t.setAttribute('stroke-linejoin','round'); t.setAttribute('paint-order','stroke'); svg.appendChild(t); }
   // ---- the panelboard's own illegal N–G bond toggle (same style as the pool panel's) ----
-  if(DETAIL){ var cw2=eqRx1-eqRx0, cx2=eqRx0, cy2=(poolActive?156:110)+48;   // stack: MAIN BKR/MLO · BUS TYPE · BOND PANEL · EGC   // over the right-side equipment (below the pool feeder runs when the pool is on)
+  if(DETAIL){ var cw2=eqRx1-eqRx0, cx2=eqRx0, cy2=(poolActive?top-64:top-110)+48;   // stack: MAIN BKR/MLO · BUS TYPE · BOND PANEL · EGC   // over the right-side equipment (below the pool feeder runs when the pool is on)
     (function(){ var bw2=cw2, bx2=cx2, by=cy2-24, tg=el('g'); tg.style.cursor='pointer';   // BUS TYPE: branch <-> stacked
       tg.addEventListener('click',function(e){e.stopPropagation(); busToggle();});
       tg.appendChild(el('rect',{x:bx2,y:by,width:bw2,height:20,rx:6,fill:'#101a30',stroke:STACKED?'#f5c542':'#5fd4ff','stroke-width':1.4}));
@@ -706,8 +824,9 @@ function render(){
   haloTxt(busC, pny+16, '▲ probe: tap any two to read voltage', {anchor:'middle',size:7.5,fill:'#cdd8f0'});
   haloTxt(busC, top-46, 'LOAD CENTER (PANELBOARD)', {anchor:'middle',size:9,fill:'#cdd8f0'});
 
-  var ro=document.getElementById('readout'); if(ro){ ro.innerHTML = (probePick.length===2)?probeText() : (ckMsg?ckMsg:(poolMsg&&poolActive?poolMsg:faultWhy())); }
+  var ro=document.getElementById('readout'); if(ro){ ro.innerHTML = (probePick.length===2)?probeText() : (ckMsg?ckMsg:(poolMsg&&poolActive?poolMsg:((genNote&&GN&&!faultActive())?genNote:((utilNote&&!faultActive())?utilNote:faultWhy())))); var gcr=document.getElementById('genCountR'); if(gcr) gcr.textContent=genLeft(); }
   var pb=document.getElementById('poolBtn'); if(pb){ pb.style.opacity=(MODE==='single')?1:0.4; pb.classList.toggle('on',poolActive); }
+  var gb=document.getElementById('genBtn'); if(gb){ gb.style.opacity=(MODE==='single'||MODE==='v208'||MODE==='v480')?1:0.4; gb.classList.toggle('on',GN); } var ag=document.getElementById('atsGrp'); if(ag) ag.style.display=GN?'':'none';
   startAnim();
 }
 
@@ -723,7 +842,9 @@ document.getElementById('detailBtn').addEventListener('click',function(){ DETAIL
 document.getElementById('bondBtn').addEventListener('click',function(){ downstreamBond=!downstreamBond; this.classList.toggle('on',downstreamBond); if(faultCkt!=null)applyFault(faultCkt); else render(); });
 document.getElementById('ocpdBtn').addEventListener('click',function(){ ocpdOn=!ocpdOn; this.classList.toggle('on',ocpdOn); this.textContent='Breaker trips: '+(ocpdOn?'ON':'OFF'); if(faultCkt!=null)applyFault(faultCkt); else render(); });
 document.getElementById('poolBtn').addEventListener('click',function(){ if(MODE!=='single'){ var ro=document.getElementById('readout'); if(ro)ro.innerHTML='<b style="color:#5fd4ff">POOL PANEL</b> — this demo is for a 120/240 V single-phase (residential) service. Switch System to 120/240 V 1Ø.'; return; } poolOn=!poolOn; poolMsg=''; render(); });
-document.getElementById('resetBtn').addEventListener('click',function(){ probePick=[]; svcOff=false; lcMainOff=false; clearFault(); });
+document.getElementById('resetBtn').addEventListener('click',function(){ probePick=[]; svcOff=false; lcMainOff=false; utilOff=false; utilNote=''; genReset(); clearFault(); });
+document.getElementById('genBtn').addEventListener('click',function(){ if(!(MODE==='single'||MODE==='v208'||MODE==='v480')){ var ro=document.getElementById('readout'); if(ro)ro.innerHTML='<b style="color:#5fd4ff">GENERATOR</b> — this demo covers 120/240 V 1Ø, 208Y/120 V and 480Y/277 V. Switch the System to one of those.'; return; } GEN=!GEN; genReset(); if(GEN&&!utilAvail()){ lastSvc=false; } render(); });
+bindGrp('atsGrp','data-atsn',function(v){ ATSN=v; render(); });
 
 
 /* ===================== POOL SUBPANEL (120/240 V 1Ø) =====================
@@ -782,6 +903,83 @@ function brkProbe(svg,x,y,id,col){   // small probe point on a breaker's load te
   g2.appendChild(el('circle',{cx:x,cy:y,r:picked?9:7,fill:'#0b1020',stroke:picked?'#00d4ff':col,'stroke-width':picked?2.6:2}));
   if(picked) g2.appendChild(el('circle',{cx:x,cy:y,r:3,fill:'#00d4ff'}));
   svg.appendChild(g2); }
+function drawGen(svg,g){
+  var N=g.N, FRED=g.FRED, DEAD=g.DEAD, run=g.running, sw=(ATSN==='switched');
+  var x0=12, x1=210, top0=g.tyG+118, rowY=function(k){ return g.tyG+146+16*k; };
+  // terminal order on the right edge = the order the conductors turn up into the ATS (no crossings)
+  var HIT=[], GPR=[], order=sw?['G','N']:['N','G']; for(var i=0;i<N;i++) order.push('H'+i);
+  var y1=rowY(order.length-1)+18;
+  var hot=run, red=run;
+  // enclosure
+  svg.appendChild(el('rect',{x:x0,y:top0,width:x1-x0,height:y1-top0,rx:8,fill:red?'#3a1620':COL.box,stroke:red?FRED:'#6f80a8','stroke-width':red?2:1.3}));
+  svg.appendChild(txt((x0+x1)/2,top0-7,'STANDBY GENERATOR · 48 kW',{anchor:'middle',size:10.5,w:700,fill:red?'#ff8a8a':COL.txt2}));
+  // alternator symbol
+  var acx=x0+34, acy=(top0+y1)/2-8;
+  svg.appendChild(el('circle',{cx:acx,cy:acy,r:20,fill:'none',stroke:red?FRED:'#aeb6c9','stroke-width':1.8}));
+  svg.appendChild(txt(acx,acy+5,'G',{anchor:'middle',size:15,w:700,fill:red?'#ff8a8a':COL.txt}));
+  svg.appendChild(el('path',{d:'M '+(acx-9)+' '+(acy+12)+' q 4.5 -5 9 0 t 9 0',stroke:red?FRED:'#aeb6c9','stroke-width':1.2,fill:'none'}));
+  var st=GMODE==='off'?'OFF':GST==='off'?'STANDBY':(GST==='sense'?'START IN':(GST==='cool'?'COOL-DOWN':(genBrkOff?'BREAKER OFF':(g.onGen?'ON LOAD':'RUNNING'))));
+  svg.appendChild(txt(acx,y1-20,st,{anchor:'middle',size:8.5,w:700,fill:red?'#ff8a8a':COL.txt2}));
+  var cd=txt(acx,y1-8,'',{anchor:'middle',size:9,w:700,fill:red?'#ff8a8a':'#ffd27a'}); cd.setAttribute('id','genCount'); cd.setAttribute('data-pre','');
+  if(gWhat) cd.textContent=genLeft()+' s'; svg.appendChild(cd);
+  svg.appendChild(txt(acx+26,top0+17,MODE==='single'?'120/240 V 1Ø':(MODE==='v208'?'208Y/120 V 3Ø':'480Y/277 V 3Ø'),{anchor:'start',size:10.5,w:700,fill:COL.txt2}));
+  // controller mode switch: AUTO / OFF / MANUAL (RUN)
+  (function(){ var opts=[['auto','AUTO','#1f6f45','#8fd6a3'],['off','OFF','#5a1a1f','#ff8a8a'],['run','MANUAL','#6a5212','#f5c542']], my=y1+7, mw=(x1-x0), sw=mw/3, mh=22;
+    svg.appendChild(el('rect',{x:x0,y:my,width:mw,height:mh,rx:6,fill:'#101a30',stroke:'#4a5b80','stroke-width':1.3}));
+    opts.forEach(function(o,i){ var ox=x0+i*sw, on=(GMODE===o[0]), sg=el('g'); sg.style.cursor='pointer'; sg.addEventListener('click',function(e){e.stopPropagation();setGenMode(o[0]);});
+      if(on) sg.appendChild(el('rect',{x:ox+1.5,y:my+1.5,width:sw-3,height:mh-3,rx:4,fill:o[2]}));
+      sg.appendChild(el('rect',{x:ox,y:my,width:sw,height:mh,fill:'transparent'}));
+      sg.appendChild(txt(ox+sw/2,my+15,o[1],{anchor:'middle',size:9.5,w:700,fill:on?o[3]:'#8695b5'})); svg.appendChild(sg);
+      if(i>0) svg.appendChild(el('path',{d:'M '+ox+' '+(my+3)+' L '+ox+' '+(my+mh-3),stroke:'#2b3a5e','stroke-width':1})); }); })();
+  // generator main breaker (clickable) across the hot rows
+  var hy0=rowY(2)-9, hy1=rowY(order.length-1)+9, bx0=x1-42, bx1=x1-14;
+  var bg=el('g'); bg.style.cursor='pointer'; bg.addEventListener('click',function(e){e.stopPropagation();toggleGenBrk();});
+  bg.appendChild(el('rect',{x:bx0,y:hy0,width:bx1-bx0,height:hy1-hy0,rx:3,fill:genBrkOff?'#2a1620':'#16233f',stroke:genBrkOff?COL.off:'#9fb0d6','stroke-width':1.2}));
+  bg.appendChild(el('rect',{x:bx1-6,y:hy0+2,width:4,height:hy1-hy0-4,rx:2,fill:genBrkOff?COL.off:'#f5c542'}));
+  svg.appendChild(bg);
+  svg.appendChild(txt((bx0+bx1)/2,hy0-4,genAmps()+' A',{anchor:'middle',size:8.5,w:700,fill:genBrkOff?'#ff8a8a':COL.txt2}));
+  // N–G system bonding jumper only when the neutral is switched (separately derived)
+  var yN=rowY(order.indexOf('N')), yG=rowY(order.indexOf('G'));
+  if(sw){ svg.appendChild(el('path',{d:'M '+(x1-8)+' '+yN+' L '+(x1-8)+' '+yG,stroke:g.gF?FRED:COL.egc,'stroke-width':2.4,'stroke-dasharray':'3 2',fill:'none'}));
+    svg.appendChild(txt(acx+26,top0+33,'N–G bond here (SBJ)',{anchor:'start',size:10.5,w:700,fill:COL.egc})); }
+  else svg.appendChild(txt(acx+26,top0+33,'no N–G bond here',{anchor:'start',size:10.5,w:700,fill:COL.txt2}));
+  // conductors: generator → up into the transfer switch. Hops where they cross a line they don't connect to.
+  function riser(x,yStart,yEnd,cross){ var d='M '+x+' '+yStart; cross.filter(function(c){return c<yStart-5&&c>yEnd+5;}).sort(function(a,b){return b-a;}).forEach(function(c){ d+=' L '+x+' '+(c+4)+' A 4 4 0 0 1 '+x+' '+(c-4); }); return d+' L '+x+' '+yEnd; }
+  var crossH=g.tyH.slice(), crossAll=crossH.concat([g.tyN,g.cy]);
+  order.forEach(function(t,k){ var ry=rowY(k), d, col, live, dots=0, dir=1, ph=null, isRed=false;
+    if(t==='N'){ col=COL.neu; live=true;
+      if(sw){ var xr=352; d='M '+x1+' '+ry+' L '+xr+' '+ry+' '+riser(xr,ry,g.tyN+9,[g.cy]).slice(('M '+xr+' '+ry).length)+' L '+(g.XUC)+' '+(g.tyN+9); }
+      else { var xn=g.nX+6; d='M '+x1+' '+ry+' L '+xn+' '+ry+' L '+xn+' '+(g.cy+7); }
+      if(g.onGen&&g.feederLive){ dots=1; dir=-1; }
+      if(g.onGen&&((g.fNeu)||(g.genRet==='solid'))) isRed=true;
+      if(g.gF&&!sw){ isRed=true; dots=1; dir=-1; } }
+    else if(t==='G'){ col=COL.egc; live=true; d='M '+x1+' '+ry+' L '+g.gX+' '+ry+' L '+g.gX+' '+(g.cy+7); if(g.genRet==='switched'){ isRed=true; dots=1; dir=-1; }
+      if(g.gF){ isRed=true; dots=1; dir=sw?-1:1; } }
+    else { var hi=+t.slice(1), H=g.GENH[hi], xr2=g.XGR0+6*hi; col=H.c; live=run&&!genBrkOff;
+      d='M '+x1+' '+ry+' L '+xr2+' '+ry+' '+riser(xr2,ry,H.y,crossAll).slice(('M '+xr2+' '+ry).length)+' L '+g.XUC+' '+H.y;
+      if(g.onGen&&g.feederLive){ dots=1; dir=g.dirPh(hi); ph=g.angPh(hi); }
+      if(g.onGen&&g.fA&&g.fPh===hi){ isRed=true; dots=1; dir=1; ph=null; }
+      if(g.gF&&faultPhase===g.phases[hi].id){ isRed=true; dots=1; dir=1; ph=null; }
+      (function(pid,dd){ var hz=el('path',{d:dd,stroke:'transparent','stroke-width':13,fill:'none'}); hz.style.cursor='pointer'; hz.addEventListener('click',function(e){e.stopPropagation();faultGenFdr(pid);}); HIT.push(hz); })(g.phases[hi].id,d); }
+    svg.appendChild(el('path',{d:d,stroke:isRed?FRED:(live?col:DEAD),'stroke-width':isRed?3:2.2,fill:'none'}));
+    if(dots||isRed) addDots(svg,d,dir,20,isRed?FRED:null,isRed?null:ph);
+    svg.appendChild(txt(x1+4,ry-3,t==='N'?'N':(t==='G'?'EGC':g.phases[+t.slice(1)].id),{anchor:'start',size:7.5,w:700,fill:col===COL.neu?COL.txt2:col}));
+    GPR.push([x1+44+(k%2)*18,ry,'GN:'+(t==='N'?'N':(t==='G'?'G':g.phases[+t.slice(1)].id)),col]);
+  });
+  // separately derived (switched neutral): GEC at the generator to its own electrodes — 250.30(C); a single rod needs a supplemental electrode ≥ 6 ft away — 250.53(A)(2),(A)(3)
+  if(sw){ var gy=y1-6, rx1=236, rx2=290, ry=y1+20;
+    svg.appendChild(el('path',{d:'M '+x1+' '+gy+' L '+rx1+' '+gy+' L '+rx1+' '+ry+' L '+rx2+' '+ry,stroke:COL.egc,'stroke-width':2.4,fill:'none'}));
+    [rx1,rx2].forEach(function(rx){ svg.appendChild(el('path',{d:'M '+rx+' '+ry+' L '+rx+' '+(ry+10),stroke:COL.egc,'stroke-width':2.4,fill:'none'}));
+      [0,4,8].forEach(function(dd,i2){ var w=12-i2*4; svg.appendChild(el('line',{x1:rx-w/2,y1:ry+10+dd,x2:rx+w/2,y2:ry+10+dd,stroke:COL.egc,'stroke-width':2})); }); });
+    svg.appendChild(txt((rx1+rx2)/2,ry-4,'≥ 6 ft',{anchor:'middle',size:8,w:700,fill:COL.egc}));
+    svg.appendChild(txt((rx1+rx2)/2,ry+34,'GEN GEC · 2 rods',{anchor:'middle',size:8.5,w:700,fill:COL.egc}));
+    svg.appendChild(txt((rx1+rx2)/2,ry+45,'250.30(C) · 250.53(A)(2)',{anchor:'middle',size:7.5,fill:COL.txt2})); }
+  HIT.forEach(function(h){ svg.appendChild(h); });
+  if(g.gF){ if(sw) addDots(svg,'M '+(x1-8)+' '+yG+' L '+(x1-8)+' '+yN,1,10,FRED);   // across the SBJ: G → N at the generator
+    else { svg.appendChild(el('line',{x1:g.nX+9,y1:g.cy,x2:g.gX-9,y2:g.cy,stroke:FRED,'stroke-width':3,'stroke-dasharray':'3 3'})); addDots(svg,'M '+(g.gX-9)+' '+g.cy+' L '+(g.nX+9)+' '+g.cy,1,10,FRED); } }   // across the service MBJ: G → N
+  GPR.forEach(function(q){ brkProbe(svg,q[0],q[1],q[2],q[3]); });
+  if(g.genRet==='solid'){ var tp='M '+g.nX+' '+(g.cy-7)+' L '+g.nX+' '+g.tyN; }   // (MBJ dots already shown)
+}
 function ckMenuClose(){ var m=document.getElementById('ckMenu'); if(m) m.remove(); }
 function ckInfo(kind,id){ if(kind==='P'){ var c=POOLCKTS[id]; return {name:c.n, key:'P:'+id, v120:!!c.nt, p:c.p, def:poolEgc}; }
   var d=DEMO[SYS[MODE].demo], c=d[id]; if(poolOn&&MODE==='single'){ if(id===26)c=d[2]; else if(id===28)c=d[4]; }
@@ -1061,7 +1259,7 @@ function drawTCC(){
   p.push('<line x1="'+xi+'" y1="'+T+'" x2="'+xi+'" y2="'+B+'" stroke="#f5c542" stroke-dasharray="3 3" stroke-width="1.1"/><text x="'+(xi-3)+'" y="'+(T+10)+'" fill="#f5c542" font-size="7" text-anchor="end">instantaneous ~10×</text>');
   [[40,25],[40,150],[100,5],[100,20]].forEach(function(q){p.push('<circle cx="'+X(q[0])+'" cy="'+Yt(q[1])+'" r="2.6" fill="#cdd8f0"/>');});
   p.push('<text x="'+(L+6)+'" y="'+(B-33)+'" fill="#9fb0d6" font-size="7.5">40 A (2×) → 25–150 s</text><text x="'+(L+6)+'" y="'+(B-21)+'" fill="#9fb0d6" font-size="7.5">100 A (5×) → 5–20 s</text>');
-  if(faultActive() && faultZone!=='service' && !svcOff && !lcMainOff){
+  if(faultActive() && faultZone!=='service' && faultZone!=='genfdr' && srcLive() && !lcMainOff){
     var If=FAULT_A||1,t=tripSec,x=X(Math.max(Amin,Math.min(Amax,If)));
     if(!isFinite(t)){ p.push('<line x1="'+x+'" y1="'+T+'" x2="'+x+'" y2="'+B+'" stroke="#ff3b30" stroke-width="1.5"/><text x="'+x+'" y="'+(T+10)+'" fill="#ff3b30" font-size="8" text-anchor="middle">'+If+'A · WON\'T TRIP</text>'); }
     else { var y=Yt(t); p.push('<line x1="'+(x-6)+'" y1="'+(y-6)+'" x2="'+(x+6)+'" y2="'+(y+6)+'" stroke="#ff3b30" stroke-width="2"/><line x1="'+(x+6)+'" y1="'+(y-6)+'" x2="'+(x-6)+'" y2="'+(y+6)+'" stroke="#ff3b30" stroke-width="2"/><circle cx="'+x+'" cy="'+y+'" r="9" fill="none" stroke="#ff3b30" stroke-width="1.5"/><text x="'+x+'" y="'+(y<T+20?y+16:y-12)+'" fill="#ff3b30" font-size="8.5" text-anchor="middle">'+If+' A · '+(t>=1?Math.round(t)+' s':(t*1000<50?'instant':t.toFixed(2)+' s'))+'</text>'); }

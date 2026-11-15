@@ -76,7 +76,7 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  '⚡ NEW — ELECTRICAL THEORY (Tools tab): a live panel one-line that shows current flow and fault paths — tap a wire or a load to fault it, break an EGC, reverse polarity, add a pool panel, or switch systems.',
+  '⚡ NEW — ELECTRICAL THEORY (Tools tab): a live panel one-line that shows current flow and fault paths — tap a wire or a load to fault it, break an EGC, reverse polarity, add a pool panel, switch systems, or add a standby generator with a transfer switch.',
   '📝 ESTIMATE + MAINTENANCE — the PDF✎ button now saves a real-text PDF: typed values and labels are selectable and editable right inside Acrobat and other PDF apps, in the real AOG fonts, not a flat picture. CAPTURE (image) is unchanged.',
   '✨ NEW — WALKTHROUGH → ESTIMATE (beta, under the Estimate tab): snap a few photos on the job, add notes, and Claude drafts the equipment, electrical + gas materials and a scope to start the estimate. Needs internet and a one-time API-key setup on the device — try it and tell us what you think.',
 ]

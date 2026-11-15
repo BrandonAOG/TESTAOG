@@ -110,3 +110,70 @@ test('service disconnect probes: line side stays hot when open, load side dies, 
   expect([r.closedLL, r.lineN, r.ng, r.openLine, r.openLoad, r.acrossPole]).toEqual([240, 120, 0, 240, 0, 120]);
   expect(r.msg).toMatch(/LINE side is still hot/);
 });
+
+// ---------- standby generator + service-rated transfer switch ----------
+async function genOn(page, sys, atsn) {
+  await page.evaluate(([s, n]) => { document.querySelector(`[data-sys="${s}"]`).click(); document.getElementById('genBtn').click();
+    document.querySelector(`[data-atsn="${n}"]`).click(); GSPEED = 50; }, [sys, atsn]);
+}
+const gs = page => page.evaluate(() => ({ SRC, GST, live: srcLive(), brk: genBrkOff }));
+
+for (const sys of ['single', 'v208', 'v480']) {
+  test(`generator (${sys}): outage → start → transfer → retransfer → cool-down → standby`, async ({ page }) => {
+    const errs = await open(page, '/electrical-theory/');
+    await genOn(page, sys, 'solid');
+    await page.evaluate(() => toggleUtil());
+    expect(await gs(page)).toMatchObject({ SRC: 'util', GST: 'sense', live: false });
+    await page.waitForTimeout(600);
+    expect(await gs(page)).toMatchObject({ SRC: 'gen', GST: 'run', live: true });
+    await page.evaluate(() => toggleUtil());
+    await page.waitForTimeout(1900);
+    expect(await gs(page)).toMatchObject({ SRC: 'util', GST: 'off', live: true });
+    expect(errs).toEqual([]);
+  });
+}
+
+test('generator: OFF → AUTO during an outage (switch already on gen) brings the loads back', async ({ page }) => {
+  expect(await open(page, '/electrical-theory/')).toEqual([]);
+  await genOn(page, 'single', 'solid');
+  await page.evaluate(() => toggleUtil()); await page.waitForTimeout(600);
+  await page.evaluate(() => setGenMode('off'));
+  expect(await gs(page)).toMatchObject({ SRC: 'gen', live: false });
+  await page.evaluate(() => setGenMode('auto')); await page.waitForTimeout(300);
+  expect(await gs(page)).toMatchObject({ SRC: 'gen', GST: 'run', live: true });
+});
+
+test('generator: utility back with the generator dead retransfers almost instantly', async ({ page }) => {
+  expect(await open(page, '/electrical-theory/')).toEqual([]);
+  await genOn(page, 'single', 'solid');
+  await page.evaluate(() => toggleUtil()); await page.waitForTimeout(600);
+  await page.evaluate(() => { toggleGenBrk(); GSPEED = 1; toggleUtil(); });
+  await page.waitForTimeout(1400);
+  expect(await gs(page)).toMatchObject({ SRC: 'util', live: true });
+});
+
+for (const atsn of ['solid', 'switched']) {
+  test(`generator feeder fault (${atsn} neutral) trips the generator breaker`, async ({ page }) => {
+    const errs = await open(page, '/electrical-theory/');
+    await genOn(page, 'v480', atsn);
+    await page.evaluate(() => toggleUtil()); await page.waitForTimeout(600);
+    await page.evaluate(() => faultGenFdr('A'));
+    expect(await page.evaluate(() => ({ z: faultZone, a: FAULT_A }))).toEqual({ z: 'genfdr', a: 180 });   // 60 A breaker × 3
+    await page.waitForTimeout(2600);
+    expect(await gs(page)).toMatchObject({ brk: true, live: false });
+    await page.evaluate(() => toggleGenBrk());
+    expect(await gs(page)).toMatchObject({ brk: false, live: true });
+    expect(errs).toEqual([]);
+  });
+}
+
+test('generator: switched neutral draws the SBJ and two ground rods; solid neutral has neither', async ({ page }) => {
+  expect(await open(page, '/electrical-theory/')).toEqual([]);
+  await genOn(page, 'single', 'switched');
+  const txt = () => page.evaluate(() => document.getElementById('svg').textContent);
+  expect(await txt()).toContain('GEN GEC · 2 rods');
+  expect(await txt()).toContain('N–G bond here (SBJ)');
+  await page.evaluate(() => document.querySelector('[data-atsn="solid"]').click());
+  expect(await txt()).not.toContain('GEN GEC · 2 rods');
+  expect(await txt()).toContain('no N–G bond here');
+});
