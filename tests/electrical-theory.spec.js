@@ -64,3 +64,37 @@ test('a 120 V circuit on L2 runs the opposite way to one on L1 — hot AND neutr
   // circuit 1 (L1): hot y≈233 out, neutral y≈242 back · circuit 3 (L2): hot y≈258 back, neutral y≈267 out
   expect([r[233], r[242], r[258], r[267]]).toEqual([1, 1, -1, -1]);
 });
+
+test('panel main OFF: the feeder probes (line side of the main) still read voltage; service disconnect OFF kills them', async ({ page }) => {
+  expect(await open(page, '/electrical-theory/')).toEqual([]);
+  const r = await page.evaluate(() => {
+    const read = () => voltBetween('L1', 'L2');
+    const out = { on: read() };
+    toggleLcMain(); out.mainOff = read(); out.msg = (probePick = ['L1', 'L2'], render(), document.getElementById('readout').innerText);
+    toggleLcMain(); toggleSvc(); out.svcOff = read();
+    return out; });
+  expect(r.on).toBe(240);
+  expect(r.mainOff).toBe(240);
+  expect(r.msg).toMatch(/LINE side/);
+  expect(r.svcOff).toBe(0);
+});
+
+test('breaker probes: read their own leg, 0 V when the breaker is off, and work across systems', async ({ page }) => {
+  expect(await open(page, '/electrical-theory/')).toEqual([]);
+  const r = await page.evaluate(() => {
+    const v = (a, b) => voltBetween(a, b); const out = {};
+    out.range = v('BK:5', 'BK:7');           // 2-pole L1–L2
+    out.sameLeg = v('BK:2', 'BK:6');         // both L1
+    out.toN = v('BK:1', 'N');
+    toggleCkt(1); out.off = v('BK:1', 'N'); toggleCkt(1);
+    document.querySelector('[data-sys="v208"]').click(); out.v208 = v('BK:1', 'BK:3');
+    return out; });
+  expect(r).toEqual({ range: 240, sameLeg: 0, toN: 120, off: 0, v208: 208 });
+  expect(await page.locator('#svg circle[r="7"]').count()).toBeGreaterThan(20);   // one per breaker pole (empty spaces have none), same size as the feeder probes
+  const msg = await page.evaluate(() => { document.querySelector('[data-sys="single"]').click();
+    const m = {}; probePick = ['BK:24', 'N']; toggleCkt(22); m.off = document.getElementById('readout').innerText; toggleCkt(22);
+    toggleLcMain(); m.dead = document.getElementById('readout').innerText; toggleLcMain(); return m; });
+  expect(msg.off).toMatch(/Breaker 24 \(L2\) is OFF/);
+  expect(msg.off).not.toMatch(/or its bus/);
+  expect(msg.dead).toMatch(/bus is dead — the panel main is OFF/);
+});
