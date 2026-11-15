@@ -23,8 +23,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .dark{ --bg:#0A0E27; --bg2:#0f1535; --panel:#0f1535; --stroke:#1e2a4a; --txt:#E0F7FF; --txt2:#94a3b8; --accent:#00FFC8; --cyan:#00FFC8; --bg3:#141a3a; --border:#1e2a4a; --danger:#ef4444; }
   /* the one-line itself is an instrument screen: dark in both themes so every wire color reads the same */
   .scope{background:#0b1020;border:1px solid #1e2a4a;border-radius:12px;margin:0 10px 0;}
-  #readout{--txt:#cdd8f0;--txt2:#8a97b4;background:#0b1020;color:#cdd8f0;border:1px solid #1e2a4a;border-top:0;border-radius:0 0 12px 12px;margin:-10px 10px 14px;padding:12px 16px 14px !important;}
-  .scope{border-radius:12px 12px 0 0;}
+  .scope{border-radius:12px;}
   #tccHost{background:#0b1020;border-radius:10px;padding:6px;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;background:var(--bg);color:var(--txt);font-family:'Exo 2',ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;}
@@ -95,10 +94,43 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     .scope svg{width:980px;max-width:none;}
     .grp{flex-wrap:wrap;}                                   /* button groups wrap instead of running off the screen */
     .grp > button{flex:1 1 auto;border-bottom:1px solid var(--border);padding:10px 9px;}
-    #readout{position:sticky;bottom:0;z-index:20;background:rgba(11,16,32,.97);border-top:1px solid var(--border);
-             padding:10px 14px calc(10px + env(safe-area-inset-bottom));margin:0;max-height:34vh;overflow-y:auto;font-size:11.5px;line-height:1.45;}
+    .result-card{position:sticky;bottom:calc(6px + env(safe-area-inset-bottom));z-index:20;max-height:26vh;overflow-y:auto;padding:10px 14px;box-shadow:0 -6px 18px rgba(0,0,0,.18);}
+    .result-header{margin-bottom:6px;}
+    .readout{font-size:12px;}
   }
-  #svg text{pointer-events:none}   /* labels never swallow taps meant for the box/wire under them */
+  #svg text{pointer-events:none}
+  .main{padding:16px;max-width:900px;margin:0 auto;}
+  :root{--shadow:0 2px 8px rgba(0,0,0,.08);} .dark{--shadow:0 2px 8px rgba(0,255,200,.06);}
+  /* readout text was colored for a dark screen — use the light-theme equivalents in light mode */
+  body:not(.dark) .readout [style*="#ff8a8a"]{color:#DC2626 !important;}
+  body:not(.dark) .readout [style*="#8fd6a3"]{color:#059669 !important;}
+  body:not(.dark) .readout [style*="#ffd27a"],body:not(.dark) .readout [style*="#f5c542"]{color:#B45309 !important;}
+  body:not(.dark) .readout [style*="#5fd4ff"],body:not(.dark) .readout [style*="#00d4ff"]{color:#0891b2 !important;}
+  body:not(.dark) .readout [style*="#ffb35c"]{color:#C2410C !important;}
+  .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:var(--shadow);transition:background .3s,border .3s;}
+  .card-title{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;color:var(--accent);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+  .card-title::before{content:'';display:inline-block;width:3px;height:14px;background:var(--accent);border-radius:2px;}
+  .fx-note{margin-top:8px;font-size:11.5px;color:var(--txt2);line-height:1.5;}
+  .result-card{background:var(--bg2);border:2px solid var(--accent);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:0 0 20px rgba(217,119,6,.1);}
+  .dark .result-card{box-shadow:0 0 20px rgba(0,255,200,.08);}
+  .result-header{font-family:'Orbitron',sans-serif;font-size:11px;color:var(--accent);letter-spacing:1.5px;margin-bottom:10px;text-transform:uppercase;display:flex;align-items:center;gap:8px;}
+  .readout{font-size:13px;line-height:1.5;color:var(--txt);}
+  /* chips — same as Electrical Formulas' .toggle-opt */
+  .grp[style*="none"]{display:none !important;}
+  .grp:not([style*="none"]){display:grid !important;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px;border:0 !important;overflow:visible !important;}
+  .grp > button,.toggle{flex:1;padding:10px 6px;min-height:40px;border:2px solid var(--border) !important;border-radius:8px !important;background:var(--bg2) !important;text-align:center;cursor:pointer;font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;color:var(--txt2) !important;text-transform:uppercase;transition:all .2s;}
+  .grp > button:hover,.toggle:hover{border-color:var(--accent) !important;}
+  .grp > button.on,.toggle.on{border-color:var(--accent) !important;color:var(--accent) !important;background:rgba(217,119,6,.08) !important;}
+  .dark .grp > button.on,.dark .toggle.on{background:rgba(0,255,200,.07) !important;}
+  .toggle-row2{display:flex;gap:8px;margin-top:10px;} .toggle-row2 .toggle{flex:1;}
+  #resetBtn{border-color:var(--danger) !important;color:var(--danger) !important;}
+  .card-scope{padding:16px 0 8px;} .card-scope .card-title,.card-scope .fx-note{padding:0 16px;}
+  .card-scope .scope{margin:0;border-radius:0;border-left:0;border-right:0;}
+  @media (min-width:761px){ .card-scope .scope{overflow:hidden;} }
+  /* drawing option B: light one-line in light mode (preview) */
+  body:not(.dark) .scope{background:#ffffff;border-color:var(--border);}
+  body:not(.dark) #tccHost{background:#0b1020;}
+   /* labels never swallow taps meant for the box/wire under them */
 </style>
 <script src="../update-banner.js"></script>
 </head>
@@ -121,12 +153,11 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   <div class="tool-title">Electrical <span>Theory</span> &mdash; Current Flow &amp; Fault Paths</div>
   <span class="nec-badge">NEC 2023 · ART 250</span>
 </div>
-<header style="padding:4px 16px 0">
-  <div class="sub" id="sub">Interactive one-line — tap a breaker to switch a circuit on/off</div>
-</header>
-<div class="bar">
-  <span class="lbl">System</span>
-  <div class="grp" id="sysGrp">
+<div class="main" id="main">
+
+  <div class="card">
+    <div class="card-title">System</div>
+    <div class="grp" id="sysGrp">
     <button data-sys="single" class="on">120/240 V 1Ø</button>
     <button data-sys="v208">208Y/120 V</button>
     <button data-sys="v480">480Y/277 V</button>
@@ -134,43 +165,62 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     <button data-sys="cgd">Corner-gnd Δ</button>
     <button data-sys="ungd">Ungrounded Δ</button>
   </div>
-  <span class="lbl" style="display:none">Panel</span>
+    <div class="toggle-row2">
+      <button class="toggle on" id="detailBtn">Show neutral / ground</button>
+      <button class="toggle" id="poolBtn" title="120/240 V single-phase only">Pool panel</button>
+    </div>
+    <span class="lbl" style="display:none">Panel</span>
   <div class="grp" id="mainGrp" style="display:none">
     <button data-mlo="0" class="on">Main breaker</button>
     <button data-mlo="1">Main lugs</button>
   </div>
-  <button class="toggle on" id="detailBtn">Show neutral / ground</button>
-  <button class="toggle" id="poolBtn" title="120/240 V single-phase only">Pool panel</button>
-</div>
-<div class="bar">
-  <span class="lbl">Current flow</span>
-  <div class="grp" id="flowGrp">
+  </div>
+
+  <div class="card">
+    <div class="card-title">Current Flow</div>
+    <div class="grp" id="flowGrp">
     <button data-flow="conv" class="on">Conventional</button>
     <button data-flow="elec">Electron</button>
     <button data-flow="ac">60 Hz AC</button>
   </div>
-  <span class="lbl" id="flowNote" style="text-transform:none;letter-spacing:0;font-family:inherit;font-size:10.5px">Conventional: + to − (how the code and one-lines show it).</span>
-</div>
-<div class="bar">
-  <span class="lbl">Fault</span>
-  <div class="grp" id="ftGrp">
+    <div class="fx-note" id="flowNote">Conventional: + to − (how the code and one-lines show it).</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Fault</div>
+    <div class="grp" id="ftGrp">
     <button data-ft="LG" class="on">Line–Ground</button>
     <button data-ft="LL">Line–Line</button>
     <button data-ft="LN">Line–Neutral</button>
     <button data-ft="NG">Neutral–Ground</button>
   </div>
-  <span class="lbl" style="display:none">EGC</span>
+    <span class="lbl" style="display:none">EGC</span>
   <div class="grp" id="egcGrp" style="display:none">
     <button data-egc="intact" class="on">Intact</button>
     <button data-egc="loose">Loose</button>
     <button data-egc="broken">Broken</button>
   </div>
-  <button class="toggle" id="bondBtn" style="display:none">Illegal N–G bond</button>
-  <button class="toggle on" id="ocpdBtn">Breaker trips: ON</button>
-  <button class="toggle" id="resetBtn" style="border-color:#8a3030;color:#ff8a8a;">Reset</button>
+    <button class="toggle" id="bondBtn" style="display:none">Illegal N–G bond</button>
+    <div class="toggle-row2">
+      <button class="toggle on" id="ocpdBtn">Breaker trips: ON</button>
+      <button class="toggle" id="resetBtn">Reset</button>
+    </div>
+  </div>
+
+  <div class="scope-wrap">   <!-- the result card only sticks to the bottom while the one-line is on screen -->
+  <div class="card card-scope">
+    <div class="card-title">One-Line</div>
+    <div class="fx-note" id="sub" style="margin:-6px 0 10px">Interactive one-line — tap a breaker to switch a circuit on/off</div>
+    <div class="scope"><svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg></div>
+  </div>
+
+  <div class="result-card" id="resultCard">
+    <div class="result-header">What's Happening</div>
+    <div class="readout" id="readout">Tap a breaker to switch a circuit on/off. Tap a piece of <b>equipment</b> to apply the selected fault and watch the ground-fault path clear it.</div>
+  </div>
+  </div>
+
 </div>
-<div class="scope"><svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg></div>
-<div class="hint" id="readout">Tap a breaker to switch a circuit on/off. Tap a piece of <b>equipment</b> to apply the selected fault and watch the ground-fault path clear it.</div>
 
 <script>
 /* ---------------- state ---------------- */
@@ -265,8 +315,16 @@ var DEMO={
 };
 /* ---------------- svg helpers ---------------- */
 var SVGNS='http://www.w3.org/2000/svg', dotPool=[], anim=null;
-function el(t,a){var e=document.createElementNS(SVGNS,t);for(var k in a)e.setAttribute(k,a[k]);return e;}
-function txt(x,y,s,o){o=o||{};var e=el('text',{x:x,y:y,'font-size':o.size||10,fill:o.fill||COL.txt,'text-anchor':o.anchor||'start','font-weight':o.w||400});e.textContent=s;return e;}
+var LIGHT=false, LMAP={"#0b1020": "#ffffff", "#0e1526": "#f6f8fb", "#16233f": "#eef3fb", "#101830": "#f3f5f8", "#101a30": "#f6f8fb", "#0f1830": "#f6f8fb", "#2a1620": "#fdecec", "#3a1620": "#fde3e3", "#0d3550": "#dbeffa", "#2b3a5e": "#c3cbd8", "#3a4b6b": "#c3cbd8", "#4a5b80": "#9aa7bd", "#9fb0d6": "#64748b", "#2a3b5e": "#c3cbd8", "#1b2740": "#e3e8ef", "#cdd8f0": "#1f2937", "#8a97b4": "#4b5563", "#5a6b8a": "#94a3b8", "#aeb6c9": "#4b5563", "#8fa0c4": "#4b5563", "#8695b5": "#6b7280", "#6f80a8": "#6b7280", "#7d8aa3": "#9aa7bd", "#d7dbe3": "#374151", "#c3cad8": "#374151", "#e6eaf2": "#e5e7eb", "#55637f": "#6b7280", "#8795ad": "#6b7280", "#ff8a8a": "#dc2626", "#8fd6a3": "#059669", "#5fd4ff": "#0891b2", "#00d4ff": "#0891b2", "#ffd27a": "#b45309", "#ffb35c": "#c2410c", "#e8c9a6": "#92400e", "#e8d39a": "#92400e", "#7fd0f5": "#0369a1", "#3fa7d6": "#0284c7", "#f5c542": "#d99a00", "#c98a4a": "#b45309", "#ff6b6b": "#ef4444", "#ffffff": "#111827", "#1f6f45": "#d1fae5", "#6a5212": "#fef3c7", "#5a1a1f": "#fee2e2", "#6a3a12": "#ffedd5", "#565e6e": "#2f3542", "#c9ced8": "#9ca3af", "#e6c62e": "#c9a800", "#46c36b": "#16a34a", "#8a3030": "#b91c1c"};   // light theme: the one-line's colors re-picked for a white background
+function lightenStyles(root){   // the tap menu is HTML with inline colors: swap them for the light palette
+  if(!LIGHT) return; var rgb={}; Object.keys(LMAP).forEach(function(h){ var n=parseInt(h.slice(1),16); rgb['rgb('+(n>>16)+', '+((n>>8)&255)+', '+(n&255)+')']=LMAP[h]; });
+  rgb['rgb(223, 230, 245)']='#1f2937';   // menu text
+  [root].concat([].slice.call(root.querySelectorAll('*'))).forEach(function(e){ var st=e.getAttribute('style'); if(!st)return;
+    e.setAttribute('style',st.replace(/rgb\(\d+, \d+, \d+\)/g,function(m){ return rgb[m]||m; })); }); }
+function lc(c){ return (LIGHT&&typeof c==='string'&&LMAP[c.toLowerCase()])||c; }
+function el(t,a){var e=document.createElementNS(SVGNS,t);for(var k in a){var v=a[k]; if(LIGHT&&(k==='fill'||k==='stroke'))v=lc(v); e.setAttribute(k,v);}return e;}
+function txt(x,y,s,o){o=o||{};var tf=o.fill||COL.txt; if(LIGHT&&tf==='#0b1020')tf='#111827';   /* dark text on a light chip stays dark */
+  var e=el('text',{x:x,y:y,'font-size':o.size||10,fill:tf,'text-anchor':o.anchor||'start','font-weight':o.w||400});e.textContent=s;return e;}
 function addDots(svg,d,dir,sp,col,ph){var mp=el('path',{d:d,fill:'none',stroke:'none'});svg.appendChild(mp);var len=mp.getTotalLength();var n=Math.max(2,Math.round(len/(sp||22)));for(var i=0;i<n;i++){var c=el('circle',{r:2.5,fill:col||COL.dot,opacity:0.95});svg.appendChild(c);dotPool.push({c:c,mp:mp,len:len,off:(i/n)*len,dir:dir,speed:42,ph:(ph==null?null:ph)});}}
 var flowMode='conv', acT=0;
 function frame(now){var dt=(now-(frame._t||now))/1000;frame._t=now;if(dt>0.1)dt=0.1;acT+=dt;var w=2*Math.PI*0.45;dotPool.forEach(function(dp){var v;if(flowMode==='ac'){ v=(dp.ph!=null)? dp.speed*Math.cos(w*acT+dp.ph*Math.PI/180) : dp.dir*dp.speed*Math.cos(w*acT); }else { v=dp.dir*dp.speed*(flowMode==='elec'?-1:1); }dp.off=(dp.off+v*dt+dp.len)%dp.len;var pt=dp.mp.getPointAtLength(dp.off);dp.c.setAttribute('cx',pt.x);dp.c.setAttribute('cy',pt.y);});anim=requestAnimationFrame(frame);}
@@ -338,6 +396,7 @@ function faultWhy(){
 
 /* ---------------- render ---------------- */
 function render(){
+  LIGHT=!document.body.classList.contains('dark');
   var svg=document.getElementById('svg');
   while(svg.firstChild)svg.removeChild(svg.firstChild);
   if(anim){cancelAnimationFrame(anim);anim=null;}dotPool=[];
@@ -352,7 +411,12 @@ function render(){
   var W=poolActive?1560:1020,rows=21,rowH=25,svcH=150,top=svcH+70,rowTop=top,H=top+rows*rowH+56;
   if(poolActive){ demo=Object.assign({},demo); demo[26]=demo[2]; demo[28]=demo[4]; delete demo[4]; demo[2]={p:2,n:'Pool panel',pool:true}; }   // 100 A 2-pole pool feeder breaker
   svg.setAttribute('viewBox','0 0 '+W+' '+H);svg.setAttribute('width',W);svg.setAttribute('height',H);
-  svg.style.width=(window.matchMedia&&window.matchMedia('(max-width:760px)').matches)?Math.round(W*0.96)+'px':'';   // phone: keep text the same size when the pool panel widens the drawing
+  (function(){ var phone=window.matchMedia&&window.matchMedia('(max-width:760px)').matches, card=svg.closest('.card-scope');
+    if(phone){ svg.style.width=Math.round(W*0.96)+'px'; if(card){card.style.width='';card.style.marginLeft='';} return; }   // phone: swipe the drawing, text stays full size
+    // desktop/tablet: no scrollbar — the One-Line card grows past the 900px column (up to the window) and the drawing scales to fit it
+    svg.style.width='100%'; svg.style.height='auto';
+    if(card){ var cw=card.parentElement.clientWidth, want=Math.min(window.innerWidth-24, W+2), w=Math.max(cw,want);
+      card.style.width=w+'px'; card.style.marginLeft=Math.round((cw-w)/2)+'px'; } })();
 
   var busC=510, busHalf=(N===3?36:28);   // 3-phase bars spread wider so the lanes read clearly
   var brkLin=busC-busHalf-14, brkLout=busC-busHalf-66, brkRin=busC+busHalf+14, brkRout=busC+busHalf+66;
@@ -440,8 +504,8 @@ function render(){
     svg.appendChild(txt((nX+gX)/2,cy+16,'NEC 250.28',{anchor:'middle',size:7,fill:COL.txt2}));
     if((bondActive||poolObj)&&!fGnd){   // objectionable current from a downstream illegal bond rejoins the neutral HERE, at the first legal N-G bond
       addDots(svg,'M '+(gX-9)+' '+cy+' L '+(nX+9)+' '+cy,1,10,OBJ);
-      var ct=txt(nX-14,cy+48,'↑ objectionable current returns to N here (MBJ)',{anchor:'start',size:7.5,w:700,fill:OBJ}); ct.setAttribute('stroke','#0b1020'); ct.setAttribute('stroke-width','4'); ct.setAttribute('paint-order','stroke'); svg.appendChild(ct);
-      var ct2=txt(nX-14,cy+58,'first legal N–G bond upstream of the illegal one',{anchor:'start',size:6.5,fill:'#e8d39a'}); ct2.setAttribute('stroke','#0b1020'); ct2.setAttribute('stroke-width','4'); ct2.setAttribute('paint-order','stroke'); svg.appendChild(ct2);
+      var ct=txt(nX-14,cy+48,'↑ objectionable current returns to N here (MBJ)',{anchor:'start',size:7.5,w:700,fill:OBJ}); ct.setAttribute('stroke',lc('#0b1020')); ct.setAttribute('stroke-width','4'); ct.setAttribute('paint-order','stroke'); svg.appendChild(ct);
+      var ct2=txt(nX-14,cy+58,'first legal N–G bond upstream of the illegal one',{anchor:'start',size:6.5,fill:'#e8d39a'}); ct2.setAttribute('stroke',lc('#0b1020')); ct2.setAttribute('stroke-width','4'); ct2.setAttribute('paint-order','stroke'); svg.appendChild(ct2);
     }
     } else {
       svg.appendChild(el('rect',{x:gX-9,y:cy-7,width:18,height:14,rx:2,fill:'#1f7a45',stroke:COL.egc,'stroke-width':1}));svg.appendChild(txt(gX,cy+4,'G',{anchor:'middle',size:9,w:700,fill:'#fff'}));
@@ -591,7 +655,7 @@ function render(){
   phases.forEach(function(p,i){ probeDot(p.id, busC+(i-(N-1)/2)*22, p.c); });
   if(DETAIL){ if(!sys.noNeutral)probeDot('N', xNR, COL.neu); probeDot('EGC', xGR, COL.egc); }
   // labels drawn LAST with a dark halo so the hot feeder drops behind them don't break up the text
-  function haloTxt(x,y,str,o){ var t=txt(x,y,str,o); t.setAttribute('stroke','#0b1020'); t.setAttribute('stroke-width','4'); t.setAttribute('stroke-linejoin','round'); t.setAttribute('paint-order','stroke'); svg.appendChild(t); }
+  function haloTxt(x,y,str,o){ var t=txt(x,y,str,o); t.setAttribute('stroke',lc('#0b1020')); t.setAttribute('stroke-width','4'); t.setAttribute('stroke-linejoin','round'); t.setAttribute('paint-order','stroke'); svg.appendChild(t); }
   // ---- the panelboard's own illegal N–G bond toggle (same style as the pool panel's) ----
   if(DETAIL){ var cw2=eqRx1-eqRx0, cx2=eqRx0, cy2=(poolActive?156:110)+48;   // stack: MAIN BKR/MLO · BUS TYPE · BOND PANEL · EGC   // over the right-side equipment (below the pool feeder runs when the pool is on)
     (function(){ var bw2=cw2, bx2=cx2, by=cy2-24, tg=el('g'); tg.style.cursor='pointer';   // BUS TYPE: branch <-> stacked
@@ -710,6 +774,7 @@ function openCkMenu(kind,id,ev){ ckMenuClose(); var inf=ckInfo(kind,id), cur=ckE
   if(inf.v120) m.appendChild(seg('POLARITY',[['n','NORMAL','#1f6f45','#8fd6a3'],['r',inf.p>1?'L2 ↔ N':'REVERSED','#6a3a12','#ffb35c']],rv?'r':'n',function(v){
     if(v==='r') ckRev[inf.key]=1; else delete ckRev[inf.key]; ckChanged(kind,id); }));
   else { var na=document.createElement('div'); na.style.cssText='margin-top:8px;font-size:10.5px;color:#6b7ba6'; na.textContent='Polarity: n/a (straight 240 V load, no neutral on this circuit)'; m.appendChild(na); }
+  lightenStyles(m); if(LIGHT) m.style.boxShadow='0 8px 28px rgba(0,0,0,.18)';
   document.body.appendChild(m);
   var x=Math.min(ev.clientX+10, window.innerWidth-m.offsetWidth-8), y=Math.min(ev.clientY+10, window.innerHeight-m.offsetHeight-8); m.style.left=Math.max(8,x)+'px'; m.style.top=Math.max(8,y)+'px';
   document.getElementById('ckX').onclick=function(e){e.stopPropagation();ckMenuClose();};
@@ -720,6 +785,7 @@ function ckChanged(kind,id){ var inf=ckInfo(kind,id), msg=ckExplain(inf);
   ckMsg=msg; render();
   var r=document.getElementById('ckMenu'); if(r){ var L=parseFloat(r.style.left), T=parseFloat(r.style.top); openCkMenu(kind,id,{clientX:L-10,clientY:T-10}); } }
 document.addEventListener('click',function(){ ckMenuClose(); });
+window.addEventListener('resize',function(){ clearTimeout(window._rz); window._rz=setTimeout(render,120); });
 function revCross(svg,eqEdge,inward,yH,yN,hc){   // crossover at the device: the hot lands on the neutral terminal and vice versa
   var xa=eqEdge+inward, x0=Math.min(xa,eqEdge);
   svg.appendChild(el('rect',{x:x0,y:yH-3,width:Math.abs(inward),height:(yN-yH)+6,fill:'#0b1020'}));
@@ -754,7 +820,7 @@ function poolFaultAt(i){ var c=POOLCKTS[i]; if(poolOff[i])return; if(poolTimer){
 }
 function drawPool(svg,P,g){
   var on=P.feedOn, FRED=g.FRED, DEAD=g.DEAD, ph=g.phases, OBJ='#f5c542', CU='#c98a4a';
-  function halo(x,y,str,o){ var t=txt(x,y,str,o); t.setAttribute('stroke','#0b1020'); t.setAttribute('stroke-width','4'); t.setAttribute('stroke-linejoin','round'); t.setAttribute('paint-order','stroke'); svg.appendChild(t); }
+  function halo(x,y,str,o){ var t=txt(x,y,str,o); t.setAttribute('stroke',lc('#0b1020')); t.setAttribute('stroke-width','4'); t.setAttribute('stroke-linejoin','round'); t.setAttribute('paint-order','stroke'); svg.appendChild(t); }
   // ---- geometry: a 12-space copy of the panelboard ----
   var PC=1196, rowH=25, rows=6, pTop=236, busTop=pTop-6, busBot=pTop+rows*rowH+2, bh=28;
   var bIL=PC-bh-14, bOL=PC-bh-66, bIR=PC+bh+14, bOR=PC+bh+66, xNL=bOL-12, xGL=bOL-28, xNR=bOR+12, xGR=bOR+28;
@@ -850,7 +916,7 @@ function drawPool(svg,P,g){
   svg.appendChild(txt(PC,poolBot-12,'POOL',{anchor:'middle',size:13,w:700,fill:'#7fd0f5'}));
   var gridY=poolTop-16;
   var gdP='M '+(PC-330)+' '+gridY+' L '+(PC+330)+' '+gridY; svg.appendChild(el('path',{d:gdP,stroke:gridHot?FRED:CU,'stroke-width':gridHot?3:2.2,fill:'none'}));
-  if(gridHot){ addDots(svg,gdP,1,26,FRED); var gt=txt(PC,gridY-6,poolGFrac===1?'⚠ BONDING GRID ENERGIZED · ~120 V to remote earth':'⚠ BONDING GRID ELEVATED until the breaker trips',{anchor:'middle',size:9,w:700,fill:'#ff8a8a'}); gt.setAttribute('stroke','#0b1020'); gt.setAttribute('stroke-width','4'); gt.setAttribute('paint-order','stroke'); svg.appendChild(gt); }
+  if(gridHot){ addDots(svg,gdP,1,26,FRED); var gt=txt(PC,gridY-6,poolGFrac===1?'⚠ BONDING GRID ENERGIZED · ~120 V to remote earth':'⚠ BONDING GRID ELEVATED until the breaker trips',{anchor:'middle',size:9,w:700,fill:'#ff8a8a'}); gt.setAttribute('stroke',lc('#0b1020')); gt.setAttribute('stroke-width','4'); gt.setAttribute('paint-order','stroke'); svg.appendChild(gt); }
   [[POOLCKTS[0],0],[POOLCKTS[1],1]].forEach(function(a){ var c=a[0]; if(!c._box)return; var xe=a[1]?c._box.x1:c._box.x0, x=xe+(a[1]?12:-12), yy=c._box.yBot-14; svg.appendChild(el('path',{d:'M '+xe+' '+yy+' L '+x+' '+yy+' L '+x+' '+gridY,stroke:gridHot?FRED:CU,'stroke-width':2,fill:'none'})); svg.appendChild(el('circle',{cx:xe,cy:yy,r:2.5,fill:CU})); });
   svg.appendChild(el('path',{d:'M '+(px1-40)+' '+gridY+' L '+(px1-40)+' '+(poolTop+16)+' M '+(px1-28)+' '+(poolTop-6)+' l 0 26 M '+(px1-16)+' '+(poolTop-6)+' l 0 26 M '+(px1-28)+' '+(poolTop+4)+' l 12 0 M '+(px1-28)+' '+(poolTop+12)+' l 12 0',stroke:'#aeb6c9','stroke-width':1.6,fill:'none'}));
   svg.appendChild(el('path',{d:'M '+(px1-40)+' '+(poolTop+16)+' L '+(px1-28)+' '+(poolTop+16),stroke:CU,'stroke-width':2,fill:'none'}));
@@ -876,7 +942,7 @@ function drawPool(svg,P,g){
 function $(id){return document.getElementById(id);}
 var darkMode=false;
 function toggleTheme(){ darkMode=!darkMode; document.body.classList.toggle('dark',darkMode); var b=$('themeBtn'); if(b)b.textContent=darkMode?'☀️':'🌙';
-  try{ localStorage.setItem('aog-theme',darkMode?'dark':'light'); }catch(e){} }
+  try{ localStorage.setItem('aog-theme',darkMode?'dark':'light'); }catch(e){} if(typeof render==='function')render(); }
 (function initTheme(){ var saved=null; try{ saved=localStorage.getItem('aog-theme'); }catch(e){}
   var prefer=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
   if(saved==='dark'||(!saved&&prefer)){ darkMode=true; document.body.classList.add('dark'); var b=$('themeBtn'); if(b)b.textContent='☀️'; } })();
