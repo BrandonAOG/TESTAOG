@@ -53,3 +53,14 @@ test('tapping a load opens its menu: range offers L2 ↔ N, A/C has no polarity'
   await tap('A/C condenser');
   await expect(page.locator('#ckMenu')).toContainText('n/a');
 });
+
+test('a 120 V circuit on L2 runs the opposite way to one on L1 — hot AND neutral (closed loop)', async ({ page }) => {
+  expect(await open(page, '/electrical-theory/')).toEqual([]);
+  const r = await page.evaluate(() => {
+    const rows = {};   // y → dot directions on the straight run from the breaker / to the N bar
+    dotPool.forEach(dp => { const m = dp.mp.getAttribute('d').match(/^M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+)$/); if (m && m[2] === m[4]) rows[Math.round(+m[2])] = dp.dir; });
+    return rows;
+  });
+  // circuit 1 (L1): hot y≈233 out, neutral y≈242 back · circuit 3 (L2): hot y≈258 back, neutral y≈267 out
+  expect([r[233], r[242], r[258], r[267]]).toEqual([1, 1, -1, -1]);
+});

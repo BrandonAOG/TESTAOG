@@ -610,7 +610,8 @@ function render(){
     var ckK=MODE+':'+num, ckE=ckEgc[ckK], ckR=!!ckRev[ckK]&&usesN;
     var nRed=fault&&(faultType==='LN'||faultType==='NG'), gRed=fault&&(faultType==='LG'||faultType==='NG')&&egcOf(num)!=='broken'&&!ugFirst, llRed=fault&&faultType==='LL';
     if(DETAIL){
-      if(usesN){var ny=botY+9;var nc=nRed?FRED:(busLive?COL.neu:DEAD);svg.appendChild(el('path',{d:'M '+eqEdge+' '+ny+' L '+nbar+' '+ny,stroke:nc,'stroke-width':nRed?2.6:1.5,fill:'none',opacity:on?1:0.35}));if((on&&busLive)||nRed)addDots(svg,'M '+eqEdge+' '+ny+' L '+nbar+' '+ny,1,18,nRed?FRED:null);}
+      if(usesN){var ny=botY+9;var nc=nRed?FRED:(busLive?COL.neu:DEAD);svg.appendChild(el('path',{d:'M '+eqEdge+' '+ny+' L '+nbar+' '+ny,stroke:nc,'stroke-width':nRed?2.6:1.5,fill:'none',opacity:on?1:0.35}));if((on&&busLive)||nRed){ var npk=rowPh(rowIdx,isL), n1=(poles===1&&!nRed);   /* 120 V circuit: the neutral carries ITS hot's current the other way — L2 out on the neutral while L2's hot brings it back */
+        addDots(svg,'M '+eqEdge+' '+ny+' L '+nbar+' '+ny,n1?dirPh(npk):1,18,nRed?FRED:null,n1?angPh(npk):null);} }
       if(ckE&&ckE!=='intact') OVR.push([(eqEdge+gbar)/2,gy,ckE]); else if(fault) FEGC={x:(eqEdge+gbar)/2, y:gy, inline:1};
       if(ckR) REV.push([eqEdge,isL?18:-18,botY,botY+9,phases[rowPh(rowIdx+poles-1,isL)].c]);   // where the EGC OPEN / HIGH-R marker goes for this faulted circuit
       var gc=gRed?FRED:COL.egc;svg.appendChild(el('path',{d:'M '+eqEdge+' '+gy+' L '+gbar+' '+gy,stroke:gc,'stroke-width':gRed?2.4:1.4,fill:'none',opacity:0.95}));if(gRed)addDots(svg,'M '+eqEdge+' '+gy+' L '+gbar+' '+gy,1,16,FRED); /* branch EGC: frame back to the G bar */
@@ -898,7 +899,7 @@ function drawPool(svg,P,g){
       svg.appendChild(el('path',{d:hd,stroke:hr?FRED:(on?hc:DEAD),'stroke-width':hr?2.8:1.9,fill:'none',opacity:poolOff[i]?0.35:1}));
       if(live)addDots(svg,hd,hr?1:g.dirPh(LL2),15,hr?FRED:null,hr?null:g.angPh(LL2)); }
     var ny=yB+6, gy=yB+(c.nt?11:6);
-    if(c.nt){ var nd='M '+eEdge+' '+ny+' L '+nbar+' '+ny; svg.appendChild(el('path',{d:nd,stroke:COL.neu,'stroke-width':1.5,fill:'none',opacity:poolOff[i]?0.35:1})); if(live&&!flt)addDots(svg,nd,1,18); }
+    if(c.nt){ var nd='M '+eEdge+' '+ny+' L '+nbar+' '+ny; svg.appendChild(el('path',{d:nd,stroke:COL.neu,'stroke-width':1.5,fill:'none',opacity:poolOff[i]?0.35:1})); if(live&&!flt)addDots(svg,nd,c.p===1?g.dirPh(r%2):1,18,null,c.p===1?g.angPh(r%2):null); }
     var pE=ckEgc['P:'+i], pR=!!ckRev['P:'+i]&&c.nt, egR=flt&&!c.gf&&poolEgcOf(i)!=='broken';
     if(pE&&pE!=='intact') pOVR.push([(eEdge+gbar)/2,gy,pE]); else if(flt&&poolEgc!=='intact') pMark={x:(eEdge+gbar)/2,y:gy};
     if(pR) pREV.push([eEdge,isL?18:-18,yT,ny,ph[r%2].c]); var gd='M '+eEdge+' '+gy+' L '+gbar+' '+gy; svg.appendChild(el('path',{d:gd,stroke:egR?FRED:COL.egc,'stroke-width':egR?2.4:1.4,fill:'none'}));
