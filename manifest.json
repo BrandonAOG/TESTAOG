@@ -256,6 +256,17 @@
       ]
     },
     {
+      "name": "Electrical Theory",
+      "url": "./electrical-theory/",
+      "description": "Live panel one-line: current flow, fault paths, bonding & grounding",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
       "name": "Trench & Burial Depth",
       "url": "./trench-depth/",
       "description": "NEC 300.5 cover, NFPA 54/58 gas depth & shared trenches",

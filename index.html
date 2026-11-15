@@ -439,6 +439,7 @@ body.fav-dragging-active, body.fav-dragging-active * { cursor: grabbing !importa
       <div class="tool-subhead"><span>Electrical</span></div>
       <a href="#" class="form-card" data-form="load-calc"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8h4M7 12h2M13 8l2 4 2-4"/></svg></div><div class="form-text"><div class="form-title">Load Calculation</div><div class="form-desc">Electrical load sizing &amp; generator selection</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
       <a href="#" class="form-card" data-form="quick-calc"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><rect x="8" y="5" width="8" height="4" rx="1"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01"/></svg></div><div class="form-text"><div class="form-title">Electrical Formulas</div><div class="form-desc">kW &#8644; amps, voltage drop, gen load, motor FLA, Ohm&rsquo;s law &amp; conversions</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
+      <a href="#" class="form-card" data-form="electrical-theory"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><path d="M4 3v18"/><path d="M4 7h6M4 12h6M4 17h6"/><rect x="10" y="5" width="8" height="4" rx="1"/><rect x="10" y="10" width="8" height="4" rx="1"/><path d="M18 17l2 2 2-2"/><path d="M13 21h4"/></svg></div><div class="form-text"><div class="form-title">Electrical Theory</div><div class="form-desc">Live panel one-line: current flow, fault paths, bonding &amp; grounding</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
       <a href="#" class="form-card" data-form="breaker-sizing"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg></div><div class="form-text"><div class="form-title">Breaker &amp; Conductor</div><div class="form-desc">NEC conductor sizing, derating, EGC &amp; parallel sets</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
       <a href="#" class="form-card" data-form="conduit-fill"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20"/><path d="M7 7h10v10H7z"/><circle cx="12" cy="12" r="2"/></svg></div><div class="form-text"><div class="form-title">Conduit Fill</div><div class="form-desc">NEC Chapter 9 conduit sizing &amp; fill calculations</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
       <a href="#" class="form-card" data-form="box-fill"><div class="form-card-accent"></div><div class="glow-strip"></div><div class="form-card-content"><div class="form-icon-wrap"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="9" cy="9" r="1.6"/><circle cx="15" cy="9" r="1.6"/><circle cx="9" cy="15" r="1.6"/><circle cx="15" cy="15" r="1.6"/></svg></div><div class="form-text"><div class="form-title">Box Fill</div><div class="form-desc">NEC 314.16 device &amp; outlet box fill calculations</div></div></div><div class="form-arrow">OPEN &rsaquo;</div></a>
@@ -494,6 +495,7 @@ body.fav-dragging-active, body.fav-dragging-active * { cursor: grabbing !importa
       <option>Gas Calculator</option>
       <option>Breaker &amp; Conductor</option>
       <option>Electrical Formulas</option>
+      <option>Electrical Theory</option>
       <option>Box Fill</option>
       <option>Pull &amp; Junction Box</option>
       <option>Gas Pipe Bonding</option>
@@ -543,6 +545,7 @@ body.fav-dragging-active, body.fav-dragging-active * { cursor: grabbing !importa
       <option>Gas Calculator</option>
       <option>Breaker &amp; Conductor</option>
       <option>Electrical Formulas</option>
+      <option>Electrical Theory</option>
       <option>Box Fill</option>
       <option>Pull &amp; Junction Box</option>
       <option>Gas Pipe Bonding</option>
@@ -4489,7 +4492,7 @@ document.querySelectorAll('.cat-btn').forEach(function(btn) {
   });
 })();
 
-var FORM_URLS = { 'pre-checklist':'./pre-checklist/','install':'./elect-install/','gas-install':'./gas-install/','gas-calc':'./gas-calc/','estimate':'./estimate/','walkthrough':'./walkthrough/','maintenance':'./maintenance/','site-visits':'./site-visit/','property-lookup':'./property-lookup/','conduit-fill':'./conduit-fill/','box-fill':'./box-fill/','pull-box':'./pull-box/','load-calc':'./load-calcs/','breaker-sizing':'./breaker-conductor/','spec-viewer':'./spec-viewer/','qc-checklist':'./qc-checklist/','service-work':'./service-work/','site-annotator':'./site-annotator/','concrete-calc':'./concrete-calc/','quick-calc':'./quick-calc/','trench-depth':'./trench-depth/','gas-bonding':'./gas-bonding/' };
+var FORM_URLS = { 'pre-checklist':'./pre-checklist/','install':'./elect-install/','gas-install':'./gas-install/','gas-calc':'./gas-calc/','estimate':'./estimate/','walkthrough':'./walkthrough/','maintenance':'./maintenance/','site-visits':'./site-visit/','property-lookup':'./property-lookup/','conduit-fill':'./conduit-fill/','box-fill':'./box-fill/','pull-box':'./pull-box/','load-calc':'./load-calcs/','breaker-sizing':'./breaker-conductor/','spec-viewer':'./spec-viewer/','qc-checklist':'./qc-checklist/','service-work':'./service-work/','site-annotator':'./site-annotator/','concrete-calc':'./concrete-calc/','quick-calc':'./quick-calc/','trench-depth':'./trench-depth/','gas-bonding':'./gas-bonding/','electrical-theory':'./electrical-theory/' };
 /* Status bar count follows the tool list — add a tool to FORM_URLS and this updates itself. */
 (function(){ var el=document.getElementById('tools-active-count'); if(el) el.textContent=Object.keys(FORM_URLS).length+' Tools Active'; })();
 document.querySelectorAll('.form-card').forEach(function(card) {

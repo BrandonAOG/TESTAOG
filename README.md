@@ -12,7 +12,7 @@ A mobile-first Progressive Web App (PWA) built for Always On Generators field te
 
 ## Features
 
-- **21 field tools** on one dashboard, with category tabs and ★ Favorites
+- **22 field tools** on one dashboard, with category tabs and ★ Favorites
 - **Works offline** after the first load — and tells you (with a one-tap **Fix Now**) if any offline files are missing
 - **Installable** on iPhone, iPad, Android and computers, with long-press shortcuts to every tool (Android / desktop)
 - **Update prompt with a "what's new" list** — nothing changes until the tech taps **Update Now**
@@ -29,7 +29,7 @@ A mobile-first Progressive Web App (PWA) built for Always On Generators field te
 
 The hub (`index.html`) is the home screen. Each time it opens it plays one of **50 animated backgrounds** (lightning, hurricane, substation, tornado…), picked at random without repeating the last 10 shown in that session; some have their own background sound.
 
-- **Header & status bar** — time-of-day greeting with today's date; System Ready · **21 Tools Active** (counts itself from the tool list) · Field Ready · **Sync Enabled**, which switches to **Offline Mode** with a "No network connection · Hub available offline" banner when signal drops.
+- **Header & status bar** — time-of-day greeting with today's date; System Ready · **22 Tools Active** (counts itself from the tool list) · Field Ready · **Sync Enabled**, which switches to **Offline Mode** with a "No network connection · Hub available offline" banner when signal drops.
 - **Category tabs** — ★ Favorites, Estimate, Installs, Maintenance and Tools (Tools is split into Lookup, Electrical and Install Planning). Load Calculation and Site Annotator appear under both Estimate and Tools.
 - **Favorites** — tap ☆ on any card to pin it to Favorites, ★ to unpin. Saved on that device.
 - **Sounds** — opens Sound Settings (see *Shared Features*).
@@ -252,6 +252,20 @@ Everyday electrical math in seven tabs (NEC 2023). Results update as you type, t
 
 **Exports:** none — on-screen results.
 
+#### ⚡ Electrical Theory
+An interactive one-line of a 42-circuit panelboard (NEC 2023, Art. 250) that shows current flowing from the utility transformer through the meter, service disconnect and panel to every load, and what happens when something goes wrong.
+
+**Features**
+- **Systems** — 120/240 V 1Ø, 208Y/120 V, 480Y/277 V, 120/240 V high-leg delta (orange B in the panel, 408.3(E)(1)), corner-grounded delta and ungrounded delta (with ground-detector lamps, 250.21(B)); industry wire colors.
+- **Current flow** — conventional, electron, or 60 Hz AC animation; voltage probes on the feeder (and the pool feeder) read RMS, peak and peak-to-peak between any two points.
+- **Faults** — tap a conductor (branch, feeder or line side of the service) or a load: line–ground, line–line, line–neutral, neutral–ground; the fault path lights up back to the MBJ and the transformer, and the breaker trips on a trip-curve timing.
+- **Per-circuit menu** — tap any load to fault it, set its EGC to intact / loose / broken, or reverse its polarity (120 V) / swap L2 ↔ N (120/240 V loads like a range).
+- **Panel controls on the drawing** — main breaker ⇄ main lugs, branch bus ⇄ stacked bus (I-Line style, right side reversed), illegal N–G bond, and the panel's EGC condition.
+- **Pool panel** — 100 A feeder in slots 2/4 to a 12-space pool subpanel with GFCI circuits, its own N–G bond and EGC toggles, and the 680.26 equipotential bonding grid (energizes when an EGC is open).
+- **📋 CODE** reference — flow, bonding, faults, trip curve and systems.
+
+**Exports:** none — on-screen teaching tool.
+
 #### 🔌 Breaker & Conductor Sizing
 Finds the minimum conductor per set and the equipment grounding conductor for a breaker (NEC 2023: 240.4, 240.6, 310.12, 310.16, 310.15 corrections, 110.14(C), 250.122). Results update live.
 
@@ -375,7 +389,7 @@ Estimates concrete for generator pads, piers and footings in cubic yards (or m³
 These files are shared by every page so each feature works the same way everywhere. Pages include them; they never carry their own copy of the code.
 
 **`sw.js` — offline engine**
-- Saves the hub, all 21 tools, the shared files, the PDF / map / spreadsheet libraries and the fonts so everything works with no signal.
+- Saves the hub, all 22 tools, the shared files, the PDF / map / spreadsheet libraries and the fonts so everything works with no signal.
 - Pages open from the saved copy and refresh in the background; libraries and images use the saved copy.
 - County data files (Property Lookup) live in a separate store that is **kept across updates**, so techs don't re-download ~15 MB after every release.
 - Public and test sites share this file but keep separate offline copies.
@@ -471,6 +485,7 @@ AOG/
 ├── service-work/           # Service call record
 ├── spec-viewer/            # Generac generator & ATS specifications + manuals
 ├── quick-calc/             # Electrical formulas
+├── electrical-theory/      # Electrical theory one-line
 ├── breaker-conductor/      # Breaker & conductor sizing
 ├── conduit-fill/           # Conduit fill
 ├── box-fill/               # Box fill
@@ -501,7 +516,7 @@ AOG/
 
 **Computer (Chrome / Edge)** — open the site → install icon in the address bar.
 
-Installed, the app opens full-screen and all 21 tools work offline after the first load. On iPhone, installing to the Home Screen is also what keeps iOS from clearing the offline copy. Long-press shortcuts work on Android and computers (Android shows the first few); iPhones don't support them.
+Installed, the app opens full-screen and all 22 tools work offline after the first load. On iPhone, installing to the Home Screen is also what keeps iOS from clearing the offline copy. Long-press shortcuts work on Android and computers (Android shows the first few); iPhones don't support them.
 
 ---
 

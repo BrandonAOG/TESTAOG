@@ -64,7 +64,7 @@ test('no page starts out locked (backgrounds, banners and toolbars are not pop-u
 
 // Every Code Reference window opens in the SAME spot (top of the screen, scrolled to its top) no matter which
 // table you pick, how tall it is, or how far you scrolled the last one — and switching tabs starts at the top too.
-for (const dir of ['box-fill', 'conduit-fill', 'pull-box', 'quick-calc', 'trench-depth', 'gas-bonding', 'gas-calc', 'breaker-conductor']) test(`${dir}: every reference window opens in the same spot`, async ({ page }) => {
+for (const dir of ['box-fill', 'conduit-fill', 'pull-box', 'quick-calc', 'trench-depth', 'gas-bonding', 'gas-calc', 'breaker-conductor', 'electrical-theory']) test(`${dir}: every reference window opens in the same spot`, async ({ page }) => {
   expect(await open(page, `/${dir}/`)).toEqual([]);
   const r = await page.evaluate(async () => {
     const sleep = ms => new Promise(r => setTimeout(r, ms));

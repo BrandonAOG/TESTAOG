@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 const { open } = require('./helpers');
 
 const FORMS = ['estimate', 'site-visit', 'pre-checklist', 'elect-install', 'gas-install', 'qc-checklist', 'maintenance', 'service-work'];
-const CALCS = ['quick-calc', 'box-fill', 'breaker-conductor', 'conduit-fill', 'gas-bonding', 'pull-box', 'trench-depth', 'gas-calc', 'concrete-calc'];
+const CALCS = ['quick-calc', 'box-fill', 'breaker-conductor', 'conduit-fill', 'gas-bonding', 'pull-box', 'trench-depth', 'gas-calc', 'concrete-calc', 'electrical-theory'];
 const visibleButtons = page => page.evaluate(() => [...document.querySelectorAll('.action-bar > a, .action-bar > button')]
   .filter(e => { const s = getComputedStyle(e); return s.display !== 'none' && s.visibility !== 'hidden' && e.offsetWidth > 0; })
   .map(e => (e.innerText || '').replace(/\s+/g, ' ').trim()));
@@ -44,7 +44,7 @@ test.describe('Code Reference windows', () => {
   const { ROOT, open } = require('./helpers');
   const PAGES = [['breaker-conductor', '.br-bg', () => brOpen && brOpen()], ['gas-calc', '.gr-bg', () => grOpen('t')],
                  ['box-fill', '.modal-bg'], ['conduit-fill', '.modal-bg'], ['pull-box', '.modal-bg'], ['quick-calc', '.modal-bg'],
-                 ['trench-depth', '.modal-bg'], ['gas-bonding', '.modal-bg']];
+                 ['trench-depth', '.modal-bg'], ['gas-bonding', '.modal-bg'], ['electrical-theory', '.modal-bg']];
   test('every window\'s backdrop pads for the safe area (notch / island / home bar)', () => {
     test.skip(test.info().project.name !== 'desktop', 'file check');
     const bad = [];

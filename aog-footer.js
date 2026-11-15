@@ -41,6 +41,7 @@
     'gas-calc':          'Gas Pipe Sizing · NFPA 54 (2024)',
     'pull-box':          'Pull Box · NEC 2023 314.28',
     'quick-calc':        'Electrical Formulas · NEC 2023',
+    'electrical-theory': 'Electrical Theory · NEC 2023 Art. 250',
     'trench-depth':      'Trench Depth · NEC 300.5 · NFPA 54/58',
     'spec-viewer':       'Generac Spec Viewer'
   };
