@@ -234,8 +234,11 @@ var poolOn=false, poolOff={}, poolFault=null, poolMsg='', poolTimer=null, poolBo
 function cP(m,deg){var r=deg*Math.PI/180;return {re:m*Math.cos(r),im:m*Math.sin(r)};}
 function cSub(a,b){return {re:a.re-b.re,im:a.im-b.im};}
 function cMag(a){return Math.hypot(a.re,a.im);}
-var BRK={};   // breaker load-terminal probe nodes, rebuilt every render: id → {ph, live, n, name, pool}
+var BRK={}, SVCPROBE=[];   // breaker load-terminal probe nodes, rebuilt every render: id → {ph, live, n, name, pool}
 function nodeVph(id){
+  if(id==='SN'||id==='SN2') return nodeVph('N'); if(id==='SG') return nodeVph('EGC');
+  if(id.indexOf('SL:')===0){ var sv=svcOff; svcOff=false; var vl=nodeVph(id.slice(3)); svcOff=sv; return vl; }   // LINE side of the service disconnect: always hot — only the utility can kill it
+  if(id.indexOf('SD:')===0) return nodeVph(id.slice(3));                                                   // LOAD side: dead when the disconnect is open
   if(BRK[id]){ var bk=BRK[id]; if(!bk.live) return {re:0,im:0}; return nodeVph(bk.pool?('P:'+bk.ph):bk.ph); }
   if(id.indexOf('P:')===0){ var k=id.slice(2); if(!poolLive) return (k==='G'&&poolGPh>=0)?{re:0,im:0}:{re:0,im:0};
     if(k==='N') return {re:0,im:0};
@@ -252,14 +255,19 @@ function nodeVph(id){
   return cP(sys.vln,ang);
 }
 function voltBetween(a,b){ return Math.round(cMag(cSub(nodeVph(a),nodeVph(b)))); }
-function nodeLabel(id){ if(BRK[id]){ var bk=BRK[id]; return (bk.pool?'Pool breaker ':'Breaker ')+bk.n+' ('+bk.ph+')'; } if(id.indexOf('P:')===0){ var k=id.slice(2); return 'Pool '+(k==='N'?'neutral':(k==='G'?'ground':k)); } return id==='N'?'Neutral':(id==='EGC'?'Ground (EGC)':('Phase '+id+((MODE==='cgd'&&id==='B')?' (grounded)':''))); }
+function nodeLabel(id){ if(id==='SN') return 'Service neutral (line side)'; if(id==='SN2') return 'Service neutral (load side)'; if(id==='SG') return 'Service ground (G terminal)'; if(id.indexOf('SL:')===0) return 'Service disconnect LINE side '+id.slice(3); if(id.indexOf('SD:')===0) return 'Service disconnect LOAD side '+id.slice(3); if(BRK[id]){ var bk=BRK[id]; return (bk.pool?'Pool breaker ':'Breaker ')+bk.n+' ('+bk.ph+')'; } if(id.indexOf('P:')===0){ var k=id.slice(2); return 'Pool '+(k==='N'?'neutral':(k==='G'?'ground':k)); } return id==='N'?'Neutral':(id==='EGC'?'Ground (EGC)':('Phase '+id+((MODE==='cgd'&&id==='B')?' (grounded)':''))); }
 function onProbe(id){ var i=probePick.indexOf(id); if(i>=0)probePick.splice(i,1); else { probePick.push(id); if(probePick.length>2)probePick.shift(); } render(); }
 function probeText(){ var a=probePick[0],b=probePick[1],v=voltBetween(a,b);
   var pk=Math.round(v*Math.SQRT2), pp=Math.round(v*2*Math.SQRT2);
-  var hot=function(x){return ['N','EGC','P:N','P:G'].indexOf(x)<0;};
+  var hot=function(x){return ['N','EGC','P:N','P:G','SN','SN2','SG'].indexOf(x)<0;};
   var desc, dk=[a,b].filter(function(x){return BRK[x]&&!BRK[x].live;})[0];
   var pool=function(x){return x.indexOf('P:')===0;};
-  if(dk){ var bk=BRK[dk], why;
+  var sl=[a,b].some(function(x){return x.indexOf('SL:')===0;}), sd=[a,b].some(function(x){return x.indexOf('SD:')===0;});
+  var samePole=sl&&sd&&a.slice(3)===b.slice(3);
+  if(samePole) desc=svcOff?'<b style="color:#ffd27a">Across the OPEN pole</b> — line side hot, load side dead, so the meter reads the voltage across the open contacts.':'Across a CLOSED pole — both ends are the same conductor, so 0 V.';
+  else if(svcOff&&sl&&!sd&&!dk) desc='<b style="color:#ffd27a">The service disconnect is OPEN — but its LINE side is still hot.</b> Only the utility can kill it (pull the meter / call the POCO). Treat it as energized.';
+  else if(svcOff&&sd) desc='<b style="color:#ffd27a">Service disconnect is OPEN — its LOAD side reads 0 V.</b> The line side (meter side) is still hot.';
+  else if(dk){ var bk=BRK[dk], why;
     if(bk.pool&&!bk.bus) why=svcOff?'the service disconnect is open':(lcMainOff?'the panel main is OFF':'the 100 A pool breaker is OFF');
     else if(!bk.bus) why=svcOff?'the service disconnect is open':'the panel main is OFF';
     desc = !bk.bus
@@ -269,10 +277,10 @@ function probeText(){ var a=probePick[0],b=probePick[1],v=voltBetween(a,b);
   else if(svcOff&&(hot(a)||hot(b))) desc='Service disconnect is open — the feeder is de-energized.';
   else if(lcMainOff&&(hot(a)||hot(b))&&!(pool(a)||pool(b))) desc='<b style="color:#ffd27a">Panel main is OFF — but these probes are on its LINE side, so the feeder is still live.</b> Only the bus and branch circuits are dead.';
   else if((lcMainOff||!poolLive)&&(pool(a)||pool(b))&&(hot(a)||hot(b))&&v<1) desc='Pool feeder is de-energized (load side of the panel main / 100 A breaker).';
-  else if((a==='N'&&b==='EGC')||(a==='EGC'&&b==='N')) desc='Neutral-to-ground — bonded at the service (MBJ).';
+  else if((['N','SN','SN2'].indexOf(a)>=0&&['EGC','SG'].indexOf(b)>=0)||(['N','SN','SN2'].indexOf(b)>=0&&['EGC','SG'].indexOf(a)>=0)) desc='Neutral-to-ground — 0 V: they are bonded together right here at the service (MBJ, 250.28).';
   else if(!hot(a)&&!hot(b)) desc=(v>5?'<b style="color:#ff8a8a">Ground is elevated — the pool bonding grid is energized.</b>':'Neutral / ground — ~0 V. (In the pool panel they read the same but must NOT be bonded together.)');
   else if(hot(a)&&hot(b)) desc='Phase-to-phase (line-to-line) voltage.';
-  else if(a==='N'||b==='N') desc='Phase-to-neutral voltage.';
+  else if(['N','SN','SN2'].indexOf(a)>=0||['N','SN','SN2'].indexOf(b)>=0) desc='Phase-to-neutral voltage.';
   else desc='Phase-to-ground voltage.';
   return '<span style="font-size:22px;font-weight:800;color:#00d4ff;letter-spacing:.3px">'+v+' V</span> <span style="color:var(--txt2);font-size:11px">RMS</span>'+
     '&nbsp;&nbsp;·&nbsp;&nbsp;<b>'+nodeLabel(a)+' → '+nodeLabel(b)+'</b>'+
@@ -483,6 +491,9 @@ function render(){
     svg.appendChild(txt(bx1+4,by0+6,(MODE==='single'?'200 A':'400 A')+' '+N+'P',{anchor:'start',size:7,fill:COL.txt2}));
     svg.appendChild(txt(bx1+4,by0+15,svcOff?'OFF':'ON',{anchor:'start',size:7,w:700,fill:svcOff?'#ff8a8a':'#f5c542'}));
   })();
+  SVCPROBE=phases.map(function(p,i){ return [[262-(i%2)*14,tyH[i],'SL:'+p.id,p.c],[sdX1+16+(i%2)*14,tyH[i],'SD:'+p.id,p.c]]; });   // staggered so neighbours never touch
+  if(!sys.noNeutral) SVCPROBE.push([[262-(N%2)*14,tyN,'SN',COL.neu],[sdX1+16+(N%2)*14,tyN,'SN2',COL.neu]]);   // service neutral (not switched — same conductor both sides)
+  if(DETAIL) SVCPROBE.push([[sdX1+16+((N+1)%2)*14,tyG+4,'SG',COL.egc]]);                                        // service ground: the EGC leaving the G terminal
   phases.forEach(function(p,i){var y=tyH[i];var dx=busC+(i-(N-1)/2)*22;
     // line side (utility -> meter -> switch-in): live from the utility
     var svcF=(faultZone==='service'&&faultPhase===p.id&&!tripped), fdrF=(faultZone==='feeder'&&faultPhase===p.id&&!tripped);
@@ -645,6 +656,7 @@ function render(){
   }
   var POOL={X0:900};
   var FEGC=null, OVR=[], REV=[], BADGE=[], BPROBE=[];
+  SVCPROBE.forEach(function(pr){ pr.forEach(function(q){ brkProbe(svg,q[0],q[1],q[2],q[3]); }); });
   for(var r=0;r<rows;r++){drawSlot(2*r+1,'L',r);drawSlot(2*r+2,'R',r);}
   if(poolActive && POOL.hy) drawPool(svg,POOL,{fdrF:fA&&faultCkt===2&&faultZone==='branch',egcOpen:effEgc()==='broken',xNR:xNR,xGR:xGR,phases:phases,busLive:busLive,FRED:FRED,DEAD:DEAD,dirPh:dirPh,angPh:angPh});
   // EGC OPEN / HIGH-R marker: always shown when the EGC isn't intact. On the faulted circuit's own EGC when there is a fault,

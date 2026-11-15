@@ -98,3 +98,15 @@ test('breaker probes: read their own leg, 0 V when the breaker is off, and work 
   expect(msg.off).not.toMatch(/or its bus/);
   expect(msg.dead).toMatch(/bus is dead — the panel main is OFF/);
 });
+
+test('service disconnect probes: line side stays hot when open, load side dies, N–G reads 0 at the MBJ', async ({ page }) => {
+  expect(await open(page, '/electrical-theory/')).toEqual([]);
+  const r = await page.evaluate(() => {
+    const v = voltBetween, o = {};
+    o.closedLL = v('SD:L1', 'SD:L2'); o.lineN = v('SL:L1', 'SN'); o.ng = v('SN2', 'SG');
+    toggleSvc(); o.openLine = v('SL:L1', 'SL:L2'); o.openLoad = v('SD:L1', 'SN2'); o.acrossPole = v('SL:L1', 'SD:L1');
+    probePick = ['SL:L1', 'SG']; render(); o.msg = document.getElementById('readout').innerText;
+    return o; });
+  expect([r.closedLL, r.lineN, r.ng, r.openLine, r.openLoad, r.acrossPole]).toEqual([240, 120, 0, 240, 0, 120]);
+  expect(r.msg).toMatch(/LINE side is still hot/);
+});
