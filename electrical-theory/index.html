@@ -727,8 +727,8 @@ document.getElementById('resetBtn').addEventListener('click',function(){ probePi
 
 
 /* ===================== POOL SUBPANEL (120/240 V 1Ø) =====================
-   100 A 2P breaker in the main panel → 4-wire feeder (L1, L2, N, insulated Cu EGC — 680.25) → pool panel.
-   N and G are SEPARATE in the pool panel (it's a subpanel). Pump/light/receptacle are GFCI (680.21/680.22/680.23).
+   100 A 2P breaker in the main panel → 4-wire feeder (L1, L2, N, insulated Cu EGC — 680.7(A)) → pool panel.
+   N and G are SEPARATE in the pool panel (it's a subpanel). Pump/light/receptacle are GFCI (680.5, 680.21(C), 680.22(A)(4), 680.23(A)(3)).
    The 680.26 equipotential bonding grid ties the pool's metal together — it is NOT run back to the panel and is NOT a fault path. */
 var POOLCKTS=[
   {slot:1,p:2,n:'Pool pump',gf:1,v:'240 V · GFCI'},
@@ -738,7 +738,7 @@ var POOLCKTS=[
   {slot:8,p:1,nt:1,n:'Receptacle',gf:1,v:'120 V · GFCI'}
 ];
 function poolBondToggle(){ poolBond=!poolBond; poolMsg = poolBond
-  ? '<b style="color:#ff8a8a">ILLEGAL N–G BOND IN THE POOL PANEL</b> — the pool panel is a subpanel, so its neutral and ground must stay separate (250.24(A)(5), 250.142(B)). Bond them here and part of the pool neutral current jumps to the G bar and rides the <b>feeder EGC</b> back through the main panel to the first legal bond — the <b>MBJ at the service</b>. The pool branch EGCs do not carry it, except through stray parallel paths (bonding grid, piping, earth) — that stray voltage is the shock risk around water.'
+  ? '<b style="color:#ff8a8a">ILLEGAL N–G BOND IN THE POOL PANEL</b> — the pool panel is a subpanel, so its neutral and ground must stay separate (250.24(B), 250.142(B)). Bond them here and part of the pool neutral current jumps to the G bar and rides the <b>feeder EGC</b> back through the main panel to the first legal bond — the <b>MBJ at the service</b>. The pool branch EGCs do not carry it, except through stray parallel paths (bonding grid, piping, earth) — that stray voltage is the shock risk around water.'
   : ''; render(); }
 function diagPill(svg,tx,ty,tw,th,on,offTxt,onTxt,cb){ var tg=el('g'); tg.style.cursor='pointer'; tg.addEventListener('click',function(e){e.stopPropagation();cb();});
   tg.appendChild(el('rect',{x:tx,y:ty,width:tw,height:th,rx:th/2,fill:on?'#3a1620':'#16233f',stroke:on?'#ff6b6b':'#4a5b80','stroke-width':1.5}));
@@ -839,7 +839,7 @@ function poolToggle(i){ if(poolFault===i){ poolFault=null; } poolOff[i]=!poolOff
 function poolFaultAt(i){ var c=POOLCKTS[i]; if(poolOff[i])return; if(poolTimer){clearTimeout(poolTimer);poolTimer=null;}
   poolFault=i; ckMsg=''; var eg=poolEgcOf(i), ms=null, done='';
   if(c.gf){
-    poolMsg='<b style="color:#ff8a8a">GROUND FAULT · '+c.n+'</b> — the GFCI sees current leaving on the hot that does not come back on the neutral / other hot. At about <b>4–6 mA</b> it trips in a fraction of a second (680.21 / 680.22 / 680.23).'
+    poolMsg='<b style="color:#ff8a8a">GROUND FAULT · '+c.n+'</b> — the GFCI sees current leaving on the hot that does not come back on the neutral / other hot. At about <b>4–6 mA</b> it trips in a fraction of a second (680.5 · 680.21(C) · 680.22(A)(4) · 680.23(A)(3)).'
       +(eg==='broken'?' <b>Even with the EGC open</b> the GFCI still trips — the leakage finds a path through the bonding grid, the water, earth… or a person. The GFCI saves you; the open EGC is still a code violation that has to be fixed.':(eg==='loose'?' A high-resistance EGC does not slow a GFCI down — it only needs a few milliamps.':''));
     ms=450; done='<b style="color:#8fd6a3">GFCI TRIPPED</b> — '+c.n+' is off. A few milliamps is all it took. Tap the breaker to reset it.';
   } else if(eg==='intact'){
@@ -884,7 +884,7 @@ function drawPool(svg,P,g){
   var anyN=on&&POOLCKTS.some(function(c,i){return c.nt&&!poolOff[i];}); if(nF)addDots(svg,dN,-1,20,FRED); else if(anyN)addDots(svg,dN,-1,22);
   var dG='M '+g.xGR+' 272 L '+RX[3]+' 272 L '+RX[3]+' '+TY[3]+' L '+xGL+' '+TY[3]+' L '+xGL+' '+busTop;
   var gF=fF&&(ft==='LG'||ft==='NG')&&!g.egcOpen; svg.appendChild(el('path',{d:dG,stroke:gF?FRED:gCol,'stroke-width':(gF||gRed||pObj)?3:2.2,fill:'none'})); if(gF||gRed)addDots(svg,dG,-1,20,FRED); else if(pObj)addDots(svg,dG,-1,20,OBJ);
-  halo(940,102,'100 A 2P (slots 2/4) · 4-wire pool feeder · L1 · L2 · N · insulated Cu EGC (680.25)',{anchor:'middle',size:7.5,w:700,fill:'#5fd4ff'});
+  halo(940,102,'100 A 2P (slots 2/4) · 4-wire pool feeder · L1 · L2 · N · insulated Cu EGC (680.7(A))',{anchor:'middle',size:7.5,w:700,fill:'#5fd4ff'});
   // ---- main lugs (fed by the 100 A breaker) ----
   [0,1].forEach(function(k){ var x=PC+(k===kT?12:-12); svg.appendChild(el('rect',{x:x-5,y:busTop-4,width:10,height:8,rx:2,fill:COL.box,stroke:ph[k].c,'stroke-width':1.3})); });
   halo(PC,busBot+40,'POOL PANEL · 100 A · 12-SPACE · MAIN LUGS',{anchor:'middle',size:9,w:700,fill:'#5fd4ff'});
@@ -991,7 +991,9 @@ var REF={
  ],
  bond:[
   ['250.28 — Main bonding jumper (MBJ)','The single, intentional neutral-to-ground bond, made at the service and ONLY there. That connection gives fault current its path home.'],
-  ['250.24(B) — No load-side bond','The grounded (neutral) conductor shall not be reconnected to ground on the load side of the service disconnect. That is the rule the illegal-bond demo breaks.'],
+  ['250.24(B) — No load-side bond','The grounded (neutral) conductor shall not be connected to ground on the load side of the service disconnect. That is the rule the BOND PANEL and BOND POOL toggles break.'],
+  ['250.6 — Objectionable current','Normal neutral current must not ride the grounding system. An illegal N–G bond downstream splits neutral current onto the EGC and every bonded metal part, back to the first legal bond (the MBJ).'],
+  ['250.24(A)(1) · 250.52(A) — GEC and electrodes','The grounding electrode conductor connects to the grounded (neutral) service conductor at any accessible point from the load end of the service drop / lateral up to the neutral terminal or bus at the service disconnect — the meter base or the service disconnect enclosure are both fine. It must not land on the load side of the service disconnect (250.24(B)). It runs to the rod / Ufer, connecting the system to earth; it is not the fault-clearing path.'],
   ['250.142(B) — Neutral downstream','On the load side you may not use the neutral for equipment grounding — doing so puts normal neutral current onto the EGC and the metal (shock/fire).'],
   ['250.30 — Separately derived systems','A generator is separately derived ONLY if the transfer switch switches the neutral (4-pole ATS) — then it needs its own system bonding jumper at the source. A solid, unswitched neutral (3-pole ATS) is NOT separately derived; the bond stays at the service. — Informational Note No. 1.'],
   ['Ground rod ≠ fault clearing','The electrode stabilizes voltage and handles surges; earth is far too high-impedance to trip a breaker. Faults clear through the EGC back to the bond, not the dirt.'],
@@ -1001,13 +1003,32 @@ var REF={
   ['250.4(A)(5) — Effective ground-fault path','The EGC must be low-impedance and able to carry fault current so the breaker opens fast. That is the whole reason it exists.'],
   ['Line-side vs load-side','A fault on the load side is cleared by the breaker/main. A fault ahead of the service disconnect (line side) has no OCPD in the building — only the utility can clear it.'],
   ['Open ground','Lose the EGC and a ground fault won\'t trip — the metal stays energized and dangerous.'],
+  ['High-resistance (loose) EGC','A loose, corroded or undersized EGC still carries some fault current, but not enough for the magnetic trip. The breaker waits on its thermal element while the metal stays live.'],
+  ['Neutral–ground fault','A neutral touching the EGC is not an overcurrent, so nothing trips. Neutral current now splits onto the grounding system — objectionable current (250.6).'],
+  ['210.8 · 680 — GFCI','A GFCI compares the current out and back on its own conductors and trips at about 4–6 mA, with or without an EGC. That is why it still protects a person on a circuit whose EGC is open.'],
  ],
  sys:[
   ['120/240 V single-phase','Two 120 V legs 180° apart. L-N = 120, L-L = 240. Neutral carries the imbalance.'],
   ['208Y/120 V wye','Three phases 120° apart, 120 V to neutral, 208 V phase-to-phase. Balanced 3Ø ≈ 0 A neutral.'],
   ['480Y/277 V wye','277 V to neutral, 480 V phase-to-phase. Industrial.'],
   ['240/120 V high-leg delta','Center-tap gives 120 V on two legs; the third (wild/high leg) is 208 V to neutral — mark it orange (110.15). In panelboards, switchboards, and switchgear the high leg must be the B phase (408.3(E)(1)); the exception lets equipment in the same section as the meter match the meter, where the high leg is on C. Never put a 120 V circuit on the high leg.'],
+  ['Ungrounded delta (3-wire)','No conductor is grounded on purpose. Each phase floats about 139 V to ground. The FIRST ground fault does not trip anything — it just grounds that phase, and the other two rise to full 240 V to ground. Ground detectors are required (250.21(B)) so the first fault gets found before a second fault on another phase becomes a line-to-line short through the grounding system.'],
   ['Corner-grounded delta (3-wire)','No neutral. One phase (usually B) is intentionally grounded at the service and becomes the grounded conductor — it must be white or gray (200.6). Every phase is 240 V (or 480 V) to every other, but A and C read full voltage to ground while B reads 0. The MBJ bonds the grounded phase to the EGC and the GEC lands on it. No 120 V circuits — 2- and 3-pole loads only. An OCPD may be in the grounded phase only if it opens all conductors together (240.22).'],
+ ],
+ panel:[
+  ['408.3(E)(1) — Phase arrangement','On 3-phase buses the phases are arranged A, B, C front to back, top to bottom, or left to right as viewed from the front (B is the high leg on a 4-wire delta). On a branch-circuit panelboard (load center, NQ, QO, BR) the breakers side by side share a bus fin: 1 and 2 are the same phase, and both columns read A-B-C going down.'],
+  ['Stacked-bus distribution panelboards','I-Line / Pow-R-Line 3-4 / P4-P5 style panels stack the bars front to back and the breakers bolt across all of them. A breaker on the right side mounts flipped, so its poles read C-B-A (or L2-L1) top to bottom. Many can be ordered with the right side in A-B-C order — read the panel label.'],
+  ['408.36 — Panelboard protection','A panelboard is protected by an OCPD no larger than its rating — either its own main breaker or the feeder breaker ahead of a main-lug-only (MLO) panel.'],
+  ['230.70 — Service disconnect','Disconnects every ungrounded service conductor in the building. Its LINE side (meter side) stays energized when it is open — only the utility can kill it. Treat it as live.'],
+  ['Probing a panel','Line side of a breaker or main stays hot when it is off; the load side reads 0. Two breakers on the same leg read 0 V between them; opposite legs read 240 (or 208 / 480). Neutral to ground at the service reads 0 — they are bonded there.'],
+  ['200.11 — Polarity','No grounded conductor may be connected so as to reverse the designated polarity. Reversed polarity still runs the load, but the lamp shell / chassis side becomes the hot side and a switch in the appliance opens the neutral.'],
+  ['250.140 — Range and dryer frames','Ranges and dryers are bonded to the EGC (250.140(A)) on a 4-wire circuit. Only existing 3-wire branch circuits with no EGC may bond the frame to the neutral (250.140(B)) — which is why a swapped L2 and neutral can put 120 V on the frame.'],
+ ],
+ pool:[
+  ['680.7(A) — Pool feeder EGC','Feeders and branch circuits in a wet location or corrosive environment (pool equipment) carry an insulated copper EGC, sized per Table 250.122 and not smaller than 12 AWG. The pool panel is a subpanel: neutral and ground stay separate.'],
+  ['680.5 · 680.21(C) · 680.22(A)(4) · 680.23(A)(3) — GFCI','Pool pump motors, receptacles within 20 ft of the pool and underwater luminaires above the low-voltage contact limit require GFCI protection (complying with 680.5). A GFCI trips on a few milliamps of leakage whether or not the EGC is intact.'],
+  ['680.26(B) — Equipotential bonding','Solid copper, 8 AWG or larger, ties the pool steel, deck, ladder, rails, water and pool equipment together so everything a swimmer can touch is at the same voltage. It is NOT run back to the panel and it is not a fault-clearing path.'],
+  ['Why it matters','If an EGC is open and a non-GFCI circuit faults to its frame, that frame — and everything bonded to the grid — rises toward 120 V above remote earth. Inside the grid the voltage is equal; touching something grounded from outside it completes the circuit.'],
  ],
  tcc:[
   ['Inverse-time breaker','A thermal-magnetic breaker trips faster the higher the current. Small overloads take time (thermal); a big fault hits the magnetic element and trips almost instantly.'],
@@ -1064,6 +1085,8 @@ render();
       <button class="modal-tab" data-tab="fault" onclick="refTab('fault')">FAULTS</button>
       <button class="modal-tab" data-tab="tcc" onclick="refTab('tcc')">TRIP CURVE</button>
       <button class="modal-tab" data-tab="sys" onclick="refTab('sys')">SYSTEMS</button>
+      <button class="modal-tab" data-tab="panel" onclick="refTab('panel')">PANEL</button>
+      <button class="modal-tab" data-tab="pool" onclick="refTab('pool')">POOL</button>
     </div>
     <div class="modal-body">
       <div class="modal-pane active" id="pane-flow"><div id="rl-flow"></div></div>
@@ -1071,6 +1094,8 @@ render();
       <div class="modal-pane" id="pane-fault"><div id="rl-fault"></div></div>
       <div class="modal-pane" id="pane-tcc"><div id="tccHost"></div><div id="rl-tcc" style="margin-top:12px"></div></div>
       <div class="modal-pane" id="pane-sys"><div id="rl-sys"></div></div>
+      <div class="modal-pane" id="pane-panel"><div id="rl-panel"></div></div>
+      <div class="modal-pane" id="pane-pool"><div id="rl-pool"></div></div>
     </div>
   </div>
 </div>
