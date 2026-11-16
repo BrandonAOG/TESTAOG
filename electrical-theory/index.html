@@ -1024,6 +1024,13 @@ function drawGen(svg,g){
   GPR.forEach(function(q){ brkProbe(svg,q[0],q[1],q[2],q[3]); });
   if(g.genRet==='solid'){ var tp='M '+g.nX+' '+(g.cy-7)+' L '+g.nX+' '+g.tyN; }   // (MBJ dots already shown)
 }
+var ckPos=null, ckJustDragged=false;   // where the user last dragged the circuit menu (this visit only)
+function ckDrag(m,h){   // drag the circuit menu by its title bar — mouse, finger or pen
+  var sx,sy,ox,oy,on=false;
+  h.addEventListener('pointerdown',function(e){ if(e.target&&e.target.id==='ckX') return; on=true; sx=e.clientX; sy=e.clientY; ox=parseFloat(m.style.left)||0; oy=parseFloat(m.style.top)||0; h.style.cursor='grabbing'; try{h.setPointerCapture(e.pointerId);}catch(_){} e.preventDefault(); });
+  h.addEventListener('pointermove',function(e){ if(!on) return; var x=Math.max(8,Math.min(window.innerWidth-m.offsetWidth-8,ox+e.clientX-sx)), y=Math.max(8,Math.min(window.innerHeight-m.offsetHeight-8,oy+e.clientY-sy)); m.style.left=x+'px'; m.style.top=y+'px'; ckPos=[x,y]; ckJustDragged=true; });
+  function end(e){ if(!on) return; on=false; setTimeout(function(){ ckJustDragged=false; },350); h.style.cursor='grab'; try{h.releasePointerCapture(e.pointerId);}catch(_){} }
+  h.addEventListener('pointerup',end); h.addEventListener('pointercancel',end); }
 function ckMenuClose(){ var m=document.getElementById('ckMenu'); if(m) m.remove(); }
 function ckInfo(kind,id){ if(kind==='P'){ var c=POOLCKTS[id]; return {name:c.n, key:'P:'+id, v120:!!c.nt, p:c.p, def:poolEgc}; }
   var d=DEMO[SYS[MODE].demo], c=d[id]; if(poolOn&&MODE==='single'){ if(id===26)c=d[2]; else if(id===28)c=d[4]; }
@@ -1043,7 +1050,9 @@ function openCkMenu(kind,id,ev){ ckMenuClose(); var inf=ckInfo(kind,id), cur=ckE
     opts.forEach(function(o){ var b=document.createElement('button'); b.textContent=o[1]; var on=(val===o[0]);
       b.style.cssText='flex:1;padding:8px 4px;border:0;font:700 10.5px system-ui;letter-spacing:.4px;cursor:pointer;background:'+(on?o[2]:'transparent')+';color:'+(on?o[3]:'#8695b5');
       b.onclick=function(e){e.stopPropagation();cb(o[0]);}; g.appendChild(b); }); r.appendChild(g); return r; }
-  var h=document.createElement('div'); h.innerHTML='<b style="font-size:13px">'+inf.name+'</b><span style="float:right;cursor:pointer;color:#8fa0c4;font-size:15px;line-height:13px" id="ckX">✕</span>'; m.appendChild(h);
+  var h=document.createElement('div'); h.innerHTML='<span style="color:#6b7ba6;margin-right:6px;letter-spacing:-2px" aria-hidden="true">⋮⋮</span><b style="font-size:13px">'+inf.name+'</b><span style="float:right;cursor:pointer;color:#8fa0c4;font-size:15px;line-height:13px;padding:4px 2px 6px 10px;margin:-4px -2px 0 0" id="ckX">✕</span>';
+  h.style.cssText='cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;padding:2px 0 4px'; h.title='Drag to move'; m.appendChild(h);
+  ckDrag(m,h);
   var fb=document.createElement('button'); fb.textContent='⚡ Fault this circuit ('+({LG:'line–ground',LL:'line–line',LN:'line–neutral',NG:'neutral–ground'}[faultType])+')';
   fb.style.cssText='display:block;width:100%;margin-top:9px;padding:9px;border-radius:7px;border:1px solid #ff6b6b;background:#3a1620;color:#ff8a8a;font:700 11px system-ui;cursor:pointer';
   fb.onclick=function(e){ e.stopPropagation(); ckMenuClose(); if(kind==='P') poolFaultAt(id); else applyFault(id); }; m.appendChild(fb);
@@ -1054,15 +1063,17 @@ function openCkMenu(kind,id,ev){ ckMenuClose(); var inf=ckInfo(kind,id), cur=ckE
   else { var na=document.createElement('div'); na.style.cssText='margin-top:8px;font-size:10.5px;color:#6b7ba6'; na.textContent='Polarity: n/a (straight 240 V load, no neutral on this circuit)'; m.appendChild(na); }
   lightenStyles(m); if(LIGHT) m.style.boxShadow='0 8px 28px rgba(0,0,0,.18)';
   document.body.appendChild(m);
-  var x=Math.min(ev.clientX+10, window.innerWidth-m.offsetWidth-8), y=Math.min(ev.clientY+10, window.innerHeight-m.offsetHeight-8); m.style.left=Math.max(8,x)+'px'; m.style.top=Math.max(8,y)+'px';
+  var x=Math.min(ev.clientX+10, window.innerWidth-m.offsetWidth-8), y=Math.min(ev.clientY+10, window.innerHeight-m.offsetHeight-8);
+  if(ckPos&&!ev.keep){ x=Math.min(ckPos[0],window.innerWidth-m.offsetWidth-8); y=Math.min(ckPos[1],window.innerHeight-m.offsetHeight-8); }   // once dragged, menus open where you left it
+  m.style.left=Math.max(8,x)+'px'; m.style.top=Math.max(8,y)+'px';
   document.getElementById('ckX').onclick=function(e){e.stopPropagation();ckMenuClose();};
   m.addEventListener('click',function(e){e.stopPropagation();});
 }
 function ckChanged(kind,id){ var inf=ckInfo(kind,id), msg=ckExplain(inf);
   if(kind==='P'&&poolFault===id) poolFaultAt(id); else if(kind==='M'&&faultCkt===id&&!tripped) applyFault(id);
   ckMsg=msg; render();
-  var r=document.getElementById('ckMenu'); if(r){ var L=parseFloat(r.style.left), T=parseFloat(r.style.top); openCkMenu(kind,id,{clientX:L-10,clientY:T-10}); } }
-document.addEventListener('click',function(){ ckMenuClose(); });
+  var r=document.getElementById('ckMenu'); if(r){ var L=parseFloat(r.style.left), T=parseFloat(r.style.top); openCkMenu(kind,id,{clientX:L-10,clientY:T-10,keep:1}); } }
+document.addEventListener('click',function(){ if(ckJustDragged){ ckJustDragged=false; return; } ckMenuClose(); });
 window.addEventListener('resize',function(){ clearTimeout(window._rz); window._rz=setTimeout(render,120); });
 function revCross(svg,eqEdge,inward,yH,yN,hc){   // crossover at the device: the hot lands on the neutral terminal and vice versa
   var xa=eqEdge+inward, x0=Math.min(xa,eqEdge);

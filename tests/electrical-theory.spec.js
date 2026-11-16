@@ -252,3 +252,18 @@ test('open EGC ground fault: MBJ carries nothing, FRAME probe reads near line vo
   await page.waitForTimeout(2600);
   expect(Math.round(await page.evaluate(() => voltBetween('FR', 'SG')))).toBe(0);              // tripped → frame back to ground
 });
+
+test('circuit menu can be dragged by its title bar, stays open, and reopens where it was left', async ({ page }) => {
+  expect(await open(page, '/electrical-theory/')).toEqual([]);
+  await page.evaluate(() => openCkMenu('M', 7, { clientX: 200, clientY: 200 }));
+  const m = page.locator('#ckMenu'), h = page.locator('#ckMenu > div').first();
+  const b0 = await m.boundingBox(), hb = await h.boundingBox();
+  await page.mouse.move(hb.x + 30, hb.y + 8); await page.mouse.down();
+  await page.mouse.move(hb.x + 30 + 60, hb.y + 8 + 40, { steps: 5 }); await page.mouse.up();
+  const b1 = await m.boundingBox();
+  expect(Math.round(b1.y - b0.y)).toBe(40);
+  await page.locator('#ckX').click(); await expect(m).toHaveCount(0);
+  await page.evaluate(() => openCkMenu('M', 3, { clientX: 20, clientY: 20 }));
+  const b2 = await page.locator('#ckMenu').boundingBox();
+  expect([Math.round(b2.x), Math.round(b2.y)]).toEqual([Math.round(b1.x), Math.round(b1.y)]);
+});
