@@ -229,3 +229,13 @@ test('toggling the generator does not shift the drawing', async ({ page }) => {
     await page.evaluate(() => document.getElementById('genBtn').click());
   }
 });
+
+test('open service breaker / panel main: line side glows (energized, 0 A), no moving dots, readout explains it', async ({ page }) => {
+  expect(await open(page, '/electrical-theory/')).toEqual([]);
+  const st = () => page.evaluate(() => ({ glow: document.querySelectorAll('#svg .vglow').length, dots: dotPool.length, ro: document.getElementById('readout').innerText }));
+  let r = await st(); expect(r.glow).toBe(0); expect(r.dots).toBeGreaterThan(0);
+  await page.evaluate(() => toggleSvc());
+  r = await st(); expect(r.glow).toBeGreaterThan(0); expect(r.dots).toBe(0); expect(r.ro).toContain('SERVICE DISCONNECT OPEN');
+  await page.evaluate(() => { toggleSvc(); toggleLcMain(); });
+  r = await st(); expect(r.glow).toBeGreaterThan(0); expect(r.dots).toBe(0); expect(r.ro).toContain('PANEL MAIN OPEN');
+});

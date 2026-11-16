@@ -19,6 +19,10 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <meta name="theme-color" content="#FBBF24">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
+  /* energized but carrying no current: a slow glow (voltage present), never moving dots (those mean current) */
+  .vglow{stroke-opacity:.28;animation:vglow 2.6s ease-in-out infinite;pointer-events:none;}
+  @keyframes vglow{0%,100%{stroke-opacity:.08}50%{stroke-opacity:.5}}
+  @media (prefers-reduced-motion:reduce){.vglow{animation:none}}
   :root{ --bg:#f8f9fa; --bg2:#ffffff; --panel:#ffffff; --stroke:#dee2e6; --txt:#1F2937; --txt2:#4b5563; --accent:#D97706; --cyan:#0891b2; --bg3:#f1f3f5; --border:#dee2e6; --danger:#DC2626; --radius:12px; --header-bg:#1a1a2e; }
   .dark{ --bg:#0A0E27; --bg2:#0f1535; --panel:#0f1535; --stroke:#1e2a4a; --txt:#E0F7FF; --txt2:#94a3b8; --accent:#00FFC8; --cyan:#00FFC8; --bg3:#141a3a; --border:#1e2a4a; --danger:#ef4444; }
   /* the one-line itself is an instrument screen: dark in both themes so every wire color reads the same */
@@ -483,6 +487,11 @@ function clearFault(){ ckMsg=''; noNeutralMsg=false; poolFault=null; poolOff={};
 function clearActiveFaultState(){ if(tripTimer){clearTimeout(tripTimer);tripTimer=null;} if(faultCkt!=null){delete offCkts[MODE+':'+faultCkt];} faultCkt=null; faultZone='branch'; faultPhase=null; tripped=false; FAULT_A=0; tripSec=Infinity; }
 function toggleSvc(){ svcOff=!svcOff; if(svcOff&&!(genOK()&&SRC==='gen'))clearActiveFaultState(); render(); }
 function toggleLcMain(){ lcMainOff=!lcMainOff; if(lcMainOff)clearActiveFaultState(); render(); }
+function offWhy(){   // what an open service breaker / panel main is doing — energized vs. carrying current
+  var m=[], gs=genOK()&&SRC==='gen';
+  if(svcOff&&!utilOff&&!genOK()) m.push('<b style="color:#ffd27a">SERVICE DISCONNECT OPEN</b> — the <b>line side</b> (transformer → meter → the breaker\'s line terminals) is still <b>energized</b> at full voltage — that\'s the slow glow — but it carries <b>0 A</b>, because nothing past the open contacts can draw current. The load terminals, the feeder, the panel and every branch circuit are dead. The neutral and the <b>MBJ / GEC</b> stay connected — a breaker never opens the bond. Only the utility can kill the line side (pull the meter / open the transformer), so treat those lugs as live.');
+  if(lcMainOff&&!MLO&&srcLive()) m.push('<b style="color:#ffd27a">PANEL MAIN OPEN</b> — the feeder is still <b>energized</b> from the '+(gs?'generator':'service')+' right up to the main breaker\'s line terminals (glow, <b>0 A</b>), so the dots stop everywhere upstream. The bus and every branch circuit are dead. The panel is <b>not</b> dead inside: the feeder lugs and the line side of the main are still hot. Neutral and ground stay connected.');
+  return m.join('<br>'); }
 function faultWhy(){
   if(noNeutralMsg) return '<b style="color:#ffd27a">NO NEUTRAL</b> — a corner-grounded delta is 3-wire. There is no neutral to fault; phase B is the grounded conductor. Try a Line–Ground or Line–Line fault.';
   if(faultZone==='service') return '<b style="color:#ff8a8a">LINE-SIDE SERVICE FAULT · '+FAULT_A+' A</b> — ahead of the service disconnect there\'s no overcurrent device in the building, so <b>nothing here trips</b>; only the utility transformer fuse can clear it. The fault current goes from the line-side conductor into the service enclosure, across the <b>MBJ</b>, and home on the <b>service neutral</b> to the transformer. The feeder EGC and the panel ground bars carry none of it, because they are downstream of the fault. This is why line-side conductors are kept short and in conduit.';
@@ -523,6 +532,7 @@ function render(){
   var uLost=!utilAvail(); if(genOK()){ if(uLost!==lastSvc){ lastSvc=uLost; if(uLost) onUtilLost(); else onUtilBack(); } } else lastSvc=uLost;
   var objTxt=[], GN=genOK(), LAY=GEN_SYS.indexOf(MODE)>=0, onGen=GN&&SRC==='gen', genRunning=GN&&(GST==='run'||GST==='cool');
   var feederLive=srcLive(), busLive=feederLive&&!lcMainOff, DEAD='#3a4b6b';
+  var carry=busLive||(feederLive&&faultZone==='feeder'&&faultActive());   // current only flows on the feeder/line side when the panel bus is fed (or a feeder fault is drawing it); otherwise those wires just glow — energized, 0 A
   var OBJ='#f5c542', bondActive=downstreamBond&&busLive&&!fGnd&&!sys.noNeutral;
   var poolObj=poolOn&&MODE==='single'&&poolBond&&busLive&&isOn(2);   // illegal N-G bond: objectionable current rides the grounding system
   document.getElementById('sub').textContent=sys.title+' · '+sys.wires;
@@ -607,35 +617,35 @@ function render(){
     // high-leg delta: in the METER ONLY the high leg sits on C (ANSI C12 meter wiring — on B it would destroy the meter electronics);
     // it rolls back to B right after the meter, so it lands on B at the disconnect and the panel (NEC 408.3(E)(1)).
     var yM=(MODE==='highleg')?tyH[[0,2,1][i]]:y, xr=mcx+mr+(LAY?4:6), xj=LAY?10:12;
-    var dL=(yM===y)?('M 120 '+y+' L '+swX0+' '+y):('M 120 '+yM+' L '+xr+' '+yM+' L '+(xr+xj)+' '+y+' L '+swX0+' '+y); svg.appendChild(el('path',{d:dL,stroke:svcF?FRED:(utilOff?DEAD:p.c),'stroke-width':svcF?3.2:2.6,fill:'none'})); var utilI=svcF||(utilAvail()&&!onGen&&feederLive); if(utilI)addDots(svg,dL,svcF?1:dirPh(i),24,svcF?FRED:null,svcF?null:angPh(i));
+    var dL=(yM===y)?('M 120 '+y+' L '+swX0+' '+y):('M 120 '+yM+' L '+xr+' '+yM+' L '+(xr+xj)+' '+y+' L '+swX0+' '+y); svg.appendChild(el('path',{d:dL,stroke:svcF?FRED:(utilOff?DEAD:p.c),'stroke-width':svcF?3.2:2.6,fill:'none'})); var utilI=svcF||(utilAvail()&&!onGen&&carry); if(!utilOff&&!utilI) vGlow(svg,dL,p.c,svg.lastChild); if(utilI)addDots(svg,dL,svcF?1:dirPh(i),24,svcF?FRED:null,svcF?null:angPh(i));
     var hl=el('path',{d:dL,stroke:'transparent','stroke-width':13,fill:'none'}); hl.style.cursor='pointer'; (function(pid){hl.addEventListener('click',function(e){e.stopPropagation();faultService(pid);});})(p.id); svg.appendChild(hl);
     // service disconnect BREAKER pole: closed = contact through; open = contacts parted (gap)
     if(svcOff){ svg.appendChild(el('line',{x1:swX0,y1:y,x2:swX0+7,y2:y,stroke:p.c,'stroke-width':2.6})); svg.appendChild(el('line',{x1:swX1-7,y1:y,x2:swX1,y2:y,stroke:DEAD,'stroke-width':2.6})); svg.appendChild(el('line',{x1:swX0+11,y1:y-3,x2:swX1-11,y2:y+3,stroke:COL.off,'stroke-width':1.6})); }
     else { svg.appendChild(el('line',{x1:swX0,y1:y,x2:swX1,y2:y,stroke:p.c,'stroke-width':2.6})); }
     // feeder side (switch-out -> panel): live only if the disconnect is closed
     if(GN){   // transfer switch pole: utility contact (top) · generator contact (below) · blade from the load pivot
-      var uLive=utilAvail(), dU='M '+swX1+' '+y+' L '+XUC+' '+y; svg.appendChild(el('path',{d:dU,stroke:uLive?p.c:DEAD,'stroke-width':2.6,fill:'none'})); if(uLive&&!onGen&&feederLive)addDots(svg,dU,dirPh(i),24,null,angPh(i));
+      var uLive=utilAvail(), dU='M '+swX1+' '+y+' L '+XUC+' '+y; if(uLive&&!(!onGen&&carry)) vGlow(svg,dU,p.c); svg.appendChild(el('path',{d:dU,stroke:uLive?p.c:DEAD,'stroke-width':2.6,fill:'none'})); if(uLive&&!onGen&&carry)addDots(svg,dU,dirPh(i),24,null,angPh(i));
       var gy2=y+14, onC=onGen?gy2:y, bLive=onGen?genRunning&&!genBrkOff:uLive;
       svg.appendChild(el('path',{d:'M '+XPV+' '+y+' L '+(XUC+2)+' '+onC,stroke:bLive?p.c:DEAD,'stroke-width':3,'stroke-linecap':'round',fill:'none'}));
       [[XUC,y],[XUC,gy2],[XPV,y]].forEach(function(q){ svg.appendChild(el('circle',{cx:q[0],cy:q[1],r:2.8,fill:'#0b1020',stroke:'#aeb6c9','stroke-width':1.2})); });
       ctLbl(svg,XUC-5,y-3,'U'); ctLbl(svg,XUC-5,gy2-3,'G');
       GENH.push({i:i,y:gy2,c:p.c});
     }
-    var dF='M '+(GN?XPV:swX1)+' '+y+' L '+dx+' '+y+' L '+dx+' '+hotLandY; svg.appendChild(el('path',{d:dF,stroke:fdrF?FRED:(feederLive?p.c:DEAD),'stroke-width':fdrF?3.2:2.6,fill:'none'})); if(fdrF)addDots(svg,dF,1,20,FRED); else if(feederLive)addDots(svg,dF,dirPh(i),24,null,angPh(i));
+    var dF='M '+(GN?XPV:swX1)+' '+y+' L '+dx+' '+y+' L '+dx+' '+hotLandY; svg.appendChild(el('path',{d:dF,stroke:fdrF?FRED:(feederLive?p.c:DEAD),'stroke-width':fdrF?3.2:2.6,fill:'none'})); if(fdrF)addDots(svg,dF,1,20,FRED); else if(busLive)addDots(svg,dF,dirPh(i),24,null,angPh(i)); else if(feederLive) vGlow(svg,dF,p.c,svg.lastChild);
     var hf=el('path',{d:dF,stroke:'transparent','stroke-width':13,fill:'none'}); hf.style.cursor='pointer'; (function(pid){hf.addEventListener('click',function(e){e.stopPropagation();faultFeeder(pid);});})(p.id); svg.appendChild(hf);
   });
   if(DETAIL){
     if(!sys.noNeutral){
       if(GN&&ATSN==='switched'){   // the neutral is a transfer-switch pole too
         var dNu='M 120 '+tyN+' L '+XUC+' '+tyN, dNf='M '+XPV+' '+tyN+' L '+xNR+' '+tyN+' L '+xNR+' '+busTopZ;
-        svg.appendChild(el('path',{d:dNu,stroke:COL.neu,'stroke-width':2.2,fill:'none'})); if(!onGen&&feederLive&&!utilOff)addDots(svg,dNu,-1,24,fNeu?FRED:null);
-        svg.appendChild(el('path',{d:dNf,stroke:fNeu?FRED:(feederLive?COL.neu:DEAD),'stroke-width':fNeu?3:2.2,fill:'none'})); if(feederLive)addDots(svg,dNf,-1,24,fNeu?FRED:null);
+        svg.appendChild(el('path',{d:dNu,stroke:COL.neu,'stroke-width':2.2,fill:'none'})); if(!onGen&&(carry||fNeu)&&!utilOff)addDots(svg,dNu,-1,24,fNeu?FRED:null);
+        svg.appendChild(el('path',{d:dNf,stroke:fNeu?FRED:(feederLive?COL.neu:DEAD),'stroke-width':fNeu?3:2.2,fill:'none'})); if(carry||fNeu)addDots(svg,dNf,-1,24,fNeu?FRED:null);
         svg.appendChild(el('path',{d:'M '+XPV+' '+tyN+' L '+(XUC+2)+' '+(onGen?tyN+9:tyN),stroke:COL.neu,'stroke-width':3,'stroke-linecap':'round',fill:'none'}));
         [[XUC,tyN],[XUC,tyN+9],[XPV,tyN]].forEach(function(q){ svg.appendChild(el('circle',{cx:q[0],cy:q[1],r:2.8,fill:'#0b1020',stroke:'#aeb6c9','stroke-width':1.2})); });
         ctLbl(svg,XUC-5,tyN-3,'U'); ctLbl(svg,XUC-5,tyN+18,'G');
       } else {
         var dN='M 120 '+tyN+' L '+xNR+' '+tyN+' L '+xNR+' '+busTopZ;svg.appendChild(el('path',{d:dN,stroke:fNeu?FRED:(feederLive?COL.neu:DEAD),'stroke-width':fNeu?3:2.2,fill:'none'}));
-        if(feederLive){ if(onGen) addDots(svg,'M '+(sdX0+22)+' '+tyN+' L '+xNR+' '+tyN+' L '+xNR+' '+busTopZ,-1,24,fNeu?FRED:null); else addDots(svg,dN,-1,24,fNeu?FRED:null); } } }
+        if(carry||fNeu){ if(onGen) addDots(svg,'M '+(sdX0+22)+' '+tyN+' L '+xNR+' '+tyN+' L '+xNR+' '+busTopZ,-1,24,fNeu?FRED:null); else addDots(svg,dN,-1,24,fNeu?FRED:null); } } }
     var cy=tyG+4, nX=sdX0+22, gX=sdX0+62;
     var dG='M '+(gX+9)+' '+cy+' L '+xGR+' '+cy+' L '+xGR+' '+busTopZ;var fGndP=fGnd&&faultZone!=='service'&&effEgc()!=='broken';   /* line-side fault never touches the feeder EGC */ svg.appendChild(el('path',{d:dG,stroke:fGndP?FRED:((bondActive||poolObj)?OBJ:COL.egc),'stroke-width':(fGndP||bondActive||poolObj)?3:2.2,fill:'none'}));if(fGnd&&effEgc()!=='broken')addDots(svg,dG,-1,22,FRED);else if(bondActive||poolObj)addDots(svg,dG,-1,22,OBJ);
     // neutral drops into the N terminal; MBJ (250.28) ties N terminal to G terminal — the only N-G bond
@@ -676,7 +686,7 @@ function render(){
     svg.appendChild(txt(rodX,rodY+34,'NEC 250.52(A)',{anchor:'middle',size:8.5,fill:COL.txt2}));
   }
   if(GN&&DETAIL) drawGen(svg,{N:N,phases:phases,tyH:tyH,tyN:tyN,tyG:tyG,cy:tyG+4,nX:sdX0+22,gX:sdX0+62,XUC:XUC,XGR0:XGR0,swX1:swX1,GENH:GENH,
-     onGen:onGen,running:genRunning,feederLive:feederLive,FRED:FRED,DEAD:DEAD,dirPh:dirPh,angPh:angPh,fGnd:fGnd,fNeu:fNeu,genRet:genRet,
+     onGen:onGen,running:genRunning,feederLive:carry,FRED:FRED,DEAD:DEAD,dirPh:dirPh,angPh:angPh,fGnd:fGnd,fNeu:fNeu,genRet:genRet,
      fPh:(faultZone==='feeder'?phases.map(function(q){return q.id;}).indexOf(faultPhase):(faultCkt!=null?phases.map(function(q){return q.id;}).indexOf(phaseOfCkt(faultCkt)):-1)), fA:fA, gF:gF, xGR:xGR});
   objTxt.forEach(function(t){ svg.appendChild(t); });   // keep the objectionable-current note on top of the generator feeders
   // ===== MAIN breaker (clickable) or lugs =====
@@ -836,7 +846,7 @@ function render(){
   haloTxt(busC, top-61, '▲ probe: tap any two to read voltage', {anchor:'middle',size:9.5,fill:'#cdd8f0'});
   haloTxt(busC, top-43, 'LOAD CENTER (PANELBOARD)', {anchor:'middle',size:13,w:700,fill:'#cdd8f0'});   // sits right on the enclosure's top edge (top-40)
 
-  var ro=document.getElementById('readout'); if(ro){ ro.innerHTML = (probePick.length===2)?probeText() : (ckMsg?ckMsg:(poolMsg&&poolActive?poolMsg:((genNote&&GN&&!faultActive())?genNote:((utilNote&&!faultActive())?utilNote:faultWhy())))); var gcr=document.getElementById('genCountR'); if(gcr) gcr.textContent=genLeft(); }
+  var ro=document.getElementById('readout'); if(ro){ var ow=faultActive()?'':offWhy(); ro.innerHTML = (probePick.length===2)?probeText() : (ckMsg?ckMsg:(poolMsg&&poolActive?poolMsg:((genNote&&GN&&!faultActive())?(genNote+(ow?'<br>'+ow:'')):((utilNote&&!faultActive())?utilNote:(ow||faultWhy()))))); var gcr=document.getElementById('genCountR'); if(gcr) gcr.textContent=genLeft(); }
   var pb=document.getElementById('poolBtn'); if(pb){ pb.style.opacity=(MODE==='single')?1:0.4; pb.classList.toggle('on',poolActive); }
   var gb=document.getElementById('genBtn'); if(gb){ gb.style.opacity=GEN_SYS.indexOf(MODE)>=0?1:0.4; gb.classList.toggle('on',GN); } var ag=document.getElementById('atsGrp'); if(ag) ag.style.display=GN?'':'none';
   startAnim();
@@ -915,6 +925,7 @@ function brkProbe(svg,x,y,id,col){   // small probe point on a breaker's load te
   g2.appendChild(el('circle',{cx:x,cy:y,r:picked?9:7,fill:'#0b1020',stroke:picked?'#00d4ff':col,'stroke-width':picked?2.6:2}));
   if(picked) g2.appendChild(el('circle',{cx:x,cy:y,r:3,fill:'#00d4ff'}));
   svg.appendChild(g2); }
+function vGlow(svg,d,c,before){ var g=el('path',{d:d,stroke:c,'stroke-width':9,'stroke-linecap':'round',fill:'none'}); g.setAttribute('class','vglow'); if(before) svg.insertBefore(g,before); else svg.appendChild(g); }   // drawn just under its conductor, so it reads as a halo
 function ctLbl(svg,x,y,L){   // transfer-switch contact letter: U = utility, G = generator — sits above its own conductor, with a halo so wires never cover it
   var t=txt(x,y,L,{anchor:'end',size:7.5,w:800,fill:L==='U'?'#8fd6a3':'#ff9f7a'}); t.setAttribute('stroke',lc('#0b1020')); t.setAttribute('stroke-width','3'); t.setAttribute('paint-order','stroke'); svg.appendChild(t); }
 function drawGen(svg,g){
@@ -982,6 +993,7 @@ function drawGen(svg,g){
       if(g.onGen&&g.fA&&g.fPh===hi){ isRed=true; dots=1; dir=1; ph=null; }
       if(g.gF&&faultPhase===g.phases[hi].id){ isRed=true; dots=1; dir=1; ph=null; }
       (function(pid,dd){ var hz=el('path',{d:dd,stroke:'transparent','stroke-width':13,fill:'none'}); hz.style.cursor='pointer'; hz.addEventListener('click',function(e){e.stopPropagation();faultGenFdr(pid);}); HIT.push(hz); })(g.phases[hi].id,d); }
+    if(live&&t!=='N'&&t!=='G'&&!dots&&!isRed) vGlow(svg,d,col);   // generator running, breaker on, but no load on it
     svg.appendChild(el('path',{d:d,stroke:isRed?FRED:(live?col:DEAD),'stroke-width':isRed?3:2.2,fill:'none'}));
     if(dots||isRed) addDots(svg,d,dir,20,isRed?FRED:null,isRed?null:ph);
     svg.appendChild(txt(x1+4,ry-3,t==='N'?'N':(t==='G'?'EGC':g.phases[+t.slice(1)].id),{anchor:'start',size:7.5,w:700,fill:col===COL.neu?COL.txt2:col}));
