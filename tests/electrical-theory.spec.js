@@ -444,3 +444,11 @@ test('battery drain follows the breakers that are ON (whole-home and backup pane
   expect(r.some).toBeLessThan(r.all - 1);
   expect(r.bSome).toBeLessThan(r.bAll - 0.5);
 });
+
+test('CODE window has a SOLAR · ESS tab (690 / 705 / 706 / 702) and opens on it when solar or battery is on', async ({ page }) => {
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => { solarOn = true; render(); openRef('flow');
+    const t = document.getElementById('rl-der').textContent, act = document.querySelector('.modal-tab.active').dataset.tab; closeRef(); solarOn = false; render(); return { t, act }; });
+  expect(r.act).toBe('der');
+  for (const ref of ['690.7', '690.12', '705.12(B)(2)', '705.40', '705.70', '706.15', '702.4(A)(2)']) expect(r.t).toContain(ref);
+});

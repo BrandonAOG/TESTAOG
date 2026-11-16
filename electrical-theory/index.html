@@ -352,7 +352,7 @@ function derFeederFault(which){ var D=derState(); derFltClear(); ckMsg='';
     derFltT=setTimeout(function(){ derFlt=null; invBackupOff=true; derFltMsg='<b style="color:#8fd6a3">CLEARED</b> — the inverter\'s BACKUP breaker opened. The backup panel is dark until it\'s reset (tap BACKUP BKR inside the inverter).'; render(); },isl?1500:900); render(); return; }
   if(derNodeV('L1').re===0&&!(D.tap&&D.src!=='none')){ derFltMsg='<b style="color:#8fd6a3">DEAD</b> — the inverter\'s grid conductors aren\'t energized.'; render(); return; }
   derFlt='grid'; var invSrc=D.whole&&D.inv==='island';
-  if(D.tap) derFltMsg='<b style="color:#ff8a8a">FAULT ON THE INVERTER CONDUCTORS (SUPPLY-SIDE TAP)</b> — the utility drives huge fault current into it with nothing ahead but the service transformer: the <b>fuses in the PV disconnect</b> blow — that\'s why a supply-side tap must have its own overcurrent protection right at the tap (705.11(F)). The inverter stops when its grid voltage collapses.';
+  if(D.tap) derFltMsg='<b style="color:#ff8a8a">FAULT ON THE INVERTER CONDUCTORS (SUPPLY-SIDE TAP)</b> — the utility drives huge fault current into it with nothing ahead but the service transformer: the <b>fuses in the PV disconnect</b> blow — that\'s why a supply-side connection needs its own overcurrent protection at its disconnect (705.11(F), Part VII of Article 230). The inverter stops when its grid voltage collapses.';
   else if(invSrc) derFltMsg='<b style="color:#ff8a8a">FAULT ON THE INVERTER CONDUCTORS — HOUSE ON BATTERY</b> — the inverter is the only source, and it can only push ~2× its rating. Breaker 39/41 barely notices; the <b>inverter detects the fault and shuts down</b> (its GRID breaker opens). The whole house goes dark — the battery can\'t hold an island with a fault on it.';
   else derFltMsg='<b style="color:#ff8a8a">FAULT ON THE INVERTER CONDUCTORS</b> — the '+(D.src==='gen'?'generator':'utility')+' feeds the fault through <b>breaker 39/41</b>, which trips fast. The inverter\'s own contribution is small and it stops exporting as soon as its voltage collapses (705.40) — that breaker is the conductors\' protection from the panel side.';
   derFltT=setTimeout(function(){ derFlt=null; if(D.tap) derAcOff=true; else if(invSrc) invGridOff=true; else offCkts['single:39']=1;
@@ -608,7 +608,7 @@ var DEMO={
   }
 };
 /* ---------------- svg helpers ---------------- */
-var ET_BUILD='2026-11-16f';   // shown by ?diag — confirms which copy the device is actually running
+var ET_BUILD='2026-11-16h';   // shown by ?diag — confirms which copy the device is actually running
 var SVGNS='http://www.w3.org/2000/svg', dotPool=[], anim=null;
 var LIGHT=false, LMAP={"#0b1020": "#ffffff", "#0e1526": "#f6f8fb", "#16233f": "#eef3fb", "#101830": "#f3f5f8", "#101a30": "#f6f8fb", "#0f1830": "#f6f8fb", "#2a1620": "#fdecec", "#3a1620": "#fde3e3", "#0d3550": "#dbeffa", "#2b3a5e": "#c3cbd8", "#3a4b6b": "#c3cbd8", "#4a5b80": "#9aa7bd", "#9fb0d6": "#64748b", "#2a3b5e": "#c3cbd8", "#1b2740": "#e3e8ef", "#cdd8f0": "#1f2937", "#8a97b4": "#4b5563", "#5a6b8a": "#94a3b8", "#aeb6c9": "#4b5563", "#8fa0c4": "#4b5563", "#8695b5": "#6b7280", "#6f80a8": "#6b7280", "#7d8aa3": "#9aa7bd", "#d7dbe3": "#374151", "#c3cad8": "#374151", "#e6eaf2": "#e5e7eb", "#55637f": "#6b7280", "#8795ad": "#6b7280", "#ff8a8a": "#dc2626", "#8fd6a3": "#059669", "#5fd4ff": "#0891b2", "#00d4ff": "#0891b2", "#ffd27a": "#b45309", "#ffb35c": "#c2410c", "#e8c9a6": "#92400e", "#e8d39a": "#92400e", "#7fd0f5": "#0369a1", "#3fa7d6": "#0284c7", "#f5c542": "#d99a00", "#c98a4a": "#b45309", "#ff6b6b": "#ef4444", "#ffffff": "#111827", "#1f6f45": "#d1fae5", "#6a5212": "#fef3c7", "#5a1a1f": "#fee2e2", "#6a3a12": "#ffedd5", "#565e6e": "#2f3542", "#c9ced8": "#9ca3af", "#e6c62e": "#c9a800", "#46c36b": "#16a34a", "#8a3030": "#b91c1c"};   // light theme: the one-line's colors re-picked for a white background
 function lightenStyles(root){   // the tap menu is HTML with inline colors: swap them for the light palette
@@ -2195,6 +2195,22 @@ var REF={
   ['250.30(C) · 250.53(A)(2),(A)(3) — Electrodes','Switched neutral (separately derived) with the generator outside: a GEC at the generator to its own electrode(s). One rod needs a second electrode at least 6 ft away, unless the single rod tests 25 Ω or less.'],
   ['250.35(A),(B) — Generator feeder bonding','Separately derived: bond per 250.30. Not separately derived (solid neutral): a supply-side bonding jumper / EGC sized per 250.102(C) back to the service.'],
  ],
+ der:[
+  ['690.7(A) · 690.7(2) — Maximum PV voltage','String voltage = module Voc × the cold-temperature correction for the lowest expected temperature, × modules in series. PV dc circuits shall not exceed <b>600 V</b> on or in one- and two-family dwellings (1000 V on other buildings). In the demo a 25-module single string corrects to about 691 V — too high, so the inverter will not start. Split it into more strings.'],
+  ['690.9(A)(1) — PV string overcurrent','No fuses are needed when the conductors carry the maximum circuit current <b>and</b> the current from all sources can\'t exceed the module\'s maximum series-fuse rating. With one or two strings that\'s normally true. With <b>three or more</b> in parallel, the others can backfeed a faulted string past that rating — each string gets a fuse (a combiner box).'],
+  ['690.12(B)(1) · (C) · (D) — Rapid shutdown','Conductors outside the array boundary must drop to <b>30 V or less within 30 seconds</b> of initiation. One- and two-family dwellings: the initiation device is at a <b>readily accessible outdoor</b> location, and its OFF position shows rapid shutdown has been initiated. Equipment must be listed for rapid shutdown. Tap RSD in the demo, then probe the roof run.'],
+  ['690.15 — PV disconnect','Isolates the inverter from the array. The array side is still live whenever the sun is up — probe it after opening the PV DISC.'],
+  ['690.41 — PV system grounding','Most modern string and hybrid inverters are transformerless (functional grounding): the array floats, so a conductor reads about half the string voltage to ground. Module frames and racking are still bonded with an EGC.'],
+  ['705.11 — Supply-side connection','Solar tied between the meter and the service disconnect (705.11(A)(2), 230.82(6)). Its conductors are <b>service conductors</b>: not smaller than <b>6 AWG copper / 4 AWG aluminum</b> (705.11(B)(2)), with a service disconnecting means per Article 230 (705.11(D)) and overcurrent protection per Part VII of Article 230 (705.11(F)) — usually a fused, service-rated disconnect. In a meter socket only utility-approved connections (705.11(C)(3)). No 120 % busbar check — it never touches the panel bus.'],
+  ['705.12(B)(2) — Load-side, the 120 % rule','125 % of the inverter\'s rated output current + the main breaker may not exceed <b>120 % of the busbar</b> rating, with the backfed breaker at the opposite end of the bus from the main. 7.6 kW ÷ 240 V = 31.7 A × 1.25 = 40 A; 200 A main + 40 A = 240 A = 120 % of a 200 A bus. Label next to the backfed breaker: <b>WARNING: POWER SOURCE OUTPUT — DO NOT RELOCATE THIS OVERCURRENT DEVICE</b> (110.21(B)).'],
+  ['705.13 · 750.30 — Energy management system (EMS)','An EMS (750.30) may limit current and loading on the busbars and conductors fed by solar or storage — a listed power control system (PCS) is one type. The same kind of control (or an ATS auxiliary contact) keeps a grid-tied inverter from exporting into a generator.'],
+  ['705.20 — Inverter disconnect','A disconnect that isolates the inverter from everything else. Readily accessible, opens all ungrounded conductors at once, shows ON/OFF. Where both sides can be energized while open: <b>WARNING — ELECTRIC SHOCK HAZARD — TERMINALS ON THE LINE AND LOAD SIDES MAY BE ENERGIZED IN THE OPEN POSITION</b>.'],
+  ['705.40 — Loss of utility (anti-islanding)','Interactive equipment must automatically disconnect (a listed interactive inverter may cease exporting) when the utility opens, and stay off until it is restored. The listing (UL 1741 / IEEE 1547) makes that happen within 2 s — sun or not — so it never backfeeds a line a lineworker thinks is dead.'],
+  ['705.70 — Microgrid interconnect device (MID)','Required for any connection between a microgrid and the utility, listed or field-labeled for it, with overcurrent protection from all sources — often built into the inverter or backup gateway. On an outage it <b>opens first</b>, separating the house from the utility, then the battery inverter forms its own 120/240 V grid — typically within about a cycle (~16–20 ms, equipment-dependent), so most loads ride through. Solar can keep running because the battery is holding the voltage and frequency it syncs to.'],
+  ['706.15(A) · (B) · (C) — ESS disconnect and emergency shutdown','A disconnect that isolates the energy storage system. One- and two-family dwellings: an <b>emergency shutdown</b> that stops the ESS exporting to the premises wiring, initiated from a readily accessible location <b>outside</b> that shows ON/OFF (706.15(B)). Marked <b>ENERGY STORAGE SYSTEM DISCONNECT</b> (706.15(C)). Tap ESS STOP in the demo: no backup and no charging until it is reset.'],
+  ['702.4(A)(2) — Capacity on automatic transfer','A battery backup that picks up loads automatically is an optional standby system. It must carry the full load it picks up, or use an energy-management system (750.30) to shed load — calculated per Article 220. A <b>backup panel</b> is the other answer: only the loads moved into it are backed up.'],
+  ['Battery runtime (how the demo drains it)','Not a code rule: <b>hours ≈ usable kWh ÷ (house load kW − solar kW)</b>. Every breaker carries a typical <b>average</b> kW (A/C 1.0, water heater 0.45, EV 0.5, fridge 0.15 …). Only breakers that are ON count — turn some off and the clock stretches. Real loads cycle and surge on start, so real runtime moves around this average.'],
+ ],
  tcc:[
   ['Inverse-time breaker','A thermal-magnetic breaker trips faster the higher the current. Small overloads take time (thermal); a big fault hits the magnetic element and trips almost instantly.'],
   ['Unlatching band','It clears somewhere between a min and max. On a 20 A breaker: ~40 A clears in 25–150 s, ~100 A in 5–20 s.'],
@@ -2234,7 +2250,7 @@ function drawTCC(){
   p.push('</svg>'); host.innerHTML=p.join('');
 }
 function refTab(t){ document.querySelectorAll('.modal-tab').forEach(function(x){x.classList.toggle('active',x.dataset.tab===t);}); document.querySelectorAll('.modal-pane').forEach(function(x){x.classList.toggle('active',x.id==='pane-'+t);}); }
-function openRef(t){ buildRef(); refTab(t||'flow'); $('refModal').classList.add('open'); document.body.classList.add('modal-open'); }
+function openRef(t){ buildRef(); if(t==='flow'&&(solarOn||battOn)) t='der'; refTab(t||'flow'); $('refModal').classList.add('open'); document.body.classList.add('modal-open'); }
 function closeRef(){ $('refModal').classList.remove('open'); document.body.classList.remove('modal-open'); }
 render();
 </script>
@@ -2254,6 +2270,7 @@ render();
       <button class="modal-tab" data-tab="pool" onclick="refTab('pool')">POOL</button>
       <button class="modal-tab" data-tab="gen" onclick="refTab('gen')">GEN</button>
       <button class="modal-tab" data-tab="xfmr" onclick="refTab('xfmr')">XFMR</button>
+      <button class="modal-tab" data-tab="der" onclick="refTab('der')">SOLAR · ESS</button>
     </div>
     <div class="modal-body">
       <div class="modal-pane active" id="pane-flow"><div id="rl-flow"></div></div>
@@ -2265,6 +2282,7 @@ render();
       <div class="modal-pane" id="pane-pool"><div id="rl-pool"></div></div>
       <div class="modal-pane" id="pane-gen"><div id="rl-gen"></div></div>
       <div class="modal-pane" id="pane-xfmr"><div id="rl-xfmr"></div></div>
+      <div class="modal-pane" id="pane-der"><div id="rl-der"></div></div>
     </div>
   </div>
 </div>
