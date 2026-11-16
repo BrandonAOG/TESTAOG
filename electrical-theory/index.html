@@ -440,6 +440,7 @@ var DEMO={
   }
 };
 /* ---------------- svg helpers ---------------- */
+var ET_BUILD='2026-11-16c';   // shown by ?diag — confirms which copy the device is actually running
 var SVGNS='http://www.w3.org/2000/svg', dotPool=[], anim=null;
 var LIGHT=false, LMAP={"#0b1020": "#ffffff", "#0e1526": "#f6f8fb", "#16233f": "#eef3fb", "#101830": "#f3f5f8", "#101a30": "#f6f8fb", "#0f1830": "#f6f8fb", "#2a1620": "#fdecec", "#3a1620": "#fde3e3", "#0d3550": "#dbeffa", "#2b3a5e": "#c3cbd8", "#3a4b6b": "#c3cbd8", "#4a5b80": "#9aa7bd", "#9fb0d6": "#64748b", "#2a3b5e": "#c3cbd8", "#1b2740": "#e3e8ef", "#cdd8f0": "#1f2937", "#8a97b4": "#4b5563", "#5a6b8a": "#94a3b8", "#aeb6c9": "#4b5563", "#8fa0c4": "#4b5563", "#8695b5": "#6b7280", "#6f80a8": "#6b7280", "#7d8aa3": "#9aa7bd", "#d7dbe3": "#374151", "#c3cad8": "#374151", "#e6eaf2": "#e5e7eb", "#55637f": "#6b7280", "#8795ad": "#6b7280", "#ff8a8a": "#dc2626", "#8fd6a3": "#059669", "#5fd4ff": "#0891b2", "#00d4ff": "#0891b2", "#ffd27a": "#b45309", "#ffb35c": "#c2410c", "#e8c9a6": "#92400e", "#e8d39a": "#92400e", "#7fd0f5": "#0369a1", "#3fa7d6": "#0284c7", "#f5c542": "#d99a00", "#c98a4a": "#b45309", "#ff6b6b": "#ef4444", "#ffffff": "#111827", "#1f6f45": "#d1fae5", "#6a5212": "#fef3c7", "#5a1a1f": "#fee2e2", "#6a3a12": "#ffedd5", "#565e6e": "#2f3542", "#c9ced8": "#9ca3af", "#e6c62e": "#c9a800", "#46c36b": "#16a34a", "#8a3030": "#b91c1c"};   // light theme: the one-line's colors re-picked for a white background
 function lightenStyles(root){   // the tap menu is HTML with inline colors: swap them for the light palette
@@ -598,10 +599,10 @@ function render(){
   (function(){ var phone=window.matchMedia&&window.matchMedia('(max-width:760px)').matches, card=svg.closest('.card-scope');
     if(phone){ svg.style.width=Math.round(W*0.96)+'px'; if(card){card.style.width='';card.style.marginLeft='';} return; }   // phone: swipe the drawing, text stays full size
     // desktop/tablet: no scrollbar — the One-Line card grows past the 900px column (up to the window) and the drawing scales to fit it
-    svg.style.width='100%'; svg.style.height='auto';
+    svg.style.width='100%'; svg.style.height='auto'; svg.parentElement.style.overflowX='';
     if(card){ var cw=card.parentElement.clientWidth, want=Math.min(window.innerWidth-24, W+2), w=Math.max(cw,want);
       card.style.width=w+'px'; card.style.marginLeft=Math.round((cw-w)/2)+'px'; }
-    if(MOBILE_ANIM){ var room=svg.parentElement.clientWidth-20; if(W*0.96>room) svg.style.width=Math.round(W*0.96)+'px'; } })();   // iPad/tablet: never shrink the text below phone size — swipe instead
+    if(MOBILE_ANIM){ var room=svg.parentElement.clientWidth-20; if(W*0.96>room){ var sw2=Math.round(W*0.96); svg.style.width=sw2+'px'; svg.style.height=Math.round(sw2*H/W)+'px'; svg.style.maxWidth='none'; svg.style.flexShrink='0'; svg.parentElement.style.overflowX='auto'; } } })();   /* the desktop rule hides overflow at ≥ 761 px — a swipeable tablet drawing has to turn it back on */   // explicit px both ways: older iOS WebKit mis-sizes inline SVG with height:auto   // iPad/tablet: never shrink the text below phone size — swipe instead
 
   var busC=510, busHalf=(N===3?36:28);   // 3-phase bars spread wider so the lanes read clearly
   var brkLin=busC-busHalf-14, brkLout=busC-busHalf-66, brkRin=busC+busHalf+14, brkRout=busC+busHalf+66;
@@ -944,6 +945,9 @@ function render(){
   haloTxt(busC, top-61, '▲ probe: tap any two to read voltage', {anchor:'middle',size:9.5,fill:'#cdd8f0'});
   haloTxt(busC, top-43, 'LOAD CENTER (PANELBOARD)', {anchor:'middle',size:13,w:700,fill:'#cdd8f0'});   // sits right on the enclosure's top edge (top-40)
 
+  if(/[?&]diag\b/.test(location.search)){ var dg=document.getElementById('etDiag'); if(!dg){ dg=document.createElement('div'); dg.id='etDiag'; dg.style.cssText='position:fixed;left:6px;bottom:6px;z-index:99998;background:#000c;color:#7CFC9A;font:11px monospace;padding:6px 8px;border-radius:6px;max-width:94vw;pointer-events:none'; document.body.appendChild(dg); }
+    setTimeout(function(){ var sc=svg.parentElement, ua=(navigator.userAgent.match(/OS (\d+)_(\d+)/)||navigator.userAgent.match(/Version\/([\d.]+)/)||[''])[0];
+      dg.textContent='build '+ET_BUILD+' · '+ua+' · touchPts '+navigator.maxTouchPoints+' · coarse '+(window.matchMedia&&matchMedia('(any-pointer:coarse)').matches)+' · touchMode '+MOBILE_ANIM+' · win '+innerWidth+' · svg '+Math.round(svg.getBoundingClientRect().width)+' · box '+sc.clientWidth+' · scroll '+sc.scrollWidth+' · ovf '+getComputedStyle(sc).overflowX; },50); }
   var ro=document.getElementById('readout'); if(ro){ var ow=faultActive()?'':offWhy(); ro.innerHTML = (probePick.length===2)?probeText() : (ckMsg?ckMsg:(xfMsg&&xfActive()?xfMsg:(poolMsg&&poolActive?poolMsg:((genNote&&GN&&!faultActive())?(genNote+(ow?'<br>'+ow:'')):((utilNote&&!faultActive())?utilNote:(ow||faultWhy())))))); var gcr=document.getElementById('genCountR'); if(gcr) gcr.textContent=genLeft(); }
   var xb=document.getElementById('xfBtn'); if(xb){ xb.style.opacity=XFCFG[MODE]?1:0.4; xb.classList.toggle('on',xfActive()); }
   var pb=document.getElementById('poolBtn'); if(pb){ pb.style.opacity=(MODE==='single')?1:0.4; pb.classList.toggle('on',poolActive); }

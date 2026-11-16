@@ -363,3 +363,12 @@ test('the toggle buttons never push the page wider than the screen', async ({ pa
   expect(r.right).toBeLessThanOrEqual(r.vw);
   expect(errs).toEqual([]);
 });
+
+test('tablet width on a touch screen: the pool drawing stays full size and the box can actually be swiped', async ({ page }) => {
+  await page.setViewportSize({ width: 1180, height: 820 });
+  const errs = await open(page, '/electrical-theory/');
+  const r = await page.evaluate(() => { document.getElementById('poolBtn').click(); const sc = document.getElementById('svg').parentElement;
+    return { touch: MOBILE_ANIM, ovf: getComputedStyle(sc).overflowX, wide: sc.scrollWidth > sc.clientWidth + 100 }; });
+  if (r.touch) expect(r).toEqual({ touch: true, ovf: 'auto', wide: true });   // overflow:hidden lets code scroll it but blocks a finger
+  expect(errs).toEqual([]);
+});
