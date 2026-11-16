@@ -22,7 +22,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   /* energized but carrying no current: a slow glow (voltage present), never moving dots (those mean current) */
   .vglow{stroke-opacity:var(--vg,.28);pointer-events:none;}   /* pulsed from the same throttled loop as the dots (one clock, no extra CSS animation) */
   /* phones & tablets: the drawing is the heavy part — keep the decorative header animations still to save battery */
-  @media (hover:none) and (pointer:coarse){ .header::before,.header::after,.logo-img{animation:none !important;} }
+  @media (any-pointer:coarse){ .header::before,.header::after,.logo-img{animation:none !important;} }
   :root{ --bg:#f8f9fa; --bg2:#ffffff; --panel:#ffffff; --stroke:#dee2e6; --txt:#1F2937; --txt2:#4b5563; --accent:#D97706; --cyan:#0891b2; --bg3:#f1f3f5; --border:#dee2e6; --danger:#DC2626; --radius:12px; --header-bg:#1a1a2e; }
   .dark{ --bg:#0A0E27; --bg2:#0f1535; --panel:#0f1535; --stroke:#1e2a4a; --txt:#E0F7FF; --txt2:#94a3b8; --accent:#00FFC8; --cyan:#00FFC8; --bg3:#141a3a; --border:#1e2a4a; --danger:#ef4444; }
   /* the one-line itself is an instrument screen: dark in both themes so every wire color reads the same */
@@ -474,7 +474,7 @@ function samplePath(svg,d){ if(dotPath[d]) return dotPath[d]; var pts=polyOf(d),
     for(var i2=0;i2<n;i2++){ var pt=mp.getPointAtLength(len*i2/(n-1)); xs[i2]=pt.x; ys[i2]=pt.y; } svg.removeChild(mp); }
   return (dotPath[d]={d:d,len:len,n:n,xs:xs,ys:ys}); }
 function addDots(svg,d,dir,sp,col,ph){var P=samplePath(svg,d),len=P.len;if(!(len>0))return;var n=Math.max(2,Math.round(len/(sp||22)));for(var i=0;i<n;i++){var c=el('circle',{r:2.5,fill:col||COL.dot,opacity:0.95});svg.appendChild(c);dotPool.push({c:c,P:P,len:len,off:(i/n)*len,dir:dir,speed:42,ph:(ph==null?null:ph)});}}
-var flowMode='conv', acT=0, glT=0, animVisible=true, MOBILE_ANIM=!!(window.matchMedia&&window.matchMedia('(hover:none) and (pointer:coarse)').matches), REDUCED=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches);
+var flowMode='conv', acT=0, glT=0, animVisible=true, MOBILE_ANIM=(navigator.maxTouchPoints||0)>1||!!(window.matchMedia&&window.matchMedia('(any-pointer:coarse)').matches), REDUCED=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches);
 var FRAME_MS=MOBILE_ANIM?33:0;   // phones/tablets: ~30 fps is plenty for the dots and about halves the work
 function frame(now){ anim=requestAnimationFrame(frame); if(!animVisible||document.hidden){ frame._t=now; return; }
   if(FRAME_MS&&frame._t&&now-frame._t<FRAME_MS-2) return;
