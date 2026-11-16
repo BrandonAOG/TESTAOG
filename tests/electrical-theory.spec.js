@@ -259,11 +259,11 @@ test('circuit menu can be dragged by its title bar, stays open, and reopens wher
   const m = page.locator('#ckMenu'), h = page.locator('#ckMenu > div').first();
   const b0 = await m.boundingBox(), hb = await h.boundingBox();
   await page.mouse.move(hb.x + 30, hb.y + 8); await page.mouse.down();
-  await page.mouse.move(hb.x + 30 + 60, hb.y + 8 + 40, { steps: 5 }); await page.mouse.up();
+  await page.mouse.move(hb.x + 30 - 60, hb.y + 8 + 40, { steps: 5 }); await page.mouse.up();
   const b1 = await m.boundingBox();
   expect(Math.round(b1.y - b0.y)).toBe(40);
   await page.locator('#ckX').click(); await expect(m).toHaveCount(0);
-  await page.evaluate(() => openCkMenu('M', 3, { clientX: 20, clientY: 20 }));
+  await page.evaluate(() => openCkMenu('M', 7, { clientX: 20, clientY: 20 }));
   const b2 = await page.locator('#ckMenu').boundingBox();
   expect([Math.round(b2.x), Math.round(b2.y)]).toEqual([Math.round(b1.x), Math.round(b1.y)]);
 });
@@ -295,5 +295,48 @@ test('line side starts at the transformer winding, and the neutral shows its Nâ€
   expect(r.highleg).toEqual({ leads: 3, bond: true, poco: true });
   expect(r.cgd).toEqual({ leads: 3, bond: true, poco: true });
   expect(r.ungd).toEqual({ leads: 3, bond: false, poco: false });
+  expect(errs).toEqual([]);
+});
+
+test('customer transformer: sizing follows Table 450.3(B) and the kVA menu re-sizes it', async ({ page }) => {
+  const errs = await open(page, '/electrical-theory/');
+  const r = await page.evaluate(() => { document.querySelector('[data-sys="v480"]').click(); document.getElementById('xfBtn').click();
+    const a = xfC(); xfSetKva(3); const b = xfC(); return { on: xfActive(), pri45: a.priA, sec45: a.secA, pri3: b.priA, fuse3: b.priFuse, pct3: b.po.pct }; });
+  expect(r).toEqual({ on: true, pri45: 70, sec45: 175, pri3: 6, fuse3: true, pct3: 167 });
+  expect(errs).toEqual([]);
+});
+
+test('transformer windings: voltages to ground, bonding and fault behaviour per type', async ({ page }) => {
+  const errs = await open(page, '/electrical-theory/');
+  const r = await page.evaluate(() => { document.querySelector('[data-sys="v480"]').click(); document.getElementById('xfBtn').click();
+    const V = q => Math.round(Math.hypot(xfNodeV(q).re, xfNodeV(q).im)), out = {};
+    const run = (w, dg) => { xfSetWind(w); if (dg) xfSetDG(dg); const C = xfC(); return { sec: C.sec, v: [V('A'), V('B'), V('C')], ret: xfReturns(), sds: !C.common, bondable: C.bondable, hasN: C.hasN }; };
+    out.dy = run('dy'); out.yy = run('yy'); out.yyc = run('yyc'); out.hl = run('yd', 'hl'); out.corner = run('dd', 'corner'); out.ung = run('dd', 'ung');
+    xfFaultAt('L0'); out.ungFault = [V('A'), V('B'), V('C')]; out.ungTimer = !!xfTimer;
+    const lamps = [...document.querySelectorAll('#svg text')].some(t => /GROUND DETECTOR/.test(t.textContent)); out.lamps = lamps;
+    xfClear(); render(); return out; });
+  expect(r.dy).toEqual({ sec: '208Y/120', v: [120, 120, 120], ret: true, sds: true, bondable: true, hasN: true });
+  expect(r.yy.sds && r.yy.bondable).toBe(true);
+  expect(r.yyc).toMatchObject({ ret: true, sds: false, bondable: false });
+  expect(r.hl).toMatchObject({ v: [120, 208, 120], hasN: true, bondable: true });
+  expect(r.corner).toMatchObject({ v: [240, 0, 240], hasN: false, bondable: true });
+  expect(r.ung).toMatchObject({ v: [139, 139, 139], ret: false, bondable: false });
+  expect(r.ungFault).toEqual([240, 240, 0]);   // heater on Câ€“A: C grounded, the other two rise to 240 V to ground
+  expect(r.ungTimer).toBe(false);               // nothing trips on a first ground fault
+  expect(r.lamps).toBe(true);
+  expect(errs).toEqual([]);
+});
+
+test('transformer: every winding / bond / first-disconnect combination draws and faults without errors', async ({ page }) => {
+  const errs = await open(page, '/electrical-theory/');
+  for (const sys of ['v480', 'v208']) {
+    await page.evaluate(s => { document.querySelector(`[data-sys="${s}"]`).click(); if (!xfActive()) document.getElementById('xfBtn').click(); }, sys);
+    for (const w of ['dy', 'yy', 'yyc', 'yd', 'dd']) {
+      await page.evaluate(w => { ['ung', 'corner', 'hl'].forEach(dg => ['xf', 'disc', 'none'].forEach(bd => ['disc', 'panel'].forEach(fs => {
+        xfSetWind(w); xfSetDG(dg); xfSetBond(bd); xfSetFirst(fs);
+        ['L0', 'sec', 'fdr2', 'pri'].forEach(f => { xfFaultAt(f); probePick = ['X:A', 'X:G']; render(); xfClear(); });
+        probePick = []; xfOff = {}; }))); dotPool.length = 0; render(); }, w);
+    }
+  }
   expect(errs).toEqual([]);
 });
