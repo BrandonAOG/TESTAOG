@@ -58,11 +58,12 @@ test('a 120 V circuit on L2 runs the opposite way to one on L1 — hot AND neutr
   expect(await open(page, '/electrical-theory/')).toEqual([]);
   const r = await page.evaluate(() => {
     const rows = {};   // y → dot directions on the straight run from the breaker / to the N bar
-    dotPool.forEach(dp => { const m = dp.mp.getAttribute('d').match(/^M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+)$/); if (m && m[2] === m[4]) rows[Math.round(+m[2])] = dp.dir; });
+    const top = +[...document.querySelectorAll('#svg text')].find(t => t.textContent.startsWith('LOAD CENTER')).getAttribute('y') + 43;   // panel top (label sits on the enclosure)
+    dotPool.forEach(dp => { const m = dp.mp.getAttribute('d').match(/^M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+)$/); if (m && m[2] === m[4]) rows[Math.round(+m[2]) - top] = dp.dir; });
     return rows;
   });
-  // circuit 1 (L1): hot y≈233 out, neutral y≈242 back · circuit 3 (L2): hot y≈258 back, neutral y≈267 out
-  expect([r[233], r[242], r[258], r[267]]).toEqual([1, 1, -1, -1]);
+  // circuit 1 (L1): hot top+13 out, neutral top+22 back · circuit 3 (L2): hot top+38 back, neutral top+47 out
+  expect([r[13], r[22], r[38], r[47]]).toEqual([1, 1, -1, -1]);
 });
 
 test('panel main OFF: the feeder probes (line side of the main) still read voltage; service disconnect OFF kills them', async ({ page }) => {
@@ -158,7 +159,7 @@ for (const atsn of ['solid', 'switched']) {
     await genOn(page, 'v480', atsn);
     await page.evaluate(() => toggleUtil()); await page.waitForTimeout(600);
     await page.evaluate(() => faultGenFdr('A'));
-    expect(await page.evaluate(() => ({ z: faultZone, a: FAULT_A }))).toEqual({ z: 'genfdr', a: 180 });   // 60 A breaker × 3
+    expect(await page.evaluate(() => ({ z: faultZone, a: FAULT_A }))).toEqual({ z: 'genfdr', a: 240 });   // 80 A breaker × 3 (48 kW @ 480 V, 0.8 PF = 72 A)
     await page.waitForTimeout(2600);
     expect(await gs(page)).toMatchObject({ brk: true, live: false });
     await page.evaluate(() => toggleGenBrk());
@@ -200,4 +201,31 @@ test('CODE window has a GEN tab with 445 and 702 references', async ({ page }) =
   await page.evaluate(() => openRef('gen'));
   const t = await page.locator('#rl-gen').innerText();
   for (const ref of ['445.13(A)', '445.19(C)', '702.5(A)', '702.7(B)', '250.30(C)']) expect(t).toContain(ref);
+});
+
+test('generator works on high-leg delta: 150 A breaker, B–N reads 208 V at the generator', async ({ page }) => {
+  const errs = await open(page, '/electrical-theory/');
+  await genOn(page, 'highleg', 'solid');
+  await page.evaluate(() => toggleUtil()); await page.waitForTimeout(600);
+  const r = await page.evaluate(() => ({ ok: genOK(), amps: genAmps(), b: Math.round(cMag(nodeVph('GN:B'))), a: Math.round(cMag(nodeVph('GN:A'))), live: srcLive() }));
+  expect(r).toEqual({ ok: true, amps: 150, b: 208, a: 120, live: true });
+  expect(errs).toEqual([]);
+});
+
+test('generator breaker sizes follow the 48 kW nameplate (3Ø at 0.8 PF)', async ({ page }) => {
+  expect(await open(page, '/electrical-theory/')).toEqual([]);
+  const r = await page.evaluate(() => ['single', 'v208', 'highleg', 'v480'].map(s => { document.querySelector(`[data-sys="${s}"]`).click(); return genAmps(); }));
+  expect(r).toEqual([200, 175, 150, 80]);
+});
+
+test('toggling the generator does not shift the drawing', async ({ page }) => {
+  expect(await open(page, '/electrical-theory/')).toEqual([]);
+  for (const s of ['single', 'v208', 'v480', 'highleg']) {
+    const geo = () => page.evaluate(() => document.getElementById('svg').getAttribute('viewBox'));
+    await page.evaluate(sys => document.querySelector(`[data-sys="${sys}"]`).click(), s);
+    const off = await geo();
+    await page.evaluate(() => document.getElementById('genBtn').click());
+    expect(await geo()).toBe(off);
+    await page.evaluate(() => document.getElementById('genBtn').click());
+  }
 });
