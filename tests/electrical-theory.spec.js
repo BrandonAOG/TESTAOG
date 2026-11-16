@@ -1,5 +1,7 @@
 // Electrical Theory: the panel one-line runs in every system and the teaching behaviours stay correct.
 const { test, expect } = require('@playwright/test');
+// the page follows the real sun by default; pin it to DAY so results don't depend on what time the tests run
+test.beforeEach(async ({ page }) => { await page.addInitScript(() => { window.__ET_SUN = 'day'; }); });
 const { open } = require('./helpers');
 
 const SYSTEMS = ['single', 'v208', 'v480', 'highleg', 'cgd', 'ungd'];
@@ -242,7 +244,7 @@ test('open service breaker / panel main: line side glows (energized, 0 A), no mo
 
 test('open EGC ground fault: MBJ carries nothing, FRAME probe reads near line voltage and stays; intact EGC clears to 0 V', async ({ page }) => {
   expect(await open(page, '/electrical-theory/')).toEqual([]);
-  const r = await page.evaluate(() => { ckEgc['single:3'] = 'broken'; faultType = 'LG'; applyFault(3);
+  const r = await page.evaluate(() => { prot['M:3'] = 'std'; ckEgc['single:3'] = 'broken'; faultType = 'LG'; applyFault(3);   // a plain breaker: nothing to trip it
     const mbjRed = [...document.querySelectorAll('#svg line')].some(l => l.getAttribute('stroke-dasharray') === '3 3' && /ff3b30/i.test(l.getAttribute('stroke') || ''));
     return { frp: !!FRP, v: Math.round(voltBetween('FR', 'SG')), mbjRed }; });
   expect(r.frp).toBe(true); expect(r.v).toBeGreaterThan(100); expect(r.mbjRed).toBe(false);
@@ -382,7 +384,7 @@ test('solar + battery: grid-tied export, anti-islanding, whole-home and backup-p
     derSet('mode', 'partial'); D = S(); out.partial = [D.inv, D.mainLive, D.backLive];
     derSet('soc', 0); D = S(); out.empty = [D.inv, D.backLive];
     return out; });
-  expect(r.solarDay).toEqual(['grid', 6, 2]);
+  expect(r.solarDay).toEqual(['grid', 6, -6.4]);   // 6 kW of solar under a ~12.4 kW house: it imports the rest
   expect(r.solarOutage).toEqual(['off', 0]);
   expect(r.whole).toEqual(['island', false, true, true]);
   expect(r.partial).toEqual(['island', false, true]);
@@ -431,17 +433,20 @@ test('solar + battery: every combination draws without script errors', async ({ 
   expect(errs).toEqual([]);
 });
 
-test('battery drain follows the breakers that are ON (whole-home and backup panel)', async ({ page }) => {
+test('house load is realistic, follows the breakers, and the EMS sheds big loads (or the inverter trips on overload)', async ({ page }) => {
   await page.goto('/electrical-theory/');
   const r = await page.evaluate(() => {
-    solarOn = true; battOn = true; battMode = 'whole'; GEN = false; genReset(); derSoc = 100; derSun = false; utilOff = true; derLastSrc = null; derWaitUntil = 0; render();
-    const all = -derState().batt; offCkts[MODE + ':13'] = 1; offCkts[MODE + ':23'] = 1; render(); const some = -derState().batt;
-    delete offCkts[MODE + ':13']; delete offCkts[MODE + ':23']; battMode = 'partial'; render(); const bAll = -derState().batt;
-    buOff[2] = 1; render(); const bSome = -derState().batt; buOff = {}; utilOff = false; render();
-    return { all, some, bAll, bSome };
+    const all = mainKW(); offCkts['single:13'] = 1; const noAC = mainKW(); delete offCkts['single:13'];
+    solarOn = true; battOn = true; battMode = 'whole'; GEN = false; genReset(); derSoc = 100; sunMode = 'night'; utilOff = true; derLastSrc = null; derWaitUntil = 0; nBat = 1; emsOn = true; render();
+    let D = derState(); const ems = [D.inv, Object.keys(D.shed).length > 0, -D.batt <= 5.01];
+    emsOn = false; render(); D = derState(); const off = [D.inv, D.mainLive];
+    emsOn = true; battMode = 'partial'; render(); const bAll = -derState().batt; buOff[2] = 1; render(); const bSome = -derState().batt;
+    buOff = {}; battMode = 'whole'; utilOff = false; render(); return { all, noAC, ems, off, bAll, bSome };
   });
-  expect(r.all).toBeGreaterThan(3.5);
-  expect(r.some).toBeLessThan(r.all - 1);
+  expect(r.all).toBeGreaterThan(11); expect(r.all).toBeLessThan(14);
+  expect(r.all - r.noAC).toBeCloseTo(2.5, 1);
+  expect(r.ems).toEqual(['island', true, true]);
+  expect(r.off).toEqual(['overload', false]);
   expect(r.bSome).toBeLessThan(r.bAll - 0.5);
 });
 
@@ -451,4 +456,47 @@ test('CODE window has a SOLAR · ESS tab (690 / 705 / 706 / 702) and opens on it
     const t = document.getElementById('rl-der').textContent, act = document.querySelector('.modal-tab.active').dataset.tab; closeRef(); solarOn = false; render(); return { t, act }; });
   expect(r.act).toBe('der');
   for (const ref of ['690.7', '690.12', '705.12(B)(2)', '705.40', '705.70', '706.15', '702.4(A)(2)']) expect(r.t).toContain(ref);
+});
+
+test('breaker types: GFCI trips an open-EGC ground fault and a neutral-ground fault, AFCI trips an arc, a plain breaker trips none', async ({ page }) => {
+  await page.goto('/electrical-theory/');
+  const run = (ft, ck, pr, egc) => page.evaluate(([ft, ck, pr, egc]) => { clearFault(); prot = {}; if (pr) prot['M:' + ck] = pr; ckEgc = {}; if (egc) ckEgc['single:' + ck] = egc; faultType = ft; applyFault(ck); }, [ft, ck, pr, egc]);
+  const st = () => page.evaluate(() => ({ t: tripped, by: protBy && protBy.by }));
+  await run('LG', 12, null, 'broken'); await page.waitForTimeout(900); expect(await st()).toEqual({ t: true, by: 'GFCI' });
+  await run('LG', 12, 'std', 'broken'); await page.waitForTimeout(900); expect(await st()).toEqual({ t: false, by: null });
+  await run('NG', 12); await page.waitForTimeout(900); expect(await st()).toEqual({ t: true, by: 'GFCI' });
+  await run('NG', 12, 'std'); await page.waitForTimeout(900); expect(await st()).toEqual({ t: false, by: null });
+  await run('ARC', 1); await page.waitForTimeout(900); expect(await st()).toEqual({ t: true, by: 'AFCI' });
+  await run('ARC', 12); await page.waitForTimeout(900); expect(await st()).toEqual({ t: false, by: null });
+  const req = await page.evaluate(() => [protOf('M', 3), protOf('M', 13), protOf('M', 19), protShort('M', 12), (prot['M:12'] = 'std', protShort('M', 12))]);
+  expect(req).toEqual(['df', 'gfci', 'std', '', 'GFCI']);
+});
+
+test('solar follows the real sun in AUTO (dark at night, ramps with the sun), and DAY / NIGHT still override it', async ({ page }) => {
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => {
+    const y = new Date().getFullYear(), at = h => sunElev(new Date(y, 5, 21, h, 0));
+    const el = [at(1), at(7), at(13), at(22)];
+    document.getElementById('solarBtn').click(); sunMode = 'day'; const day = derState().pvAvail; sunMode = 'night'; const night = derState().pvAvail;
+    sunMode = 'auto'; const auto = derState().pvAvail, up = sunElev() > 0.5;
+    derSet('sunCycle'); const m1 = sunMode; derSet('sunCycle'); const m2 = sunMode; derSet('sunCycle'); const m3 = sunMode;
+    return { el, day, night, auto, up, modes: [m1, m2, m3] };
+  });
+  expect(r.el[0]).toBeLessThan(0); expect(r.el[3]).toBeLessThan(0);   // 1 AM and 10 PM: dark
+  expect(r.el[2]).toBeGreaterThan(60); expect(r.el[1]).toBeGreaterThan(0); expect(r.el[1]).toBeLessThan(r.el[2]);   // summer: morning sun is lower than midday
+  expect(r.day).toBe(6); expect(r.night).toBe(0);
+  if (r.up) { expect(r.auto).toBeGreaterThan(0); expect(r.auto).toBeLessThanOrEqual(6); } else expect(r.auto).toBe(0);
+  expect(r.modes).toEqual(['day', 'night', 'auto']);
+});
+
+test('every system has its own realistic circuits: no overlaps, no 120 V circuit on the high leg, 480Y/277 has only 277 V single-pole circuits', async ({ page }) => {
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => { const bad = [];
+    for (const m of Object.keys(SYS)) { MODE = m; const d = DEMO[SYS[m].demo], occ = {};
+      for (const k of Object.keys(d)) { const c = d[k], s = +k;
+        for (let j = 0; j < c.p; j++) { const t = s + 2 * j; if (t > 42 || occ[t]) bad.push(m + ':' + t); occ[t] = 1; }
+        if (m === 'highleg' && c.p === 1 && c.nt) { if (phaseOfCkt(s) === 'B') bad.push('high leg ' + s); STACKED = !STACKED; if (phaseOfCkt(s) === 'B') bad.push('high leg stacked ' + s); STACKED = !STACKED; } } }
+    MODE = 'single'; return { bad, v480: SYS.v480.demo, recept480: Object.values(DEMO.v480).some(c => /Recept/.test(c.n)), n: Object.keys(SYS).map(m => Object.keys(DEMO[SYS[m].demo]).length) }; });
+  expect(r.bad).toEqual([]); expect(r.v480).toBe('v480'); expect(r.recept480).toBe(false);
+  r.n.forEach(n => expect(n).toBeGreaterThanOrEqual(14));
 });
