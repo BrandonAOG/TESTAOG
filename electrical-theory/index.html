@@ -529,7 +529,7 @@ function render(){
 
   var poolActive=poolOn&&MODE==='single';
   var gapH=LAY?28:14, tyN0=52+N*gapH+6, tyG0=tyN0+14;   // the transfer switch needs room between phase rows for the generator contacts
-  var W=poolActive?1560:1020,rows=21,rowH=25,svcH=LAY?(tyG0+154+16*(N+1)+66+(GN&&ATSN==='switched'?46:0)):150,top=svcH+70,rowTop=top,H=top+rows*rowH+56;
+  var W=poolActive?1560:1020,rows=21,rowH=25,svcH=LAY?(tyG0+154+16*(N+1)+66+(GN&&ATSN==='switched'?46:0)):150,top=svcH+70,rowTop=top,H=top+rows*rowH+72;
   if(poolActive){ demo=Object.assign({},demo); demo[26]=demo[2]; demo[28]=demo[4]; delete demo[4]; demo[2]={p:2,n:'Pool panel',pool:true}; }   // 100 A 2-pole pool feeder breaker
   svg.setAttribute('viewBox','0 0 '+W+' '+H);svg.setAttribute('width',W);svg.setAttribute('height',H);
   (function(){ var phone=window.matchMedia&&window.matchMedia('(max-width:760px)').matches, card=svg.closest('.card-scope');
@@ -694,6 +694,7 @@ function render(){
   if(!busLive){ svg.appendChild(txt(busC,busBotZ+14,(!feederLive?(GN?'NO SOURCE — utility breaker open, generator not on line':'SERVICE OPEN — whole panel de-energized'):'MAIN OPEN — bus dead, feeder live'),{anchor:'middle',size:8.5,w:700,fill:'#ff8a8a'})); }
 
   // N/G buses
+  if(DETAIL&&!sys.noNeutral) svg.appendChild(txt(busC,busBotZ+32,downstreamBond?'⚠ N–G ILLEGALLY BONDED':'N & G separate (MBJ is at the service)',{anchor:'middle',size:10,w:700,fill:downstreamBond?'#ff8a8a':COL.txt2}));   // matches the pool panel's status line
   if(DETAIL){
     if(!sys.noNeutral)[xNL,xNR].forEach(function(x){svg.appendChild(el('line',{x1:x,y1:busTopZ,x2:x,y2:busBotZ-16,stroke:fNeu?FRED:COL.neu,'stroke-width':2.6}));});
     var gCol=(fGnd&&faultZone==='branch'&&effEgc()!=='broken')?FRED:COL.egc;   /* only a BRANCH fault comes back through the panel G bars */
@@ -703,7 +704,7 @@ function render(){
       if(busLive||fNeu){ addDots(svg,'M '+xNL+' '+busTopZ+' L '+xNL+' '+(busBotZ-16),1,22,fNeu?FRED:null); addDots(svg,'M '+xNR+' '+(busBotZ-16)+' L '+xNR+' '+busTopZ,1,22,fNeu?FRED:null); } }
     svg.appendChild(el('path',{d:'M '+xGL+' '+(busBotZ-4)+' L '+xGR+' '+(busBotZ-4),stroke:gCol,'stroke-width':2.2,fill:'none'}));
     // illegal N-G bond jumper (objectionable current: neutral bus -> ground bus)
-    if(downstreamBond&&!sys.noNeutral){ var jy=busBotZ-10; svg.appendChild(el('path',{d:'M '+xNR+' '+jy+' L '+xGR+' '+jy,stroke:'#ff6b6b','stroke-width':2.4,'stroke-dasharray':'4 3',fill:'none'})); if(bondActive)addDots(svg,'M '+xNR+' '+jy+' L '+xGR+' '+jy,1,14,OBJ); svg.appendChild(txt((xNR+xGR)/2,jy-4,'illegal N-G bond',{anchor:'middle',size:6.5,fill:'#ff8a8a'})); }
+    if(downstreamBond&&!sys.noNeutral){ var jy=busBotZ-10; svg.appendChild(el('path',{d:'M '+xNR+' '+jy+' L '+xGR+' '+jy,stroke:'#ff6b6b','stroke-width':2.4,'stroke-dasharray':'4 3',fill:'none'})); if(bondActive)addDots(svg,'M '+xNR+' '+jy+' L '+xGR+' '+jy,1,14,OBJ); }
     if(!sys.noNeutral)svg.appendChild(txt(xNL,busTopZ-4,'N',{anchor:'middle',size:7.5,fill:'#d7dbe3'}));svg.appendChild(txt(xGL,busTopZ-4,'G',{anchor:'middle',size:7.5,fill:'#8fd6a3'}));
     if(!sys.noNeutral)svg.appendChild(txt(xNR,busTopZ-4,'N',{anchor:'middle',size:7.5,fill:'#d7dbe3'}));svg.appendChild(txt(xGR,busTopZ-4,'G',{anchor:'middle',size:7.5,fill:'#8fd6a3'}));
   }
