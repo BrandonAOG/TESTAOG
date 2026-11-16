@@ -372,3 +372,61 @@ test('tablet width on a touch screen: the pool drawing stays full size and the b
   if (r.touch) expect(r).toEqual({ touch: true, ovf: 'auto', wide: true });   // overflow:hidden lets code scroll it but blocks a finger
   expect(errs).toEqual([]);
 });
+
+test('solar + battery: grid-tied export, anti-islanding, whole-home and backup-panel islanding', async ({ page }) => {
+  const errs = await open(page, '/electrical-theory/');
+  const r = await page.evaluate(() => { const out = {}; const S = () => derState();
+    document.getElementById('solarBtn').click(); let D = S(); out.solarDay = [D.inv, D.pv, Math.round(D.exp * 10) / 10];
+    toggleUtil(); D = S(); out.solarOutage = [D.inv, D.pv]; toggleUtil();
+    document.getElementById('battBtn').click(); derSet('sun', false); toggleUtil(); D = S(); out.whole = [D.inv, D.midClosed, D.mainLive, D.batt < 0];
+    derSet('mode', 'partial'); D = S(); out.partial = [D.inv, D.mainLive, D.backLive];
+    derSet('soc', 0); D = S(); out.empty = [D.inv, D.backLive];
+    return out; });
+  expect(r.solarDay).toEqual(['grid', 6, 2]);
+  expect(r.solarOutage).toEqual(['off', 0]);
+  expect(r.whole).toEqual(['island', false, true, true]);
+  expect(r.partial).toEqual(['island', false, true]);
+  expect(r.empty).toEqual(['empty', false]);
+  expect(errs).toEqual([]);
+});
+
+test('solar + battery: string voltage limit, battery drain clock, generator never backfed', async ({ page }) => {
+  const errs = await open(page, '/electrical-theory/');
+  const r = await page.evaluate(() => { const out = {};
+    document.getElementById('solarBtn').click(); derSet('mods', 25); derSet('str', 1); out.overV = [pvVoc(), pvOverV(), derState().pv];
+    derSet('str', 5); out.ok = [pvVoc(), pvOverV(), derState().pv > 0];
+    document.getElementById('battBtn').click(); derSet('sun', false); toggleUtil();
+    const s0 = derSoc; derTickT = Date.now() - 2000; derTick(); out.drained = derSoc < s0;
+    let bad = 0; ['whole', 'partial'].forEach(m => [true, false].forEach(sun => { derSet('mode', m); derSet('sun', sun); GEN = true; genReset(); SRC = 'gen'; GST = 'run'; derLastSrc = null; derWaitUntil = 0; render();
+      const D = derState(); if (D.inv === 'gen' && !D.genPort && D.toMain > D.pvAvail + 0.01) bad++; if (D.exp > 0.05 && D.src !== 'util') bad++; }));
+    out.bad = bad; return out; });
+  expect(r.overV).toEqual([1025, true, 0]);
+  expect(r.ok).toEqual([205, false, true]);
+  expect(r.drained).toBe(true);
+  expect(r.bad).toBe(0);
+  expect(errs).toEqual([]);
+});
+
+test('solar + battery: backup-panel fault trips, generator on the inverter GEN port starts at 30 %', async ({ page }) => {
+  const errs = await open(page, '/electrical-theory/');
+  await page.evaluate(() => { document.getElementById('battBtn').click(); derSet('mode', 'partial'); derSet('sun', false); toggleUtil(); derBuFaultAt(9); });
+  await page.waitForTimeout(3000);
+  const r = await page.evaluate(() => { const out = { tripped: !!buOff[9] };
+    GSPEED = 20; document.getElementById('genBtn').click(); derSet('gstart', 'batt'); derSet('soc', 29); out.genOK = genOK(); genBattCheck(); out.ig = igSt; return out; });
+  await page.waitForTimeout(600);
+  const r2 = await page.evaluate(() => { const D = derState(); return [igSt, D.inv, !!D.genPort, D.batt > 0, D.mainLive]; });
+  expect(r).toEqual({ tripped: true, genOK: false, ig: 'start' });
+  expect(r2).toEqual(['run', 'gen', true, true, false]);   // backup-panel system: the GEN-port generator never reaches the main panel
+  expect(errs).toEqual([]);
+});
+
+test('solar + battery: every combination draws without script errors', async ({ page }) => {
+  const errs = await open(page, '/electrical-theory/');
+  for (const conn of ['bus', 'svc']) {
+    await page.evaluate(c => { const R = []; pvConn = c;
+      [[1, 0], [0, 1], [1, 1]].forEach(sb => ['whole', 'partial'].forEach(m => [false, true].forEach(gen => [false, true].forEach(uo => {
+        solarOn = !!sb[0]; battOn = !!sb[1]; battMode = m; GEN = gen; genReset(); utilOff = uo; derLastSrc = null; derWaitUntil = 0; derFltClear(); render();
+        probePick = ['PV:+', 'PV:-']; render(); probePick = ['BU:L1', 'BU:N']; render(); probePick = []; })))); utilOff = false; dotPool.length = 0; render(); }, conn);
+  }
+  expect(errs).toEqual([]);
+});
