@@ -1463,9 +1463,9 @@ function drawXfmr(svg,X,g){
   // ---------- 12-space panel, drawn like the main panel and the pool panel ----------
   var XPL=[], XOVR=[], XREV=[], XBADGE=[], PC=740, rowH=25, rows=6, pTop=nG+60, busTop=pTop-6, busBot=pTop+rows*rowH+2, bh=28;
   var bIL=PC-bh-14, bOL=PC-bh-66, bIR=PC+bh+14, bOR=PC+bh+66, xNL=bOL-12, xGL=bOL-28, xNR=bOR+12, xGR=bOR+28;
-  var eL1=xGL-50, eL0=eL1-100, eR0=xGR+50, eR1=eR0+100;
+  var eL1=xGL-80, eL0=eL1-100, eR0=xGR+80, eR1=eR0+100;   // equipment set out a bit so the branch-circuit flow shows
   var barX=[]; barX[ord[0]]=PC+20; barX[ord[1]]=PC; barX[ord[2]]=PC-20;   // bus bar per phase — the top feeder row lands on the right-most bar, so the drops never cross
-  svg.appendChild(el('rect',{x:bOL-14,y:pTop-20,width:(bOR+14)-(bOL-14),height:(busBot+50)-(pTop-20),rx:10,fill:'#0e1526',stroke:'#5fd4ff','stroke-width':1.5}));
+  svg.appendChild(el('rect',{x:xGL-12,y:pTop-20,width:(xGR+12)-(xGL-12),height:(busBot+50)-(pTop-20),rx:10,fill:'#0e1526',stroke:'#5fd4ff','stroke-width':1.5}));
   // feeder from the first disconnect: out, over, and DOWN into the main lugs (no crossings: top row lands farthest right)
   var landX=barX;
   [0,1,2].forEach(function(k){ var y=RY[k], c=sp[k].c, d='M '+SD1+' '+y+' L '+landX[k]+' '+y+' L '+landX[k]+' '+busTop, fr=((fF2||(PM&&fSec))&&ret&&k===xfFPh)||(PM&&redB&&k===1);
@@ -1545,7 +1545,7 @@ function drawXfmr(svg,X,g){
     svg.appendChild(txt(XT0+157,r0-108+14.5,C.common?'NONE — not separately derived (H0X0)':'NONE — ungrounded Δ · 250.30(B)',{anchor:'middle',size:8.5,w:700,fill:'#ffd27a'})); }
   diagSeg(svg,XT0-10,r0-164,300,22,'WDG',[['dy','Δ–Y','#3a2a66','#d9c6ff'],['yy','Y–Y','#3a2a66','#d9c6ff'],['yyc','Y–Y H0X0','#3a2a66','#d9c6ff'],['yd','Y–Δ','#3a2a66','#d9c6ff'],['dd','Δ–Δ','#3a2a66','#d9c6ff']],xfWind,xfSetWind);
   if(C.secD) diagSeg(svg,XT0+300,r0-136,250,22,'Δ',[['ung','UNGROUNDED','#5a1a1f','#ff8a8a'],['corner','CORNER GND','#1f6f45','#8fd6a3']].concat(C.vll===240?[['hl','HIGH-LEG','#1f6f45','#8fd6a3']]:[]),C.dg,xfSetDG);
-  if(C.dg==='ung'){ var gdx=XT1-34, gdy=nG+96, gw=150, lamps=['A','B','C'];   // ground detector (250.21(B)) + caution marking (250.21(C))
+  if(C.dg==='ung'){ var gdx=XT1-66, gdy=nG+96, gw=150, lamps=['A','B','C'];   // ground detector (250.21(B)) + caution marking (250.21(C))
     svg.appendChild(el('rect',{x:gdx,y:gdy,width:gw,height:62,rx:6,fill:COL.box,stroke:'#ffd27a','stroke-width':1.3}));
     svg.appendChild(txt(gdx+gw/2,gdy+12,'GROUND DETECTOR · 250.21(B)',{anchor:'middle',size:8,w:700,fill:'#ffd27a'}));
     lamps.forEach(function(q,i){ var lx=gdx+24+i*42, ly=gdy+30, vg=Math.hypot(xfNodeV(q).re,xfNodeV(q).im), br=Math.min(1,vg/C.vll);
@@ -1574,7 +1574,7 @@ function drawPool(svg,P,g){
   function bxAt(p,y){ return PC+((p===kT)?11:-11)+6*tri((y-busTop)/(2*rowH)+p/2); }
   function bPath(p){ var d='M '+bxAt(p,busTop).toFixed(1)+' '+busTop; for(var y=busTop+4;y<=busBot;y+=4) d+=' L '+bxAt(p,y).toFixed(1)+' '+y; return d; }
   // ---- enclosure ----
-  svg.appendChild(el('rect',{x:bOL-14,y:pTop-20,width:(bOR+14)-(bOL-14),height:(busBot+50)-(pTop-20),rx:10,fill:'#0e1526',stroke:'#5fd4ff','stroke-width':1.5}));
+  svg.appendChild(el('rect',{x:xGL-12,y:pTop-20,width:(xGR+12)-(xGL-12),height:(busBot+50)-(pTop-20),rx:10,fill:'#0e1526',stroke:'#5fd4ff','stroke-width':1.5}));
   // ---- 4-wire feeder from the main panel: out, UP, over, and DOWN into the top of the pool panel (no crossings) ----
   // exits top→bottom L1, L2, N, G; risers step outward; top runs stack; drops land right→left L1, L2, N, G
   var yT1=P.hy[kT], yT2=P.hy[kB], RX=[650,662,674,686], TY=[110,122,134,146];   // pool feeder runs high, above the panel controls
