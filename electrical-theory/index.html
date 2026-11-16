@@ -333,6 +333,7 @@ var BU_LDS=[{s:1,side:'L',row:0,p:1,n:'Refrigerator',v:'120 V · 20 A',nt:1,a:20
   {s:2,side:'R',row:0,p:2,n:'Well pump',v:'240 V · 20 A 2P',nt:0,a:20,kw:0.8},{s:6,side:'R',row:2,p:1,n:'Internet / Wi-Fi',v:'120 V · 15 A',nt:1,a:15,kw:0.05},{s:8,side:'R',row:3,p:1,n:'Freezer',v:'120 V · 20 A',nt:1,a:20,kw:0.15},
   {s:10,side:'R',row:4,p:2,n:'Mini-split',v:'240 V · 20 A 2P',nt:0,a:20,kw:0.6},{s:14,side:'R',row:6,p:1,n:'Bath GFCI',v:'120 V · 20 A',nt:1,a:20,kw:0.1},{s:16,side:'R',row:7,p:1,n:'Security / alarm',v:'120 V · 15 A',nt:1,a:15,kw:0.05}];
 function buKW(){ return BU_LDS.reduce(function(t,L){ return t+((buOff[L.s]||derFlt==='B:'+L.s)?0:L.kw); },0); }
+function mainKW(){ var d=DEMO.single, t=0; Object.keys(d).forEach(function(k){ var c=d[k]; if(isOn(+k)&&faultCkt!==+k) t+=(c.kw||0); }); return t; }   // average running kW of the breakers that are ON
 function mainFrac(){ var d=DEMO.single, on=0, tot=0; Object.keys(d).forEach(function(k){ var c=d[k], w=c.p||1; tot+=w; if(isOn(+k)&&faultCkt!==+k) on+=w; }); return tot?on/tot:1; }
 function derBuL(slot){ return BU_LDS.filter(function(x){return x.s===slot;})[0]; }
 function derFltClear(){ clearTimeout(derFltT); derFltT=null; derFlt=null; }
@@ -387,7 +388,7 @@ function derState(){ var S={on:derOK()}; if(!S.on) return S;
   if(S.inv==='util') S.inv='grid';
   if(derGenPort()&&igSt==='run'&&(S.inv==='island'||S.inv==='empty')){ S.inv='gen'; S.genPort=true; }
   S.mainLive=gridBus||(whole&&!tap&&(S.inv==='island'||(S.inv==='gen'&&S.genPort))); S.backLive=part&&!invBackupOff&&(S.inv==='grid'||S.inv==='gen'||S.inv==='island'||S.inv==='wait');
-  var pvA=(solarOn&&derSun&&!rsdOff&&!pvDiscOff&&!pvOverV())?Math.min(pvMods*PV_W,INV_KW):0, Lm=(part?2.0:4.0)*mainFrac(), Lb=part?buKW():0, served=whole?(S.mainLive&&!tap?4.0:0):(S.backLive?Lb:0), room=(derSoc<100&&!essStop&&!essDiscOff)?Math.min(5*nBat,INV_KW):0;
+  var pvA=(solarOn&&derSun&&!rsdOff&&!pvDiscOff&&!pvOverV())?Math.min(pvMods*PV_W,INV_KW):0, Lm=(part?0.5:1)*mainKW(), Lb=part?buKW():0, served=whole?(S.mainLive&&!tap?Lm:0):(S.backLive?Lb:0), room=(derSoc<100&&!essStop&&!essDiscOff)?Math.min(5*nBat,INV_KW):0;
   S.pvAvail=pvA; S.pv=0; S.batt=0; S.exp=0; S.toMain=0; S.genKW=0;   // toMain: kW out of the inverter's AC terminals INTO the grid side (negative = drawing from it)
   var houseOnUtil=gridBus&&fsrc==='util'?Lm:0;
   if(!battOn){ if(S.inv==='grid'){ S.pv=pvA; S.toMain=pvA; S.exp=pvA-(tap?houseOnUtil:(S.mainLive?Lm:0)); } }
@@ -445,7 +446,7 @@ function derSocCol(){ return derSoc>50?'#2fbf71':(derSoc>20?'#f5c542':'#ff3b30')
 function derLeftTxt(D){ if(!D||!D.on||!battOn) return ''; if(essStop) return 'battery shut down'; if(derSoc<=0) return 'EMPTY — inverter shut down';
   var kw=D.batt; if(Math.abs(kw)<0.05) return derSoc>=100?'full':'idle — holding reserve';
   var h=kw<0?(derSoc/100*derKwh())/(-kw):((100-derSoc)/100*derKwh())/kw, hh=Math.floor(h), mm=Math.round((h-hh)*60); if(mm===60){hh++;mm=0;}
-  return (kw<0?'≈ '+hh+' h '+mm+' min left at '+derKW(kw):'full in ≈ '+hh+' h '+mm+' min at '+derKW(kw))+' (real time)'; }
+  return (kw<0?'≈ '+hh+' h '+mm+' min left at '+derKW(kw)+(D.pv>0.05?' · load '+derKW(D.load)+' − solar '+derKW(D.pv):' · only breakers that are ON count'):'full in ≈ '+hh+' h '+mm+' min at '+derKW(kw))+' (real time)'; }
 function derTick(){ var now=Date.now(), dt=Math.min(2,(now-derTickT)/1000); derTickT=now;
   if(genBattCheck()){ render(); return; } if(!derOK()||!battOn||essStop||essDiscOff) return; var D=derState(); if(Math.abs(D.batt)<0.01) return;
   var old=derSoc; derSoc=Math.max(0,Math.min(100,derSoc+D.batt*dt*(DER_TS/60)/derKwh()*100));
@@ -577,14 +578,14 @@ var SYS={
 };
 var DEMO={
   single:{
-    1:{p:1,n:'Lighting — living',nt:1}, 2:{p:1,n:'Recept — bed 1/2',nt:1},
-    3:{p:1,n:'Kitchen SA-1',nt:1}, 4:{p:1,n:'Kitchen SA-2',nt:1},
-    5:{p:2,n:'Range',nt:1}, 6:{p:1,n:'Dishwasher',nt:1},
-    8:{p:1,n:'Disposal',nt:1}, 9:{p:2,n:'Dryer',nt:1},
-    10:{p:1,n:'Microwave',nt:1}, 12:{p:1,n:'Bath GFCI',nt:1},
-    13:{p:2,n:'A/C condenser'}, 14:{p:1,n:'Garage GFCI',nt:1},
-    16:{p:1,n:'Washer',nt:1}, 17:{p:1,n:'Office',nt:1},
-    19:{p:2,n:'Water heater'}, 20:{p:1,n:'Freezer',nt:1}, 22:{p:2,n:'Air handler 240 V'}, 23:{p:2,n:'EV charger'}
+    1:{p:1,kw:0.15,n:'Lighting — living',nt:1}, 2:{p:1,kw:0.1,n:'Recept — bed 1/2',nt:1},
+    3:{p:1,kw:0.15,n:'Kitchen SA-1',nt:1}, 4:{p:1,kw:0.1,n:'Kitchen SA-2',nt:1},
+    5:{p:2,kw:0.35,n:'Range',nt:1}, 6:{p:1,kw:0.1,n:'Dishwasher',nt:1},
+    8:{p:1,kw:0.02,n:'Disposal',nt:1}, 9:{p:2,kw:0.35,n:'Dryer',nt:1},
+    10:{p:1,kw:0.08,n:'Microwave',nt:1}, 12:{p:1,kw:0.05,n:'Bath GFCI',nt:1},
+    13:{p:2,kw:1.0,n:'A/C condenser'}, 14:{p:1,kw:0.03,n:'Garage GFCI',nt:1},
+    16:{p:1,kw:0.05,n:'Washer',nt:1}, 17:{p:1,kw:0.12,n:'Office',nt:1},
+    19:{p:2,kw:0.45,n:'Water heater'}, 20:{p:1,kw:0.1,n:'Freezer',nt:1}, 22:{p:2,kw:0.3,n:'Air handler 240 V'}, 23:{p:2,kw:0.5,n:'EV charger'}
   },
   // high-leg delta: 120 V single-pole circuits ONLY on A and C. B (high leg, 208 V to N) is used only by
   // 2-pole 240 V (no neutral) and 3-pole loads — never a 120 V circuit.
@@ -607,7 +608,7 @@ var DEMO={
   }
 };
 /* ---------------- svg helpers ---------------- */
-var ET_BUILD='2026-11-16e';   // shown by ?diag — confirms which copy the device is actually running
+var ET_BUILD='2026-11-16f';   // shown by ?diag — confirms which copy the device is actually running
 var SVGNS='http://www.w3.org/2000/svg', dotPool=[], anim=null;
 var LIGHT=false, LMAP={"#0b1020": "#ffffff", "#0e1526": "#f6f8fb", "#16233f": "#eef3fb", "#101830": "#f3f5f8", "#101a30": "#f6f8fb", "#0f1830": "#f6f8fb", "#2a1620": "#fdecec", "#3a1620": "#fde3e3", "#0d3550": "#dbeffa", "#2b3a5e": "#c3cbd8", "#3a4b6b": "#c3cbd8", "#4a5b80": "#9aa7bd", "#9fb0d6": "#64748b", "#2a3b5e": "#c3cbd8", "#1b2740": "#e3e8ef", "#cdd8f0": "#1f2937", "#8a97b4": "#4b5563", "#5a6b8a": "#94a3b8", "#aeb6c9": "#4b5563", "#8fa0c4": "#4b5563", "#8695b5": "#6b7280", "#6f80a8": "#6b7280", "#7d8aa3": "#9aa7bd", "#d7dbe3": "#374151", "#c3cad8": "#374151", "#e6eaf2": "#e5e7eb", "#55637f": "#6b7280", "#8795ad": "#6b7280", "#ff8a8a": "#dc2626", "#8fd6a3": "#059669", "#5fd4ff": "#0891b2", "#00d4ff": "#0891b2", "#ffd27a": "#b45309", "#ffb35c": "#c2410c", "#e8c9a6": "#92400e", "#e8d39a": "#92400e", "#7fd0f5": "#0369a1", "#3fa7d6": "#0284c7", "#f5c542": "#d99a00", "#c98a4a": "#b45309", "#ff6b6b": "#ef4444", "#ffffff": "#111827", "#1f6f45": "#d1fae5", "#6a5212": "#fef3c7", "#5a1a1f": "#fee2e2", "#6a3a12": "#ffedd5", "#565e6e": "#2f3542", "#c9ced8": "#9ca3af", "#e6c62e": "#c9a800", "#46c36b": "#16a34a", "#8a3030": "#b91c1c"};   // light theme: the one-line's colors re-picked for a white background
 function lightenStyles(root){   // the tap menu is HTML with inline colors: swap them for the light palette

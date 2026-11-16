@@ -430,3 +430,17 @@ test('solar + battery: every combination draws without script errors', async ({ 
   }
   expect(errs).toEqual([]);
 });
+
+test('battery drain follows the breakers that are ON (whole-home and backup panel)', async ({ page }) => {
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => {
+    solarOn = true; battOn = true; battMode = 'whole'; GEN = false; genReset(); derSoc = 100; derSun = false; utilOff = true; derLastSrc = null; derWaitUntil = 0; render();
+    const all = -derState().batt; offCkts[MODE + ':13'] = 1; offCkts[MODE + ':23'] = 1; render(); const some = -derState().batt;
+    delete offCkts[MODE + ':13']; delete offCkts[MODE + ':23']; battMode = 'partial'; render(); const bAll = -derState().batt;
+    buOff[2] = 1; render(); const bSome = -derState().batt; buOff = {}; utilOff = false; render();
+    return { all, some, bAll, bSome };
+  });
+  expect(r.all).toBeGreaterThan(3.5);
+  expect(r.some).toBeLessThan(r.all - 1);
+  expect(r.bSome).toBeLessThan(r.bAll - 0.5);
+});
