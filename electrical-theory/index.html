@@ -575,38 +575,52 @@ function render(){
   var swX0=316, swX1=348;                 // service-disconnect switch span
   var sdX0=272, sdX1=LAY?448:404;          // service enclosure (wider when it is a transfer switch)
   var XUC=404, XPV=432, XGR0=358;           // ATS: utility/generator contact column · blade pivot · first generator riser
-  // ===== utility transformer =====
-  svg.appendChild(el('rect',{x:34,y:40,width:86,height:tyG-40+16,rx:8,fill:utilOff?'#2a1620':COL.box,stroke:utilOff?COL.off:'#6f80a8','stroke-width':1.3}));
-  svg.appendChild(txt(77,34,utilOff?'UTILITY · NO POWER':'UTILITY XFMR',{anchor:'middle',size:utilOff?7.5:9,w:utilOff?700:400,fill:utilOff?'#ff8a8a':COL.txt2}));
-  diagPill(svg,18,4,118,18,utilOff,'UTILITY ON','POWER FAILURE',toggleUtil);
-  (function(){ var parts=sys.title.split(' · '), vV=parts[0], vT=(parts.slice(1).join(' ')).replace(/\s*\(.*\)/,'').replace('3-wire corner-grounded delta','corner-gnd Δ').replace('high-leg delta','high-leg Δ').replace('3-wire ungrounded delta','ungrounded Δ');
-    var xb=40, yb=tyG+16;
-    svg.appendChild(txt(77,xb+14,vV,{anchor:'middle',size:8.5,fill:COL.txt}));
-    // secondary winding symbol for the system: split-phase coil · wye (Y) · delta (Δ) — with where it's grounded
-    var cx=77, cy=(xb+22+yb-14)/2, W='#aeb6c9', ph=sys.ph, cOf=function(id){ for(var q=0;q<ph.length;q++) if(ph[q][0]===id) return ph[q][1]; return W; };
-    function gnd(x,y){ svg.appendChild(el('path',{d:'M '+x+' '+y+' L '+x+' '+(y+6)+' M '+(x-6)+' '+(y+6)+' L '+(x+6)+' '+(y+6)+' M '+(x-4)+' '+(y+9)+' L '+(x+4)+' '+(y+9)+' M '+(x-2)+' '+(y+12)+' L '+(x+2)+' '+(y+12),stroke:COL.egc,'stroke-width':1.4,fill:'none'})); }
-    function lbl(x,y,t,c){ svg.appendChild(txt(x,y,t,{anchor:'middle',size:7.5,w:700,fill:c})); }
-    function dot(x,y){ svg.appendChild(el('circle',{cx:x,cy:y,r:2.2,fill:W})); }
-    if(MODE==='single'){   // one winding, center-tapped: L1 – N – L2
-      var y0=cy-18, d='M '+cx+' '+y0; for(var k=0;k<4;k++) d+=' a 4.5 4.5 0 0 1 0 9';
-      svg.appendChild(el('path',{d:d,fill:'none',stroke:W,'stroke-width':1.6}));
-      svg.appendChild(el('path',{d:'M '+(cx+4.5)+' '+cy+' L '+(cx+16)+' '+cy,stroke:W,'stroke-width':1.4})); dot(cx+4.5,cy); gnd(cx+16,cy);
-      lbl(cx-12,y0+3,'L1',cOf('L1')); lbl(cx-12,cy+3,'N',COL.txt2); lbl(cx-12,y0+39,'L2',cOf('L2'));
-    } else if(MODE==='v208'||MODE==='v480'){   // wye: three windings meet at the neutral point, grounded there
-      var r=19, ang={A:-90,B:150,C:30};
-      ['A','B','C'].forEach(function(k){ var t=ang[k]*Math.PI/180, x=cx+r*Math.cos(t), y=cy+r*Math.sin(t);
-        svg.appendChild(el('line',{x1:cx,y1:cy,x2:x,y2:y,stroke:W,'stroke-width':1.8})); lbl(cx+(r+8)*Math.cos(t),cy+(r+8)*Math.sin(t)+3,k,cOf(k)); });
-      dot(cx,cy); gnd(cx,cy+3); svg.appendChild(txt(cx-5,cy-2,'N',{anchor:'end',size:7,w:700,fill:COL.txt2}));   // neutral = the center point, grounded straight down between B and C
-    } else {   // delta: three windings corner to corner
-      var r2=21, P={B:[cx,cy-r2], A:[cx-r2*0.87,cy+r2*0.5], C:[cx+r2*0.87,cy+r2*0.5]};
-      if(MODE==='cgd'){ P={A:[cx,cy-r2], C:[cx-r2*0.87,cy+r2*0.5], B:[cx+r2*0.87,cy+r2*0.5]}; }
-      svg.appendChild(el('path',{d:'M '+P.A[0]+' '+P.A[1]+' L '+P.B[0]+' '+P.B[1]+' L '+P.C[0]+' '+P.C[1]+' Z',stroke:W,'stroke-width':1.8,fill:'none'}));
-      ['A','B','C'].forEach(function(k){ var x=P[k][0], y=P[k][1], dx=x-cx, dy=y-cy, L=Math.hypot(dx,dy); lbl(x+dx/L*8,y+dy/L*8+3,k,cOf(k)); });
-      if(MODE==='highleg'){ var mx=(P.A[0]+P.C[0])/2, my=P.A[1]; dot(mx,my); svg.appendChild(el('path',{d:'M '+mx+' '+my+' L '+mx+' '+(my+5),stroke:W,'stroke-width':1.2})); gnd(mx,my+5);
-        svg.appendChild(txt(mx+7,my+9,'N',{anchor:'start',size:7,w:700,fill:COL.txt2})); }   // A–C winding center-tapped → 120 V legs; B is the high leg (208 V to N)
-      else if(MODE==='cgd'){ dot(P.B[0],P.B[1]); gnd(P.B[0],P.B[1]+6); }   // one corner (B) grounded
+  // ===== utility transformer: the secondary winding, with every conductor running out of it =====
+  var XL={}, XN=null; window.AOG_XL=XL;   // phase id → path from its winding terminal to the box edge (x=120) · neutral lead
+  (function(){
+    var bx0=12, bx1=120, bot=tyG+16+((sys.noNeutral||sys.ungrounded)?0:18), W='#aeb6c9', cx=56, EX=120;
+    svg.appendChild(el('rect',{x:bx0,y:40,width:bx1-bx0,height:bot-40,rx:8,fill:utilOff?'#2a1620':COL.box,stroke:utilOff?COL.off:'#6f80a8','stroke-width':1.3}));
+    svg.appendChild(txt((bx0+bx1)/2,34,utilOff?'UTILITY · NO POWER':'UTILITY XFMR',{anchor:'middle',size:utilOff?7.5:9,w:utilOff?700:400,fill:utilOff?'#ff8a8a':COL.txt2}));
+    diagPill(svg,18,4,118,18,utilOff,'UTILITY ON','POWER FAILURE',toggleUtil);
+    var parts=sys.title.split(' · '), vV=parts[0], vT=(parts.slice(1).join(' ')).replace(/\s*\(.*\)/,'').replace('3-wire corner-grounded delta','corner-gnd Δ').replace('high-leg delta','high-leg Δ').replace('3-wire ungrounded delta','ungrounded Δ');
+    svg.appendChild(txt((bx0+bx1)/2,bot+12,vV,{anchor:'middle',size:8.5,w:700,fill:COL.txt}));
+    svg.appendChild(txt((bx0+bx1)/2,bot+22,vT,{anchor:'middle',size:7.5,fill:COL.txt2}));
+    var ph=sys.ph, row={}, cOf={}; ph.forEach(function(q,i){ cOf[q[0]]=q[1]; row[q[0]]=(MODE==='highleg')?tyH[[0,2,1][i]]:tyH[i]; });   // high-leg: B leaves on the C row (meter wiring)
+    function P(pts){ return 'M '+pts.map(function(q){return q[0]+' '+q[1];}).join(' L '); }
+    function hopV(x,y0,y1,yc){ return ' L '+x+' '+(yc-4)+' A 4 4 0 0 1 '+x+' '+(yc+4)+' L '+x+' '+y1; }   // vertical run going down with a hop over a crossing at yc
+    function gnd(x,y){ svg.appendChild(el('path',{d:'M '+x+' '+y+' L '+x+' '+(y+5)+' M '+(x-6)+' '+(y+5)+' L '+(x+6)+' '+(y+5)+' M '+(x-4)+' '+(y+8)+' L '+(x+4)+' '+(y+8)+' M '+(x-2)+' '+(y+11)+' L '+(x+2)+' '+(y+11),stroke:COL.egc,'stroke-width':1.4,fill:'none'})); }
+    function lbl(x,y,t,c,a){ if(c===WIRE.black) c='#c3cad8'; if(c===WIRE.white) c='#d7dbe3'; var tt=txt(x,y,t,{anchor:a||'middle',size:8,w:800,fill:c}); tt.setAttribute('stroke',lc('#0b1020')); tt.setAttribute('stroke-width','3'); tt.setAttribute('paint-order','stroke'); svg.appendChild(tt); }
+    function pocoLbl(x,y,one){   // where that ground symbol goes: the utility's own electrode
+      var a=txt(x,y,'POCO ground rod',{anchor:'middle',size:9.5,w:700,fill:COL.egc}); a.setAttribute('stroke',lc('#0b1020')); a.setAttribute('stroke-width','3'); a.setAttribute('paint-order','stroke'); svg.appendChild(a);
+      if(!one){ var b2=txt(x,y+11,'at the pole / pad',{anchor:'middle',size:8.5,fill:COL.txt2}); svg.appendChild(b2); } }
+    function bondMark(x,y){ svg.appendChild(el('circle',{cx:x,cy:y,r:3.4,fill:COL.egc,stroke:lc('#0b1020'),'stroke-width':1.2})); }   // where the grounded conductor ties to the ground
+    function dot(x,y){ svg.appendChild(el('circle',{cx:x,cy:y,r:2.4,fill:W})); }
+    var nTap=null;
+    if(MODE==='single'){   // one winding, center-tapped: L1 · N · L2
+      var t0=row.L1+8, d='M '+cx+' '+t0; for(var k=0;k<4;k++) d+=' a 4.5 4.5 0 0 1 0 9';
+      svg.appendChild(el('path',{d:d,fill:'none',stroke:W,'stroke-width':1.8}));
+      XL.L1=P([[cx,t0],[cx,row.L1]]); XL.L2=P([[cx,t0+36],[100,t0+36],[100,row.L2]]);
+      nTap=[cx,t0+18]; dot(cx,t0+18); XN=P([[cx,t0+18],[cx-16,t0+18],[cx-16,tyN]]);
+      lbl(cx-10,t0+3,'L1',cOf.L1,'end'); lbl(cx+14,t0+33,'L2',cOf.L2,'start');
+    } else if(MODE==='v208'||MODE==='v480'){   // wye: the three windings meet at the neutral point
+      var cy=row.A+29, r=22, T={A:[cx,cy-r], B:[cx+r*0.87,cy+r/2], C:[cx-r*0.87,cy+r/2]};
+      ['A','B','C'].forEach(function(k){ svg.appendChild(el('line',{x1:cx,y1:cy,x2:T[k][0],y2:T[k][1],stroke:W,'stroke-width':2})); });
+      XL.A=P([T.A,[cx,row.A]]); XL.B=P([T.B,[100,T.B[1]],[100,row.B]]); XL.C=P([T.C,[cx-30,T.C[1]],[cx-30,row.C]]);
+      nTap=[cx,cy]; dot(cx,cy); XN='M '+cx+' '+cy+hopV(cx,cy,tyN,row.C);   // the neutral drops straight down from the star point, hopping the C lead
+      lbl(cx+7,T.A[1]+4,'A',cOf.A,'start'); lbl(T.B[0]-2,T.B[1]+12,'B',cOf.B); lbl(T.C[0]+2,T.C[1]+12,'C',cOf.C); lbl(cx+6,cy-3,'N',COL.txt2,'start');
+    } else {   // delta: B at the top corner, A and C at the bottom
+      var r2=22, cy2=row.A+31, D={B:[cx,cy2-r2], A:[cx-r2*0.87,cy2+r2/2], C:[cx+r2*0.87,cy2+r2/2]};
+      svg.appendChild(el('path',{d:P([D.A,D.B,D.C])+' Z',stroke:W,'stroke-width':2,fill:'none'}));
+      XL.A=P([D.A,[cx-30,D.A[1]],[cx-30,row.A]]);
+      if(MODE==='highleg'){ XL.B=P([D.B,[100,D.B[1]],[100,row.B]]); XL.C='M '+D.C[0]+' '+D.C[1]+' L 96 '+D.C[1]+' A 4 4 0 0 1 104 '+D.C[1]+' L 108 '+D.C[1]+' L 108 '+row.C; }   // C hops over the high leg
+      else { XL.B=P([D.B,[100,D.B[1]],[100,row.B]]); XL.C=P([D.C,[108,D.C[1]],[108,row.C]]); }
+      if(MODE==='highleg'){ var mx=cx, my=D.A[1]; nTap=[mx,my]; dot(mx,my); XN=P([[mx,my],[mx,tyN]]); lbl(mx+6,my+12,'N',COL.txt2,'start'); }   // A–C winding center-tapped → 120 V to A and C, 208 V to B
+      if(MODE==='cgd'){ gnd(cx+12,D.B[1]); bondMark(cx+12,D.B[1]); var cl=txt((bx0+bx1)/2,bot-8,'B–G bond → POCO rod',{anchor:'middle',size:9,w:700,fill:COL.egc}); svg.appendChild(cl); }   // corner-grounded: the B corner is the grounded conductor
+      lbl(cx-8,D.B[1]-2,'B',cOf.B,'end'); lbl(D.A[0]-4,D.A[1]+12,'A',cOf.A); lbl(D.C[0]+4,D.C[1]+12,'C',cOf.C);
     }
-    svg.appendChild(txt(77,yb-6,vT,{anchor:'middle',size:(vT.length>12?6.5:8),fill:COL.txt2}));
+    if(XN){ XN+=' L '+EX+' '+tyN; var nLive=!utilOff, nCur=utilAvail()&&!onGen&&busLive;
+      svg.appendChild(el('path',{d:XN,stroke:nLive?COL.neu:DEAD,'stroke-width':2.2,fill:'none'})); if(nCur) addDots(svg,XN,-1,20,null);
+      var gx=(MODE==='single'?cx-16:cx); gnd(gx,tyN); bondMark(gx,tyN); var nb=txt(gx+6,tyN-5,'N–G bond',{anchor:'start',size:9,w:700,fill:COL.egc}); nb.setAttribute('stroke',lc('#0b1020')); nb.setAttribute('stroke-width','3'); nb.setAttribute('paint-order','stroke'); svg.appendChild(nb); pocoLbl((bx0+bx1)/2,tyN+25); }   // the neutral is grounded right at the transformer
   })();
   // ===== round meter =====
   var mcx=184, mcy=(tyH[0]+tyN)/2, mr=(tyN-tyH[0])/2+11;   // meter big enough that the neutral lands inside its enclosure too
@@ -647,7 +661,7 @@ function render(){
     // high-leg delta: in the METER ONLY the high leg sits on C (ANSI C12 meter wiring — on B it would destroy the meter electronics);
     // it rolls back to B right after the meter, so it lands on B at the disconnect and the panel (NEC 408.3(E)(1)).
     var yM=(MODE==='highleg')?tyH[[0,2,1][i]]:y, xr=mcx+mr+(LAY?4:6), xj=LAY?10:12;
-    var dL=(yM===y)?('M 120 '+y+' L '+swX0+' '+y):('M 120 '+yM+' L '+xr+' '+yM+' L '+(xr+xj)+' '+y+' L '+swX0+' '+y); svg.appendChild(el('path',{d:dL,stroke:svcF?FRED:(utilOff?DEAD:p.c),'stroke-width':svcF?3.2:2.6,fill:'none'})); var utilI=svcF||(utilAvail()&&!onGen&&carry); if(!utilOff&&!utilI) vGlow(svg,dL,p.c,svg.lastChild); if(utilI)addDots(svg,dL,svcF?1:dirPh(i),24,svcF?FRED:null,svcF?null:angPh(i));
+    var xl=XL[p.id]?XL[p.id]+' L 120 '+yM:'M 120 '+yM; var dL=(yM===y)?(xl+' L '+swX0+' '+y):(xl+' L '+xr+' '+yM+' L '+(xr+xj)+' '+y+' L '+swX0+' '+y); svg.appendChild(el('path',{d:dL,stroke:svcF?FRED:(utilOff?DEAD:p.c),'stroke-width':svcF?3.2:2.6,fill:'none'})); var utilI=svcF||(utilAvail()&&!onGen&&carry); if(!utilOff&&!utilI) vGlow(svg,dL,p.c,svg.lastChild); if(utilI)addDots(svg,dL,svcF?1:dirPh(i),24,svcF?FRED:null,svcF?null:angPh(i));
     var hl=el('path',{d:dL,stroke:'transparent','stroke-width':13,fill:'none'}); hl.style.cursor='pointer'; (function(pid){hl.addEventListener('click',function(e){e.stopPropagation();faultService(pid);});})(p.id); svg.appendChild(hl);
     // service disconnect BREAKER pole: closed = contact through; open = contacts parted (gap)
     if(svcOff){ svg.appendChild(el('line',{x1:swX0,y1:y,x2:swX0+7,y2:y,stroke:p.c,'stroke-width':2.6})); svg.appendChild(el('line',{x1:swX1-7,y1:y,x2:swX1,y2:y,stroke:DEAD,'stroke-width':2.6})); svg.appendChild(el('line',{x1:swX0+11,y1:y-3,x2:swX1-11,y2:y+3,stroke:COL.off,'stroke-width':1.6})); }

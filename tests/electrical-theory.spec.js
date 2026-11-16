@@ -275,9 +275,25 @@ test('utility transformer symbol matches the system (coil · wye · delta) witho
     r[s] = await page.evaluate(sys => { document.querySelector(`[data-sys="${sys}"]`).click();
       const svg = document.getElementById('svg');
       const tri = [...svg.querySelectorAll('path')].some(p => /Z$/.test((p.getAttribute('d') || '').trim()) && (p.getAttribute('d').match(/L/g) || []).length === 2);
-      const wye = [...svg.querySelectorAll('line')].filter(l => +l.getAttribute('x1') === 77).length >= 3;
+      const cnt = {}; [...svg.querySelectorAll('line')].forEach(l => { const k = l.getAttribute('x1') + ',' + l.getAttribute('y1'); cnt[k] = (cnt[k] || 0) + 1; }); const wye = Object.values(cnt).some(n => n >= 3);   // three windings from one star point
       return tri ? 'delta' : (wye ? 'wye' : 'coil'); }, s);
   }
   expect(r).toEqual({ single: 'coil', v208: 'wye', v480: 'wye', highleg: 'delta', cgd: 'delta', ungd: 'delta' });
+  expect(errs).toEqual([]);
+});
+
+test('line side starts at the transformer winding, and the neutral shows its N–G bond to the POCO rod', async ({ page }) => {
+  const errs = await open(page, '/electrical-theory/');
+  const r = {};
+  for (const s of ['single', 'v208', 'highleg', 'cgd', 'ungd']) {
+    r[s] = await page.evaluate(sys => { document.querySelector(`[data-sys="${sys}"]`).click();
+      const t = [...document.querySelectorAll('#svg text')].map(x => x.textContent);
+      return { leads: Object.keys(window.AOG_XL).length, bond: t.some(x => /N–G bond|B–G bond/.test(x)), poco: t.some(x => /POCO/.test(x)) }; }, s);
+  }
+  expect(r.single).toEqual({ leads: 2, bond: true, poco: true });
+  expect(r.v208).toEqual({ leads: 3, bond: true, poco: true });
+  expect(r.highleg).toEqual({ leads: 3, bond: true, poco: true });
+  expect(r.cgd).toEqual({ leads: 3, bond: true, poco: true });
+  expect(r.ungd).toEqual({ leads: 3, bond: false, poco: false });
   expect(errs).toEqual([]);
 });
