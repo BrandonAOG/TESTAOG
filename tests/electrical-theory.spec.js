@@ -267,3 +267,17 @@ test('circuit menu can be dragged by its title bar, stays open, and reopens wher
   const b2 = await page.locator('#ckMenu').boundingBox();
   expect([Math.round(b2.x), Math.round(b2.y)]).toEqual([Math.round(b1.x), Math.round(b1.y)]);
 });
+
+test('utility transformer symbol matches the system (coil · wye · delta) without script errors', async ({ page }) => {
+  const errs = await open(page, '/electrical-theory/');
+  const r = {};
+  for (const s of ['single', 'v208', 'v480', 'highleg', 'cgd', 'ungd']) {
+    r[s] = await page.evaluate(sys => { document.querySelector(`[data-sys="${sys}"]`).click();
+      const svg = document.getElementById('svg');
+      const tri = [...svg.querySelectorAll('path')].some(p => /Z$/.test((p.getAttribute('d') || '').trim()) && (p.getAttribute('d').match(/L/g) || []).length === 2);
+      const wye = [...svg.querySelectorAll('line')].filter(l => +l.getAttribute('x1') === 77).length >= 3;
+      return tri ? 'delta' : (wye ? 'wye' : 'coil'); }, s);
+  }
+  expect(r).toEqual({ single: 'coil', v208: 'wye', v480: 'wye', highleg: 'delta', cgd: 'delta', ungd: 'delta' });
+  expect(errs).toEqual([]);
+});

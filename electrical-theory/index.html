@@ -582,8 +582,30 @@ function render(){
   (function(){ var parts=sys.title.split(' · '), vV=parts[0], vT=(parts.slice(1).join(' ')).replace(/\s*\(.*\)/,'').replace('3-wire corner-grounded delta','corner-gnd Δ').replace('high-leg delta','high-leg Δ').replace('3-wire ungrounded delta','ungrounded Δ');
     var xb=40, yb=tyG+16;
     svg.appendChild(txt(77,xb+14,vV,{anchor:'middle',size:8.5,fill:COL.txt}));
-    var d='M 77 '+(xb+22); for(var k=0;k<4;k++) d+=' a 4.5 4.5 0 0 1 0 9';
-    svg.appendChild(el('path',{d:d,fill:'none',stroke:'#aeb6c9','stroke-width':1.6}));
+    // secondary winding symbol for the system: split-phase coil · wye (Y) · delta (Δ) — with where it's grounded
+    var cx=77, cy=(xb+22+yb-14)/2, W='#aeb6c9', ph=sys.ph, cOf=function(id){ for(var q=0;q<ph.length;q++) if(ph[q][0]===id) return ph[q][1]; return W; };
+    function gnd(x,y){ svg.appendChild(el('path',{d:'M '+x+' '+y+' L '+x+' '+(y+6)+' M '+(x-6)+' '+(y+6)+' L '+(x+6)+' '+(y+6)+' M '+(x-4)+' '+(y+9)+' L '+(x+4)+' '+(y+9)+' M '+(x-2)+' '+(y+12)+' L '+(x+2)+' '+(y+12),stroke:COL.egc,'stroke-width':1.4,fill:'none'})); }
+    function lbl(x,y,t,c){ svg.appendChild(txt(x,y,t,{anchor:'middle',size:7.5,w:700,fill:c})); }
+    function dot(x,y){ svg.appendChild(el('circle',{cx:x,cy:y,r:2.2,fill:W})); }
+    if(MODE==='single'){   // one winding, center-tapped: L1 – N – L2
+      var y0=cy-18, d='M '+cx+' '+y0; for(var k=0;k<4;k++) d+=' a 4.5 4.5 0 0 1 0 9';
+      svg.appendChild(el('path',{d:d,fill:'none',stroke:W,'stroke-width':1.6}));
+      svg.appendChild(el('path',{d:'M '+(cx+4.5)+' '+cy+' L '+(cx+16)+' '+cy,stroke:W,'stroke-width':1.4})); dot(cx+4.5,cy); gnd(cx+16,cy);
+      lbl(cx-12,y0+3,'L1',cOf('L1')); lbl(cx-12,cy+3,'N',COL.txt2); lbl(cx-12,y0+39,'L2',cOf('L2'));
+    } else if(MODE==='v208'||MODE==='v480'){   // wye: three windings meet at the neutral point, grounded there
+      var r=19, ang={A:-90,B:150,C:30};
+      ['A','B','C'].forEach(function(k){ var t=ang[k]*Math.PI/180, x=cx+r*Math.cos(t), y=cy+r*Math.sin(t);
+        svg.appendChild(el('line',{x1:cx,y1:cy,x2:x,y2:y,stroke:W,'stroke-width':1.8})); lbl(cx+(r+8)*Math.cos(t),cy+(r+8)*Math.sin(t)+3,k,cOf(k)); });
+      dot(cx,cy); gnd(cx,cy+3); svg.appendChild(txt(cx-5,cy-2,'N',{anchor:'end',size:7,w:700,fill:COL.txt2}));   // neutral = the center point, grounded straight down between B and C
+    } else {   // delta: three windings corner to corner
+      var r2=21, P={B:[cx,cy-r2], A:[cx-r2*0.87,cy+r2*0.5], C:[cx+r2*0.87,cy+r2*0.5]};
+      if(MODE==='cgd'){ P={A:[cx,cy-r2], C:[cx-r2*0.87,cy+r2*0.5], B:[cx+r2*0.87,cy+r2*0.5]}; }
+      svg.appendChild(el('path',{d:'M '+P.A[0]+' '+P.A[1]+' L '+P.B[0]+' '+P.B[1]+' L '+P.C[0]+' '+P.C[1]+' Z',stroke:W,'stroke-width':1.8,fill:'none'}));
+      ['A','B','C'].forEach(function(k){ var x=P[k][0], y=P[k][1], dx=x-cx, dy=y-cy, L=Math.hypot(dx,dy); lbl(x+dx/L*8,y+dy/L*8+3,k,cOf(k)); });
+      if(MODE==='highleg'){ var mx=(P.A[0]+P.C[0])/2, my=P.A[1]; dot(mx,my); svg.appendChild(el('path',{d:'M '+mx+' '+my+' L '+mx+' '+(my+5),stroke:W,'stroke-width':1.2})); gnd(mx,my+5);
+        svg.appendChild(txt(mx+7,my+9,'N',{anchor:'start',size:7,w:700,fill:COL.txt2})); }   // A–C winding center-tapped → 120 V legs; B is the high leg (208 V to N)
+      else if(MODE==='cgd'){ dot(P.B[0],P.B[1]); gnd(P.B[0],P.B[1]+6); }   // one corner (B) grounded
+    }
     svg.appendChild(txt(77,yb-6,vT,{anchor:'middle',size:(vT.length>12?6.5:8),fill:COL.txt2}));
   })();
   // ===== round meter =====
