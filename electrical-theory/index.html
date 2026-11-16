@@ -313,7 +313,10 @@ function cSub(a,b){return {re:a.re-b.re,im:a.im-b.im};}
 function cMag(a){return Math.hypot(a.re,a.im);}
 var BRK={}, SVCPROBE=[];   // breaker load-terminal probe nodes, rebuilt every render: id → {ph, live, n, name, pool}
 function rawV(ph){ var a=svcOff,b=utilOff,c=GEN; svcOff=false; utilOff=false; GEN=false; var v=nodeVph(ph); svcOff=a; utilOff=b; GEN=c; return v; }
+var FRP=null;
+function frameK(){ if(faultCkt==null||tripped||faultType!=='LG') return 0; var e=effEgc(); return e==='broken'?(downstreamBond?0.5:0.97):(e==='loose'?0.8:0.5); }   // share of line-to-ground voltage the frame rises to during the fault
 function nodeVph(id){
+  if(id==='FR'){ var kf=frameK(); if(!kf) return {re:0,im:0}; var vf=nodeVph(phaseOfCkt(faultCkt)); return {re:vf.re*kf,im:vf.im*kf}; }
   if(id.indexOf('GN:')===0){ var k=id.slice(3); if(k==='N'||k==='G') return {re:0,im:0}; return (genOK()&&GST==='run'&&!genBrkOff)?rawV(k):{re:0,im:0}; }   // generator output terminals (after its breaker)
   if(id==='SN'||id==='SN2') return nodeVph('N'); if(id==='SG') return nodeVph('EGC');
   if(id.indexOf('SL:')===0){ if(utilOff) return {re:0,im:0}; var sv=svcOff; svcOff=false; var vl=nodeVph(id.slice(3)); svcOff=sv; return vl; }   // LINE side of the service disconnect: always hot — only the utility can kill it
@@ -334,7 +337,7 @@ function nodeVph(id){
   return cP(sys.vln,ang);
 }
 function voltBetween(a,b){ return Math.round(cMag(cSub(nodeVph(a),nodeVph(b)))); }
-function nodeLabel(id){ if(id.indexOf('GN:')===0){ var k=id.slice(3); return 'Generator '+(k==='N'?'neutral':(k==='G'?'EGC':k)); } if(id==='SN') return 'Service neutral (line side)'; if(id==='SN2') return 'Service neutral (load side)'; if(id==='SG') return 'Service ground (G terminal)'; if(id.indexOf('SL:')===0) return 'Service disconnect LINE side '+id.slice(3); if(id.indexOf('SD:')===0) return 'Service disconnect LOAD side '+id.slice(3); if(BRK[id]){ var bk=BRK[id]; return (bk.pool?'Pool breaker ':'Breaker ')+bk.n+' ('+bk.ph+')'; } if(id.indexOf('P:')===0){ var k=id.slice(2); return 'Pool '+(k==='N'?'neutral':(k==='G'?'ground':k)); } return id==='N'?'Neutral':(id==='EGC'?'Ground (EGC)':('Phase '+id+((MODE==='cgd'&&id==='B')?' (grounded)':''))); }
+function nodeLabel(id){ if(id==='FR'){ var cc=DEMO[SYS[MODE].demo][faultCkt]; return 'Frame of '+(cc?cc.n:'the faulted load'); } if(id.indexOf('GN:')===0){ var k=id.slice(3); return 'Generator '+(k==='N'?'neutral':(k==='G'?'EGC':k)); } if(id==='SN') return 'Service neutral (line side)'; if(id==='SN2') return 'Service neutral (load side)'; if(id==='SG') return 'Service ground (G terminal)'; if(id.indexOf('SL:')===0) return 'Service disconnect LINE side '+id.slice(3); if(id.indexOf('SD:')===0) return 'Service disconnect LOAD side '+id.slice(3); if(BRK[id]){ var bk=BRK[id]; return (bk.pool?'Pool breaker ':'Breaker ')+bk.n+' ('+bk.ph+')'; } if(id.indexOf('P:')===0){ var k=id.slice(2); return 'Pool '+(k==='N'?'neutral':(k==='G'?'ground':k)); } return id==='N'?'Neutral':(id==='EGC'?'Ground (EGC)':('Phase '+id+((MODE==='cgd'&&id==='B')?' (grounded)':''))); }
 function onProbe(id){ var i=probePick.indexOf(id); if(i>=0)probePick.splice(i,1); else { probePick.push(id); if(probePick.length>2)probePick.shift(); } render(); }
 function probeText(){ var a=probePick[0],b=probePick[1],v=voltBetween(a,b);
   var gH=function(x){return x.indexOf('GN:')===0&&x!=='GN:N'&&x!=='GN:G';}, uH=function(x){return x.indexOf('SL:')===0||x.indexOf('SD:')===0;};
@@ -346,7 +349,12 @@ function probeText(){ var a=probePick[0],b=probePick[1],v=voltBetween(a,b);
   var pool=function(x){return x.indexOf('P:')===0;};
   var sl=[a,b].some(function(x){return x.indexOf('SL:')===0;}), sd=[a,b].some(function(x){return x.indexOf('SD:')===0;});
   var samePole=sl&&sd&&a.slice(3)===b.slice(3);
-  if(samePole) desc=svcOff?'<b style="color:#ffd27a">Across the OPEN pole</b> — line side hot, load side dead, so the meter reads the voltage across the open contacts.':'Across a CLOSED pole — both ends are the same conductor, so 0 V.';
+  var fr=(a==='FR'||b==='FR');
+  if(fr&&!frameK()) desc='<b style="color:#8fd6a3">Frame reads 0 V</b> — the fault is cleared (or it isn\'t a ground fault), so the frame is back at ground potential.';
+  else if(fr&&effEgc()==='broken'&&!downstreamBond) desc='<b style="color:#ff8a8a">The frame floats near line voltage.</b> Its EGC is open, so the only way home is through earth back to the utility\'s grounded neutral (transformer and pole grounds) — a few amps, nowhere near enough to trip. Upstream EGCs stay at 0 V; only this frame (and the EGC stub past the break) is live. Touch it and you become the return path (250.4(A)(5)).';
+  else if(fr&&effEgc()==='loose') desc='<b style="color:#ffd27a">The frame stays energized at most of the line voltage</b> while the high-resistance EGC chokes the fault current — the breaker heats up slowly on its thermal element, and the frame is live the whole time.';
+  else if(fr) desc='<b style="color:#ffd27a">Frame-to-ground during the fault ≈ half the line voltage</b> — the hot and the EGC split the voltage drop — but only for the instant until the breaker trips. A good EGC is what keeps that short.';
+  else if(samePole) desc=svcOff?'<b style="color:#ffd27a">Across the OPEN pole</b> — line side hot, load side dead, so the meter reads the voltage across the open contacts.':'Across a CLOSED pole — both ends are the same conductor, so 0 V.';
   else if(utilOff&&sl) desc='<b style="color:#ffd27a">Utility power failure — even the LINE side reads 0 V.</b> Still treat it as live: power can come back at any moment.';
   else if(svcOff&&sl&&!sd&&!dk) desc='<b style="color:#ffd27a">The service disconnect is OPEN — but its LINE side is still hot.</b> Only the utility can kill it (pull the meter / call the POCO). Treat it as energized.';
   else if(svcOff&&sd) desc='<b style="color:#ffd27a">Service disconnect is OPEN — its LOAD side reads 0 V.</b> The line side (meter side) is still hot.';
@@ -511,7 +519,7 @@ function faultWhy(){
   if(faultType==='LL') return '<b style="color:#ff8a8a">LINE–LINE FAULT</b> on '+nm+' — bolted short across '+SYS[MODE].vll+' V ≈ <b>'+FAULT_A+' A</b>, clears in ~'+(tripSec<0.05?'1 cycle':Math.round(tripSec)+' s')+'.';
   if(faultType==='LN') return '<b style="color:#ff8a8a">LINE–NEUTRAL FAULT</b> on '+nm+' — short across '+SYS[MODE].vln+' V ≈ <b>'+FAULT_A+' A</b>, returns on the neutral, clears in ~'+(tripSec<0.05?'1 cycle':Math.round(tripSec)+' s')+'.';
   // LG
-  if(effEgc()==='broken'&&!downstreamBond) return '<b style="color:#ff8a8a">GROUND FAULT · EGC OPEN</b> on '+nm+' — the only path home is high-resistance earth, so just ~'+FAULT_A+' A flows. <b>The breaker never trips and the frame stays live</b> (shock/fire hazard).';
+  if(effEgc()==='broken'&&!downstreamBond) return '<b style="color:#ff8a8a">GROUND FAULT · EGC OPEN</b> on '+nm+' — the only path home is through earth back to the utility\'s grounded neutral (transformer and pole grounds — your rod is just one small parallel path), so just ~'+FAULT_A+' A flows. <b>The breaker never trips and the frame stays live</b> (shock/fire hazard).';
   if(effEgc()==='broken'&&downstreamBond) return '<b style="color:#ff8a8a">GROUND FAULT · EGC OPEN + illegal bond</b> on '+nm+' — current sneaks back through the illegal N–G bond (~'+FAULT_A+' A). Trip is slow/uncertain and the bond carries objectionable current the rest of the time.';
   if(effEgc()==='loose') return '<b style="color:#ffd27a">GROUND FAULT · HIGH-R EGC</b> on '+nm+' — a loose/undersized EGC drops the fault to ~'+FAULT_A+' A, so the breaker takes ~'+(isFinite(tripSec)?Math.round(tripSec)+' s':'minutes')+' to trip. Metal is live the whole time.';
   if(genOK()&&SRC==='gen') return '<b style="color:#8fd6a3">GROUND FAULT ON GENERATOR</b> on '+nm+' — the EGC carries <b>'+FAULT_A+' A</b> (a generator can only push about 3× its rating) '+(ATSN==='solid'?'back to the <b>MBJ in the transfer switch</b>, then home to the generator on the <b>neutral</b> — that single bond at the service is why a solid-neutral generator must NOT have its own N–G bond.':'back to the transfer switch G bar and out the <b>generator EGC</b> to the generator\'s own <b>N–G bond (SBJ)</b> — with a switched neutral the MBJ is cut off from the generator.')+' Still far above the 20 A breaker\'s magnetic pickup, so it trips fast.';
@@ -656,10 +664,11 @@ function render(){
     var retN=fGnd&&!sys.ungrounded&&(faultZone==='service'||effEgc()!=='broken'); genRet=(retN&&onGen&&faultZone!=='service')?ATSN:null; if(genRet==='switched') retN=false;
     if(retN){ var dR='M '+(gX-9)+' '+cy+' L '+(nX+9)+' '+cy; addDots(svg,dR,1,10,FRED);
       if(!genRet){ var dR2='M '+nX+' '+(cy-7)+' L '+nX+' '+gcy+' L 120 '+gcy; svg.appendChild(el('path',{d:dR2,stroke:FRED,'stroke-width':3,fill:'none'})); addDots(svg,dR2,1,20,FRED); } }
-    svg.appendChild(el('line',{x1:nX+9,y1:cy,x2:gX-9,y2:cy,stroke:fGnd?FRED:COL.egc,'stroke-width':3,'stroke-dasharray':'3 3'}));
+    var mbjF=fGnd&&(faultType==='NG'||faultZone==='service'||effEgc()!=='broken');   /* open EGC: the few amps leak through earth back to the utility — nothing crosses the MBJ */
+    svg.appendChild(el('line',{x1:nX+9,y1:cy,x2:gX-9,y2:cy,stroke:mbjF?FRED:COL.egc,'stroke-width':3,'stroke-dasharray':'3 3'}));
     svg.appendChild(el('rect',{x:nX-9,y:cy-7,width:18,height:14,rx:2,fill:'#e6eaf2',stroke:'#aeb6c9','stroke-width':1}));svg.appendChild(txt(nX,cy+4,sys.noNeutral?'B':'N',{anchor:'middle',size:9,w:700,fill:'#0b1020'}));
     svg.appendChild(el('rect',{x:gX-9,y:cy-7,width:18,height:14,rx:2,fill:'#1f7a45',stroke:COL.egc,'stroke-width':1}));svg.appendChild(txt(gX,cy+4,'G',{anchor:'middle',size:9,w:700,fill:'#fff'}));
-    svg.appendChild(txt((nX+gX)/2,cy-9,'MBJ',{anchor:'middle',size:7,fill:fGnd?'#ff8a8a':COL.egc}));
+    svg.appendChild(txt((nX+gX)/2,cy-9,'MBJ',{anchor:'middle',size:7,fill:mbjF?'#ff8a8a':COL.egc}));
     if(GN){ var mt=txt((nX+6+gX)/2,cy+17,'250.28',{anchor:'middle',size:7.5,w:700,fill:COL.egc}); mt.setAttribute('stroke',lc('#0b1020')); mt.setAttribute('stroke-width','3'); mt.setAttribute('paint-order','stroke'); svg.appendChild(mt); }   // under the MBJ, between the generator N and EGC risers else svg.appendChild(txt((nX+gX)/2,cy+16,'NEC 250.28',{anchor:'middle',size:7,fill:COL.txt2}));
     if((bondActive||poolObj)&&!fGnd){   // objectionable current from a downstream illegal bond rejoins the neutral HERE, at the first legal N-G bond
       addDots(svg,'M '+(gX-9)+' '+cy+' L '+(nX+9)+' '+cy,1,10,OBJ);
@@ -792,12 +801,14 @@ function render(){
     var tag=(poles===1?(usesN?'120 V':'1P'):(poles===2?'2P':'3Ø'))+(fault?' · FAULT':(on?(ckR?(poles>1?' · L2↔N SWAPPED':' · REVERSED'):''):' · OFF'));
     svg.appendChild(txt((eqX0+eqX1)/2,(topY+botY)/2+12,tag,{anchor:'middle',size:7,fill:fault?'#ff8a8a':(on?(ckR?'#ffb35c':COL.txt2):'#ff8a8a')}));
     BADGE.push([eqX0,eqX1,ebY,ckE,ckR,isL]);
+    if(fault&&faultType==='LG'&&!SYS[MODE].ungrounded) FRP=[isL?eqX0-13:eqX1+13,(topY+botY)/2+3,isL];   // probe on the faulted equipment's metal frame
     if(fault){svg.appendChild(el('circle',{cx:eqEdge,cy:(topY),r:6,fill:'none',stroke:FRED,'stroke-width':2,opacity:0.9}));svg.appendChild(el('path',{d:'M '+(eqEdge-4)+' '+(topY-4)+' L '+(eqEdge+4)+' '+(topY+4)+' M '+(eqEdge+4)+' '+(topY-4)+' L '+(eqEdge-4)+' '+(topY+4),stroke:FRED,'stroke-width':2}));}
   }
   var POOL={X0:900};
-  var FEGC=null, OVR=[], REV=[], BADGE=[], BPROBE=[];
+  var FEGC=null, OVR=[], REV=[], BADGE=[], BPROBE=[]; FRP=null;
   SVCPROBE.forEach(function(pr){ pr.forEach(function(q){ brkProbe(svg,q[0],q[1],q[2],q[3]); }); });
   for(var r=0;r<rows;r++){drawSlot(2*r+1,'L',r);drawSlot(2*r+2,'R',r);}
+  if(FRP){ svg.appendChild(el('line',{x1:FRP[0]+(FRP[2]?7:-7),y1:FRP[1],x2:FRP[0]+(FRP[2]?13:-13),y2:FRP[1],stroke:'#c9a227','stroke-width':2})); brkProbe(svg,FRP[0],FRP[1],'FR','#c9a227'); svg.appendChild(txt(FRP[0],FRP[1]-10,'FRAME',{anchor:'middle',size:6.5,w:700,fill:'#e8c75a'})); }
   if(poolActive && POOL.hy) drawPool(svg,POOL,{fdrF:fA&&faultCkt===2&&faultZone==='branch',egcOpen:effEgc()==='broken',xNR:xNR,xGR:xGR,phases:phases,busLive:busLive,FRED:FRED,DEAD:DEAD,dirPh:dirPh,angPh:angPh,busTopZ:busTopZ});
   // EGC OPEN / HIGH-R marker: always shown when the EGC isn't intact. On the faulted circuit's own EGC when there is a fault,
   // otherwise on the feeder EGC just above the panel.

@@ -239,3 +239,16 @@ test('open service breaker / panel main: line side glows (energized, 0 A), no mo
   await page.evaluate(() => { toggleSvc(); toggleLcMain(); });
   r = await st(); expect(r.glow).toBeGreaterThan(0); expect(r.dots).toBe(0); expect(r.ro).toContain('PANEL MAIN OPEN');
 });
+
+test('open EGC ground fault: MBJ carries nothing, FRAME probe reads near line voltage and stays; intact EGC clears to 0 V', async ({ page }) => {
+  expect(await open(page, '/electrical-theory/')).toEqual([]);
+  const r = await page.evaluate(() => { ckEgc['single:3'] = 'broken'; faultType = 'LG'; applyFault(3);
+    const mbjRed = [...document.querySelectorAll('#svg line')].some(l => l.getAttribute('stroke-dasharray') === '3 3' && /ff3b30/i.test(l.getAttribute('stroke') || ''));
+    return { frp: !!FRP, v: Math.round(voltBetween('FR', 'SG')), mbjRed }; });
+  expect(r.frp).toBe(true); expect(r.v).toBeGreaterThan(100); expect(r.mbjRed).toBe(false);
+  await page.waitForTimeout(2600);
+  expect(Math.round(await page.evaluate(() => voltBetween('FR', 'SG')))).toBeGreaterThan(100);   // never trips
+  await page.evaluate(() => { clearFault(); delete ckEgc['single:3']; applyFault(3); });
+  await page.waitForTimeout(2600);
+  expect(Math.round(await page.evaluate(() => voltBetween('FR', 'SG')))).toBe(0);              // tripped → frame back to ground
+});
