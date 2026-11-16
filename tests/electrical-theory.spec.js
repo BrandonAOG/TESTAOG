@@ -59,7 +59,7 @@ test('a 120 V circuit on L2 runs the opposite way to one on L1 — hot AND neutr
   const r = await page.evaluate(() => {
     const rows = {};   // y → dot directions on the straight run from the breaker / to the N bar
     const top = +[...document.querySelectorAll('#svg text')].find(t => t.textContent.startsWith('LOAD CENTER')).getAttribute('y') + 43;   // panel top (label sits on the enclosure)
-    dotPool.forEach(dp => { const m = dp.mp.getAttribute('d').match(/^M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+)$/); if (m && m[2] === m[4]) rows[Math.round(+m[2]) - top] = dp.dir; });
+    dotPool.forEach(dp => { const m = dp.P.d.match(/^M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+)$/); if (m && m[2] === m[4]) rows[Math.round(+m[2]) - top] = dp.dir; });
     return rows;
   });
   // circuit 1 (L1): hot top+13 out, neutral top+22 back · circuit 3 (L2): hot top+38 back, neutral top+47 out
@@ -338,5 +338,28 @@ test('transformer: every winding / bond / first-disconnect combination draws and
         probePick = []; xfOff = {}; }))); dotPool.length = 0; render(); }, w);
     }
   }
+  expect(errs).toEqual([]);
+});
+
+test('animation is light: precomputed dot paths, no redraw on height-only resize, touch screens scroll instead of shrinking', async ({ page }) => {
+  const errs = await open(page, '/electrical-theory/');
+  await page.evaluate(() => document.getElementById('poolBtn').click()); await page.waitForTimeout(600);
+  const r = await page.evaluate(() => {
+    let n = 0; const orig = window.render; window.render = function () { n++; return orig.apply(this, arguments); };
+    window.dispatchEvent(new Event('resize'));
+    const svg = document.getElementById('svg'), vbW = +svg.getAttribute('viewBox').split(' ')[2];
+    return new Promise(res => setTimeout(() => res({ redraws: n, tables: dotPool.length > 0 && dotPool.every(dp => dp.P && dp.P.xs.length > 1), touch: MOBILE_ANIM, fullSize: svg.getBoundingClientRect().width >= vbW * 0.95 }), 300)); });
+  expect(r.redraws).toBe(0);
+  expect(r.tables).toBe(true);
+  if (r.touch) expect(r.fullSize).toBe(true);
+  expect(errs).toEqual([]);
+});
+
+test('the toggle buttons never push the page wider than the screen', async ({ page }) => {
+  const errs = await open(page, '/electrical-theory/');
+  const r = await page.evaluate(() => ({ vw: document.documentElement.clientWidth, sw: document.documentElement.scrollWidth,
+    right: Math.max(...[...document.querySelectorAll('.toggle-row2 .toggle')].map(b => b.getBoundingClientRect().right)) }));
+  expect(r.sw).toBeLessThanOrEqual(r.vw);
+  expect(r.right).toBeLessThanOrEqual(r.vw);
   expect(errs).toEqual([]);
 });

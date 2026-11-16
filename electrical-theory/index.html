@@ -20,9 +20,9 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
   /* energized but carrying no current: a slow glow (voltage present), never moving dots (those mean current) */
-  .vglow{stroke-opacity:.28;animation:vglow 2.6s ease-in-out infinite;pointer-events:none;}
-  @keyframes vglow{0%,100%{stroke-opacity:.08}50%{stroke-opacity:.5}}
-  @media (prefers-reduced-motion:reduce){.vglow{animation:none}}
+  .vglow{stroke-opacity:var(--vg,.28);pointer-events:none;}   /* pulsed from the same throttled loop as the dots (one clock, no extra CSS animation) */
+  /* phones & tablets: the drawing is the heavy part — keep the decorative header animations still to save battery */
+  @media (hover:none) and (pointer:coarse){ .header::before,.header::after,.logo-img{animation:none !important;} }
   :root{ --bg:#f8f9fa; --bg2:#ffffff; --panel:#ffffff; --stroke:#dee2e6; --txt:#1F2937; --txt2:#4b5563; --accent:#D97706; --cyan:#0891b2; --bg3:#f1f3f5; --border:#dee2e6; --danger:#DC2626; --radius:12px; --header-bg:#1a1a2e; }
   .dark{ --bg:#0A0E27; --bg2:#0f1535; --panel:#0f1535; --stroke:#1e2a4a; --txt:#E0F7FF; --txt2:#94a3b8; --accent:#00FFC8; --cyan:#00FFC8; --bg3:#141a3a; --border:#1e2a4a; --danger:#ef4444; }
   /* the one-line itself is an instrument screen: dark in both themes so every wire color reads the same */
@@ -126,7 +126,8 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .grp > button:hover,.toggle:hover{border-color:var(--accent) !important;}
   .grp > button.on,.toggle.on{border-color:var(--accent) !important;color:var(--accent) !important;background:rgba(217,119,6,.08) !important;}
   .dark .grp > button.on,.dark .toggle.on{background:rgba(0,255,200,.07) !important;}
-  .toggle-row2{display:flex;gap:8px;margin-top:10px;} .toggle-row2 .toggle{flex:1;}
+  .toggle-row2{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;} .toggle-row2 .toggle{flex:1 1 auto;}
+  @media (max-width:560px){ .toggle-row2 .toggle{flex:1 1 calc(50% - 4px);} }   /* phones: two per row so nothing runs off the screen */
   #resetBtn{border-color:var(--danger) !important;color:var(--danger) !important;}
   .card-scope{padding:16px 0 8px;} .card-scope .card-title,.card-scope .fx-note{padding:0 16px;}
   .card-scope .scope{margin:0;border-radius:0;border-left:0;border-right:0;}
@@ -450,10 +451,42 @@ function lc(c){ return (LIGHT&&typeof c==='string'&&LMAP[c.toLowerCase()])||c; }
 function el(t,a){var e=document.createElementNS(SVGNS,t);for(var k in a){var v=a[k]; if(LIGHT&&(k==='fill'||k==='stroke'))v=lc(v); e.setAttribute(k,v);}return e;}
 function txt(x,y,s,o){o=o||{};var tf=o.fill||COL.txt; if(LIGHT&&tf==='#0b1020')tf='#111827';   /* dark text on a light chip stays dark */
   var e=el('text',{x:x,y:y,'font-size':o.size||10,fill:tf,'text-anchor':o.anchor||'start','font-weight':o.w||400});e.textContent=s;return e;}
-function addDots(svg,d,dir,sp,col,ph){var mp=el('path',{d:d,fill:'none',stroke:'none'});svg.appendChild(mp);var len=mp.getTotalLength();var n=Math.max(2,Math.round(len/(sp||22)));for(var i=0;i<n;i++){var c=el('circle',{r:2.5,fill:col||COL.dot,opacity:0.95});svg.appendChild(c);dotPool.push({c:c,mp:mp,len:len,off:(i/n)*len,dir:dir,speed:42,ph:(ph==null?null:ph)});}}
-var flowMode='conv', acT=0;
-function frame(now){var dt=(now-(frame._t||now))/1000;frame._t=now;if(dt>0.1)dt=0.1;acT+=dt;var w=2*Math.PI*0.45;dotPool.forEach(function(dp){var v;if(flowMode==='ac'){ v=(dp.ph!=null)? dp.speed*Math.cos(w*acT+dp.ph*Math.PI/180) : dp.dir*dp.speed*Math.cos(w*acT); }else { v=dp.dir*dp.speed*(flowMode==='elec'?-1:1); }dp.off=(dp.off+v*dt+dp.len)%dp.len;var pt=dp.mp.getPointAtLength(dp.off);dp.c.setAttribute('cx',pt.x);dp.c.setAttribute('cy',pt.y);});anim=requestAnimationFrame(frame);}
-function startAnim(){if(!anim){frame._t=0;anim=requestAnimationFrame(frame);}}
+var dotPath={};   // sampled once per render: no getPointAtLength in the animation loop
+function polyOf(d){   // M / L / H / V / A / Z paths → polyline, pure math (no DOM); null if the path uses anything else
+  var tk=d.match(/[A-Za-z]|-?\d*\.?\d+(?:e[-+]?\d+)?/g); if(!tk) return null; var pts=[], i=0, cx=0, cy=0, sx=0, sy=0, cmd='';
+  function num(){ return parseFloat(tk[i++]); }
+  while(i<tk.length){ if(/[A-Za-z]/.test(tk[i])) cmd=tk[i++];
+    if(cmd==='M'){ cx=num(); cy=num(); sx=cx; sy=cy; pts.push([cx,cy]); cmd='L'; }
+    else if(cmd==='L'){ cx=num(); cy=num(); pts.push([cx,cy]); }
+    else if(cmd==='H'){ cx=num(); pts.push([cx,cy]); } else if(cmd==='V'){ cy=num(); pts.push([cx,cy]); }
+    else if(cmd==='Z'||cmd==='z'){ cx=sx; cy=sy; pts.push([cx,cy]); if(i<tk.length&&!/[A-Za-z]/.test(tk[i])) return null; }
+    else if(cmd==='A'){ var r=num(); num(); num(); var la=num(), sw=num(), x=num(), y=num();
+      var mx=(cx-x)/2, my=(cy-y)/2, d2=mx*mx+my*my; if(r*r<d2) r=Math.sqrt(d2); var f=Math.sqrt(Math.max(0,(r*r-d2)/d2))*(la===sw?-1:1);
+      var ox=f*my+(cx+x)/2, oy=-f*mx+(cy+y)/2, a0=Math.atan2(cy-oy,cx-ox), a1=Math.atan2(y-oy,x-ox), da=a1-a0;
+      if(sw&&da<0) da+=2*Math.PI; if(!sw&&da>0) da-=2*Math.PI; for(var q=1;q<=6;q++){ var t=a0+da*q/6; pts.push([ox+r*Math.cos(t),oy+r*Math.sin(t)]); } cx=x; cy=y; }
+    else return null; }
+  return pts.length>1?pts:null; }
+function samplePath(svg,d){ if(dotPath[d]) return dotPath[d]; var pts=polyOf(d), xs, ys, len=0, n;
+  if(pts){ var cum=[0]; for(var k=1;k<pts.length;k++){ len+=Math.hypot(pts[k][0]-pts[k-1][0],pts[k][1]-pts[k-1][1]); cum.push(len); }
+    n=Math.max(2,Math.ceil(len/3)+1); xs=new Float32Array(n); ys=new Float32Array(n); var seg=1;
+    for(var j=0;j<n;j++){ var L=len*j/(n-1); while(seg<pts.length-1&&cum[seg]<L) seg++; var sl=cum[seg]-cum[seg-1], t=sl>0?(L-cum[seg-1])/sl:0; xs[j]=pts[seg-1][0]+(pts[seg][0]-pts[seg-1][0])*t; ys[j]=pts[seg-1][1]+(pts[seg][1]-pts[seg-1][1])*t; } }
+  else { var mp=el('path',{d:d,fill:'none',stroke:'none'}); svg.appendChild(mp); len=mp.getTotalLength(); n=Math.max(2,Math.ceil(len/6)+1); xs=new Float32Array(n); ys=new Float32Array(n);   // curves: let the browser measure (rare)
+    for(var i2=0;i2<n;i2++){ var pt=mp.getPointAtLength(len*i2/(n-1)); xs[i2]=pt.x; ys[i2]=pt.y; } svg.removeChild(mp); }
+  return (dotPath[d]={d:d,len:len,n:n,xs:xs,ys:ys}); }
+function addDots(svg,d,dir,sp,col,ph){var P=samplePath(svg,d),len=P.len;if(!(len>0))return;var n=Math.max(2,Math.round(len/(sp||22)));for(var i=0;i<n;i++){var c=el('circle',{r:2.5,fill:col||COL.dot,opacity:0.95});svg.appendChild(c);dotPool.push({c:c,P:P,len:len,off:(i/n)*len,dir:dir,speed:42,ph:(ph==null?null:ph)});}}
+var flowMode='conv', acT=0, glT=0, animVisible=true, MOBILE_ANIM=!!(window.matchMedia&&window.matchMedia('(hover:none) and (pointer:coarse)').matches), REDUCED=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches);
+var FRAME_MS=MOBILE_ANIM?33:0;   // phones/tablets: ~30 fps is plenty for the dots and about halves the work
+function frame(now){ anim=requestAnimationFrame(frame); if(!animVisible||document.hidden){ frame._t=now; return; }
+  if(FRAME_MS&&frame._t&&now-frame._t<FRAME_MS-2) return;
+  var dt=(now-(frame._t||now))/1000;frame._t=now;if(dt>0.1)dt=0.1;acT+=dt;glT+=dt;var w=2*Math.PI*0.45;
+  for(var k=0;k<dotPool.length;k++){ var dp=dotPool[k],v; if(flowMode==='ac'){ v=(dp.ph!=null)? dp.speed*Math.cos(w*acT+dp.ph*Math.PI/180) : dp.dir*dp.speed*Math.cos(w*acT); }else { v=dp.dir*dp.speed*(flowMode==='elec'?-1:1); }
+    dp.off=(dp.off+v*dt+dp.len)%dp.len; var P=dp.P, f=dp.off/dp.len*(P.n-1), i=Math.floor(f), t=f-i, j=Math.min(i+1,P.n-1);
+    dp.c.setAttribute('cx',(P.xs[i]+(P.xs[j]-P.xs[i])*t).toFixed(1)); dp.c.setAttribute('cy',(P.ys[i]+(P.ys[j]-P.ys[i])*t).toFixed(1)); }
+  if(animGlow&&!REDUCED){ var svg=document.getElementById('svg'); if(svg) svg.style.setProperty('--vg',(0.29-0.21*Math.cos(glT*2*Math.PI/2.6)).toFixed(3)); } }
+var animGlow=false;
+function startAnim(){ if(!animVisible) return; animGlow=!!document.querySelector('#svg .vglow'); if(!dotPool.length&&!animGlow){ if(anim){cancelAnimationFrame(anim);anim=null;} return; }   // nothing moving → no loop at all
+  if(!anim){frame._t=0;anim=requestAnimationFrame(frame);}}
+(function(){ var sv=document.getElementById('svg'); if(sv&&window.IntersectionObserver) new IntersectionObserver(function(es){ animVisible=es[es.length-1].isIntersecting; if(!animVisible){ if(anim){cancelAnimationFrame(anim);anim=null;} } else startAnim(); },{rootMargin:'100px'}).observe(sv); })();   // scrolled away → stop moving dots
 function tri(t){var f=t-Math.floor(t);return f<0.5?(-1+4*f):(3-4*f);}
 function isOn(num){ return !offCkts[MODE+':'+num]; }
 function toggleCkt(num){ if(faultCkt===num){clearFault();return;} var k=MODE+':'+num; if(offCkts[k])delete offCkts[k]; else offCkts[k]=1; render(); }
@@ -543,7 +576,7 @@ function render(){
   LIGHT=!document.body.classList.contains('dark');
   var svg=document.getElementById('svg');
   while(svg.firstChild)svg.removeChild(svg.firstChild);
-  if(anim){cancelAnimationFrame(anim);anim=null;}dotPool=[];
+  if(anim){cancelAnimationFrame(anim);anim=null;}dotPool=[];dotPath={};
   var sys=SYS[MODE], phases=sys.ph.map(function(a){return {id:a[0],c:a[1]};}), N=phases.length, demo=DEMO[sys.demo];
   var genRet=null;
   var FRED='#ff3b30', gF=faultActive()&&faultZone==='genfdr', fA=faultActive()&&!gF, fGnd=fA&&(faultType==='LG'||faultType==='NG')&&!ugFirst, fNeu=fA&&(faultType==='LN'||faultType==='NG');
@@ -567,7 +600,8 @@ function render(){
     // desktop/tablet: no scrollbar — the One-Line card grows past the 900px column (up to the window) and the drawing scales to fit it
     svg.style.width='100%'; svg.style.height='auto';
     if(card){ var cw=card.parentElement.clientWidth, want=Math.min(window.innerWidth-24, W+2), w=Math.max(cw,want);
-      card.style.width=w+'px'; card.style.marginLeft=Math.round((cw-w)/2)+'px'; } })();
+      card.style.width=w+'px'; card.style.marginLeft=Math.round((cw-w)/2)+'px'; }
+    if(MOBILE_ANIM){ var room=svg.parentElement.clientWidth-20; if(W*0.96>room) svg.style.width=Math.round(W*0.96)+'px'; } })();   // iPad/tablet: never shrink the text below phone size — swipe instead
 
   var busC=510, busHalf=(N===3?36:28);   // 3-phase bars spread wider so the lanes read clearly
   var brkLin=busC-busHalf-14, brkLout=busC-busHalf-66, brkRin=busC+busHalf+14, brkRout=busC+busHalf+66;
@@ -1129,7 +1163,7 @@ function ckChanged(kind,id){ var inf=ckInfo(kind,id), msg=ckExplain(inf);
   ckMsg=msg; render();
   var r=document.getElementById('ckMenu'); if(r){ var L=parseFloat(r.style.left), T=parseFloat(r.style.top); openCkMenu(kind,id,{clientX:L-10,clientY:T-10,keep:1}); } }
 document.addEventListener('click',function(){ if(ckJustDragged){ ckJustDragged=false; return; } ckMenuClose(); });
-window.addEventListener('resize',function(){ clearTimeout(window._rz); window._rz=setTimeout(render,120); });
+var lastRW=window.innerWidth; window.addEventListener('resize',function(){ if(window.innerWidth===lastRW) return; lastRW=window.innerWidth; clearTimeout(window._rz); window._rz=setTimeout(render,120); });   // iOS fires resize when the toolbar hides on scroll — only a real width change redraws
 function revCross(svg,eqEdge,inward,yH,yN,hc){   // crossover at the device: the hot lands on the neutral terminal and vice versa
   var xa=eqEdge+inward, x0=Math.min(xa,eqEdge);
   svg.appendChild(el('rect',{x:x0,y:yH-3,width:Math.abs(inward),height:(yN-yH)+6,fill:'#0b1020'}));
