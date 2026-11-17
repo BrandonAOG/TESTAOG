@@ -500,3 +500,152 @@ test('every system has its own realistic circuits: no overlaps, no 120 V circuit
   expect(r.bad).toEqual([]); expect(r.v480).toBe('v480'); expect(r.recept480).toBe(false);
   r.n.forEach(n => expect(n).toBeGreaterThanOrEqual(14));
 });
+
+test('inverter size and parallel units: capacity adds up, it stays legal by default (smaller main or supply-side tap), PANEL BKR shows the 120 % violation', async ({ page }) => {
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => { const o = {}; solarOn = true; battOn = true; battMode = 'whole'; utilOff = true; sunMode = 'night'; derLastSrc = null; derWaitUntil = 0;
+    const st = () => { render(); const D = derState(); return [INV_KW, invBrk(), pvConn, mainA(), inv120ok(), Object.keys(D.shed).length > 0, Math.round(-D.batt * 10) / 10]; };
+    nBat = 1; derSet('invkw', 7.6); derSet('ninv', 1); o.one = st();
+    nBat = 3; derSet('ninv', 2); o.two = st();
+    derSet('conn', 'bus'); o.illegal = st(); o.msg = document.getElementById('readout').innerText.includes('120 % RULE VIOLATED');
+    derSet('ninv', 3); o.three = st();
+    derSet('invkw', 11.5); derSet('ninv', 1); o.pw3 = st();
+    derSet('invkw', 7.6); derSet('ninv', 1); derSet('conn', 'bus'); nBat = 1; utilOff = false; render(); return o; });
+  expect(r.one).toEqual([7.6, 40, 'bus', 200, true, true, 4.2]);
+  expect(r.two).toEqual([15.2, 80, 'derate', 150, true, false, 12.4]);   // legal: 150 A main + 80 A ≤ 240 A, and 3 batteries + 2 inverters carry the 12.4 kW house
+  expect(r.illegal.slice(2, 5)).toEqual(['bus', 200, false]); expect(r.msg).toBe(true);
+  expect(r.three.slice(2, 5)).toEqual(['svc', 200, true]);   // 3 × 7.6 kW needs 125 A — even a 100 A main won't do, so it goes to the supply-side tap
+  expect(r.pw3.slice(1, 5)).toEqual([60, 'derate', 175, true]);
+});
+
+test('battery modes: BACKUP keeps it full (solar first, grid tops up); SELF-POWERED uses only extra solar and covers the house down to 20 %', async ({ page }) => {
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => { const o = {}; solarOn = true; battOn = true; battMode = 'whole';
+    const S = () => { render(); const D = derState(); return [D.inv, Math.round(D.batt * 10) / 10, Math.round((D.chSol || 0) * 10) / 10, Math.round((D.chGrid || 0) * 10) / 10]; };
+    sunMode = 'day'; derSoc = 50; battPri = 'backup'; o.bDay = S(); sunMode = 'night'; o.bHold = S(); gridChg = true; o.bNight = S(); gridChg = false;
+    battPri = 'self'; sunMode = 'day'; o.sDay = S(); derSoc = 20; sunMode = 'night'; o.sRes = S();
+    battPri = 'backup'; derSoc = 100; render(); return o; });
+  expect(r.bDay).toEqual(['grid', 5, 5, 0]);     // solar charges it even though the house wants more
+  expect(r.bHold).toEqual(['grid', 0, 0, 0]);   // grid charging off (default): it just holds at night
+  expect(r.bNight).toEqual(['grid', 5, 0, 5]);   // grid charging on: the grid tops it up
+  expect(r.sDay).toEqual(['grid', -5, 0, 0]);    // house (12.4 kW) > solar (6 kW): the battery covers the gap
+  expect(r.sRes).toEqual(['grid', 0, 0, 0]);     // holds the 20 % outage reserve
+});
+
+test('parallel inverters: each AC-combiner breaker can be opened — that unit drops out, capacity and PV follow, nothing errors', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => { const o = {}; solarOn = true; battOn = false; sunMode = 'day'; derSet('invkw', 7.6); derSet('ninv', 3); derSet('mods', 40); derSet('str', 5); render();
+    o.all = [nUp(), derState().pv]; derSet('cmb', 3); render(); o.off3 = [nUp(), derState().pv]; derSet('cmb', 3);
+    let n = 0; for (const b of [false, true]) for (const m of ['whole', 'partial']) for (const u of [1, 2, 3]) for (const c of [0, 1, 2, 3]) {
+      battOn = b; battMode = m; derSet('ninv', u); cmbOff = {}; if (c) cmbOff[c] = true; dotPool.length = 0; render(); n++; }
+    cmbOff = {}; derSet('ninv', 1); battOn = false; render(); o.n = n; return o; });
+  expect(r.all).toEqual([3, 16]); expect(r.off3).toEqual([2, 12.8]);   // #3's one string (3.2 kW) drops out
+  expect(r.n).toBe(48); expect(errs).toEqual([]);
+});
+
+test('parallel hybrid inverters split the PV strings (each converts its own), each has its own PV DC disconnect, built-in by default', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => { solarOn = true; battOn = true; battMode = 'whole'; sunMode = 'day'; derSet('invkw', 7.6); derSet('ninv', 3); derSet('mods', 30); derSet('str', 3); render();
+    const a = derState().pvU.slice(1, 4); derSet('pvdu', 2); render(); const b = derState().pvU.slice(1, 4), pv = derState().pv; derSet('pvdu', 2);
+    const mode = dcDisc; derSet('dcd', 'ext'); render(); const ext = [...document.querySelectorAll('#svg text')].some(t => t.textContent === 'PV DC DISC'); derSet('dcd', 'int'); derSet('ninv', 1); battOn = false; render();
+    return { a, b, pv, mode, ext }; });
+  expect(r.a).toEqual([4, 4, 4]); expect(r.b).toEqual([4, 0, 4]); expect(r.pv).toBe(8);
+  expect(r.mode).toBe('int'); expect(r.ext).toBe(true); expect(errs).toEqual([]);
+});
+
+test('parallel backup outputs land on their own breakers in a backup combiner by default (705.12(B)(3)); splicing them is flagged', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => { solarOn = true; battOn = true; battMode = 'partial'; sunMode = 'day'; derSet('invkw', 7.6); derSet('ninv', 3); render();
+    const T = () => [...document.querySelectorAll('#svg text')].map(t => t.textContent).join('|');
+    const def = buTie, a = T(); derSet('butie', 'splice'); const b = T(); derSet('butie', 'cmb'); derSet('invkw', 11.5); const c = T();
+    derSet('invkw', 7.6); derSet('ninv', 1); battOn = false; battMode = 'whole'; render(); return { def, a, b, c }; });
+  expect(r.def).toBe('cmb');
+  expect(r.a).toContain('BACKUP COMBINER · 3 × 40 A 2P → 125 A bus'); expect(r.a).toContain('#3 · 40 A 2P'); expect(r.a).toContain('#2 DC');
+  expect(r.b).toContain('SPLICED TOGETHER'); expect(r.b).not.toContain('BACKUP COMBINER');
+  expect(r.c).toContain('3 × 60 A 2P → 200 A bus');
+  expect(errs).toEqual([]);
+});
+
+test('backup combiner breakers toggle: an open one drops that inverter off the backup panel, the rest share it; all open = dark', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => { solarOn = true; battOn = true; battMode = 'partial'; sunMode = 'day'; derSet('invkw', 7.6); derSet('ninv', 3); render();
+    const lbs = () => { const D = derState(); const n = nBu(); return { live: D.backLive, n }; };
+    const a = lbs(); derSet('cbk', 2); const b = lbs(); const t = [...document.querySelectorAll('#svg text')].some(x => x.textContent === '#2 · 40 A 2P · OFF');
+    derSet('cbk', 1); derSet('cbk', 3); const c = lbs(); derSet('cbk', 1); derSet('cbk', 2); derSet('cbk', 3); derSet('ubu', 2); const d = lbs(); derSet('ubu', 2);
+    derSet('ninv', 1); battOn = false; battMode = 'whole'; render(); return { a, b, c, d, t }; });
+  expect(r.a).toEqual({ live: true, n: 3 }); expect(r.b).toEqual({ live: true, n: 2 }); expect(r.t).toBe(true);
+  expect(r.c).toEqual({ live: false, n: 0 }); expect(r.d).toEqual({ live: true, n: 2 });
+  expect(errs).toEqual([]);
+});
+
+test('backup panel: main lugs ⇄ main breaker (opening it kills the bus, feeder stays live), illegal bond flagged, feeder EGC broken = fault never clears', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => { solarOn = true; battOn = true; battMode = 'partial'; sunMode = 'day'; derSet('invkw', 7.6); derSet('ninv', 1); render();
+    const T = () => [...document.querySelectorAll('#svg text')].map(t => t.textContent).join('|');
+    const mlo = buMLO; derSet('bumlo'); const t1 = T(); derSet('bumain'); const D1 = derState(); derSet('bumain'); derSet('bumlo');
+    derSet('bubond'); const t2 = T(); derSet('bubond');
+    derSet('buegc', 'broken'); derFeederFault('bu'); const m = derFltMsg, stillOn = !invBackupOff; derFltClear(); derSet('buegc', 'intact');
+    battOn = false; battMode = 'whole'; render(); return { mlo, t1, d: [D1.backLive, D1.buFeedLive], t2, m, stillOn }; });
+  expect(r.mlo).toBe(true); expect(r.t1).toContain('MAIN 100 A'); expect(r.d).toEqual([false, true]);
+  expect(r.t2).toContain('N–G BONDED HERE'); expect(r.m).toContain('EGC BROKEN'); expect(r.stillOn).toBe(true);
+  expect(errs).toEqual([]);
+});
+
+test('battery module size and location: kWh/kW follow the module, NFPA 855 15.5.2 limits (80 kWh garage/outside, 40 kWh utility room) are flagged', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => { solarOn = true; battOn = true; battMode = 'whole'; sunMode = 'day'; derSet('invkw', 7.6); derSet('ninv', 1); nBat = 3; render();
+    const T = () => [...document.querySelectorAll('#svg text')].map(t => t.textContent).join('|');
+    const def = [batKwh(), batKW(), batLoc, derKwh()]; derSet('bloc', 'util'); const u = [batLimOk(), T().includes('NFPA 855 15.5.2'), document.getElementById('readout').innerHTML.includes('TOO MUCH BATTERY')];
+    derSet('batt', 0); const small = [derKwh(), batLimOk()]; derSet('batt', 4); nBat = 5; render(); const big = [derKwh(), batLimOk('garage'), batLimOk('util')];
+    derSet('batt', 2); derSet('bloc', 'garage'); nBat = 1; battOn = false; render(); return { def, u, small, big }; });
+  expect(r.def).toEqual([13.5, 5, 'garage', 40.5]);
+  expect(r.u).toEqual([false, true, true]);
+  expect(r.small).toEqual([15, true]);
+  expect(r.big).toEqual([75, true, false]);
+  expect(errs).toEqual([]);
+});
+
+test('parallel units never feed each other through the battery: full bank = every unit idle, solar charging = each unit charges from its own PV', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => { solarOn = true; battOn = true; battMode = 'whole'; sunMode = 'day'; derSet('invkw', 11.5); derSet('ninv', 2); derSet('mods', 15); derSet('str', 3); nBat = 3;
+    const kw = () => [...document.querySelectorAll('#svg text')].map(t => t.textContent).filter(t => /^PV .* · BATT /.test(t));
+    derSoc = 100; gridChg = true; render(); const full = kw(); derSoc = 50; gridChg = false; render(); const chg = kw();
+    derSet('ninv', 1); battOn = false; render(); return { full, chg }; });
+  expect(r.full).toEqual(['PV 4.0 kW · BATT 0.0 kW', 'PV 2.0 kW · BATT 0.0 kW']);
+  expect(r.chg).toEqual(['PV 4.0 kW · BATT +4.0 kW', 'PV 2.0 kW · BATT +2.0 kW']);
+  expect(errs).toEqual([]);
+});
+
+test('supply-side tap + whole home in an outage: inverters are stranded, nothing goes to the panel; solar only charges the battery over DC (stops when full)', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => { solarOn = true; battOn = true; battMode = 'whole'; sunMode = 'day'; derSet('invkw', 15); derSet('ninv', 2); derSet('mods', 15); derSet('str', 3); nBat = 5; derSet('conn', 'svc'); toggleUtil();
+    derSoc = 100; render(); const a = derState(); derSoc = 50; render(); const b = derState(); const kw = [...document.querySelectorAll('#svg text')].map(t => t.textContent).filter(t => /^PV .* · BATT /.test(t));
+    toggleUtil(); derSet('ninv', 1); battOn = false; render(); return { a: [a.inv, a.pv, a.toMain, a.pvU.slice(1, 3)], b: [b.inv, b.pv, b.batt, b.toMain], kw }; });
+  expect(r.a).toEqual(['stranded', 0, 0, [0, 0]]);
+  expect(r.b).toEqual(['stranded', 6, 6, 0]);
+  expect(r.kw).toEqual(['PV 4.0 kW · BATT +4.0 kW', 'PV 2.0 kW · BATT +2.0 kW']);
+  expect(errs).toEqual([]);
+});
+
+test('generator on the GEN port with parallel inverters lands on every unit (gen panel) and the box clears the left controls', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => { solarOn = true; battOn = true; battMode = 'partial'; sunMode = 'night'; derSet('invkw', 15); derSet('ninv', 3); nBat = 5; derSoc = 10;
+    if (!GEN) document.getElementById('genBtn').click(); derSet('gstart', 'batt'); if (!utilOff) toggleUtil(); igSt = 'run'; render();
+    const T = [...document.querySelectorAll('#svg text')].map(t => t.textContent);
+    const g = [...document.querySelectorAll('#svg text')].find(t => t.textContent.startsWith('GENERATOR →')).getBoundingClientRect();
+    const ctl = [...document.querySelectorAll('#svg text')].filter(t => t.textContent === 'GRID CHARGING · OFF' || t.textContent === 'GRID CHARGING · ON')[0].getBoundingClientRect();
+    const out = { t: T.filter(x => /GENERATOR →|feeds #1|multi-tap|ON GENERATOR/.test(x)), clear: g.left > ctl.right };
+    igReset(); toggleUtil(); document.getElementById('genBtn').click(); derSet('ninv', 1); battOn = false; battMode = 'whole'; render(); return out; });
+  expect(r.t).toContain('GENERATOR → 3 GEN PORTS'); expect(r.t).toContain('feeds #1 · #2 · #3 (one J-box)'); expect(r.t.some(x => x.startsWith('multi-tap: 1 in · 3 out'))).toBe(true);
+  expect(r.t.filter(x => x === 'ON GENERATOR').length).toBe(3); expect(r.clear).toBe(true);
+  expect(errs).toEqual([]);
+});
