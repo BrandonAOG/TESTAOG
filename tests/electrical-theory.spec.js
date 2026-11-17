@@ -52,7 +52,7 @@ test('tapping a load opens its menu: range offers L2 ↔ N, A/C has no polarity'
   await tap('Range');
   await expect(page.locator('#ckMenu')).toContainText('L2 ↔ N');
   await page.locator('#ckX').click();
-  await tap('A/C condenser');
+  await tap('A/C condenser 1');
   await expect(page.locator('#ckMenu')).toContainText('n/a');
 });
 
@@ -330,6 +330,7 @@ test('transformer windings: voltages to ground, bonding and fault behaviour per 
 });
 
 test('transformer: every winding / bond / first-disconnect combination draws and faults without errors', async ({ page }) => {
+  test.setTimeout(240000);   // dozens of full redraws
   const errs = await open(page, '/electrical-theory/');
   for (const sys of ['v480', 'v208']) {
     await page.evaluate(s => { document.querySelector(`[data-sys="${s}"]`).click(); if (!xfActive()) document.getElementById('xfBtn').click(); }, sys);
@@ -384,7 +385,7 @@ test('solar + battery: grid-tied export, anti-islanding, whole-home and backup-p
     derSet('mode', 'partial'); D = S(); out.partial = [D.inv, D.mainLive, D.backLive];
     derSet('soc', 0); D = S(); out.empty = [D.inv, D.backLive];
     return out; });
-  expect(r.solarDay).toEqual(['grid', 6, -6.4]);   // 6 kW of solar under a ~12.4 kW house: it imports the rest
+  expect(r.solarDay).toEqual(['grid', 6, -27.6]);   // 6 kW of solar under a ~33.6 kW house: it imports the rest
   expect(r.solarOutage).toEqual(['off', 0]);
   expect(r.whole).toEqual(['island', false, true, true]);
   expect(r.partial).toEqual(['island', false, true]);
@@ -443,8 +444,8 @@ test('house load is realistic, follows the breakers, and the EMS sheds big loads
     emsOn = true; battMode = 'partial'; render(); const bAll = -derState().batt; buOff[2] = 1; render(); const bSome = -derState().batt;
     buOff = {}; battMode = 'whole'; utilOff = false; render(); return { all, noAC, ems, off, bAll, bSome };
   });
-  expect(r.all).toBeGreaterThan(11); expect(r.all).toBeLessThan(14);
-  expect(r.all - r.noAC).toBeCloseTo(2.5, 1);
+  expect(r.all).toBeGreaterThan(33); expect(r.all).toBeLessThan(35);
+  expect(r.all - r.noAC).toBeCloseTo(3.0, 1);
   expect(r.ems).toEqual(['island', true, true]);
   expect(r.off).toEqual(['overload', false]);
   expect(r.bSome).toBeLessThan(r.bAll - 0.5);
@@ -511,8 +512,8 @@ test('inverter size and parallel units: capacity adds up, it stays legal by defa
     derSet('ninv', 3); o.three = st();
     derSet('invkw', 11.5); derSet('ninv', 1); o.pw3 = st();
     derSet('invkw', 7.6); derSet('ninv', 1); derSet('conn', 'bus'); nBat = 1; utilOff = false; render(); return o; });
-  expect(r.one).toEqual([7.6, 40, 'bus', 200, true, true, 4.2]);
-  expect(r.two).toEqual([15.2, 80, 'derate', 150, true, false, 12.4]);   // legal: 150 A main + 80 A ≤ 240 A, and 3 batteries + 2 inverters carry the 12.4 kW house
+  expect(r.one).toEqual([7.6, 40, 'bus', 200, true, true, 4]);   // one 5 kW battery: the EMS sheds every big load, 4 kW left
+  expect(r.two).toEqual([15.2, 80, 'derate', 150, true, true, 11.1]);   // legal: 150 A main + 80 A ≤ 240 A; 3 batteries + 2 inverters carry 11.1 kW of the 33.6 kW house, the EMS sheds the rest
   expect(r.illegal.slice(2, 5)).toEqual(['bus', 200, false]); expect(r.msg).toBe(true);
   expect(r.three.slice(2, 5)).toEqual(['svc', 200, true]);   // 3 × 7.6 kW needs 125 A — even a 100 A main won't do, so it goes to the supply-side tap
   expect(r.pw3.slice(1, 5)).toEqual([60, 'derate', 175, true]);
@@ -647,5 +648,133 @@ test('generator on the GEN port with parallel inverters lands on every unit (gen
     igReset(); toggleUtil(); document.getElementById('genBtn').click(); derSet('ninv', 1); battOn = false; battMode = 'whole'; render(); return out; });
   expect(r.t).toContain('GENERATOR → 3 GEN PORTS'); expect(r.t).toContain('feeds #1 · #2 · #3 (one J-box)'); expect(r.t.some(x => x.startsWith('multi-tap: 1 in · 3 out'))).toBe(true);
   expect(r.t.filter(x => x === 'ON GENERATOR').length).toBe(3); expect(r.clear).toBe(true);
+  expect(errs).toEqual([]);
+});
+
+test('400 A service: meter-main / two disconnects / illegal shared compartment, Panel B takes the big loads and has its own 200 A disconnect', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => { const T = () => [...document.querySelectorAll('#svg text')].map(t => t.textContent);
+    const V = (a, b) => { probePick = [a, b]; const v = voltBetween(a, b); probePick = []; return v; };
+    s4Set('mm'); const mm = T(), kwA = meterKW0(), kw = meterKW(), msgMM = document.getElementById('readout').innerHTML;
+    const ev = mm.filter(t => t === 'EV charger').length, vB = V('PB:L1', 'PB:L2'), vA = V('SD:L1', 'SD:L2');
+    b4Brk(); const vBoff = V('PB:L1', 'PB:L2'), vAon = V('SD:L1', 'SD:L2'), kwOff = meterKW(); b4Brk();
+    s4Set('dual'); const du = T(); s4Set('bad'); const bad = T(), msgBad = document.getElementById('readout').innerHTML;
+    s4Set('mm'); toggleUtil(); const vOut = V('PB:L1', 'PB:L2'); toggleUtil();
+    s4Set(null); const off = T();
+    return { mm: mm.includes('400 A METER-MAIN · CLASS 320'), pb: mm.includes('PANEL B (LOAD CENTER) · big loads'), ev, kwA, kw, vB, vA, vBoff, vAon, kwOff,
+      du: du.includes('DISCONNECT B · 200 A → PANEL B'), bad: bad.includes('⚠ 400 A · 2 BREAKERS IN ONE COMPARTMENT'), msgMM: /230\.71\(B\)/.test(msgMM) && /400 kcmil Cu/.test(msgMM), msgBad: /NOT ALLOWED/.test(msgBad), vOut, off: off.includes('PANEL B (LOAD CENTER) · big loads') }; });
+  expect(r.mm).toBe(true); expect(r.pb).toBe(true); expect(r.ev).toBe(1);
+  expect(r.kw).toBeGreaterThan(r.kwA + 10); expect(r.vB).toBe(240); expect(r.vA).toBe(240);
+  expect(r.vBoff).toBe(0); expect(r.vAon).toBe(240); expect(r.kwOff).toBeCloseTo(r.kwA, 1);
+  expect(r.du).toBe(true); expect(r.bad).toBe(true); expect(r.msgMM).toBe(true); expect(r.msgBad).toBe(true);
+  expect(r.vOut).toBe(0); expect(r.off).toBe(false);
+  expect(errs).toEqual([]);
+});
+
+test('400 A with a generator: two 200 A service-rated ATSs, the generator passes through ATS A to ATS B, Panel B transfers and sheds its big loads', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(async () => { GSPEED = 50; s4Set('mm'); document.getElementById('genBtn').click(); render();
+    const T = () => [...document.querySelectorAll('#svg text')].map(t => t.textContent);
+    const a = T(); toggleUtil(); await new Promise(res => setTimeout(res, 5000)); render();
+    const b = T(), live = b4Live(), onG = b4Gen(), shed = b4Shed(1); const ev0 = B4_LDS[0].kw; B4_LDS[0].kw = 40; const shedOver = b4Shed(1) && genLoad().kw <= GEN_KW; B4_LDS[0].kw = ev0; const v = voltBetween('PB:L1', 'PB:L2'), mk = meterKW(), rows = b.filter(t => t === '42').length;
+    toggleUtil(); genReset(); document.getElementById('genBtn').click(); s4Set(null); return { ats: a.includes('ATS B · ') && a.includes('BREAKER B'), pt: a.some(t => t.startsWith('▲ GEN PASS-THROUGH')) && a.some(t => t.startsWith('L1 · L2 · N · EGC together')) && a.includes('N · G bars'), live, onG, shed, v, mk, shedOver, shedTxt: b.filter(t => t === 'LOAD-MANAGED · ON').length, rows }; });
+  expect(r.ats).toBe(true); expect(r.pt).toBe(true); expect(r.live).toBe(true); expect(r.onG).toBe(true); expect(r.shed).toBe(false); expect(r.shedOver).toBe(true);
+  expect(r.v).toBe(240); expect(r.mk).toBe(0); expect(r.shedTxt).toBe(5);   // 46.2 kW after air handler 1 sheds (52.2 kW wanted) — every Panel B managed load stays on expect(r.rows).toBeGreaterThanOrEqual(2);
+  expect(errs).toEqual([]);
+});
+
+test('400 A Panel B has its own MAIN LUGS ⇄ MAIN BREAKER, illegal bond and feeder EGC controls', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => { s4Set('mm'); const T = () => [...document.querySelectorAll('#svg text')].map(t => t.textContent);
+    b4Ctl('mlo'); const t1 = T(); b4Ctl('main'); const a = [b4Feed(), b4Live(), b4KW()]; b4Ctl('main'); b4Ctl('mlo');
+    b4Ctl('bond'); const t2 = T(); b4Ctl('bond'); b4Ctl('egc', 'broken'); b4FaultAt(1); const m = ckMsg, stuck = !b4C[1]; b4Clear(); b4Ctl('egc', 'intact'); s4Set(null);
+    return { main: t1.includes('MAIN 200 A'), a, bond: t2.some(t => t.startsWith('⚠ N–G BONDED HERE')), m: m.includes('EGC OPEN'), stuck }; });
+  expect(r.main).toBe(true); expect(r.a).toEqual([true, false, 0]); expect(r.bond).toBe(true); expect(r.m).toBe(true); expect(r.stuck).toBe(true);
+  expect(errs).toEqual([]);
+});
+
+test('400 A + generator with a switched-neutral ATS: ATS B switches its neutral too; meter-main ATSs are separate enclosures', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(async () => { GSPEED = 50; s4Set('mm'); document.getElementById('genBtn').click(); document.querySelector('[data-atsn="switched"]').click(); render();
+    const T = () => [...document.querySelectorAll('#svg text')].map(t => t.textContent); const a = T();
+    toggleUtil(); await new Promise(res => setTimeout(res, 5000)); render(); const v = voltBetween('PB:L1', 'PB:L2');
+    toggleUtil(); genReset(); document.querySelector('[data-atsn="solid"]').click(); document.getElementById('genBtn').click(); s4Set(null);
+    return { pole: a.includes('N pole switched'), sepA: a.includes('BREAKER A') && a.some(t => t.startsWith('ATS A')), sepB: a.includes('ATS B · '), v }; });
+  expect(r.pole).toBe(true); expect(r.sepA).toBe(true); expect(r.sepB).toBe(true); expect(r.v).toBe(240);
+  expect(errs).toEqual([]);
+});
+
+test('400 A Panel B bus type switches between BRANCH BUS and STACKED (right side flipped)', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => { s4Set('mm'); const T = () => [...document.querySelectorAll('#svg text')].map(t => t.textContent);
+    const a = T().includes('BRANCH BUS'); b4Ctl('stk'); const b = T().includes('STACKED · R L2-L1'); b4Ctl('stk'); s4Set(null); return { a, b }; });
+  expect(r.a).toBe(true); expect(r.b).toBe(true); expect(errs).toEqual([]);
+});
+
+test('400 A Panel B loads open the same circuit menu (fault · EGC · polarity · breaker type) and the breaker type changes how a fault clears', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(() => { s4Set('mm'); openCkMenu('Q', 2, { clientX: 100, clientY: 100 }); const m = document.getElementById('ckMenu').innerText; ckMenuClose();
+    const req = protOf('Q', 2); prot['Q:2'] = 'std'; render(); const short = protShort('Q', 2); const t = [...document.querySelectorAll('#svg text')].some(x => / · NO GFCI/.test(x.textContent));
+    faultType = 'LG'; b4FaultAt(2); const msgStd = ckMsg; b4Clear(); delete prot['Q:2']; b4FaultAt(2); const msgGf = ckMsg; b4Clear(); s4Set(null);
+    return { menu: /680\.44\(A\)/.test(m) && /POLARITY/.test(m), req, short, t, msgStd: /magnetic/.test(msgStd), msgGf: /GFCI/.test(msgGf) }; });
+  expect(r.menu).toBe(true); expect(r.req).toBe('gfci'); expect(r.short).toBe('GFCI'); expect(r.t).toBe(true); expect(r.msgStd).toBe(true); expect(r.msgGf).toBe(true);
+  expect(errs).toEqual([]);
+});
+
+test('generator controller: weekly exercise Friday 12:00 PM runs unloaded, then stops; load shed only when the generator would be overloaded', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.clock.install({ time: new Date(2026, 10, 20, 12, 5, 0) });
+  await page.goto('/electrical-theory/');
+  await page.evaluate(() => { document.getElementById('genBtn').click(); render(); });
+  await page.clock.runFor(3000);
+  const a = await page.evaluate(() => ({ GST, gExer, SRC, pg: genDispPages()[0][0], txt: [...document.querySelectorAll('#svg text')].some(t => t.textContent === 'EXERCISE') }));
+  expect(a).toEqual({ GST: 'run', gExer: true, SRC: 'util', pg: 'EXERCISING', txt: true });
+  await page.clock.fastForward(8 * 60000); await page.clock.runFor(2500);
+  const b = await page.evaluate(() => ({ GST, gExer, pages: genDispPages().map(p => p[0]) }));
+  expect(b.GST).toBe('off'); expect(b.gExer).toBe(false);
+  expect(b.pages).toEqual(['GEN VOLTS', 'GEN AMPS', 'POWER', 'EXERCISE', 'ENGINE', 'LOAD SHED', 'STATUS']);
+  expect(errs).toEqual([]);
+});
+
+test('generator size cycles 22–48 kW; too small after load shedding → overload alarm, then its output breaker trips', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(async () => { GSPEED = 8; document.getElementById('genBtn').click(); render(); const sizes = [];
+    for (let i = 0; i < 7; i++) { genSize(); sizes.push(GEN_KW + ':' + genAmps()); }
+    s4Set('mm'); GEN_KW = 22; const gs0 = GEN_SHED.slice(); GEN_SHED = ['B9']; render(); toggleUtil(); await new Promise(res => setTimeout(res, 2500));
+    const mid = { ovl: !!gOvl0, shed: genShedSet().length }; await new Promise(res => setTimeout(res, 2500));
+    const end = { brk: genBrkOff, note: document.getElementById('readout').textContent.includes('TRIPPED') };
+    toggleUtil(); genReset(); GEN_KW = 48; GEN_SHED = gs0; s4Set(null); return { sizes, mid, end }; });
+  expect(r.sizes).toEqual(['22:100', '24:100', '26:110', '28:125', '32:150', '40:175', '48:200']);
+  expect(r.mid).toEqual({ ovl: true, shed: 1 });   // only air handler 2 managed here: shedding it is not enough on 22 kW
+  expect(r.end).toEqual({ brk: true, note: true });
+  expect(errs).toEqual([]);
+});
+
+test('load shed demo: tapping a shed load forces it on — the next managed loads shed instead; tap again to release', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(async () => { GSPEED = 50; s4Set('mm'); document.getElementById('genBtn').click(); render(); toggleUtil(); await new Promise(res => setTimeout(res, 5000));
+    const a = genShedSet().slice(); genForceTog('A22'); const b = genShedSet().slice(), kw = genLoad().kw; genForceTog('A22'); const c = genShedSet().slice();
+    toggleUtil(); genReset(); s4Set(null); return { a, b, kw, c }; });
+  expect(r.a).toEqual(['A22']); expect(r.b[0]).toBe('A13'); expect(r.b).not.toContain('A22'); expect(r.kw).toBeLessThanOrEqual(48); expect(r.c).toEqual(['A22']);
+  expect(errs).toEqual([]);
+});
+
+test('400 A: a fault on the Panel B feeder trips breaker B on utility, the generator breaker on generator', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('/electrical-theory/');
+  const r = await page.evaluate(async () => { s4Set('mm'); faultType = 'LG'; b4FdrFault('L1'); const ff = b4FF; await new Promise(res => setTimeout(res, 1200)); const util = b4Off; b4Brk();
+    faultType = 'NG'; b4FdrFault('L1'); const ng = b4Off; faultType = 'LG';
+    GSPEED = 50; document.getElementById('genBtn').click(); render(); toggleUtil(); await new Promise(res => setTimeout(res, 5500));
+    b4FdrFault('L2'); await new Promise(res => setTimeout(res, 1300)); const gen = { gb: genBrkOff, b4: b4Off };
+    toggleUtil(); genReset(); document.getElementById('genBtn').click(); s4Set(null); return { ff, util, ng, gen }; });
+  expect(r).toEqual({ ff: 'L1', util: true, ng: false, gen: { gb: true, b4: false } });
   expect(errs).toEqual([]);
 });
