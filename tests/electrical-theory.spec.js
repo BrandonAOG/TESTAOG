@@ -26,6 +26,29 @@ test('branch bus: 1 and 2 share a phase · stacked bus: the right side is revers
   expect(r).toEqual({ branch: ['L1', 'L1', 'L2', 'L2'], stacked: ['L1', 'L2', 'L2', 'L1'], stacked3: ['C', 'B', 'A'] });
 });
 
+test('dock panel: GFPE trips the feeder on a fault into the water; without it the water stays energized; fed from Panel A or B at 400 A', async ({ page }) => {
+  expect(await open(page, '/electrical-theory/')).toEqual([]);
+  const r = await page.evaluate(async () => { const w = ms => new Promise(res => setTimeout(res, ms)), out = {};
+    document.getElementById('dockBtn').click(); out.feeder = aDemo()[40].dock === true; out.mwbc = aDemo()[36].n; out.kwA = +(mainKW() - 0).toFixed(2);
+    faultType = 'LG'; prot['K:0'] = 'std'; ckEgc['K:0'] = 'broken'; dockFaultAt(0); await w(1000);
+    out.gfpeTrip = !isOn(40) && /GFPE TRIPPED/.test(document.getElementById('readout').innerText);
+    clearFault(); delete offCkts[MODE + ':40']; render(); SB.K.gfpe = false; prot['K:0'] = 'std'; ckEgc['K:0'] = 'broken'; dockFaultAt(0); await w(1000);
+    out.wet = SB.K.wet; out.stillOn = isOn(40); out.vG = voltBetween('K:G', 'N');
+    clearFault(); SB.K.gfpe = true; delete prot['K:0']; delete ckEgc['K:0'];
+    out.shore = protOf('K', 1); dockFaultAt(1); await w(800); out.shoreOff = !!SB.K.off[1];
+    clearFault(); document.querySelector('#svcGrp [data-svc="400"]').click(); out.baseboard = aDemo()[30].n;
+    const a0 = mainKW(), b0 = b4KW(); subSrc('K', 'B'); out.movedA = +(a0 - mainKW()).toFixed(2); out.movedB = +(b4KW() - b0).toFixed(2); out.inA = !!aDemo()[40].dock;
+    faultType = 'LG'; subFdrB('K', 0); await w(800); out.bTrip = !!b4C[39];
+    return out; });
+  expect(r.feeder).toBe(true); expect(r.mwbc).toBe('Kitchen MWBC');
+  expect(r.gfpeTrip).toBe(true);
+  expect(r.wet).toBe(1); expect(r.stillOn).toBe(true); expect(r.vG).toBeGreaterThan(100);
+  expect(r.shore).toBe('gfpe'); expect(r.shoreOff).toBe(true);
+  expect(r.baseboard).toBe('Baseboard heat');
+  expect(r.movedA).toBeCloseTo(6.45, 1); expect(r.movedB).toBeCloseTo(6.45, 1); expect(r.inA).toBe(false);
+  expect(r.bTrip).toBe(true);
+});
+
 test('pool feeder fault with the pool EGC broken does not trip the 100 A breaker', async ({ page }) => {
   expect(await open(page, '/electrical-theory/')).toEqual([]);
   await page.evaluate(() => { document.getElementById('poolBtn').click(); poolEgcSet('broken'); poolFdrK = 0; applyFault(2); });

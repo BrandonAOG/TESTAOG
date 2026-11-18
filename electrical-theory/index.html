@@ -131,7 +131,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .swbtn{background:none;border:0;color:var(--txt);font-family:'Exo 2',sans-serif;font-size:13px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;}
   .swbtn::after{content:'';width:34px;height:18px;border-radius:9px;background:radial-gradient(circle at 9px 50%,#8695b5 6px,transparent 6.5px),#2b3a5e;transition:background .15s;}
   .swbtn.on::after{background:radial-gradient(circle at 25px 50%,var(--accent) 6px,transparent 6.5px),rgba(0,255,200,.3);}
-  @media (max-width:640px){ .srow{grid-template-columns:1fr;gap:6px;} .slab.sub{padding-left:0;} .srow .grp:not([style*="none"]){grid-template-columns:repeat(auto-fit,minmax(88px,1fr)) !important;} .eqrow .toggle{min-width:66px;padding:8px 4px;} }
+  @media (max-width:640px){ .srow{grid-template-columns:1fr;gap:6px;} .slab.sub{padding-left:0;} .srow .grp:not([style*="none"]){grid-template-columns:repeat(auto-fit,minmax(88px,1fr)) !important;} .eqrow .toggle{flex:1 1 30%;min-width:0;padding:8px 4px;} }
   /* chips — same as Electrical Formulas' .toggle-opt */
   .grp[style*="none"]{display:none !important;}
   .grp:not([style*="none"]){display:grid !important;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px;border:0 !important;overflow:visible !important;}
@@ -193,7 +193,7 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
         <button class="toggle" id="genBtn" title="120/240 V, 208Y/120 V, 480Y/277 V or 120/240 V high-leg delta">Generator</button>
         <button class="toggle" id="solarBtn" title="120/240 V single-phase (residential)">Solar</button>
         <button class="toggle" id="battBtn" title="120/240 V single-phase (residential)">Battery</button>
-        <button class="toggle" id="poolBtn" title="120/240 V single-phase only">Pool panel</button>
+        <button class="toggle" id="poolBtn" title="120/240 V single-phase only">Pool panel</button><button class="toggle" id="dockBtn" title="120/240 V single-phase only">Dock panel</button>
         <button class="toggle" id="xfBtn" title="480Y/277 V (step-down) or 208Y/120 V (step-up)">Transformer</button>
       </div></div>
     <div class="srow" id="atsRow" style="display:none"><div class="slab sub">ATS neutral</div>
@@ -382,7 +382,7 @@ function buKW(){ return BU_LDS.reduce(function(t,L){ return t+((buOff[L.s]||derF
 /* ===================== BREAKER TYPE: standard · GFCI · AFCI · dual-function (NEC 2023, dwelling) =====================
    Default = what the code requires for that circuit. Change it from the equipment menu to see what a plain breaker misses. */
 var prot={}, protBy=null;
-var PROT_LBL={std:'STANDARD',gfci:'GFCI',afci:'AFCI',df:'DUAL (AFCI + GFCI)'}, PROT_TAG={gfci:'GF',afci:'AF',df:'DF'}, PROT_COL={std:'#9fb0d6',gfci:'#5fd4ff',afci:'#ffb35c',df:'#c69bff'};
+var PROT_LBL={std:'STANDARD',gfci:'GFCI',afci:'AFCI',df:'DUAL (AFCI + GFCI)',gfpe:'GFPE (equipment ground-fault)'}, PROT_TAG={gfci:'GF',afci:'AF',df:'DF',gfpe:'GFPE'}, PROT_COL={std:'#9fb0d6',gfci:'#5fd4ff',afci:'#ffb35c',df:'#c69bff',gfpe:'#7fe0c9'};
 var PROT_REQ={
   M:{1:['afci','210.12(B)(4) — living room'],2:['afci','210.12(B)(8) — bedrooms'],3:['df','210.8(A)(6) kitchen receptacles + 210.12(B)(1) kitchen'],4:['df','210.8(A)(6) kitchen receptacles + 210.12(B)(1) kitchen'],
      5:['gfci','210.8(D)(8) — electric range (a 2-pole GFCI)'],6:['df','210.8(D)(7) dishwasher + 210.12(B)(1) kitchen'],8:['df','210.8(A)(6) kitchen + 210.8(A)(8) within 6 ft of the sink — the disposal plugs into a receptacle under the sink — and 210.12(B)(1) kitchen. (Hardwired with no receptacle, AFCI alone would do.)'],
@@ -410,16 +410,22 @@ var PROT_REQ={
   Q:{1:['std','hardwired EVSE has its own listed personnel protection (625.22). A receptacle for EV charging must be GFCI (625.54)'],5:['gfci','210.8(F) — outdoor heat pump (the listed-HVAC exception expired Sept 1, 2026)'],9:['std','indoor 240 V air handler — 210.12 covers only 120 V circuits'],13:['std','hardwired shop compressor — not a receptacle outlet'],
      2:['gfci','680.44(A) — the outlet supplying a spa or hot tub (a 2-pole, 4-wire GFCI)'],6:['gfci','210.8(A)(2) — garage / shop. It covers 125–250 V receptacles, so a 240 V welder receptacle needs a 2-pole GFCI'],10:['gfci','210.8(A)(2) — garage / accessory building receptacles'],12:['std','shop lighting — garages aren\'t a 210.12 AFCI area'],14:['gfci','210.8(A)(2) — garage (ceiling opener receptacle)'],
      17:['gfci','210.8(F) — outdoor unit (HVAC exception expired Sept 1, 2026)'],16:['gfci','210.8(A)(3) — outdoors'],18:['gfci','210.8(A)(3) — outdoor receptacle for the generator block heater / battery charger'],21:['std','hardwired 240 V sauna heater — follow its listing (no 210.8 / 210.12 location)']},
-  P:{0:['gfci','680.21(C) — pool pump motor'],1:['std','pool heater / heat pump — no GFCI rule in this demo'],2:['gfci','680.23(A)(3) — underwater luminaire'],3:['std','salt cell / automation — follow the listing'],4:['gfci','680.22(A)(4) — receptacle near the pool']} };
-function protId(kind,id){ if(kind==='M'&&poolOn&&MODE==='single'){ if(id===2||id===4) return -1; if(id===26)return 2; if(id===28)return 4; } return id; }   // -1: the 100 A pool feeder breaker (no GFCI/AFCI)
+  P:{0:['gfci','680.21(C) — pool pump motor'],1:['gfci','210.8(F) — an outdoor outlet on a dwelling, 240 V single-phase (150 V to ground) and 50 A or less, so it needs a 2-pole GFCI. 680.10 has no GFCI rule of its own, but 680.5(A) says Article 680 adds to 210.8, it doesn\'t replace it. The listed-HVAC exception expired Sept 1, 2026. (A heater on a breaker over 50 A falls outside 210.8(F).)'],2:['gfci','680.23(A)(3) — underwater luminaire'],3:['gfci','210.8(F) — the salt cell and automation controller sit outdoors at the equipment pad: an outdoor outlet on a dwelling, 120 V and 50 A or less, so GFCI (680.5(A) — Article 680 adds to 210.8)'],4:['gfci','680.22(A)(4) — receptacle near the pool']},
+  K:{0:['gfci','555.35(C) — outlets up to 240 V that supply a boat hoist need GFCI (a 2-pole GFCI here)'],1:['gfpe','555.35(B)(1) — shore power receptacles need listed GFPE of not more than 30 mA. Each one is on its own branch circuit (555.33(A)(3)) with a disconnect within 30 in. of it (555.36)'],2:['gfci','555.35(C) — boat hoist (PWC lift)'],3:['gfci','555.35(B)(2) — outlets other than shore power, 150 V or less to ground: GFCI. (A listed low-voltage power supply per 680.23(A)(2) is the exception)'],4:['gfci','555.35(B)(2) — dock lighting outlets'],5:['gfci','555.35(B)(2) — dock receptacles'],6:['gfci','555.35(B)(2) — fish-cleaning station']} };
+function protId(kind,id){ if(kind==='M'&&MODE==='single') return aOrig(id); return id; }   // -1: the 100 A pool feeder breaker (no GFCI/AFCI) · -2: the dock feeder breaker (GFPE)
 function protOK(kind){ return true; }
 function protTbl(kind){ return kind==='M'?(MODE==='single'?PROT_REQ.M:PROT_REQ['M_'+SYS[MODE].demo]):PROT_REQ[kind]; }
 function protKey(kind,id){ return kind+':'+(kind==='M'&&MODE!=='single'?MODE+':':'')+protId(kind,id); }
 function protReq(kind,id){ var t=protTbl(kind), r=t&&t[protId(kind,id)]; return r?{need:r[0],why:r[1]}:null; }
-function protOf(kind,id){ if(protId(kind,id)===-1) return 'std'; var k=protKey(kind,id); if(prot[k]) return prot[k]; var r=protReq(kind,id); return r?r.need:'std'; }
+function protOf(kind,id){ if(protId(kind,id)===-1) return 'std'; if(protId(kind,id)===-2||(kind==='Q'&&subB('K')&&id===SUBB.K.s)) return SB.K.gfpe?'gfpe':'std'; if(kind==='Q'&&subB('P')&&id===SUBB.P.s) return 'std'; var k=protKey(kind,id); if(prot[k]) return prot[k]; var r=protReq(kind,id); return r?r.need:'std'; }
 function protGF(p){ return p==='gfci'||p==='df'; } function protAF(p){ return p==='afci'||p==='df'; }
-function protShort(kind,id){ var r=protReq(kind,id), p=protOf(kind,id), m=[]; if(!r) return ''; if(protGF(r.need)&&!protGF(p)) m.push('GFCI'); if(protAF(r.need)&&!protAF(p)) m.push('AFCI'); return m.join(' + '); }
+function protShort(kind,id){ var r=protReq(kind,id), p=protOf(kind,id), m=[]; if(!r) return ''; if(protGF(r.need)&&!protGF(p)) m.push('GFCI'); if(r.need==='gfpe'&&p!=='gfpe'&&!protGF(p)) m.push('GFPE'); if(protAF(r.need)&&!protAF(p)) m.push('AFCI'); return m.join(' + '); }
 function protTrip(kind,id,ft,nm,egc){ var p=protOf(kind,id), gf=protGF(p), af=protAF(p);
+  if(p==='gfpe'&&(ft==='LG'||ft==='NG')){ var mA=kind==='K'?30:100, fd=kind!=='K';
+    return {by:'GFPE', now:ft==='LG'
+      ?'<b style="color:#ff8a8a">GROUND FAULT · '+nm+'</b> — this breaker has <b>GFPE</b> (ground-fault protection of equipment): it adds up the current going out and coming back, and at <b>'+mA+' mA</b> of difference it trips ('+(fd?'555.35(A) — feeders on a dock':'555.35(B)(1) — shore power')+'). That is far above a GFCI\'s 4–6 mA, so it is not people protection — '+(fd?'it is there to shut the whole dock down before stray current can sit in the water around it.':'a boat\'s normal leakage would nuisance-trip a 5 mA GFCI, so the code uses 30 mA for shore power.')+(egc==='broken'?' It trips <b>even with the EGC open</b> — it only needs the current that went missing.':'')
+      :'<b style="color:#ff8a8a">NEUTRAL–GROUND FAULT · '+nm+'</b> — the neutral touches ground past the <b>GFPE</b> sensor, so part of the neutral current comes home on the EGC instead. The sensor sees the out/back currents stop matching and trips at '+mA+' mA.',
+    done:'the <b>GFPE</b> tripped on '+mA+' mA of ground-fault current'+(fd?' and took the whole dock feeder off.':'.')}; }
   if(ft==='LG'&&(gf||af)) return {by:gf?'GFCI':'AFCI', now:gf
       ?'<b style="color:#ff8a8a">GROUND FAULT · '+nm+'</b> — the <b>GFCI</b> compares the current going out on the hot with what comes back on the neutral'+(p==='df'?' (this dual-function breaker does both jobs)':'')+'. The fault current goes home on the EGC instead, so the two don\'t match. At about <b>4–6 mA</b> of difference it trips in a fraction of a second, long before the breaker\'s overcurrent part would.'+(egc==='broken'?' <b>The EGC is open and it still trips</b> — a GFCI doesn\'t need the EGC; any current that doesn\'t come back, through earth or through a person, trips it.':'')
       :'<b style="color:#ff8a8a">GROUND FAULT · '+nm+'</b> — most AFCI breakers sold today also sense ground faults at about <b>30–50 mA</b>. That protects equipment and wiring, <b>not people</b> (a GFCI trips at 4–6 mA), but it opens this circuit fast'+(egc==='broken'?', even with the EGC open':'')+'.',
@@ -434,9 +440,9 @@ function protTrip(kind,id,ft,nm,egc){ var p=protOf(kind,id), gf=protGF(p), af=pr
 function protArcMsg(nm,p){ return '<b style="color:#ffb35c">ARC FAULT · '+nm+' — NOT TRIPPING</b> — a loose terminal / damaged cord is arcing. The current is only the normal load current (a few amps), far below the breaker\'s trip point, so a '+(p==='gfci'?'<b>GFCI</b> (it only watches out-vs-back current) ':'<b>standard</b> breaker ')+'never sees it. The connection keeps arcing and heating — this is how a lot of house fires start. That\'s the job of an <b>AFCI</b> (210.12).'; }
 function protNgMsg(nm){ return '<b style="color:#ff8a8a">NEUTRAL–GROUND FAULT · '+nm+'</b> — not an overcurrent, so a <b>standard</b> breaker never trips. Some of the neutral current now rides the EGC and the grounding system (objectionable current, 250.6) and keeps doing it. A GFCI — or an AFCI with ground-fault sensing — would have tripped.'; }
 function fitSz(t,w,mx){ return Math.max(7,Math.min(mx,(w-8)/(Math.max(1,String(t).length)*0.56))); }   // largest font that still fits the box
-function protTagTxt(kind,id){ var sh=protShort(kind,id), p=protOf(kind,id); return sh?' · NO '+sh:(p==='std'?'':' · '+PROT_TAG[p].replace('GF','GFCI').replace('AF','AFCI').replace('DF','AFCI+GFCI')); }
+function protTagTxt(kind,id){ var sh=protShort(kind,id), p=protOf(kind,id); if(!sh&&p==='gfpe') return ' · GFPE 30 mA'; return sh?' · NO '+sh:(p==='std'?'':' · '+PROT_TAG[p].replace('GF','GFCI').replace('AF','AFCI').replace('DF','AFCI+GFCI')); }
 function protChip(svg,cx,y,p,sh){ if(sh){ svg.appendChild(el('rect',{x:cx-9,y:y,width:18,height:10,rx:2,fill:'#5a1a1f',stroke:'#ff6b6b','stroke-width':0.8})); svg.appendChild(txt(cx,y+7.8,'!',{anchor:'middle',size:8,w:700,fill:'#ff8a8a'})); return; }
-  if(p==='std') return; svg.appendChild(el('rect',{x:cx-9,y:y,width:18,height:10,rx:2,fill:PROT_COL[p]})); svg.appendChild(txt(cx,y+7.6,PROT_TAG[p],{anchor:'middle',size:6.8,w:700,fill:LIGHT?'#fff':'#0b1020'})); }
+  if(p==='std') return; var cw=p==='gfpe'?21:18; svg.appendChild(el('rect',{x:cx-cw/2,y:y,width:cw,height:10,rx:2,fill:PROT_COL[p]})); svg.appendChild(txt(cx,y+7.6,PROT_TAG[p],{anchor:'middle',size:p==='gfpe'?5.8:6.8,w:700,fill:LIGHT?'#fff':'#0b1020'})); }
 /* ===== utility meter display: cycles every 5.5 s like a real AMI meter ===== */
 var mtrIdx=0, mtrDel=18432.0, mtrRec=2150.0, mtrT=Date.now();
 function meterKW(){ return Math.round((meterKW0()+(b4Gen()?0:b4KW()))*100)/100; }
@@ -455,15 +461,15 @@ function meterPaint(){ var a=document.getElementById('mtrLbl'), b=document.getEl
 setInterval(function(){ var now=Date.now(), dt=Math.min(3,(now-mtrT)/1000); mtrT=now; var kw=meterKW(), h=dt*DER_TS/60; if(kw>0) mtrDel+=kw*h; else mtrRec+=-kw*h; },1000);   // registers run on demo time (20 s = 30 min)
 setInterval(function(){ mtrIdx++; meterPaint(); },5500);
 setInterval(meterPaint,1000);
-function mainKW(){ var d=DEMO.single, t=0, pa=poolOn&&MODE==='single'; Object.keys(d).forEach(function(k){ if(b4Moved(+k)) return; var c=d[k], n=+k; if(pa&&(n===2||n===4)) n=(n===2?26:28); if(isOn(n)&&!(faultCkt===n&&tripped)) t+=(c.kw||0); });
-  if(pa&&isOn(2)&&!(faultCkt===2&&tripped)) t+=poolKW(); return t; }   // average running kW of the breakers that are ON (pool panel included)
-function poolKW(){ return POOLCKTS.reduce(function(t,c,i){ return t+(poolOff[i]?0:(c.kw||0)); },0); }   // average running kW of the breakers that are ON
+function mainKW(){ var d=aDemo(), t=0; Object.keys(d).forEach(function(k){ var c=d[k], n=+k; if(!isOn(n)||(faultCkt===n&&tripped)) return; t+=c.pool?poolKW():(c.dock?subKW('K'):(c.kw||0)); });
+  return t; }   // average running kW of the breakers that are ON (pool panel included)
+function poolKW(){ return subKW('P'); }   // average running kW of the breakers that are ON
 function mainFrac(){ var d=DEMO.single, on=0, tot=0; Object.keys(d).forEach(function(k){ if(b4Moved(+k)) return; var c=d[k], w=c.p||1; tot+=w; if(isOn(+k)&&faultCkt!==+k) on+=w; }); return tot?on/tot:1; }
 function derBuL(slot){ return BU_LDS.filter(function(x){return x.s===slot;})[0]; }
 function derFltClear(){ clearTimeout(derFltT); derFltT=null; derFlt=null; }
 function derBuFaultAt(slot){ var D=derState(), L=derBuL(slot); derFltClear(); ckMsg='';
   if(!D.backLive||buOff[slot]){ derFltMsg='<b style="color:#8fd6a3">DEAD</b> — that circuit isn\'t energized, so a fault draws no current.'; render(); return; }
-  var eg=ckEgc['B:'+slot]||buEgc, isl=D.inv==='island', bp=protOf('B',slot); derFltK=faultType;
+  var eg=egcWorst(ckEgc['B:'+slot],buEgc), isl=D.inv==='island', bp=protOf('B',slot); derFltK=faultType;
   if(faultType==='NG'&&!L.nt){ derFltMsg='<b style="color:#ffd27a">NO NEUTRAL ON '+L.n+'</b> — a straight 240 V load has no neutral to touch ground. Try Line–Ground or Arc.'; render(); return; }
   if(faultType==='ARC'||faultType==='NG'||(faultType==='LG'&&(protGF(bp)||protAF(bp)))){ var bt=protTrip('B',slot,faultType,L.n,eg); derFlt='B:'+slot;
     if(bt){ derFltMsg=bt.now+(faultType==='LG'&&isl?' <b>On battery this matters:</b> the inverter can only push about 2× its rating into a fault, so a plain breaker would take seconds — the '+bt.by+' only needs milliamps.':'');
@@ -539,7 +545,7 @@ function derState(){ sunUpd(); var S={on:derOK()}; if(!S.on) return S;
   S.shed={}; S.ovl=false; S.cap=Math.min(IK,pvA+Math.min(batKW()*nBat,IK));
   if((S.inv==='island'||(S.inv==='gen'&&S.genPort))&&battOn){ var need=whole?Lm:Lb, cap=S.inv==='island'?S.cap:IK;   // the inverter's AC output and the battery's discharge are limited
     S.needAll=need;
-    if(whole&&emsOn&&need>cap+0.01){ var sf=part?0.5:1; EMS_SHED.forEach(function(n){ if(need<=cap+0.01) return; var pl=n===2, c=pl?(poolOn&&MODE==='single'?{kw:poolKW()}:null):(b4Moved(n)?null:DEMO.single[n]); if(c&&isOn(n)&&!(faultCkt===n&&tripped)){ S.shed[n]=1; need-=c.kw*sf; } }); if(whole){ Lm=need; served=S.mainLive&&!tap?Lm:0; } S.after=need; }
+    if(whole&&emsOn&&need>cap+0.01){ var sf=part?0.5:1; EMS_SHED.forEach(function(n){ if(need<=cap+0.01) return; var pl=n===2, dn=pl?2:aSlot(n), c=pl?(subA('P')?{kw:poolKW()}:null):(dn==null?null:DEMO.single[n]); if(c&&isOn(dn)&&!(faultCkt===dn&&tripped)){ S.shed[dn]=1; need-=c.kw*sf; } }); if(whole){ Lm=need; served=S.mainLive&&!tap?Lm:0; } S.after=need; }
     if(need>cap+0.01){ S.ovl=true; S.ovlKW=need; S.inv='overload'; S.mainLive=gridBus; S.backLive=false; S.buFeedLive=false; served=0; } }
   S.pvAvail=pvA; S.pv=0; S.batt=0; S.exp=0; S.toMain=0; S.genKW=0;   // toMain: kW out of the inverter's AC terminals INTO the grid side (negative = drawing from it)
   var houseOnUtil=gridBus&&fsrc==='util'?Lm:0;
@@ -646,7 +652,7 @@ function derSet(k,v){ derFltMsg=''; derFltClear(); if(k==='dcd'){ dcDisc=v; } el
   else if(k==='buegc'){ buEgc=v; Object.keys(ckEgc).forEach(function(kk){ if(kk.indexOf('B:')===0) delete ckEgc[kk]; }); derFltMsg={intact:'<b style="color:#8fd6a3">BACKUP FEEDER EGC INTACT</b> — faults on backup circuits have a solid path home and trip fast.',loose:'<b style="color:#ffd27a">BACKUP FEEDER EGC LOOSE</b> — a high-resistance ground: fault current is choked, breakers trip slowly and frames stay energized longer. Tap a backup load to fault it.',broken:'<b style="color:#ff8a8a">BACKUP FEEDER EGC BROKEN</b> — a ground fault on any backup circuit has no way back: the breaker never trips and every frame sits near 120 V (250.4(A)(5)). Tap a backup load to fault it.'}[v]; }
   else if(k==='ubu'||k==='cbk'){ var o=k==='ubu'?buUOff:cbkOff; o[v]=!o[v]; var nb=nBu(); derFltMsg='<b style="color:#ffd27a">'+(k==='ubu'?'INVERTER #'+v+' BACKUP BREAKER':'BACKUP COMBINER BREAKER #'+v)+' '+(o[v]?'OPEN':'CLOSED')+'</b> — '+(o[v]?('inverter #'+v+' no longer feeds the backup panel. '+(nb>0?'The other '+(nb>1?nb+' inverters share':'inverter carries')+' the backup loads.':'Nothing else feeds it, so the backup panel goes dark.')):('inverter #'+v+' is back on the backup panel, sharing the load.')); } else if(k==='cmb'){ cmbOff[v]=!cmbOff[v]; } else if(k==='pvdu'){ pvDiscU[v]=!pvDiscU[v]; } else if(k==='ug'){ ugOff[v]=!ugOff[v]; } else if(k==='pri'){ battPri=v; } else if(k==='gchg'){ gridChg=!gridChg; } else if(k==='invkw'){ invKW=v; invSet(); invNote=''; invLegal(); } else if(k==='ninv'){ nInv=v; invSet(); invNote=''; invLegal(); } else if(k==='ems') emsOn=!emsOn; else if(k==='sun'){ sunMode=v===true?'day':(v===false?'night':v); sunUpd(); } else if(k==='sunCycle'){ sunMode={auto:'day',day:'night',night:'auto'}[sunMode]; sunUpd(); } else if(k==='mode'){ battMode=v; derLastSrc=null; derWaitUntil=0; } else if(k==='soc') derSoc=v; else if(k==='ac'){ derAcOff=!derAcOff; } else if(k==='conn'){ invNote=''; invAuto=false; pvConn=v; derAcOff=false; derLastSrc=null; derWaitUntil=0; } else if(k==='str') pvStr=v; else if(k==='mods'){ pvMods=v; if(pvStrOpts().indexOf(pvStr)<0||pvOverV()) pvStr={15:3,20:2,25:5,30:3,35:5,40:4}[v]; } else if(k==='nbat') nBat=v; else if(k==='rsd') rsdOff=!rsdOff; else if(k==='ess') essStop=!essStop; else if(k==='gstart'){ genStart=v; igReset(); if(v==='ats'&&genOK()&&!utilAvail()&&GST==='off'&&GMODE==='auto'){ lastSvc=false; } } else if(k==='bu'){ buOff[v]=!buOff[v]; } render(); }
 var probePick=[];
-var poolOn=false, poolOff={}, poolFault=null, poolMsg='', poolTimer=null, poolBond=false, poolEgc='intact', poolLive=false, poolGPh=-1, poolGFrac=0, poolFdrK=0;   // pool subpanel (120/240 V 1Ø only)                    // up to 2 probe nodes selected for a voltage reading
+var poolOn=false, dockOn=false, SB={P:{k:'P',off:{},fault:null,msg:'',timer:null,bond:false,egc:'intact',live:false,gPh:-1,gFrac:0,fdrK:0,src:'A'},K:{k:'K',off:{},fault:null,msg:'',timer:null,bond:false,egc:'intact',live:false,gPh:-1,gFrac:0,fdrK:0,src:'A',gfpe:true,wet:0}};   // pool subpanel (120/240 V 1Ø only)                    // up to 2 probe nodes selected for a voltage reading
 function cP(m,deg){var r=deg*Math.PI/180;return {re:m*Math.cos(r),im:m*Math.sin(r)};}
 function cSub(a,b){return {re:a.re-b.re,im:a.im-b.im};}
 function cMag(a){return Math.hypot(a.re,a.im);}
@@ -671,10 +677,10 @@ function nodeVph(id){
   if(id.indexOf('SBD:')===0){ if(b4Off||utilOff) return {re:0,im:0}; return nodeVph('SL:'+id.slice(4)); }   // breaker B load side
   if(id.indexOf('SL:')===0){ if(utilOff) return {re:0,im:0}; var sv=svcOff; svcOff=false; var vl=nodeVph(id.slice(3)); svcOff=sv; return vl; }   // LINE side of the service disconnect: always hot — only the utility can kill it
   if(id.indexOf('SD:')===0){ if(svcOff||utilOff) return {re:0,im:0}; return nodeVph('SL:'+id.slice(3)); }   // load side of the utility service breaker                                                   // LOAD side: dead when the disconnect is open
-  if(BRK[id]){ var bk=BRK[id]; if(!bk.live) return {re:0,im:0}; return nodeVph(bk.pool?('P:'+bk.ph):bk.ph); }
-  if(id.indexOf('P:')===0){ var k=id.slice(2); if(!poolLive) return (k==='G'&&poolGPh>=0)?{re:0,im:0}:{re:0,im:0};
+  if(BRK[id]){ var bk=BRK[id]; if(!bk.live) return {re:0,im:0}; return nodeVph(bk.sub?(bk.sub+':'+bk.ph):(bk.pool?('P:'+bk.ph):bk.ph)); }
+  if(id.indexOf('P:')===0||id.indexOf('K:')===0){ var SS=SB[id[0]], k=id.slice(2); if(!SS.live) return {re:0,im:0};
     if(k==='N') return {re:0,im:0};
-    if(k==='G'){ if(poolGPh<0) return {re:0,im:0}; var v=nodeVph(poolGPh?'L2':'L1'); return {re:v.re*poolGFrac,im:v.im*poolGFrac}; }
+    if(k==='G'){ if(SS.gPh<0) return {re:0,im:0}; var v=nodeVph(SS.gPh?'L2':'L1'); return {re:v.re*SS.gFrac,im:v.im*SS.gFrac}; }
     return nodeVph(k); }
   if(id==='N'||id==='EGC') return {re:0,im:0};
   if(derOK()){ var Dn=derState(); if(!((srcLive()&&Dn.midClosed)||(Dn.whole&&Dn.inv==='island'&&!lcMainOff))) return {re:0,im:0}; } else
@@ -688,16 +694,16 @@ function nodeVph(id){
   return cP(sys.vln,ang);
 }
 function voltBetween(a,b){ return Math.round(cMag(cSub(nodeVph(a),nodeVph(b)))); }
-function nodeLabel(id){ if(id.indexOf('PB:')===0){ var q4=id.slice(3); return 'Panel B feeder '+(q4==='N'?'neutral':(q4==='G'?'EGC':q4)); } if(id.indexOf('PV:')===0) return 'PV dc '+(id.slice(3)==='+'?'positive (+)':'negative (−)'); if(id.indexOf('DR:')===0) return 'Inverter AC disconnect '+(id.slice(3)==='G'?'EGC':(id.slice(3)==='N'?'neutral':id.slice(3))); if(id.indexOf('BU:')===0) return 'Backup-loads panel '+(id.slice(3)==='G'?'EGC':(id.slice(3)==='N'?'neutral':id.slice(3))); if(id.indexOf('XL:')===0){ var lq=id.slice(3); return (xfFirst==='panel'?'Panel main line side ':'Panel lugs ')+(lq==='N'?'neutral':(lq==='G'?'EGC':lq)); } if(id.indexOf('XP:')===0){ var pq=id.slice(3); return 'XFMR primary '+(pq==='G'?'EGC':(pq==='N'?'neutral (to H0)':pq)); } if(id.indexOf('XS:')===0){ var sq=id.slice(3); return 'Panel feeder '+(sq==='N'?'neutral':(sq==='G'?'EGC':sq)); } if(id.indexOf('X:')===0){ var xk=id.slice(2); return 'XFMR secondary '+(xk==='N'?'neutral (X0)':(xk==='G'?'ground (SSBJ)':xk)); } if(id==='FR'){ var cc=DEMO[SYS[MODE].demo][faultCkt]; return 'Frame of '+(cc?cc.n:'the faulted load'); } if(id.indexOf('GN:')===0){ var k=id.slice(3); return 'Generator '+(k==='N'?'neutral':(k==='G'?'EGC':k)); } if(id==='SN') return 'Service neutral (line side)'; if(id==='SNB') return 'Breaker B neutral'; if(id.indexOf('AO:')===0) return 'ATS A LOAD side '+id.slice(3); if(id.indexOf('SB:')===0) return 'Breaker B LINE side '+id.slice(3); if(id.indexOf('SBD:')===0) return 'Breaker B LOAD side '+id.slice(4); if(id==='SN2') return 'Service neutral (load side)'; if(id==='SG') return 'Service ground (G terminal)'; if(id.indexOf('SL:')===0) return 'Service disconnect LINE side '+id.slice(3); if(id.indexOf('SD:')===0) return 'Service disconnect LOAD side '+id.slice(3); if(BRK[id]){ var bk=BRK[id]; return (bk.pool?'Pool breaker ':'Breaker ')+bk.n+' ('+bk.ph+')'; } if(id.indexOf('P:')===0){ var k=id.slice(2); return 'Pool '+(k==='N'?'neutral':(k==='G'?'ground':k)); } return id==='N'?'Neutral':(id==='EGC'?'Ground (EGC)':('Phase '+id+((MODE==='cgd'&&id==='B')?' (grounded)':''))); }
+function nodeLabel(id){ if(id.indexOf('PB:')===0){ var q4=id.slice(3); return 'Panel B feeder '+(q4==='N'?'neutral':(q4==='G'?'EGC':q4)); } if(id.indexOf('PV:')===0) return 'PV dc '+(id.slice(3)==='+'?'positive (+)':'negative (−)'); if(id.indexOf('DR:')===0) return 'Inverter AC disconnect '+(id.slice(3)==='G'?'EGC':(id.slice(3)==='N'?'neutral':id.slice(3))); if(id.indexOf('BU:')===0) return 'Backup-loads panel '+(id.slice(3)==='G'?'EGC':(id.slice(3)==='N'?'neutral':id.slice(3))); if(id.indexOf('XL:')===0){ var lq=id.slice(3); return (xfFirst==='panel'?'Panel main line side ':'Panel lugs ')+(lq==='N'?'neutral':(lq==='G'?'EGC':lq)); } if(id.indexOf('XP:')===0){ var pq=id.slice(3); return 'XFMR primary '+(pq==='G'?'EGC':(pq==='N'?'neutral (to H0)':pq)); } if(id.indexOf('XS:')===0){ var sq=id.slice(3); return 'Panel feeder '+(sq==='N'?'neutral':(sq==='G'?'EGC':sq)); } if(id.indexOf('X:')===0){ var xk=id.slice(2); return 'XFMR secondary '+(xk==='N'?'neutral (X0)':(xk==='G'?'ground (SSBJ)':xk)); } if(id==='FR'){ var cc=DEMO[SYS[MODE].demo][faultCkt]; return 'Frame of '+(cc?cc.n:'the faulted load'); } if(id.indexOf('GN:')===0){ var k=id.slice(3); return 'Generator '+(k==='N'?'neutral':(k==='G'?'EGC':k)); } if(id==='SN') return 'Service neutral (line side)'; if(id==='SNB') return 'Breaker B neutral'; if(id.indexOf('AO:')===0) return 'ATS A LOAD side '+id.slice(3); if(id.indexOf('SB:')===0) return 'Breaker B LINE side '+id.slice(3); if(id.indexOf('SBD:')===0) return 'Breaker B LOAD side '+id.slice(4); if(id==='SN2') return 'Service neutral (load side)'; if(id==='SG') return 'Service ground (G terminal)'; if(id.indexOf('SL:')===0) return 'Service disconnect LINE side '+id.slice(3); if(id.indexOf('SD:')===0) return 'Service disconnect LOAD side '+id.slice(3); if(BRK[id]){ var bk=BRK[id]; return (bk.pool?'Pool breaker ':'Breaker ')+bk.n+' ('+bk.ph+')'; } if(id.indexOf('P:')===0||id.indexOf('K:')===0){ var k=id.slice(2); return (id[0]==='K'?'Dock ':'Pool ')+(k==='N'?'neutral':(k==='G'?'ground':k)); } return id==='N'?'Neutral':(id==='EGC'?'Ground (EGC)':('Phase '+id+((MODE==='cgd'&&id==='B')?' (grounded)':''))); }
 function onProbe(id){ var i=probePick.indexOf(id); if(i>=0)probePick.splice(i,1); else { probePick.push(id); if(probePick.length>2)probePick.shift(); } render(); }
 function probeText(){ var a=probePick[0],b=probePick[1],v=voltBetween(a,b); if(/^PV:/.test(a)||/^PV:/.test(b)) return pvProbe(a,b);
   var gH=function(x){return x.indexOf('GN:')===0&&x!=='GN:N'&&x!=='GN:G';}, uH=function(x){return x.indexOf('SL:')===0||x.indexOf('SD:')===0||x.indexOf('SB:')===0||x.indexOf('SBD:')===0;};
   if((gH(a)&&uH(b))||(gH(b)&&uH(a))){ var ma=Math.round(cMag(nodeVph(a))), mb=Math.round(cMag(nodeVph(b)));
     if(ma>0&&mb>0) return '<span style="font-size:22px;font-weight:800;color:#00d4ff">'+Math.abs(ma-mb)+'–'+(ma+mb)+' V</span> <span style="color:var(--txt2);font-size:11px">drifting</span>&nbsp;&nbsp;·&nbsp;&nbsp;<b>'+nodeLabel(a)+' → '+nodeLabel(b)+'</b><br><span style="color:var(--txt2)"><b style="color:#ffd27a">Two separate sources, NOT in sync.</b> The generator and the utility run at slightly different speeds, so the meter swings anywhere between '+Math.abs(ma-mb)+' and '+(ma+mb)+' V. That is why the transfer switch is break-before-make and mechanically interlocked — they must never be connected together.&nbsp;&nbsp;·&nbsp;&nbsp;tap a probe again to clear</span>'; }
   var pk=Math.round(v*Math.SQRT2), pp=Math.round(v*2*Math.SQRT2);
-  var hot=function(x){return ['N','EGC','P:N','P:G','SN','SN2','SNB','SG','GN:N','GN:G','X:N','X:G','XP:G','XS:N','XS:G','XL:N','XL:G','XP:N','DR:N','DR:G','BU:N','BU:G'].indexOf(x)<0;};
+  var hot=function(x){return ['N','EGC','P:N','P:G','K:N','K:G','SN','SN2','SNB','SG','GN:N','GN:G','X:N','X:G','XP:G','XS:N','XS:G','XL:N','XL:G','XP:N','DR:N','DR:G','BU:N','BU:G'].indexOf(x)<0;};
   var desc, dk=[a,b].filter(function(x){return BRK[x]&&!BRK[x].live;})[0];
-  var pool=function(x){return x.indexOf('P:')===0;};
+  var pool=function(x){return x.indexOf('P:')===0||x.indexOf('K:')===0;};
   var sl=[a,b].some(function(x){return x.indexOf('SL:')===0;}), sd=[a,b].some(function(x){return x.indexOf('SD:')===0;});
   var samePole=sl&&sd&&a.slice(3)===b.slice(3);
   var fr=(a==='FR'||b==='FR'), xfp=(/^X[SL]?:/.test(a)||/^X[SL]?:/.test(b)), xg=/^X[SL]?:[NG]$/.test(a)||/^X[SL]?:[NG]$/.test(b);
@@ -725,11 +731,11 @@ function probeText(){ var a=probePick[0],b=probePick[1],v=voltBetween(a,b); if(/
   else if(!srcLive()&&(hot(a)||hot(b))) desc=genOK()?'No source on the feeder — utility breaker open and the generator is not on line yet.':'Service disconnect is open — the feeder is de-energized.';
   else if(genOK()&&SRC==='gen'&&hot(a)&&hot(b)) desc='Phase-to-phase from the <b>generator</b>.';
   else if(lcMainOff&&(hot(a)||hot(b))&&!(pool(a)||pool(b))) desc='<b style="color:#ffd27a">Panel main is OFF — but these probes are on its LINE side, so the feeder is still live.</b> Only the bus and branch circuits are dead.';
-  else if((lcMainOff||!poolLive)&&(pool(a)||pool(b))&&(hot(a)||hot(b))&&v<1) desc='Pool feeder is de-energized (load side of the panel main / 100 A breaker).';
+  else if((lcMainOff||!SB.P.live)&&(pool(a)||pool(b))&&(hot(a)||hot(b))&&v<1) desc='Subpanel feeder is de-energized (load side of the panel main / its feeder breaker).';
   else if([a,b].some(function(x){return x.indexOf('GN:')===0&&hot(x);})&&v<1&&!(genOK()&&GST==='run'&&!genBrkOff)) desc='<b style="color:#ffd27a">Generator output reads 0 V</b> — '+(GMODE==='off'?'the controller is in OFF.':(genBrkOff?'its breaker is OFF.':'it is not running.'));
   else if((a==='GN:N'&&b==='GN:G')||(a==='GN:G'&&b==='GN:N')) desc=(ATSN==='switched'?'Generator neutral to EGC — 0 V: they are bonded right at the generator (SBJ), because the neutral is switched.':'Generator neutral to EGC — 0 V: there is NO bond at the generator, but its N and EGC both run back to the transfer switch, where the MBJ joins them.');
   else if((['N','SN','SN2','GN:N','X:N','XS:N','XL:N'].indexOf(a)>=0&&['EGC','SG','GN:G','X:G','XP:G','XS:G','XL:G'].indexOf(b)>=0)||(['N','SN','SN2','GN:N','X:N','XS:N','XL:N'].indexOf(b)>=0&&['EGC','SG','GN:G','X:G','XP:G','XS:G','XL:G'].indexOf(a)>=0)) desc='Neutral-to-ground — 0 V: they are bonded together right here at the service (MBJ, 250.28).';
-  else if(!hot(a)&&!hot(b)) desc=(v>5?'<b style="color:#ff8a8a">Ground is elevated — the pool bonding grid is energized.</b>':'Neutral / ground — ~0 V. (In the pool panel they read the same but must NOT be bonded together.)');
+  else if(!hot(a)&&!hot(b)) desc=(v>5?((/^K:/.test(a)||/^K:/.test(b))?'<b style="color:#ff8a8a">Ground is elevated — the dock metal (and the water around it) is energized.</b>':'<b style="color:#ff8a8a">Ground is elevated — the pool bonding grid is energized.</b>'):'Neutral / ground — ~0 V. (In a subpanel they read the same but must NOT be bonded together.)');
   else if(hot(a)&&hot(b)) desc='Phase-to-phase (line-to-line) voltage.';
   else if(['N','SN','SN2','GN:N','X:N','XS:N','XL:N'].indexOf(a)>=0||['N','SN','SN2','GN:N','X:N','XS:N','XL:N'].indexOf(b)>=0) desc='Phase-to-neutral voltage.';
   else desc='Phase-to-ground voltage.';
@@ -803,7 +809,7 @@ var DEMO={
   }
 };
 /* ---------------- svg helpers ---------------- */
-var ET_BUILD='2026-11-17f';   // shown by ?diag — confirms which copy the device is actually running
+var ET_BUILD='2026-11-18b';   // shown by ?diag — confirms which copy the device is actually running
 var SVGNS='http://www.w3.org/2000/svg', dotPool=[], anim=null;
 var LIGHT=false, LMAP={"#0b1020": "#ffffff", "#0e1526": "#f6f8fb", "#16233f": "#eef3fb", "#101830": "#f3f5f8", "#101a30": "#f6f8fb", "#0f1830": "#f6f8fb", "#2a1620": "#fdecec", "#3a1620": "#fde3e3", "#0d3550": "#dbeffa", "#2b3a5e": "#c3cbd8", "#3a4b6b": "#c3cbd8", "#4a5b80": "#9aa7bd", "#9fb0d6": "#64748b", "#2a3b5e": "#c3cbd8", "#1b2740": "#e3e8ef", "#cdd8f0": "#1f2937", "#8a97b4": "#4b5563", "#5a6b8a": "#94a3b8", "#aeb6c9": "#4b5563", "#8fa0c4": "#4b5563", "#8695b5": "#6b7280", "#6f80a8": "#6b7280", "#7d8aa3": "#9aa7bd", "#d7dbe3": "#374151", "#c3cad8": "#374151", "#e6eaf2": "#e5e7eb", "#55637f": "#6b7280", "#8795ad": "#6b7280", "#ff8a8a": "#dc2626", "#8fd6a3": "#059669", "#5fd4ff": "#0891b2", "#00d4ff": "#0891b2", "#ffd27a": "#b45309", "#ffb35c": "#c2410c", "#e8c9a6": "#92400e", "#e8d39a": "#92400e", "#7fd0f5": "#0369a1", "#3fa7d6": "#0284c7", "#f5c542": "#d99a00", "#c98a4a": "#b45309", "#ff6b6b": "#ef4444", "#ffffff": "#111827", "#1f6f45": "#d1fae5", "#6a5212": "#fef3c7", "#5a1a1f": "#fee2e2", "#6a3a12": "#ffedd5", "#565e6e": "#2f3542", "#c9ced8": "#9ca3af", "#e6c62e": "#c9a800", "#46c36b": "#16a34a", "#8a3030": "#b91c1c", "#3e2a5e": "#ede4fb", "#c69bff": "#7c3aed"};   // light theme: the one-line's colors re-picked for a white background
 function lightenStyles(root){   // the tap menu is HTML with inline colors: swap them for the light palette
@@ -857,8 +863,8 @@ function toggleCkt(num){ if(faultCkt===num){clearFault();return;} var k=MODE+':'
 var faultZone='branch', faultPhase=null, noNeutralMsg=false, ugGnd=null, ugFirst=false, ug2=false;
 function phaseOfCkt(num){ return SYS[MODE].ph[rowPh(Math.floor((num-1)/2),num%2===1)][0]; }   // 'branch' | 'feeder' | 'service'
 var ckEgc={}, ckRev={}, ckMsg='';   // per-circuit overrides: EGC condition and reverse polarity
-function egcOf(num){ return (poolOn&&MODE==='single'&&num===2)?poolEgc:(ckEgc[MODE+':'+num]||egcPath); }
-function poolEgcOf(i){ return ckEgc['P:'+i]||poolEgc; }
+function egcOf(num){ return (subA('P')&&num===2)?SB.P.egc:(subA('K')&&num===40)?SB.K.egc:(ckEgc[MODE+':'+num]||egcPath); }
+function poolEgcOf(i){ return subEgcOf('P',i); }
 function effEgc(){ return faultCkt==null?egcPath:egcOf(faultCkt); }   // a fault on the pool feeder returns on the POOL feeder EGC
 function faultActive(){ return (faultCkt!=null||faultZone!=='branch') && !tripped; }
 function faultFeeder(ph){ if(!srcLive())return; clearActiveFaultState(); faultZone='feeder'; faultPhase=ph; var sys=SYS[MODE]; FAULT_A=Math.max(1,Math.round(sys.vln/0.08)); if(genOK()&&SRC==='gen') FAULT_A=Math.min(FAULT_A,genAmps()*3); tripSec=ocpdOn?0.02:Infinity;
@@ -903,7 +909,7 @@ function applyFault(num){
   if(isFinite(tripSec)){ tripTimer=setTimeout(function(){ tripped=true; offCkts[MODE+':'+num]=1; render(); }, Math.min(2200, 400+tripSec*120)); }
   render();
 }
-function clearFault(){ xfClear(); ckMsg=''; noNeutralMsg=false; poolFault=null; poolOff={}; poolMsg=''; if(poolTimer){clearTimeout(poolTimer);poolTimer=null;} ugGnd=null; ugFirst=false; ug2=false; if(tripTimer){clearTimeout(tripTimer);tripTimer=null;} if(faultCkt!=null){delete offCkts[MODE+':'+faultCkt];} faultCkt=null; faultZone='branch'; faultPhase=null; tripped=false; FAULT_A=0; tripSec=Infinity; protBy=null; render(); }
+function clearFault(){ xfClear(); ckMsg=''; noNeutralMsg=false; ['P','K'].forEach(function(q){ var S=SB[q]; S.fault=null; S.off={}; S.msg=''; S.wet=0; S.fdrB=null; if(S.timer){clearTimeout(S.timer);S.timer=null;} }); ugGnd=null; ugFirst=false; ug2=false; if(tripTimer){clearTimeout(tripTimer);tripTimer=null;} if(faultCkt!=null){delete offCkts[MODE+':'+faultCkt];} faultCkt=null; faultZone='branch'; faultPhase=null; tripped=false; FAULT_A=0; tripSec=Infinity; protBy=null; render(); }
 function clearActiveFaultState(){ if(tripTimer){clearTimeout(tripTimer);tripTimer=null;} if(faultCkt!=null){delete offCkts[MODE+':'+faultCkt];} faultCkt=null; faultZone='branch'; faultPhase=null; tripped=false; FAULT_A=0; tripSec=Infinity; }
 function toggleSvc(){ svcOff=!svcOff; if(svcOff&&!(genOK()&&SRC==='gen'))clearActiveFaultState(); render(); }
 function toggleLcMain(){ lcMainOff=!lcMainOff; if(lcMainOff)clearActiveFaultState(); render(); }
@@ -922,7 +928,7 @@ function faultWhy(){
   if(faultZone==='feeder') return tripped?'<b style="color:#8fd6a3">CLEARED</b> — the <b>'+upO+'</b> opened to clear the feeder fault ('+FAULT_A+' A'+((genOK()&&SRC==='gen')?', generator-limited to about 3× its rating':'')+').':'<b style="color:#ff8a8a">FEEDER FAULT · '+FAULT_A+' A</b> — on the feeder between the '+((genOK())?'transfer switch':'service disconnect')+' and the panel. It\'s cleared by the <b>'+upO+'</b> (the upstream OCPD), not the branch breakers.';
   if(faultCkt==null) return 'Tap a <b>breaker</b> to switch it on/off. Tap a <b>conductor</b> to fault it (branch, feeder, or line-side service). Tap a piece of <b>equipment</b> for its menu: fault it, break its EGC, or reverse its polarity.';
   var c=DEMO[SYS[MODE].demo][faultCkt]; var nm=c?c.n:('#'+faultCkt);
-  if(poolOn&&MODE==='single'&&faultCkt===2) nm='the 100 A pool feeder ('+(poolFdrK?'L2':'L1')+')';
+  if(subA('P')&&faultCkt===2) nm='the 100 A pool feeder ('+(SB.P.fdrK?'L2':'L1')+')'; if(subA('K')&&faultCkt===40) nm='the 60 A dock feeder ('+(SB.K.fdrK?'L2':'L1')+')';
   if(protBy) return tripped?'<b style="color:#8fd6a3">CLEARED BY THE '+protBy.by+'</b> on <b>'+nm+'</b> — '+protBy.done+' Tap the breaker to reset it.':protBy.now;
   if(faultType==='ARC') return protArcMsg(nm,protOf('M',faultCkt));
   if(tripped) return '<b style="color:#8fd6a3">CLEARED</b> — the breaker on <b>'+nm+'</b> tripped at '+FAULT_A+' A. Tap Reset or the breaker to restore.'+(faultType==='LG'&&protGF(protOf('M',faultCkt))?' With a good EGC the current is huge, so the magnetic trip and the GFCI act in the same cycle. Break the EGC and try again — that\'s where the GFCI earns its keep.':'');
@@ -984,8 +990,8 @@ function b4ShedSet(){ return genShedSet().filter(function(k){ return k[0]==='B';
 function b4Shed(s){ return genShedSet().indexOf('B'+s)>=0; }
 function genShedA(n){ return genShedSet().indexOf('A'+n)>=0; }
 function b4Managed(s){ return b4Gen()&&GEN_SHED.indexOf('B'+s)>=0; }
-function b4L(s){ return B4_LDS.filter(function(x){ return x.s===s; })[0]; }
-function b4KW(){ if(!b4Live()) return 0; return B4_LDS.reduce(function(t,L){ return t+((b4C[L.s]||b4Flt===L.s||b4Shed(L.s))?0:L.kw); },0); }
+function b4L(s){ return b4Lds().filter(function(x){ return x.s===s; })[0]; }
+function b4KW(){ if(!b4Live()) return 0; return b4Lds().reduce(function(t,L){ return t+((b4C[L.s]||b4Flt===L.s||b4Shed(L.s))?0:L.kw); },0); }
 var b4FF=null;   // Panel B FEEDER fault: the phase that is faulted
 function b4Clear(){ clearTimeout(b4T); b4T=null; b4Flt=null; b4FF=null; }
 function s4Set(v){ b4Clear(); S4=v; b4Off=false; probePick=[]; ckMsg=s4Why(); render(); }
@@ -997,7 +1003,7 @@ function s4Why(){ if(!s4On()) return '<b style="color:#5fd4ff">200 A SERVICE</b>
 function b4Toggle(s){ b4Clear(); b4C[s]=!b4C[s]; ckMsg='<b style="color:#ffd27a">PANEL B · '+b4L(s).n.toUpperCase()+' '+(b4C[s]?'OFF':'ON')+'</b>'; render(); }
 function b4Brk(){ b4Clear(); b4Off=!b4Off; ckMsg='<b style="color:#ffd27a">'+(S4==='dual'?'DISCONNECT B':'BREAKER B')+' (200 A) '+(b4Off?'OPEN':'CLOSED')+'</b> — '+(b4Off?'Panel B and everything on it is dead. Panel A keeps running — each 200 A disconnect only controls its own panel (230.71).':'Panel B is back on.')+(S4!=='dual'?' Turning off ALL power to the house takes both handles — that\'s why 230.71 limits it to six and wants them grouped.':''); render(); }
 function b4FaultAt(s){ var L=b4L(s); b4Clear(); if(!b4Live()||b4C[s]||b4Shed(s)){ ckMsg='<b style="color:#8fd6a3">DEAD</b> — that circuit isn\'t energized, so a fault draws no current.'; render(); return; }
-  var eg=ckEgc['Q:'+s]||b4Egc, bp=protOf('Q',s), back=(S4==='dual'?'disconnect B, across ITS main bonding jumper':'the meter-main\'s bonded N/G bus');
+  var eg=egcWorst(ckEgc['Q:'+s],b4Egc), bp=protOf('Q',s), back=(S4==='dual'?'disconnect B, across ITS main bonding jumper':'the meter-main\'s bonded N/G bus');
   if(faultType==='NG'&&!L.nt){ ckMsg='<b style="color:#ffd27a">NO NEUTRAL ON '+L.n+'</b> — a straight 240 V load has no neutral to touch ground. Try Line–Ground or Arc.'; render(); return; }
   if(faultType==='ARC'||faultType==='NG'||(faultType==='LG'&&(protGF(bp)||protAF(bp)))){ var bt=protTrip('Q',s,faultType,L.n,eg); b4Flt=s;
     if(bt){ ckMsg=bt.now; b4T=setTimeout(function(){ b4Flt=null; b4C[s]=true; ckMsg='<b style="color:#8fd6a3">CLEARED BY THE '+bt.by+'</b> — '+bt.done+' Tap the breaker to reset it.'; render(); },650); }
@@ -1023,13 +1029,13 @@ function b4FdrFault(k){ b4Clear(); var onG=b4Gen(), nm=(S4==='dual'?'DISCONNECT 
 var S4G=null;   /* 400 A meter-main + generator: bundle x for the generator conductors and ATS A's internal lines (for hops) */
 function vHop(x,y0,y1,L){ var ys=[]; L.forEach(function(l){ if(x>l.x0+1&&x<l.x1-1&&l.y<y0-5&&l.y>y1+5&&ys.indexOf(l.y)<0) ys.push(l.y); }); ys.sort(function(a,b){return b-a;}); var d='M '+x+' '+y0; ys.forEach(function(y){ d+=' L '+x+' '+(y+4)+' A 4 4 0 0 1 '+x+' '+(y-4); }); return d+' L '+x+' '+y1; }
 function draw400(svg,c){   // c: base-drawing geometry; everything already drawn is shifted down DY to make a top band for breaker B and its run to Panel B
-  var swN=c.GN&&c.gSw, OBJB=b4Bond&&b4Live()&&b4KW()>0.05&&b4Egc!=='broken', DY=c.GN?260:200, ph=c.phases, FRED=c.FRED, DEAD=c.DEAD, fl=b4Feed(), live=b4Live(), kwB=b4KW(), mv=live&&kwB>0.05, bad=S4==='bad', dual=S4==='dual';
+  var swN=c.GN&&c.gSw, OBJB=((b4Bond&&b4KW()>0.05&&b4Live())||subObjB())&&b4Egc!=='broken', DY=c.GN?260:200, ph=c.phases, FRED=c.FRED, DEAD=c.DEAD, fl=b4Feed(), live=b4Live(), kwB=b4KW(), mv=live&&kwB>0.05, bad=S4==='bad', dual=S4==='dual';
   var g0=el('g',{transform:'translate(0,'+DY+')'}); while(svg.firstChild) g0.appendChild(svg.firstChild); svg.appendChild(g0);
   function halo(x,y,t,o){ var tt=txt(x,y,t,o); tt.setAttribute('stroke',lc('#0b1020')); tt.setAttribute('stroke-width','4'); tt.setAttribute('stroke-linejoin','round'); tt.setAttribute('paint-order','stroke'); svg.appendChild(tt); return tt; }
   var yR={L1:c.tyH[0]+DY, L2:c.tyH[1]+DY, N:c.tyN+DY}, yB={L2:Math.min(c.tyH[0],c.tyH[1]), L1:Math.max(c.tyH[0],c.tyH[1]), N:c.tyN, G:c.tyG+4};   // B's rows sit exactly where A's do (L2 on top so the Panel B feeder never crosses)
   var sep=c.GN&&!dual, objY=(c.GN&&!dual)?c.tyG+64:c.tyG+52, barY=objY+22;   /* objectionable-current note sits under breaker B exactly like Panel A's under breaker A; the barrier sits below it */
   var sep2=sep, tx={L2:252, L1:260, N:268}, bx0=c.swX0-5, bx1=c.swX1+5, BX0=c.sdX0, BX1=sep?356:c.sdX1, nTx=(sep||swN||(c.GN&&S4G))?300:392, nX=c.sdX0+22, gX=c.sdX0+62;   // breaker B's N and G terminals sit side by side with the MBJ between them — same as breaker A   // sep: meter-main breaker B + its own ATS B enclosure
-  var PBX0=c.poolOn?1640:950, PC=PBX0+322, rowH=25, rows=21, pTop=c.top+DY,   /* pool on: Panel B moves out past the pool panel (clear of the inverters below) — same height, straight feeder */   /* with the pool panel on, Panel B sits under it and its feeder goes around the pool's right side */ busTop=pTop-6, busBot=pTop+rows*rowH+2;   /* same geometry as Panel A's bus */
+  var PBX0=(c.poolOn||c.dockOn)?PB_X0:950, PC=PBX0+322, rowH=25, rows=21, pTop=c.top+DY,   /* pool on: Panel B moves out past the pool panel (clear of the inverters below) — same height, straight feeder */   /* with the pool panel on, Panel B sits under it and its feeder goes around the pool's right side */ busTop=pTop-6, busBot=pTop+rows*rowH+2;   /* same geometry as Panel A's bus */
   var bIL=PC-28-14, bOL=PC-28-66, bIR=PC+28+14, bOR=PC+28+66, xNL=bOL-12, xGL=bOL-28, xNR=bOR+12, xGR=bOR+28, eL1=xGL-78, eL0=eL1-122, eR0=xGR+78, eR1=eR0+122,   /* same proportions as Panel A */ barX=[PC-11,PC+11];
   // ---- enclosures ----
   if(!dual){ var mm=el('rect',{x:c.mcx-c.mr-8,y:8,width:(BX1+8)-(c.mcx-c.mr-8),height:(c.tyG+70+DY)-8,rx:10,fill:'none',stroke:bad?'#ff6b6b':'#5fd4ff','stroke-width':1.6}); mm.setAttribute('stroke-dasharray','8 4'); svg.insertBefore(mm,g0);
@@ -1127,7 +1133,7 @@ function draw400(svg,c){   // c: base-drawing geometry; everything already drawn
   var PR=1646, RK={G:0,N:8,L1:16,L2:24}, YL={G:668,N:676,L1:684,L2:692};
   F.forEach(function(q){ var hot=q.i!=null, d=false?('M '+q.x0+' '+q.y+' L '+(PR+RK[q.k])+' '+q.y+' L '+(PR+RK[q.k])+' '+YL[q.k]+' L '+q.x+' '+YL[q.k]+' L '+q.x+' '+busTop):('M '+q.x0+' '+q.y+' L '+q.x+' '+q.y+' L '+q.x+' '+busTop), gF=(q.k==='G'&&(b4Flt!=null||(b4FF&&faultType==='LG'&&b4Egc!=='broken')))||(b4FF&&(q.k===b4FF||(faultType==='LN'&&q.k==='N')||(faultType==='LL'&&q.i!=null)));   /* feeder fault: the faulted conductors (and the EGC on a ground fault) go red */
     var pa=el('path',{d:d,stroke:gF?FRED:(hot?(fl?q.c:DEAD):q.c),'stroke-width':gF?2.8:2.4,fill:'none'}); svg.appendChild(pa);   /* EGC stays green; a loose / broken EGC gets the same marker as Panel A */
-    if(gF) addDots(svg,d,(hot&&b4FF)?1:-1,16,FRED); else if(hot&&mv) addDots(svg,d,c.dirPh(q.i),22,null,c.angPh(q.i)); else if(hot&&fl) vGlow(svg,d,q.c,svg.lastChild); else if(q.k==='N'&&mv) addDots(svg,d,-1,24,null); else if(q.k==='G'&&b4Bond&&mv&&b4Egc!=='broken') addDots(svg,d,-1,20,'#f5c542');
+    if(gF) addDots(svg,d,(hot&&b4FF)?1:-1,16,FRED); else if(hot&&mv) addDots(svg,d,c.dirPh(q.i),22,null,c.angPh(q.i)); else if(hot&&fl) vGlow(svg,d,q.c,svg.lastChild); else if(q.k==='N'&&mv) addDots(svg,d,-1,24,null); else if(q.k==='G'&&OBJB) addDots(svg,d,-1,20,'#f5c542');
     if(hot){ var hz=el('path',{d:d,stroke:'transparent','stroke-width':13,fill:'none'}); hz.style.cursor='pointer'; (function(kk){ hz.addEventListener('click',function(e){e.stopPropagation();b4FdrFault(kk);}); })(q.k); svg.appendChild(hz); }   // tap a feeder hot to fault the Panel B feeder
     if(hot&&b4MLO) svg.appendChild(el('rect',{x:q.x-5,y:busTop-4,width:10,height:8,rx:2,fill:COL.box,stroke:q.c,'stroke-width':1.3})); });
   F.forEach(function(q,i){ if(c.GN||q.i==null) brkProbe(svg,XR+14+(i%2)*14,q.y,'PB:'+q.k,q.c); });   // no generator: the hots already have breaker B's load-side probes inside the enclosure
@@ -1141,7 +1147,7 @@ function draw400(svg,c){   // c: base-drawing geometry; everything already drawn
   [xNL,xNR].forEach(function(x){ svg.appendChild(el('line',{x1:x,y1:busTop,x2:x,y2:busBot+2,stroke:COL.neu,'stroke-width':2.6})); }); svg.appendChild(el('path',{d:'M '+xNL+' '+(busBot+2)+' L '+xNR+' '+(busBot+2),stroke:COL.neu,'stroke-width':2.2,fill:'none'}));
   var gC=b4Flt!=null?FRED:COL.egc; [xGL,xGR].forEach(function(x){ svg.appendChild(el('line',{x1:x,y1:busTop,x2:x,y2:busBot+12,stroke:gC,'stroke-width':2.6})); }); svg.appendChild(el('path',{d:'M '+xGL+' '+(busBot+12)+' L '+xGR+' '+(busBot+12),stroke:gC,'stroke-width':2.2,fill:'none'}));
   [xNL,xNR].forEach(function(x){ svg.appendChild(txt(x,busTop-4,'N',{anchor:'middle',size:7.5,fill:'#d7dbe3'})); }); [xGL,xGR].forEach(function(x){ svg.appendChild(txt(x,busTop-4,'G',{anchor:'middle',size:7.5,fill:'#8fd6a3'})); });
-  var QOVR=[], QBADGE=[], own={}; B4_LDS.forEach(function(L){ for(var j=0;j<L.p;j++) own[L.side+(L.row+j)]={L:L,j:j}; });
+  var QOVR=[], QBADGE=[], own={}; b4Lds().forEach(function(L){ for(var j=0;j<L.p;j++) own[L.side+(L.row+j)]={L:L,j:j}; });
   for(var r=0;r<rows;r++){ ['L','R'].forEach(function(side){
     var isL=side==='L', y=pTop+r*rowH+rowH/2, o=own[side+r]; if(o&&o.j>0) return; var L=o?o.L:null, poles=L?L.p:1, off=L&&!!b4C[L.s], shd=L&&b4Shed(L.s), lv=L&&live&&!off&&!shd, flt=L&&b4Flt===L.s;
     var bIn=isL?bIL:bIR, bOut=isL?bOL:bOR, bx=Math.min(bIn,bOut), bw=Math.abs(bIn-bOut), num=2*r+(isL?1:2);
@@ -1155,8 +1161,17 @@ function draw400(svg,c){   // c: base-drawing geometry; everything already drawn
       var bww=15, bxx=isL?(bIn+3):(bIn-3-bww); svg.appendChild(el('rect',{x:bxx,y:yy-13,width:bww,height:10,rx:2,fill:cc,opacity:L?1:0.55})); svg.appendChild(txt(bxx+bww/2,yy-5.2,ph[pk].id,{anchor:'middle',size:7,w:700,fill:'#fff'})); }
     if(!L) return;
     if(poles>1) svg.appendChild(el('rect',{x:isL?(bx+10):(bx+bw-16),y:y-rowH/2+6,width:6,height:rowH*poles-12,rx:3,fill:off?COL.off:'#f5c542',opacity:0.85}));
-    var qP=protOf('Q',L.s), qS=protShort('Q',L.s); if(qS||qP!=='std') protChip(svg,isL?(bx+bw-22):(bx+22),y-5,qP,qS); else svg.appendChild(txt(isL?(bx+bw-18):(bx+18),y+3,off?'OFF':L.a,{anchor:'middle',size:7,w:700,fill:off?'#ff8a8a':COL.txt2}));
+    var qP=protOf('Q',L.s), qS=protShort('Q',L.s); if(qS||qP!=='std') protChip(svg,isL?(bx+bw-22):(bx+22),y-5,qP,qS); else svg.appendChild(txt(isL?(bx+bw-18-(String(L.a).length>2?3:0)):(bx+18),y+3,off?'OFF':L.a,{anchor:'middle',size:7,w:700,fill:off?'#ff8a8a':COL.txt2}));
     for(var di=d0;di<svg.childNodes.length;di++){ var dn=svg.childNodes[di]; if(dn.tagName==='rect'||dn.tagName==='text') dn.style.pointerEvents='none'; }
+    if(L.sub){   // a subpanel feeder breaker: its feeder is drawn with the subpanel — redraw the part inside Panel B's enclosure on top of it
+      var sx=xGL-12, sS=SB[L.sub], sOn=live&&!off, sF=sS.fdrB, yLo=y+(poles-1)*rowH;
+      for(var sh=0;sh<poles;sh++){ var syy=y+sh*rowH, spk=(r+sh)%2, sd='M '+bOut+' '+syy+' L '+sx+' '+syy, sred=sF&&(sF.k===spk||sF.ft==='LL');
+        svg.appendChild(el('path',{d:sd,stroke:sred?FRED:(sOn?ph[spk].c:DEAD),'stroke-width':sred?3.2:2.4,fill:'none'})); if(sOn&&!sred&&L.kw>0.02) addDots(svg,sd,c.dirPh(spk),22,null,c.angPh(spk)); }
+      var snd='M '+xNL+' '+(yLo+9)+' L '+sx+' '+(yLo+9), sgd='M '+xGL+' '+(yLo+17)+' L '+sx+' '+(yLo+17);
+      var sOb=sOn&&sS.bond&&sS.egc!=='broken'&&b4Egc!=='broken'&&L.kw>0.05;   // its illegal bond: stray neutral current comes in on this EGC, up Panel B's G bar and out the feeder EGC to the MBJ
+      svg.appendChild(el('path',{d:snd,stroke:COL.neu,'stroke-width':2.2,fill:'none'})); svg.appendChild(el('path',{d:sgd,stroke:COL.egc,'stroke-width':sOb?3:2.2,fill:'none'}));
+      if(sOb){ addDots(svg,'M '+sx+' '+(yLo+17)+' L '+xGL+' '+(yLo+17)+' L '+xGL+' '+busTop,1,20,'#f5c542'); }
+      return; }
     var e0=isL?eL0:eR0, e1=isL?eL1:eR1, eE=isL?e1:e0, nb=isL?xNL:xNR, gb=isL?xGL:xGR, yB2=y+(poles-1)*rowH;
     for(var h=0;h<poles;h++){ var hy=y+h*rowH, pk2=(b4Stk&&!isL)?1-(r+h)%2:(r+h)%2, hd='M '+bOut+' '+hy+' L '+eE+' '+hy, hr2=flt&&h===0;
       svg.appendChild(el('path',{d:hd,stroke:hr2?FRED:(live?ph[pk2].c:DEAD),'stroke-width':hr2?2.8:1.9,fill:'none',opacity:off?0.35:1}));
@@ -1169,7 +1184,7 @@ function draw400(svg,c){   // c: base-drawing geometry; everything already drawn
     eqb.style.cursor='pointer'; (function(sl,fk){ eqb.addEventListener('click',function(e){e.stopPropagation(); if(fk) genForceTog('B'+sl); else openCkMenu('Q',sl,e);}); })(L.s,shd||(b4Managed(L.s)&&!!genForce['B'+L.s])); svg.appendChild(eqb);
     var qE=ckEgc['Q:'+L.s], qR=!!ckRev['Q:'+L.s]&&L.nt; if(qE&&qE!=='intact') QOVR.push([(eE+gb)/2,gy,qE]); QBADGE.push([e0,e1,y-11,qE,qR,isL]);
     svg.appendChild(txt((e0+e1)/2,(y+yB2)/2+1,L.n,{anchor:'middle',size:fitSz(L.n,e1-e0,10.5),w:600,fill:lv?COL.txt:COL.idle}));
-    var tg=off?'OFF':(flt?(faultType==='ARC'?'ARCING':((ckEgc['Q:'+L.s]||b4Egc)==='broken'?'FAULT · FRAME LIVE':'FAULT')):(shd?'SHED · tap to force on':(b4Managed(L.s)?(genForce['B'+L.s]?'FORCED ON · tap to release':'LOAD-MANAGED · ON'):L.v.replace(/ · GFCI$/,'')+protTagTxt('Q',L.s)))); svg.appendChild(txt((e0+e1)/2,(y+yB2)/2+12,tg,{anchor:'middle',size:fitSz(tg,e1-e0,8.5),fill:(off||flt)?'#ff8a8a':(shd?'#ffd27a':COL.txt2)}));
+    var tg=off?'OFF':(flt?(faultType==='ARC'?'ARCING':((egcWorst(ckEgc['Q:'+L.s],b4Egc))==='broken'?'FAULT · FRAME LIVE':'FAULT')):(shd?'SHED · tap to force on':(b4Managed(L.s)?(genForce['B'+L.s]?'FORCED ON · tap to release':'LOAD-MANAGED · ON'):L.v.replace(/ · GFCI$/,'')+protTagTxt('Q',L.s)))); svg.appendChild(txt((e0+e1)/2,(y+yB2)/2+12,tg,{anchor:'middle',size:fitSz(tg,e1-e0,8.5),fill:(off||flt)?'#ff8a8a':(shd?'#ffd27a':COL.txt2)}));
   }); }
   QOVR.forEach(function(o){ egcMark(svg,o[0],o[1],o[2],true); }); QBADGE.forEach(function(q){ ckBadges(svg,q[0],q[1],q[2],q[3],q[4],q[5]); });
   if(mv){ addDots(svg,'M '+xNR+' '+busTop+' L '+xNR+' '+(busBot+2)+' L '+xNL+' '+(busBot+2)+' L '+xNL+' '+busTop,1,22,null); }
@@ -1208,7 +1223,7 @@ function topScroll(){   // a second scrollbar ABOVE the drawing, kept in step wi
 var lastTap=null;   // where the last tap on the drawing landed: viewport y + the drawing y under it
 document.addEventListener('pointerdown',function(e){ var sv=document.getElementById('svg'); if(!sv||!sv.contains(e.target)) return; var r=sv.getBoundingClientRect(), vb=sv.viewBox.baseVal; if(!vb||!vb.height||!r.height) return; var g=e.target.closest('g'), tx=g?[].slice.call(g.querySelectorAll('text')).map(function(t){ return t.textContent; }).join('|'):'';
   lastTap={t:Date.now(),vy:e.clientY,vx:e.clientX,dy:(e.clientY-r.top)*vb.height/r.height,tx:tx,ty:(function(){ if(!g) return null; var b=g.getBoundingClientRect(); return b.top+b.height/2; })()}; },true);
-function tapFind(L){ if(!L.tx) return null; var best=null, bd=1e9; [].slice.call(document.querySelectorAll('#svg g')).forEach(function(g){ var tx=[].slice.call(g.querySelectorAll('text')).map(function(t){ return t.textContent; }).join('|'); if(tx!==L.tx) return; var b=g.getBoundingClientRect(), d=Math.abs(b.left+b.width/2-L.vx); if(d<bd){ bd=d; best=b; } }); return best; }   // the same control after the redraw
+function tapFind(L){ if(!L.tx) return null; var best=null, bd=1e9; [].slice.call(document.querySelectorAll('#svg g')).forEach(function(g){ var tx=[].slice.call(g.querySelectorAll('text')).map(function(t){ return t.textContent; }).join('|'); if(tx!==L.tx) return; var b=g.getBoundingClientRect(), d=Math.abs(b.left+b.width/2-L.vx)+(L.ty!=null?Math.abs(b.top+b.height/2-L.ty):0); if(d<bd){ bd=d; best=b; } }); return best; }   /* nearest match — same text can appear on two controls (the pool and dock FED FROM chips) */   // the same control after the redraw
 function render(){   // every redraw keeps the page where it was: mid-redraw layout reads can briefly shorten the page and the browser clamps the scroll — put it back
   var sc=document.querySelector('.scope'), sl0=sc?sc.scrollLeft:0, sx0=window.scrollX, sy0=window.scrollY, r=renderCore();
   if(window.scrollY!==sy0||window.scrollX!==sx0) window.scrollTo(sx0,sy0);
@@ -1234,16 +1249,18 @@ function renderCore(){
   var srcIdle=!!(D.on&&!D.tap&&gridBus&&!faultActive()&&((D.src==='gen'&&D.inv==='gen'&&D.genKW<=0.05)||(D.src==='util'&&Math.abs(D.exp)<=0.05&&D.inv==='grid')));   // solar is covering the whole house: the source is connected but carries ~0 A
   var carry=(gridBus&&!srcIdle)||(upLive&&midC&&faultZone==='feeder'&&faultActive()), EXP=derExporting(D), EXPF=EXP&&!D.tap;   // EXP: solar is pushing power back out through the service   // current only flows on the feeder/line side when the panel bus is fed (or a feeder fault is drawing it); otherwise those wires just glow — energized, 0 A
   var OBJ='#f5c542', bondActive=downstreamBond&&busLive&&!fGnd&&!sys.noNeutral;
-  var poolObj=poolOn&&MODE==='single'&&poolBond&&busLive&&isOn(2);   // illegal N-G bond: objectionable current rides the grounding system
+  var poolObj=(subA('P')&&SB.P.bond&&busLive&&isOn(2))||(subA('K')&&SB.K.bond&&busLive&&isOn(40));   // illegal N-G bond: objectionable current rides the grounding system
   document.getElementById('sub').textContent=sys.title+' · '+sys.wires;
 
-  var poolActive=poolOn&&MODE==='single';
+  var poolActive=poolOn&&MODE==='single', dockActive=dockOn&&MODE==='single';
   var gapH=LAY?28:14, tyN0=52+N*gapH+6, tyG0=tyN0+14;   // the transfer switch needs room between phase rows for the generator contacts
-  var xfAct=xfActive(), derAct=D.on; var W=Math.max(poolActive?1560:(xfAct?1090:(derAct&&battOn&&battMode==='partial'&&nInv===1&&derGenPort()?1062:1020)),(derAct&&nInv>1)?1020+214*(nInv-1)+10+190:0),rows=21,rowH=25,svcH=LAY?(tyG0+154+16*(N+1)+66+(GN&&ATSN==='switched'?46:0)+(GN&&D.on&&D.tap?GTAP_OFF:0)):150,top=svcH+70,rowTop=top,H=top+rows*rowH+(s4On()?112:72), XFB=H; if(xfAct) H+=598; var DERB=H; if(derAct) H+=(nInv>1?86+72+(battOn&&battMode==='whole'?96+genBand():0):0)+(D.part?656+(nInv>1?132+buExtra():40):(446+(derGenPort()?160:(genOn()&&battOn?52:0))+(battOn?128:0)));   // the transformer chain gets its own band under the main panel
+  var xfAct=xfActive(), derAct=D.on; var W=Math.max((poolActive||dockActive)?1560:(xfAct?1090:(derAct&&battOn&&battMode==='partial'&&nInv===1&&derGenPort()?1062:1020)),(derAct&&nInv>1)?1020+214*(nInv-1)+10+190:0),rows=21,rowH=25,svcH=LAY?(tyG0+154+16*(N+1)+66+(GN&&ATSN==='switched'?46:0)+(GN&&D.on&&D.tap?GTAP_OFF:0)):150,top=svcH+70,rowTop=top,H=top+rows*rowH+(s4On()?112:72), XFB=H; if(xfAct) H+=598; if(dockOn&&MODE==='single'&&!s4On()) H=Math.max(H,subGeo('K').busBot+236); var DERB=H; if(derAct) H+=(nInv>1?86+72+(battOn&&battMode==='whole'?96+genBand():0):0)+(D.part?656+(nInv>1?132+buExtra():40):(446+(derGenPort()?160:(genOn()&&battOn?52:0))+(battOn?128:0)));   // the transformer chain gets its own band under the main panel
   if(s4On()){ demo=Object.assign({},demo); B4_MOVED.forEach(function(n){ delete demo[n]; }); }   // 400 A: the big loads moved to Panel B
   if(xfAct){ demo=Object.assign({},demo); demo[31]={p:3,n:'Transformer',xf:true}; }   // 70 A 3P breaker feeding the customer transformer
   if(derAct&&!D.tap){ demo=Object.assign({},demo); demo[39]={p:2,n:battOn?'Hybrid inverter':'Solar inverter',der:true}; }   // backfed 40 A 2P at the bottom of the bus — opposite end from the main (705.12(B)(2))
-  if(poolActive){ demo=Object.assign({},demo); demo[26]=demo[2]; demo[28]=demo[4]; delete demo[4]; demo[2]={p:2,n:'Pool panel',pool:true}; }   // 100 A 2-pole pool feeder breaker
+  if(subA('P')){ demo=Object.assign({},demo); demo[26]=demo[2]; demo[28]=demo[4]; delete demo[4]; demo[2]={p:2,n:'Pool panel',pool:true,nt:1}; }   // 100 A 2-pole pool feeder breaker
+  if(subA('K')){ demo=Object.assign({},demo); var mwD=demo[40], bbD=demo[36]; delete demo[36]; if(mwD) demo[36]=mwD; if(s4On()&&bbD) demo[30]=bbD; demo[40]={p:2,n:'Dock panel',dock:true,nt:1}; }   // 60 A 2P GFPE dock feeder (same layout as aDemo())
+  if(dockActive&&!s4On()) H=Math.max(H,subGeo('K').busBot+230);
   svg.setAttribute('viewBox','0 0 '+W+' '+H);svg.setAttribute('width',W);svg.setAttribute('height',H);
   function sizeIt(W,H){ var phone=window.matchMedia&&window.matchMedia('(max-width:760px)').matches, card=svg.closest('.card-scope');
     if(phone){ svg.style.width=Math.round(W*0.96)+'px'; if(card){card.style.width='';card.style.marginLeft='';} return; }   // phone: swipe the drawing, text stays full size
@@ -1432,7 +1449,7 @@ function renderCore(){
     svg.appendChild(el('rect',{x:gX-9,y:cy-7,width:18,height:14,rx:2,fill:'#1f7a45',stroke:COL.egc,'stroke-width':1}));svg.appendChild(txt(gX,cy+4,'G',{anchor:'middle',size:9,w:700,fill:'#fff'}));
     svg.appendChild(txt((nX+gX)/2,cy-9,'MBJ',{anchor:'middle',size:7,fill:mbjF?'#ff8a8a':COL.egc}));
     if(GN){ var mt=txt((nX+6+gX)/2,cy+17,'250.28',{anchor:'middle',size:7.5,w:700,fill:COL.egc}); mt.setAttribute('stroke',lc('#0b1020')); mt.setAttribute('stroke-width','3'); mt.setAttribute('paint-order','stroke'); svg.appendChild(mt); }   // under the MBJ, between the generator N and EGC risers else svg.appendChild(txt((nX+gX)/2,cy+16,'NEC 250.28',{anchor:'middle',size:7,fill:COL.txt2}));
-    var objB4=s4On()&&S4!=='dual'&&b4Bond&&b4Live()&&b4KW()>0.05&&b4Egc!=='broken';   // Panel B's illegal bond returns to the meter-main's one MBJ too
+    var objB4=s4On()&&S4!=='dual'&&((b4Bond&&b4Live()&&b4KW()>0.05)||subObjB())&&b4Egc!=='broken';   // Panel B's illegal bond returns to the meter-main's one MBJ too
     if((bondActive||poolObj||objB4)&&!fGnd){   // objectionable current from a downstream illegal bond rejoins the neutral HERE, at the first legal N-G bond
       addDots(svg,'M '+(gX-9)+' '+cy+' L '+(nX+9)+' '+cy,1,10,OBJ);
       var ct=txt(nX-14,cy+48,'objectionable current returns to N here (MBJ)',{anchor:'start',size:9.5,w:700,fill:OBJ}); ct.setAttribute('stroke',lc('#0b1020')); ct.setAttribute('stroke-width','4'); ct.setAttribute('paint-order','stroke'); svg.appendChild(ct);
@@ -1519,7 +1536,7 @@ function renderCore(){
   phases.forEach(function(p,i){var d=barPath(i);svg.appendChild(el('path',{d:d,stroke:busLive?p.c:DEAD,'stroke-width':3.2,fill:'none',opacity:0.95}));if(busLive)addDots(svg,d,dirPh(i),26,null,angPh(i));});
 
   // legend
-  var lx=(poolActive?1020:W)-40-phases.length*42,ly=H-14;phases.forEach(function(p,i){svg.appendChild(el('rect',{x:lx+i*42,y:ly-9,width:11,height:11,rx:2,fill:p.c}));svg.appendChild(txt(lx+i*42+15,ly,p.id,{size:9}));});
+  var lx=((poolActive||dockActive)?1020:W)-40-phases.length*42,ly=H-14;phases.forEach(function(p,i){svg.appendChild(el('rect',{x:lx+i*42,y:ly-9,width:11,height:11,rx:2,fill:p.c}));svg.appendChild(txt(lx+i*42+15,ly,p.id,{size:9}));});
 
   var occ={};
   function drawSlot(num,side,rowIdx){
@@ -1565,6 +1582,10 @@ function renderCore(){
         BRK['BK:'+(num+2*dh)]={ph:phases[dpk].id, live:on&&busLive, on:!!on, bus:busLive, n:num+2*dh, name:info.n}; BPROBE.push([bOut,dyy,'BK:'+(num+2*dh),phases[dpk].c]); }
       svg.appendChild(txt(isL?(bx+bw-18):(bx+18),rowY+rowH/2+3,invBrk()+' A',{anchor:'middle',size:7,w:700,fill:COL.txt2}));
       return; }
+    if(info.dock){ DOCK.feedOn=on&&busLive; DOCK.on=on; DOCK.shed=shedK; DOCK.bOut=bOut; DOCK.hy={};
+      for(var kh=0;kh<2;kh++){ var kyy=rowTop+(rowIdx+kh)*rowH+rowH/2, kpk=rowPh(rowIdx+kh,isL); DOCK.hy[kpk]=kyy;
+        BRK['BK:'+(num+2*kh)]={ph:phases[kpk].id, live:on&&busLive, on:!!on, bus:busLive, n:num+2*kh, name:info.n}; BPROBE.push([bOut,kyy,'BK:'+(num+2*kh),phases[kpk].c]); }
+      return; }
     if(info.pool){ POOL.feedOn=on&&busLive; POOL.on=on; POOL.shed=shedK; POOL.bOut=bOut; POOL.hy={};
       for(var hh=0;hh<2;hh++){ var pyy=rowTop+(rowIdx+hh)*rowH+rowH/2, ppk=rowPh(rowIdx+hh,isL); POOL.hy[ppk]=pyy;
         BRK['BK:'+(num+2*hh)]={ph:phases[ppk].id, live:on&&busLive, on:!!on, bus:busLive, n:num+2*hh, name:info.n}; BPROBE.push([bOut,pyy,'BK:'+(num+2*hh),phases[ppk].c]); }
@@ -1604,14 +1625,16 @@ function renderCore(){
       sp.appendChild(el('animate',{attributeName:'opacity',values:'1;0.15;0.9;0.3;1',dur:'0.45s',repeatCount:'indefinite'})); svg.appendChild(el('circle',{cx:eqEdge,cy:topY,r:8,fill:'rgba(255,179,92,.18)'})); svg.appendChild(sp); }
     else if(fault){svg.appendChild(el('circle',{cx:eqEdge,cy:(topY),r:6,fill:'none',stroke:FRED,'stroke-width':2,opacity:0.9}));svg.appendChild(el('path',{d:'M '+(eqEdge-4)+' '+(topY-4)+' L '+(eqEdge+4)+' '+(topY+4)+' M '+(eqEdge+4)+' '+(topY-4)+' L '+(eqEdge-4)+' '+(topY+4),stroke:FRED,'stroke-width':2}));}
   }
-  var POOL={X0:900}, XF={}, DR={};
+  var POOL={X0:900,src:'A'}, DOCK={src:'A'}, XF={}, DR={};
   var FEGC=null, OVR=[], REV=[], BADGE=[], BPROBE=[]; FRP=null;
   SVCPROBE.forEach(function(pr){ pr.forEach(function(q){ brkProbe(svg,q[0],q[1],q[2],q[3]); }); });
   for(var r=0;r<rows;r++){drawSlot(2*r+1,'L',r);drawSlot(2*r+2,'R',r);}
   if(FRP){ svg.appendChild(el('line',{x1:FRP[0]+(FRP[2]?7:-7),y1:FRP[1],x2:FRP[0]+(FRP[2]?13:-13),y2:FRP[1],stroke:'#c9a227','stroke-width':2})); brkProbe(svg,FRP[0],FRP[1],'FR','#c9a227'); svg.appendChild(txt(FRP[0],FRP[1]-10,'FRAME',{anchor:'middle',size:6.5,w:700,fill:'#e8c75a'})); }
   if(derAct && (DR.hy||D.tap)) drawDer(svg,DR,D,{FRED:FRED,DEAD:DEAD,phases:phases,dirPh:dirPh,angPh:angPh,xNL:xNL,xGL:xGL,busBotZ:busBotZ,baseY:DERB,busLive:busLive,W:W,GN:genOn()});
   if(xfAct && XF.hy) drawXfmr(svg,XF,{FRED:FRED,DEAD:DEAD,phases:phases,dirPh:dirPh,angPh:angPh,xNR:xNR,xGR:xGR,xNL:xNL,xGL:xGL,baseY:XFB});
-  if(poolActive && POOL.hy) drawPool(svg,POOL,{fdrF:fA&&faultCkt===2&&faultZone==='branch',egcOpen:effEgc()==='broken',xNR:xNR,xGR:xGR,phases:phases,busLive:busLive,FRED:FRED,DEAD:DEAD,dirPh:dirPh,angPh:angPh,busTopZ:busTopZ});
+  var subG={eqR1:eqRx1,egcOpen:effEgc()==='broken',xNR:xNR,xGR:xGR,phases:phases,busLive:busLive,FRED:FRED,DEAD:DEAD,dirPh:dirPh,angPh:angPh,busTopZ:busTopZ};
+  if(poolActive){ var PPs=subA('P')?POOL:subBFeed('P',rowTop); if(PPs&&PPs.hy) drawSub(svg,'P',PPs,Object.assign({},subG,{fdrF:fA&&faultCkt===2&&faultZone==='branch'})); }
+  if(dockActive){ var KPs=subA('K')?DOCK:subBFeed('K',rowTop); if(KPs&&KPs.hy) drawSub(svg,'K',KPs,Object.assign({},subG,{fdrF:fA&&faultCkt===40&&faultZone==='branch'})); }
   // EGC OPEN / HIGH-R marker: always shown when the EGC isn't intact. On the faulted circuit's own EGC when there is a fault,
   // otherwise on the feeder EGC just above the panel.
   if(DETAIL){
@@ -1639,7 +1662,7 @@ function renderCore(){
   // labels drawn LAST with a dark halo so the hot feeder drops behind them don't break up the text
   function haloTxt(x,y,str,o){ var t=txt(x,y,str,o); t.setAttribute('stroke',lc('#0b1020')); t.setAttribute('stroke-width','4'); t.setAttribute('stroke-linejoin','round'); t.setAttribute('paint-order','stroke'); svg.appendChild(t); }
   // ---- the panelboard's own illegal N–G bond toggle (same style as the pool panel's) ----
-  if(DETAIL){ var cw2=eqRx1-eqRx0, cx2=eqRx0, cy2=(poolActive?top-64:top-110)+48;   // stack: MAIN BKR/MLO · BUS TYPE · BOND PANEL · EGC   // over the right-side equipment (below the pool feeder runs when the pool is on)
+  if(DETAIL){ var cw2=eqRx1-eqRx0, cx2=eqRx0, cy2=(subA('P')?top-64:top-110)+48;   // stack: MAIN BKR/MLO · BUS TYPE · BOND PANEL · EGC   // over the right-side equipment (below the pool feeder runs when the pool is on)
     (function(){ var bw2=cw2, bx2=cx2, by=cy2-24, tg=el('g'); tg.style.cursor='pointer';   // BUS TYPE: branch <-> stacked
       tg.addEventListener('click',function(e){e.stopPropagation(); busToggle();});
       tg.appendChild(el('rect',{x:bx2,y:by,width:bw2,height:20,rx:6,fill:'#101a30',stroke:STACKED?'#f5c542':'#5fd4ff','stroke-width':1.4}));
@@ -1663,13 +1686,14 @@ function renderCore(){
   if(/[?&]diag\b/.test(location.search)){ var dg=document.getElementById('etDiag'); if(!dg){ dg=document.createElement('div'); dg.id='etDiag'; dg.style.cssText='position:fixed;left:6px;bottom:6px;z-index:99998;background:#000c;color:#7CFC9A;font:11px monospace;padding:6px 8px;border-radius:6px;max-width:94vw;pointer-events:none'; document.body.appendChild(dg); }
     setTimeout(function(){ var sc=svg.parentElement, ua=(navigator.userAgent.match(/OS (\d+)_(\d+)/)||navigator.userAgent.match(/Version\/([\d.]+)/)||[''])[0];
       dg.textContent='build '+ET_BUILD+' · '+ua+' · touchPts '+navigator.maxTouchPoints+' · coarse '+(window.matchMedia&&matchMedia('(any-pointer:coarse)').matches)+' · touchMode '+MOBILE_ANIM+' · win '+innerWidth+' · svg '+Math.round(svg.getBoundingClientRect().width)+' · box '+sc.clientWidth+' · scroll '+sc.scrollWidth+' · ovf '+getComputedStyle(sc).overflowX; },50); }
-  if(s4On()) draw400(svg,{phases:phases,FRED:FRED,DEAD:DEAD,tyH:tyH,tyN:tyN,tyG:tyG,sdX0:sdX0,sdX1:sdX1,swX0:swX0,swX1:swX1,mcx:mcx,mr:mr,top:top,W:W,H:H,poolOn:poolActive,dirPh:dirPh,angPh:angPh,sizeIt:sizeIt,GN:GN,XGR0:XGR0,GENH:GENH,cy:tyG+4,gSw:ATSN==='switched',xrN:s4Sep?386:352,gN:tyG+154+((D.on&&D.tap)?GTAP_OFF:0)+16*(ATSN==='switched'?1:0),gG:tyG+154+((D.on&&D.tap)?GTAP_OFF:0)+16*(ATSN==='switched'?0:1)});
+  if(s4On()) draw400(svg,{dockOn:dockActive,phases:phases,FRED:FRED,DEAD:DEAD,tyH:tyH,tyN:tyN,tyG:tyG,sdX0:sdX0,sdX1:sdX1,swX0:swX0,swX1:swX1,mcx:mcx,mr:mr,top:top,W:W,H:H,poolOn:poolActive,dirPh:dirPh,angPh:angPh,sizeIt:sizeIt,GN:GN,XGR0:XGR0,GENH:GENH,cy:tyG+4,gSw:ATSN==='switched',xrN:s4Sep?386:352,gN:tyG+154+((D.on&&D.tap)?GTAP_OFF:0)+16*(ATSN==='switched'?1:0),gG:tyG+154+((D.on&&D.tap)?GTAP_OFF:0)+16*(ATSN==='switched'?0:1)});
   var s4b=null; (function(){ var sr=document.getElementById('svcRow'), r4=document.getElementById('s4Row'); if(sr) sr.style.display=MODE==='single'?'':'none'; if(r4) r4.style.display=s4On()?'':'none';
     [].forEach.call(document.querySelectorAll('#svcGrp button'),function(b){ b.classList.toggle('on',(b.dataset.svc==='400')===s4On()); });
     [].forEach.call(document.querySelectorAll('#s4Grp button'),function(b){ b.classList.toggle('on',b.dataset.s4===S4); }); })(); if(s4b){ s4b.style.opacity=MODE==='single'?1:0.4; s4b.classList.toggle('on',s4On()); var a4=s4On(); s4b.innerHTML='Service: <span style="font-weight:'+(a4?400:800)+';opacity:'+(a4?0.5:1)+'">200 A</span> ⇄ <span style="font-weight:'+(a4?800:400)+';opacity:'+(a4?1:0.5)+'">400 A</span>'; }   // one button toggles 200 A ⇄ 400 A; the bold one is what is drawn
-  var ro=document.getElementById('readout'); if(ro){ var ow=faultActive()?'':offWhy(); ro.innerHTML = (probePick.length===2)?probeText() : (ckMsg?ckMsg:(xfMsg&&xfActive()?xfMsg:(poolMsg&&poolActive?poolMsg:((D.on&&!faultActive())?(derText(D)+((genNote&&GN)?'<br>'+genNote:'')):((genNote&&GN&&!faultActive())?(genNote+(ow?'<br>'+ow:'')):((utilNote&&!faultActive())?utilNote:(ow||faultWhy()))))))); var gcr=document.getElementById('genCountR'); if(gcr) gcr.textContent=genLeft(); }
+  var ro=document.getElementById('readout'); if(ro){ var ow=faultActive()?'':offWhy(); var subMsg=(poolActive&&SB.P.msg)||(dockActive&&SB.K.msg)||''; ro.innerHTML = (probePick.length===2)?probeText() : (ckMsg?ckMsg:(xfMsg&&xfActive()?xfMsg:(subMsg?subMsg:((D.on&&!faultActive())?(derText(D)+((genNote&&GN)?'<br>'+genNote:'')):((genNote&&GN&&!faultActive())?(genNote+(ow?'<br>'+ow:'')):((utilNote&&!faultActive())?utilNote:(ow||faultWhy()))))))); var gcr=document.getElementById('genCountR'); if(gcr) gcr.textContent=genLeft(); }
   var xb=document.getElementById('xfBtn'); if(xb){ xb.style.display=XFCFG[MODE]?'':'none'; xb.classList.toggle('on',xfActive()); }
   var pb=document.getElementById('poolBtn'); if(pb){ pb.style.display=(MODE==='single')?'':'none'; pb.classList.toggle('on',poolActive); }
+  var kb=document.getElementById('dockBtn'); if(kb){ kb.style.display=(MODE==='single')?'':'none'; kb.classList.toggle('on',dockActive); }
   ['solarBtn','battBtn'].forEach(function(id,q){ var b=document.getElementById(id); if(b){ b.style.display=DER_SYS.indexOf(MODE)>=0?'':'none'; b.classList.toggle('on',DER_SYS.indexOf(MODE)>=0&&(q?battOn:solarOn)); } });
   var gb=document.getElementById('genBtn'); if(gb){ gb.style.display=GEN_SYS.indexOf(MODE)>=0?'':'none'; gb.classList.toggle('on',genOn()); } var ag=document.getElementById('atsRow'); if(ag) ag.style.display=GN?'':'none'; var an=document.getElementById('atsNote'); if(an) an.innerHTML=ATSN==='switched'?'Switched: the neutral transfers too, so the generator <b>is</b> separately derived — its own N–G bond and GEC.':'Solid: the generator is <b>not</b> separately derived — no N–G bond at the generator.';
   startAnim();
@@ -1686,7 +1710,8 @@ bindGrp('egcGrp','data-egc',function(v){ egcPath=v; Object.keys(ckEgc).forEach(f
 document.getElementById('detailBtn').addEventListener('click',function(){ DETAIL=!DETAIL; this.classList.toggle('on',DETAIL); render(); });
 document.getElementById('bondBtn').addEventListener('click',function(){ downstreamBond=!downstreamBond; this.classList.toggle('on',downstreamBond); if(faultCkt!=null)applyFault(faultCkt); else render(); });
 document.getElementById('ocpdBtn').addEventListener('click',function(){ ocpdOn=!ocpdOn; this.classList.toggle('on',ocpdOn);  if(faultCkt!=null)applyFault(faultCkt); else render(); });
-document.getElementById('poolBtn').addEventListener('click',function(){ if(MODE!=='single'){ var ro=document.getElementById('readout'); if(ro)ro.innerHTML='<b style="color:#5fd4ff">POOL PANEL</b> — this demo is for a 120/240 V single-phase (residential) service. Switch System to 120/240 V 1Ø.'; return; } poolOn=!poolOn; poolMsg=''; render(); });
+document.getElementById('poolBtn').addEventListener('click',function(){ if(MODE!=='single'){ var ro=document.getElementById('readout'); if(ro)ro.innerHTML='<b style="color:#5fd4ff">POOL PANEL</b> — this demo is for a 120/240 V single-phase (residential) service. Switch System to 120/240 V 1Ø.'; return; } poolOn=!poolOn; SB.P.msg=''; render(); });
+document.getElementById('dockBtn').addEventListener('click',function(){ if(MODE!=='single') return; dockOn=!dockOn; SB.K.msg=dockOn?'<b style="color:#7fe0c9">DOCK PANEL</b> — a typical Florida backyard dock: a 100 A, 12-space panel on the dock fed by a <b>60 A 2-pole breaker with 100 mA GFPE</b> (555.35(A)) and a 4-wire feeder with an insulated copper EGC (555.37). Boat lift, PWC lift, lights, fish light, receptacles and the cleaning station are all GFCI (555.35(B)(2), (C)); the shore-power receptacle gets 30 mA GFPE (555.35(B)(1)). '+(s4On()?'Use <b>FED FROM</b> on the drawing to feed it from Panel A or Panel B.':'Panel A was full, so the dock feeder takes 40/42: the kitchen MWBC moves up to 36/38 and the baseboard heat (rare in Florida) comes out.'):''; render(); });
 var s4Last='mm';
 [].forEach.call(document.querySelectorAll('#svcGrp button'),function(b){ b.addEventListener('click',function(){ if(MODE!=='single') return; s4Set(b.dataset.svc==='400'?(S4||s4Last):null); }); });   // Service: 200 A ⇄ 400 A
 [].forEach.call(document.querySelectorAll('#s4Grp button'),function(b){ b.addEventListener('click',function(){ s4Last=b.dataset.s4; s4Set(s4Last); }); });   // the 400 A arrangement
@@ -1700,16 +1725,84 @@ bindGrp('atsGrp','data-atsn',function(v){ ATSN=v; render(); });
 
 /* ===================== POOL SUBPANEL (120/240 V 1Ø) =====================
    100 A 2P breaker in the main panel → 4-wire feeder (L1, L2, N, insulated Cu EGC — 680.7(A)) → pool panel.
-   N and G are SEPARATE in the pool panel (it's a subpanel). Pump/light/receptacle are GFCI (680.5, 680.21(C), 680.22(A)(4), 680.23(A)(3)).
+   N and G are SEPARATE in the pool panel (it's a subpanel). Pump/light/receptacle are GFCI (680.5, 680.21(C), 680.22(A)(4), 680.23(A)(3)); the outdoor heater/heat pump and salt cell are GFCI by 210.8(F).
    The 680.26 equipotential bonding grid ties the pool's metal together — it is NOT run back to the panel and is NOT a fault path. */
 var POOLCKTS=[
   {slot:1,p:2,n:'Pool pump',kw:1.2,gf:1,v:'240 V'},
-  {slot:2,p:2,n:'Heater / heat pump',kw:5.0,gf:0,v:'240 V'},
+  {slot:2,p:2,n:'Heater / heat pump',kw:5.0,gf:1,v:'240 V · 40 A 2P'},
   {slot:5,p:1,nt:1,n:'Pool light',kw:0.3,gf:1,v:'120 V'},
-  {slot:7,p:1,nt:1,n:'Salt cell / automation',kw:0.2,gf:0,v:'120 V'},
+  {slot:7,p:1,nt:1,n:'Salt cell / automation',kw:0.2,gf:1,v:'120 V'},
   {slot:8,p:1,nt:1,n:'Receptacle',kw:0.05,gf:1,v:'120 V'}
 ];
-function poolBondToggle(){ poolBond=!poolBond; poolMsg = poolBond
+var DOCKCKTS=[   // a typical Florida residential dock (555): every outlet on the dock is ground-fault protected
+  {slot:1,p:2,n:'Boat lift 1½ HP',kw:1.8,gf:1,v:'240 V · 20 A 2P'},
+  {slot:2,p:1,nt:1,n:'Shore power TT-30',kw:2.4,gf:1,v:'125 V · 30 A'},
+  {slot:4,p:1,nt:1,n:'PWC lift',kw:0.9,gf:1,v:'120 V · 20 A'},
+  {slot:5,p:1,nt:1,n:'Green fish light',kw:0.4,gf:1,v:'120 V · 15 A'},
+  {slot:6,p:1,nt:1,n:'Dock lights',kw:0.15,gf:1,v:'120 V · 15 A'},
+  {slot:7,p:1,nt:1,n:'Dock receptacles',kw:0.2,gf:1,v:'120 V · 20 A'},
+  {slot:8,p:1,nt:1,n:'Fish-cleaning station',kw:0.6,gf:1,v:'120 V · 20 A'}
+];
+var SUBA={P:2,K:40}, SUBB={P:{s:25,row:12,lanes:[1744,1734,1724,1714]},K:{s:39,row:19,lanes:[1690,1680,1670,1660]}}, PB_X0=1760;   // feeder breaker slots: Panel A (right side) · Panel B (left side) and its riser lanes
+function subCk(k){ return k==='K'?DOCKCKTS:POOLCKTS; }
+function subOn(k){ return (k==='K'?dockOn:poolOn)&&MODE==='single'; }
+function subA(k){ return subOn(k)&&(!s4On()||SB[k].src!=='B'); }   // fed from Panel A (always, on a 200 A service)
+function subB(k){ return subOn(k)&&s4On()&&SB[k].src==='B'; }
+function subKW(k){ var S=SB[k]; return subCk(k).reduce(function(t,c,i){ return t+(S.off[i]?0:(c.kw||0)); },0); }
+var EGC_RANK={intact:0,loose:1,broken:2};
+function egcWorst(a,b){ a=a||'intact'; b=b||'intact'; return EGC_RANK[a]>=EGC_RANK[b]?a:b; }   // a fault goes home through the branch EGC AND the feeder EGC — the worse one decides
+function subEgcOf(k,i){ return egcWorst(ckEgc[k+':'+i],SB[k].egc); }
+function subToggle(k,i){ var S=SB[k]; if(S.fault===i){ S.fault=null; clearTimeout(S.timer); S.timer=null; S.wet=0; } S.off[i]=!S.off[i]; S.msg=''; render(); }
+function subEgcSet(k,v){ var S=SB[k]; S.egc=v; if(S.fault!==null){ if(k==='K') dockFaultAt(S.fault); else poolFaultAt(S.fault); } else if(subA(k)&&faultCkt===SUBA[k]&&!tripped) applyFault(SUBA[k]); else if(S.fdrB) subFdrB(k,S.fdrB.k); else { S.msg=''; render(); } }
+function subBondToggle(k){ if(k==='P') return poolBondToggle(); var S=SB.K; S.bond=!S.bond; S.msg=S.bond
+  ? '<b style="color:#ff8a8a">ILLEGAL N–G BOND IN THE DOCK PANEL</b> — the dock panel is fed by a feeder, so its neutral and ground stay separate (250.24(B), 250.142(B)). Bond them and part of the dock\'s neutral current jumps onto the <b>feeder EGC</b> and rides it back to the first legal bond at the service. Worse on a dock: that current also spreads through every grounded metal part — boat lift frame, pedestal, the boat\'s own bonding — and into the <b>water</b>. It also bypasses the feeder GFPE\'s sensor, which is one way a dock GFPE ends up nuisance-tripping or getting removed.'
+  : ''; render(); }
+function dockGfpeTog(){ var S=SB.K; S.gfpe=!S.gfpe; S.msg=S.gfpe
+  ? '<b style="color:#7fe0c9">DOCK FEEDER GFPE · ON</b> — 555.35(A): a listed GFPE of not more than <b>100 mA</b> on any feeder installed on a dock. It watches the whole dock: if more than 100 mA leaves on L1/L2 and does not come back on the neutral, it opens the feeder. That catches current leaking into the water from a broken ground, a damaged lift motor or a bad boat.'
+  : '<b style="color:#ff8a8a">DOCK FEEDER GFPE · REMOVED</b> — a code violation (555.35(A)), and the most common one on old docks. Now a ground fault with a bad EGC can leave the metal on the dock — and the <b>water</b> — energized with nothing to trip. Fresh water is the worst case: a swimmer near the dock can be paralyzed by a few milliamps and drown (electric shock drowning, ESD). Try a fault with the EGC open.';
+  if(S.fault!==null) dockFaultAt(S.fault); else if(subA('K')&&faultCkt===SUBA.K&&!tripped) applyFault(SUBA.K); else if(S.fdrB) subFdrB('K',S.fdrB.k); else render(); }
+function subObjB(){ return ['P','K'].some(function(k){ return subB(k)&&SB[k].bond&&SB[k].egc!=='broken'&&!b4C[SUBB[k].s]&&subKW(k)>0.05; })&&b4Live(); }   // a pool / dock fed from Panel B is illegally N–G bonded: its stray neutral current comes home through Panel B
+function subFdrTrip(k){ if(subA(k)) offCkts[MODE+':'+SUBA[k]]=1; else b4C[SUBB[k].s]=true; }
+function subSrc(k,v){ var S=SB[k]; if(S.src===v) return; clearTimeout(S.timer); S.timer=null; S.fault=null; S.fdrB=null; S.wet=0; S.msg=''; if(faultCkt===SUBA[k]) clearActiveFaultState(); delete b4C[SUBB[k].s]; delete offCkts[MODE+':'+SUBA[k]]; S.src=v; probePick=[];
+  var nm=k==='K'?'DOCK':'POOL', br=k==='K'?'60 A 2P GFPE':'100 A 2P', a=SUBA[k], b=SUBB[k].s;
+  ckMsg='<b style="color:#5fd4ff">'+nm+' PANEL FED FROM PANEL '+v+'</b> — the '+br+' feeder breaker '+(v==='B'?'moves to Panel B (slots '+b+'/'+(b+2)+'). Its load now shows up in Panel B\'s total and goes through breaker B and ATS B — on generator it rides the Panel B side of the transfer.':'is back in Panel A (slots '+a+'/'+(a+2)+'). Its load counts on Panel A and on the battery / generator load math for Panel A.')+' Either way it is the same 4-wire feeder: L1, L2, N and an insulated copper EGC, with N and G kept separate in the subpanel.'; render(); }
+function subFdrB(k,q){ var S=SB[k], b=SUBB[k], isK=k==='K', nm=isK?'DOCK FEEDER':'POOL FEEDER', brk=isK?'the 60 A GFPE feeder breaker in Panel B':'the 100 A feeder breaker in Panel B', gp=isK&&S.gfpe, eg=S.egc, ft=faultType;
+  clearTimeout(S.timer); S.timer=null; S.fdrB=null; S.msg=''; ckMsg='';
+  if(!(b4Live()&&!b4C[b.s])){ ckMsg='<b style="color:#8fd6a3">DEAD</b> — the '+nm.toLowerCase()+' isn\'t energized, so a fault draws no current.'; render(); return; }
+  var trip=function(why,ms){ S.timer=setTimeout(function(){ S.fdrB=null; b4C[b.s]=true; ckMsg='<b style="color:#8fd6a3">CLEARED BY '+brk.toUpperCase()+'</b> — '+why+' Tap the breaker in Panel B to reset it.'; render(); },ms); };
+  if(ft==='ARC'){ ckMsg='<b style="color:#ffb35c">ARCING FAULT · '+nm+'</b> — a loose feeder lug arcs and heats. The current stays near normal, so '+brk+' does not trip'+(gp?' and the GFPE sees nothing missing':'')+'. Only a torque check and an IR scan find this.'; render(); return; }
+  S.fdrB={k:q,ft:ft};
+  if(ft==='NG'){ if(gp){ ckMsg='<b style="color:#ff8a8a">NEUTRAL–GROUND FAULT · '+nm+'</b> — the neutral touches the EGC past the GFPE sensor, so part of the neutral current comes home on the EGC. The GFPE sees the imbalance and trips at 100 mA.'; trip('the GFPE caught the neutral touching ground.',650); }
+    else ckMsg='<b style="color:#ffd27a">NEUTRAL–GROUND FAULT · '+nm+'</b> — not an overcurrent, so '+brk+' never trips. Part of the '+(isK?'dock':'pool')+'\'s neutral current now rides the feeder EGC (objectionable current, 250.6).';
+    render(); return; }
+  if(ft==='LL'||ft==='LN'){ ckMsg='<b style="color:#ff8a8a">SHORT CIRCUIT · '+nm+' '+(q?'L2':'L1')+'</b> — hot to '+(ft==='LL'?'hot':'neutral')+': thousands of amps, and '+brk+' trips instantly on its magnetic element.'; trip('the short circuit was cleared.',700); render(); return; }
+  if(gp){ ckMsg='<b style="color:#ff8a8a">GROUND FAULT · '+nm+' '+(q?'L2':'L1')+'</b> — the <b>GFPE</b> sees current leave on '+(q?'L2':'L1')+' that never comes back on the neutral. At <b>100 mA</b> it trips (555.35(A))'+(eg==='broken'?' — even with the feeder EGC open, because it only needs the missing current':'')+'.'; trip('the GFPE opened the dock feeder.',450); render(); return; }
+  if(eg==='broken'){ ckMsg='<b style="color:#ff8a8a">GROUND FAULT · '+nm+' '+(q?'L2':'L1')+' · EGC OPEN</b> — the feeder EGC is broken, so the fault has no low-impedance path back to the bond at the service. A few amps leak through earth'+(isK?' and the water':'')+', <b>'+brk+' never trips</b>, and the '+(isK?'dock':'pool')+' metal sits near 120 V.'; render(); return; }
+  ckMsg=(eg==='loose'?'<b style="color:#ffd27a">GROUND FAULT · '+nm+' · HIGH-R EGC</b> — the loose feeder EGC chokes the fault current; '+brk+' trips slowly on its thermal element while the metal stays energized.':'<b style="color:#ff8a8a">GROUND FAULT · '+nm+' '+(q?'L2':'L1')+'</b> — fault current rides the insulated feeder EGC back to Panel B and on to the bond at the service. Big current → '+brk+' trips magnetically.');
+  trip('the feeder ground fault was cleared.',eg==='loose'?3200:900); render(); }
+function dockFaultAt(i){ var S=SB.K, c=DOCKCKTS[i]; if(S.off[i]||!S.live){ S.msg='<b style="color:#8fd6a3">DEAD</b> — that circuit isn\'t energized, so a fault draws no current.'; render(); return; } clearTimeout(S.timer); S.timer=null; S.wet=0;
+  if(faultType==='NG'&&!c.nt){ S.msg='<b style="color:#ffd27a">NO NEUTRAL ON '+c.n+'</b> — a straight 240 V load has no neutral to touch ground. Try Line–Ground or Arc.'; render(); return; }
+  S.fault=i; ckMsg=''; var eg=subEgcOf('K',i), pp=protOf('K',i), gp=S.gfpe, ms=null, done='', fdr=false, nm=c.n, lc2=c.n.toLowerCase();
+  var q=(faultType==='LG'||faultType==='NG'||faultType==='ARC')?protTrip('K',i,faultType,nm,eg):null;
+  if(q){ S.msg=q.now; ms=450; done='<b style="color:#8fd6a3">CLEARED BY THE '+q.by+'</b> — '+q.done+' Tap the breaker to reset it.'; }
+  else if(faultType==='ARC'){ S.msg=protArcMsg(nm,pp); }
+  else if(faultType==='LL'||faultType==='LN'){ S.msg='<b style="color:#ff8a8a">SHORT CIRCUIT · '+nm+'</b> — hot to '+(faultType==='LL'?'hot':'neutral')+' with almost no impedance: hundreds of amps, and the breaker trips instantly on its magnetic element.'; ms=700; done='<b style="color:#8fd6a3">BREAKER TRIPPED</b> — '+nm+' cleared. Tap the breaker to reset it.'; }
+  else if(faultType==='NG'){ if(gp){ S.msg='<b style="color:#ff8a8a">NEUTRAL–GROUND FAULT · '+nm+'</b> — no GFCI on this circuit, but the neutral touching ground sends part of the dock\'s neutral current home on the EGC — around the <b>feeder GFPE</b>\'s sensor. It sees the imbalance and opens the whole dock feeder at 100 mA.'; ms=650; fdr=true; done='<b style="color:#8fd6a3">DOCK FEEDER GFPE TRIPPED</b> — the whole dock is off. Find the neutral touching ground before resetting the feeder breaker.'; }
+    else S.msg=protNgMsg(nm); }
+  else if(eg==='intact'){ S.msg='<b style="color:#ff8a8a">GROUND FAULT · '+nm+'</b> — no GFCI on this circuit, so it clears the normal way: fault current rides the insulated branch EGC to the dock panel G bar, up the insulated feeder EGC (555.37) to the service bond. Big current → the breaker trips magnetically in about a cycle.'+(gp?' The feeder GFPE sees it too — 555.35(A) lets the two be coordinated so only the branch opens.':''); ms=900; done='<b style="color:#8fd6a3">BREAKER TRIPPED</b> — '+nm+' cleared through the EGC. Tap the breaker to reset it.'; }
+  else if(gp){ S.wet=0.5; S.msg='<b style="color:#ff8a8a">GROUND FAULT · '+nm+' · '+(eg==='broken'?'EGC OPEN':'HIGH-R EGC')+'</b> — no GFCI here and the ground path is '+(eg==='broken'?'gone':'choked')+', so the fault current looks for another way home: through the '+lc2+' frame, the lift / dock metal and the <b>water</b>. That current never comes back on the feeder, so the <b>feeder GFPE</b> sees it — at <b>100 mA</b> it opens the whole dock (555.35(A)). This is exactly the job it is there for.'; ms=700; fdr=true; done='<b style="color:#8fd6a3">DOCK FEEDER GFPE TRIPPED</b> — the whole dock is dark and the water is safe again. Fix the '+(eg==='broken'?'open':'loose')+' EGC before resetting the feeder breaker.'; }
+  else if(eg==='loose'){ S.wet=0.5; S.msg='<b style="color:#ffd27a">GROUND FAULT · HIGH-R EGC · '+nm+' — NO GFPE</b> — a corroded EGC (salt air is hard on them) chokes the fault current, so the breaker only trips on its slow thermal curve. For those seconds the dock metal <b>and the water around it</b> carry voltage.'; ms=3500; done='<b style="color:#8fd6a3">BREAKER TRIPPED (slowly)</b> — '+nm+' finally cleared. Put the feeder GFPE back and fix the EGC.'; }
+  else { S.wet=1; S.msg='<b style="color:#ff8a8a">GROUND FAULT · EGC OPEN · NO GFPE · '+nm+' — DEADLY</b> — nothing trips. The '+lc2+' frame and every metal part tied to it sit near 120 V, and current flows out into the <b>water</b>. A swimmer near the dock becomes part of the circuit: a few milliamps across the chest can paralyze them and they drown — <b>electric shock drowning (ESD)</b>, often with no visible burns. This is why 555.35(A) requires the 100 mA feeder GFPE and 555.10 requires the warning sign. Tap the breaker to kill it.'; }
+  render();
+  if(ms) S.timer=setTimeout(function(){ S.fault=null; S.wet=0; if(fdr) subFdrTrip('K'); else S.off[i]=true; S.msg=done; render(); },ms); }
+function aDemo(){ var d=Object.assign({},DEMO.single); if(s4On()) B4_MOVED.forEach(function(n){ delete d[n]; });   // Panel A's circuits as laid out right now (display slot → circuit)
+  if(subA('P')){ d[26]=d[2]; d[28]=d[4]; delete d[4]; d[2]={p:2,n:'Pool panel',pool:true,nt:1}; }   // 100 A 2-pole pool feeder breaker at the top
+  if(subA('K')){ var mw=d[40], bb=d[36]; delete d[36]; if(mw) d[36]=mw; if(s4On()&&bb) d[30]=bb; d[40]={p:2,n:'Dock panel',dock:true,nt:1}; }   // 60 A 2P GFPE dock feeder at the bottom (the kitchen MWBC moves up to 36/38; on 400 A the baseboard heat moves to 30/32 — on 200 A the panel is full, so it comes out)
+  return d; }
+function aSlot(n){ if(MODE!=='single') return n; if(b4Moved(n)) return null; if(subA('P')){ if(n===2) return 26; if(n===4) return 28; } if(subA('K')){ if(n===40) return 36; if(n===36) return s4On()?30:null; } return n; }   // display slot of original circuit n
+function aOrig(d){ if(subA('P')){ if(d===26) return 2; if(d===28) return 4; if(d===2||d===4) return -1; } if(subA('K')){ if(d===36||d===38) return d+4; if(s4On()&&(d===30||d===32)) return d+6; if(d===40||d===42) return -2; } return d; }   // original circuit at display slot d
+function b4Lds(){ var a=B4_LDS.slice(); if(subB('P')) a.push({s:SUBB.P.s,side:'L',row:SUBB.P.row,p:2,n:'Pool panel',v:'100 A 2P feeder',a:100,kw:poolKW(),sub:'P',nt:1}); if(subB('K')) a.push({s:SUBB.K.s,side:'L',row:SUBB.K.row,p:2,n:'Dock panel',v:'60 A 2P GFPE',a:60,kw:subKW('K'),sub:'K',nt:1}); return a; }
+function poolBondToggle(){ SB.P.bond=!SB.P.bond; SB.P.msg = SB.P.bond
   ? '<b style="color:#ff8a8a">ILLEGAL N–G BOND IN THE POOL PANEL</b> — the pool panel is a subpanel, so its neutral and ground must stay separate (250.24(B), 250.142(B)). Bond them here and part of the pool neutral current jumps to the G bar and rides the <b>feeder EGC</b> back through the main panel to the first legal bond — the <b>MBJ at the service</b>. The pool branch EGCs do not carry it, except through stray parallel paths (bonding grid, piping, earth) — that stray voltage is the shock risk around water.'
   : ''; render(); }
 function diagPill(svg,tx,ty,tw,th,on,offTxt,onTxt,cb){ var tg=el('g'); tg.style.cursor='pointer'; tg.addEventListener('click',function(e){e.stopPropagation();cb();});
@@ -1740,7 +1833,7 @@ function egcMark(svg,mx,my,mode,inline){   // EGC OPEN / HIGH-R marker
   var lb=br?'EGC OPEN':'HIGH-R EGC', lw=lb.length*5.4+10; svg.appendChild(el('rect',{x:mx-lw/2,y:my-25,width:lw,height:13,rx:3,fill:'#0b1020',stroke:mc,'stroke-width':1}));
   svg.appendChild(txt(mx,my-15.5,lb,{anchor:'middle',size:8,w:700,fill:mc}));
 }
-function poolEgcSet(v){ poolEgc=v; Object.keys(ckEgc).forEach(function(k){ if(k.indexOf('P:')===0) delete ckEgc[k]; }); if(poolFault!==null) poolFaultAt(poolFault); else if(faultCkt===2&&!tripped) applyFault(2); else { poolMsg=''; render(); } }
+function poolEgcSet(v){ SB.P.egc=v; if(SB.P.fault!==null) poolFaultAt(SB.P.fault); else if(faultCkt===2&&!tripped) applyFault(2); else { SB.P.msg=''; render(); } }
 function busToggle(){ STACKED=!STACKED; probePick=[]; clearFault();
   var ord=SYS[MODE].ph.map(function(a){return a[0];}).join('-'), rev=SYS[MODE].ph.map(function(a){return a[0];}).reverse().join('-');
   ckMsg = STACKED
@@ -1782,12 +1875,12 @@ function genLoad(){   // what the generator is carrying right now: kW, kVA, per-
     if(np>2){ for(var k=0;k<np;k++) r.I[k]+=kva*1000/(np*vln); return; }
     if(poles>=2){ r.I[0]+=kva*1000/240; r.I[1]+=kva*1000/240; r.I240+=kva*1000/240; } else { r.I[ph]+=kva*1000/120; r.I120[ph]+=kva*1000/120; } }
   var aOn=SRC==='gen'&&(MLO||!lcMainOff);
-  if(aOn){ var dm=DEMO[sy.demo], pa=poolOn&&MODE==='single';
-    Object.keys(dm).forEach(function(k){ var c=dm[k], n=+k; if(MODE==='single'&&b4Moved(n)) return; if(pa&&(n===2||n===4)) return; if(!isOn(n)||(faultCkt===n&&tripped)||(MODE==='single'&&genShedA(n))) return;
+  if(aOn){ var dm=MODE==='single'?aDemo():DEMO[sy.demo];
+    Object.keys(dm).forEach(function(k){ var c=dm[k], n=+k, o=MODE==='single'?aOrig(n):n; if(!isOn(n)||(faultCkt===n&&tripped)||(MODE==='single'&&o>0&&genShedA(o))) return;
+      if(c.pool){ add(poolKW(),0.88,2,0); return; } if(c.dock){ add(subKW('K'),0.9,2,0); return; }
       add(c.kw||0,loadPF(c.n),c.p||1,rowPh(Math.floor((n-1)/2),n%2===1)); });
-    if(pa&&isOn(2)&&!(faultCkt===2&&tripped)) add(poolKW(),0.88,2,0);
     var D=derState(); if(D.on&&r.kw>0){ var want=Math.max(0,(D.Lm||r.kw)-(D.inv==='gen'?(D.toMain||0):0)), f=want/r.kw; r.kw*=f; r.kva*=f; r.I=r.I.map(function(x){return x*f;}); r.I240*=f; r.I120=r.I120.map(function(x){return x*f;}); } }
-  if(b4Gen()) B4_LDS.forEach(function(L){ if(b4C[L.s]||b4Flt===L.s||b4Shed(L.s)) return; add(L.kw,loadPF(L.n),L.p,(b4Stk&&L.side==='R')?1-L.row%2:L.row%2); });
+  if(b4Gen()) b4Lds().forEach(function(L){ if(b4C[L.s]||b4Flt===L.s||b4Shed(L.s)) return; add(L.kw,loadPF(L.n),L.p,(b4Stk&&L.side==='R')?1-L.row%2:L.row%2); });
   if(np===2) r.N=Math.abs(r.I[0]-r.I[1]);   // only the 120 V imbalance comes back on the neutral
   return r; }
 function genDispPages(){ var sy=SYS[MODE], ph=sy.ph.map(function(a){return a[0];}), run=genRunOK(), L=genLoad(), kwMax=GEN_KW,
@@ -1970,8 +2063,8 @@ function ckDrag(m,h){   // drag the circuit menu by its title bar — mouse, fin
   function end(e){ if(!on) return; on=false; setTimeout(function(){ ckJustDragged=false; },350); h.style.cursor='grab'; try{h.releasePointerCapture(e.pointerId);}catch(_){} }
   h.addEventListener('pointerup',end); h.addEventListener('pointercancel',end); }
 function ckMenuClose(){ var m=document.getElementById('ckMenu'); if(m) m.remove(); }
-function ckInfo(kind,id){ if(kind==='Q'){ var ql=b4L(id); return {name:ql.n, key:'Q:'+id, v120:!!ql.nt, p:ql.p, def:b4Egc}; } if(kind==='B'){ var bl=derBuL(id); return {name:bl.n, key:'B:'+id, v120:!!bl.nt, p:bl.p, def:buEgc}; } if(kind==='X'){ var xl=xfC().loads[id]; return {name:xl.n, key:'X:'+id, v120:!!xl.nt, p:xl.ph.length, def:'intact'}; } if(kind==='P'){ var c=POOLCKTS[id]; return {name:c.n, key:'P:'+id, v120:!!c.nt, p:c.p, def:poolEgc}; }
-  var d=DEMO[SYS[MODE].demo], c=d[id]; if(poolOn&&MODE==='single'){ if(id===26)c=d[2]; else if(id===28)c=d[4]; }
+function ckInfo(kind,id){ if(kind==='Q'){ var ql=b4L(id); return {name:ql.n, key:'Q:'+id, v120:!!ql.nt, p:ql.p, def:'intact'}; } if(kind==='B'){ var bl=derBuL(id); return {name:bl.n, key:'B:'+id, v120:!!bl.nt, p:bl.p, def:'intact'}; } if(kind==='X'){ var xl=xfC().loads[id]; return {name:xl.n, key:'X:'+id, v120:!!xl.nt, p:xl.ph.length, def:'intact'}; } if(kind==='P'||kind==='K'){ var c=subCk(kind)[id]; return {name:c.n, key:kind+':'+id, v120:!!c.nt, p:c.p, def:'intact'}; }
+  var d=DEMO[SYS[MODE].demo], c=MODE==='single'?aDemo()[id]:d[id];
   c=c||{n:'#'+id,p:1}; return {name:c.n, key:MODE+':'+id, v120:!!c.nt, p:c.p||1, def:egcPath}; }
 function ckExplain(inf){ var e=ckEgc[inf.key], rv=ckRev[inf.key], out=[];
   if(e==='broken') out.push('<b style="color:#ff8a8a">EGC OPEN · '+inf.name+'</b> — this circuit\'s ground wire is broken (loose wire nut, failed backstab pigtail, missing bonding jumper). It runs normally, so nobody notices until it faults: then nothing trips and the frame stays live (250.4(A)(5)).');
@@ -1993,14 +2086,14 @@ function openCkMenu(kind,id,ev){ ckMenuClose(); var inf=ckInfo(kind,id), cur=ckE
   ckDrag(m,h);
   var fb=document.createElement('button'); fb.textContent='⚡ Fault this circuit ('+({LG:'line–ground',LL:'line–line',LN:'line–neutral',NG:'neutral–ground',ARC:'arcing'}[(kind==='X'&&faultType==='ARC')?'LG':faultType])+')';
   fb.style.cssText='display:block;width:100%;margin-top:9px;padding:9px;border-radius:7px;border:1px solid #ff6b6b;background:#3a1620;color:#ff8a8a;font:700 11px system-ui;cursor:pointer';
-  fb.onclick=function(e){ e.stopPropagation(); ckMenuClose(); if(kind==='P') poolFaultAt(id); else if(kind==='X') xfFaultAt('L'+id); else if(kind==='B') derBuFaultAt(id); else if(kind==='Q') b4FaultAt(id); else applyFault(id); }; m.appendChild(fb);
+  fb.onclick=function(e){ e.stopPropagation(); ckMenuClose(); if(kind==='P') poolFaultAt(id); else if(kind==='K') dockFaultAt(id); else if(kind==='X') xfFaultAt('L'+id); else if(kind==='B') derBuFaultAt(id); else if(kind==='Q') b4FaultAt(id); else applyFault(id); }; m.appendChild(fb);
   m.appendChild(seg('EGC',[['intact','INTACT','#1f6f45','#8fd6a3'],['loose','LOOSE','#6a5212','#f5c542'],['broken','BROKEN','#5a1a1f','#ff8a8a']],cur,function(v){
     if(v===inf.def) delete ckEgc[inf.key]; else ckEgc[inf.key]=v; ckChanged(kind,id); }));
   if(inf.v120) m.appendChild(seg('POLARITY',[['n','NORMAL','#1f6f45','#8fd6a3'],['r',inf.p>1?'L2 ↔ N':'REVERSED','#6a3a12','#ffb35c']],rv?'r':'n',function(v){
     if(v==='r') ckRev[inf.key]=1; else delete ckRev[inf.key]; ckChanged(kind,id); }));
   else { var na=document.createElement('div'); na.style.cssText='margin-top:8px;font-size:10.5px;color:#6b7ba6'; na.textContent='Polarity: n/a (straight 240 V load, no neutral on this circuit)'; m.appendChild(na); }
-  if(kind!=='X'&&protOK(kind)&&!(kind==='M'&&(ckInfoRaw(id)||{}).pool)){ var pk=protKey(kind,id), preq=protReq(kind,id), pcur=protOf(kind,id);
-    m.appendChild(seg('BREAKER',[['std','STD','#2b3a5e','#cdd8f0'],['gfci','GFCI','#0d3550','#5fd4ff'],['afci','AFCI','#6a3a12','#ffb35c'],['df','DUAL','#3e2a5e','#c69bff']],pcur,function(v){
+  if(kind!=='X'&&protOK(kind)&&!(kind==='M'&&((ckInfoRaw(id)||{}).pool||(ckInfoRaw(id)||{}).dock))){ var pk=protKey(kind,id), preq=protReq(kind,id), pcur=protOf(kind,id);
+    m.appendChild(seg('BREAKER',[['std','STD','#2b3a5e','#cdd8f0'],['gfci','GFCI','#0d3550','#5fd4ff'],['afci','AFCI','#6a3a12','#ffb35c'],['df','DUAL','#3e2a5e','#c69bff']].concat(kind==='K'?[['gfpe','GFPE','#0d4a40','#7fe0c9']]:[]),pcur,function(v){
       if(preq&&v===preq.need) delete prot[pk]; else prot[pk]=v; ckChanged(kind,id,1); }));
     var pn=document.createElement('div'), sh=protShort(kind,id); pn.style.cssText='margin-top:6px;font-size:10.5px;line-height:1.35;color:'+(sh?'#ff8a8a':'#8fa0c4');
     pn.innerHTML=preq?((sh?'<b>Missing '+sh+'</b> — code violation. ':'')+'Required: <b>'+PROT_LBL[preq.need]+'</b> · '+preq.why):(kind==='M'&&MODE!=='single'?'No GFCI location applies to this circuit. AFCI (210.12) is a dwelling rule — not required in commercial.':'No GFCI / AFCI rule modeled for this circuit.'); m.appendChild(pn); }
@@ -2012,12 +2105,12 @@ function openCkMenu(kind,id,ev){ ckMenuClose(); var inf=ckInfo(kind,id), cur=ckE
   document.getElementById('ckX').onclick=function(e){e.stopPropagation();ckMenuClose();};
   m.addEventListener('click',function(e){e.stopPropagation();});
 }
-function ckInfoRaw(id){ var d=DEMO[SYS[MODE].demo]; if(poolOn&&MODE==='single'&&id===2) return {pool:1}; return d[id]; }
+function ckInfoRaw(id){ return MODE==='single'?aDemo()[id]:DEMO[SYS[MODE].demo][id]; }
 function protExplain(kind,id,nm){ var p=protOf(kind,id), r=protReq(kind,id), sh=protShort(kind,id);
   if(sh) return '<b style="color:#ff8a8a">NO '+sh+' · '+nm+'</b> — this circuit requires '+PROT_LBL[r.need]+' protection ('+r.why+'). With a '+PROT_LBL[p].toLowerCase()+' breaker it still runs — '+(protGF(r.need)&&!protGF(p)?'but a ground fault through a person won\'t trip it until it\'s big enough to trip the breaker, and a neutral touching ground never trips it':'but an arcing connection never trips it')+'. Try a fault and compare.';
-  return '<b style="color:'+PROT_COL[p]+'">'+PROT_LBL[p]+' BREAKER · '+nm+'</b> — '+(p==='std'?'overcurrent only: overloads and short circuits.':(p==='gfci'?'trips on about 4–6 mA of ground-fault current (people protection), and on a neutral touching ground.':(p==='afci'?'trips on arcing (loose terminals, damaged cords) and, on most models, ground faults of about 30–50 mA.':'arc-fault <b>and</b> 4–6 mA ground-fault protection in one breaker.')))+(p!=='std'?' Its load neutral lands on the breaker and its white pigtail goes to the neutral bar.':'')+(r?' Required here: '+PROT_LBL[r.need]+' · '+r.why+'.':''); }
+  return '<b style="color:'+PROT_COL[p]+'">'+PROT_LBL[p]+' BREAKER · '+nm+'</b> — '+(p==='std'?'overcurrent only: overloads and short circuits.':(p==='gfpe'?'trips on about 30 mA of ground-fault current (equipment protection — shore power, 555.35(B)(1)), and on a neutral touching ground.':p==='gfci'?'trips on about 4–6 mA of ground-fault current (people protection), and on a neutral touching ground.':(p==='afci'?'trips on arcing (loose terminals, damaged cords) and, on most models, ground faults of about 30–50 mA.':'arc-fault <b>and</b> 4–6 mA ground-fault protection in one breaker.')))+(p!=='std'?' Its load neutral lands on the breaker and its white pigtail goes to the neutral bar.':'')+(r?' Required here: '+PROT_LBL[r.need]+' · '+r.why+'.':''); }
 function ckChanged(kind,id,pc){ var inf=ckInfo(kind,id), msg=ckExplain(inf); if(pc) msg=protExplain(kind,id,inf.name);
-  if(kind==='P'&&poolFault===id) poolFaultAt(id); else if(kind==='X'&&xfFault==='L'+id) xfFaultAt('L'+id); else if(kind==='B'&&derFlt==='B:'+id) derBuFaultAt(id); else if(kind==='Q'&&b4Flt===id) b4FaultAt(id); else if(kind==='M'&&faultCkt===id&&!tripped) applyFault(id);
+  if(kind==='P'&&SB.P.fault===id) poolFaultAt(id); else if(kind==='K'&&SB.K.fault===id) dockFaultAt(id); else if(kind==='X'&&xfFault==='L'+id) xfFaultAt('L'+id); else if(kind==='B'&&derFlt==='B:'+id) derBuFaultAt(id); else if(kind==='Q'&&b4Flt===id) b4FaultAt(id); else if(kind==='M'&&faultCkt===id&&!tripped) applyFault(id);
   ckMsg=msg; render();
   var r=document.getElementById('ckMenu'); if(r){ var L=parseFloat(r.style.left), T=parseFloat(r.style.top); openCkMenu(kind,id,{clientX:L-10,clientY:T-10,keep:1}); } }
 document.addEventListener('click',function(){ if(ckJustDragged){ ckJustDragged=false; return; } ckMenuClose(); });
@@ -2035,28 +2128,28 @@ function ckBadges(svg,x0,x1,yTop,eg,rv,isL){   // status chips straddling the to
   items.forEach(function(it){ var w=it[3], x=isL?bx:bx-w; svg.appendChild(el('rect',{x:x,y:y,width:w,height:10,rx:2,fill:it[1],stroke:it[2],'stroke-width':0.8}));
     svg.appendChild(txt(x+w/2,y+8,it[0],{anchor:'middle',size:8,w:700,fill:it[2]})); bx+=isL?(w+3):-(w+3); });
 }
-function poolToggle(i){ if(poolFault===i){ poolFault=null; } poolOff[i]=!poolOff[i]; poolMsg=''; render(); }
-function poolFaultAt(i){ var c=POOLCKTS[i]; if(poolOff[i])return; if(poolTimer){clearTimeout(poolTimer);poolTimer=null;}
-  if(faultType==='NG'&&!c.nt){ poolMsg='<b style="color:#ffd27a">NO NEUTRAL ON '+c.n+'</b> — a straight 240 V load has no neutral to touch ground. Try Line–Ground or Arc.'; render(); return; }
-  poolFault=i; ckMsg=''; var eg=poolEgcOf(i), ms=null, done='', pp=protOf('P',i);
+function poolToggle(i){ if(SB.P.fault===i){ SB.P.fault=null; } SB.P.off[i]=!SB.P.off[i]; SB.P.msg=''; render(); }
+function poolFaultAt(i){ var c=POOLCKTS[i]; if(SB.P.off[i])return; if(SB.P.timer){clearTimeout(SB.P.timer);SB.P.timer=null;}
+  if(faultType==='NG'&&!c.nt){ SB.P.msg='<b style="color:#ffd27a">NO NEUTRAL ON '+c.n+'</b> — a straight 240 V load has no neutral to touch ground. Try Line–Ground or Arc.'; render(); return; }
+  SB.P.fault=i; ckMsg=''; var eg=poolEgcOf(i), ms=null, done='', pp=protOf('P',i);
   if(faultType==='ARC'||faultType==='NG'||(faultType==='LG'&&protAF(pp)&&!protGF(pp))){ var qt=protTrip('P',i,faultType,c.n,eg);
-    if(qt){ poolMsg=qt.now; ms=650; done='<b style="color:#8fd6a3">CLEARED BY THE '+qt.by+'</b> — '+qt.done+' Tap the breaker to reset it.'; }
-    else { poolMsg=faultType==='ARC'?protArcMsg(c.n,pp):protNgMsg(c.n); }
+    if(qt){ SB.P.msg=qt.now; ms=650; done='<b style="color:#8fd6a3">CLEARED BY THE '+qt.by+'</b> — '+qt.done+' Tap the breaker to reset it.'; }
+    else { SB.P.msg=faultType==='ARC'?protArcMsg(c.n,pp):protNgMsg(c.n); }
   } else if(protGF(pp)){
-    poolMsg='<b style="color:#ff8a8a">GROUND FAULT · '+c.n+'</b> — the GFCI sees current leaving on the hot that does not come back on the neutral / other hot. At about <b>4–6 mA</b> it trips in a fraction of a second (680.5 · 680.21(C) · 680.22(A)(4) · 680.23(A)(3)).'
+    SB.P.msg='<b style="color:#ff8a8a">GROUND FAULT · '+c.n+'</b> — the GFCI sees current leaving on the hot that does not come back on the neutral / other hot. At about <b>4–6 mA</b> it trips in a fraction of a second (680.5 · 680.21(C) · 680.22(A)(4) · 680.23(A)(3)).'
       +(eg==='broken'?' <b>Even with the EGC open</b> the GFCI still trips — the leakage finds a path through the bonding grid, the water, earth… or a person. The GFCI saves you; the open EGC is still a code violation that has to be fixed.':(eg==='loose'?' A high-resistance EGC does not slow a GFCI down — it only needs a few milliamps.':''));
     ms=450; done='<b style="color:#8fd6a3">GFCI TRIPPED</b> — '+c.n+' is off. A few milliamps is all it took. Tap the breaker to reset it.';
   } else if(eg==='intact'){
-    poolMsg='<b style="color:#ff8a8a">GROUND FAULT · '+c.n+'</b> — no GFCI on this one, so it clears the normal way: fault current rides the branch EGC to the pool panel G bar, up the insulated copper EGC in the feeder, to the main panel and the service MBJ. Big current → the breaker trips magnetically.';
+    SB.P.msg='<b style="color:#ff8a8a">GROUND FAULT · '+c.n+'</b> — no GFCI on this one, so it clears the normal way: fault current rides the branch EGC to the pool panel G bar, up the insulated copper EGC in the feeder, to the main panel and the service MBJ. Big current → the breaker trips magnetically.';
     ms=900; done='<b style="color:#8fd6a3">BREAKER TRIPPED</b> — '+c.n+' cleared through the EGC. Tap the breaker to reset it.';
   } else if(eg==='loose'){
-    poolMsg='<b style="color:#ffd27a">GROUND FAULT · HIGH-R EGC · '+c.n+'</b> — a loose / corroded EGC (common in damp pool equipment pads) chokes the fault current, so the breaker only trips on its slow thermal curve. For those seconds the '+c.n.toLowerCase()+' frame <b>and the whole bonding grid</b> sit at a dangerous voltage.';
+    SB.P.msg='<b style="color:#ffd27a">GROUND FAULT · HIGH-R EGC · '+c.n+'</b> — a loose / corroded EGC (common in damp pool equipment pads) chokes the fault current, so the breaker only trips on its slow thermal curve. For those seconds the '+c.n.toLowerCase()+' frame <b>and the whole bonding grid</b> sit at a dangerous voltage.';
     ms=3500; done='<b style="color:#8fd6a3">BREAKER TRIPPED (slowly)</b> — '+c.n+' finally cleared on the thermal element. Fix the EGC connection. Tap the breaker to reset it.';
   } else {
-    poolMsg='<b style="color:#ff8a8a">GROUND FAULT · EGC OPEN · '+c.n+' — DEADLY</b> — no EGC and no GFCI, so <b>nothing trips</b>. The '+c.n.toLowerCase()+' frame stays energized, and because it is tied to the 680.26 bonding grid the <b>deck, ladder, rails and water rise to ~120 V</b> above remote earth. The grid keeps everything near the pool at the same voltage, but anyone touching something grounded from outside the grid (a hose bib, a fence, the house) completes the circuit. This is exactly why 680 wants an insulated copper EGC and GFCI protection. Tap the breaker to kill it.';
+    SB.P.msg='<b style="color:#ff8a8a">GROUND FAULT · EGC OPEN · '+c.n+' — DEADLY</b> — no EGC and no GFCI, so <b>nothing trips</b>. The '+c.n.toLowerCase()+' frame stays energized, and because it is tied to the 680.26 bonding grid the <b>deck, ladder, rails and water rise to ~120 V</b> above remote earth. The grid keeps everything near the pool at the same voltage, but anyone touching something grounded from outside the grid (a hose bib, a fence, the house) completes the circuit. This is exactly why 680 wants an insulated copper EGC and GFCI protection. Tap the breaker to kill it.';
   }
   render();
-  if(ms) poolTimer=setTimeout(function(){ poolOff[i]=true; poolFault=null; poolMsg=done; render(); }, ms);
+  if(ms) SB.P.timer=setTimeout(function(){ SB.P.off[i]=true; SB.P.fault=null; SB.P.msg=done; render(); }, ms);
 }
 /* ================= customer-owned transformer (separately derived system) =================
    480Y/277 system: STEP-DOWN 45 kVA 480Δ → 208Y/120 · 208Y/120 system: STEP-UP 45 kVA 208Δ → 480Y/277
@@ -2807,108 +2900,152 @@ function drawDer(svg,DR,D,g){
   }
   PRB.forEach(function(q){ brkProbe(/^DR:/.test(q[2])?svgB:svg,q[0],q[1],q[2],q[3]); });
 }
-function drawPool(svg,P,g){
-  var on=P.feedOn, FRED=g.FRED, DEAD=g.DEAD, ph=g.phases, OBJ='#f5c542', CU='#c98a4a';
-  function halo(x,y,str,o){ var t=txt(x,y,str,o); t.setAttribute('stroke',lc('#0b1020')); t.setAttribute('stroke-width','4'); t.setAttribute('stroke-linejoin','round'); t.setAttribute('paint-order','stroke'); svg.appendChild(t); }
-  // ---- geometry: a 12-space copy of the panelboard ----
-  var PSH=s4On()?120:0, PAX=s4On()?100:0, PC=1196+PAX, rowH=25, rows=6, pTop=236-PSH,   /* 400 A: the pool panel rides higher so Panel B can sit under it */ busTop=pTop-6, busBot=pTop+rows*rowH+2, bh=28;
-  var bIL=PC-bh-14, bOL=PC-bh-66, bIR=PC+bh+14, bOR=PC+bh+66, xNL=bOL-12, xGL=bOL-28, xNR=bOR+12, xGR=bOR+28;
-  var eL1=xGL-72, eL0=eL1-112, eR0=xGR+72, eR1=eR0+112;
-  var pOVR=[], pREV=[], pBADGE=[], pBPROBE=[], pObj=poolBond&&on, anyF=(poolFault!==null)&&on, fC=anyF?POOLCKTS[poolFault]:null, gRed=anyF&&!protGF(protOf('P',poolFault))&&faultType!=='ARC'&&poolEgcOf(poolFault)!=='broken', fdrHot=g.fdrF&&(faultType==='LG')&&poolEgc!=='intact', gridHot=(anyF&&!fC.gf&&poolEgcOf(poolFault)!=='intact')||fdrHot; poolLive=on; poolGPh=fdrHot?poolFdrK:(gridHot?(Math.floor((fC.slot-1)/2)%2):-1); poolGFrac=((fdrHot?poolEgc:(anyF?poolEgcOf(poolFault):poolEgc))==='broken')?1:0.5; var pMark=null;
+function subGeo(k){ var s4=s4On(), PSH=s4?120:0, PAX=s4?100:0, PC=(k==='K'?1236:1196)+PAX, rowH=25, rows=6, pTop=(k==='K'?749:236)-PSH, busTop=pTop-6, busBot=pTop+rows*rowH+2, bh=28;   /* 400 A: both subpanels ride higher so Panel B can sit beside them */
+  var bIL=PC-bh-14, bOL=PC-bh-66, bIR=PC+bh+14, bOR=PC+bh+66, xNL=bOL-12, xGL=bOL-28, xNR=bOR+12, xGR=bOR+28, eL1=xGL-72, eL0=eL1-112, eR0=xGR+72, eR1=eR0+112;
+  return {PSH:PSH,PAX:PAX,PC:PC,rowH:rowH,rows:rows,pTop:pTop,busTop:busTop,busBot:busBot,bh:bh,bIL:bIL,bOL:bOL,bIR:bIR,bOR:bOR,xNL:xNL,xGL:xGL,xNR:xNR,xGR:xGR,eL1:eL1,eL0:eL0,eR0:eR0,eR1:eR1,TY:[pTop-126,pTop-114,pTop-102,pTop-90]}; }
+function subBFeed(k,top){ var b=SUBB[k], y0=top+b.row*25+12.5, on=!b4C[b.s];   // the feeder breaker sits on Panel B's LEFT side (rows b.row, b.row+1)
+  var hy={}; hy[b.row%2]=y0; hy[(b.row+1)%2]=y0+25;   // Panel B's left column: even rows are L1
+  return {src:'B', feedOn:b4Live()&&on&&b4Flt!==b.s, on:on, shed:false, bOut:PB_X0+322-94, hy:hy, xN:PB_X0+322-106, xG:PB_X0+322-122}; }
+function fedFromSel(svg,x,y,k){   // FED FROM  A | B  (400 A only) — which panel the subpanel's feeder breaker lives in
+  var S=SB[k], w=132, h=20, lw=62, sw=(w-lw)/2;
+  svg.appendChild(el('rect',{x:x,y:y,width:w,height:h,rx:6,fill:'#101a30',stroke:'#4a5b80','stroke-width':1.4}));
+  svg.appendChild(txt(x+lw/2+1,y+h/2+3,'FED FROM',{anchor:'middle',size:7.5,w:700,fill:'#5fd4ff'}));
+  ['A','B'].forEach(function(v,i){ var ox=x+lw+i*sw, on=(S.src===v), g=el('g'); g.style.cursor='pointer'; g.addEventListener('click',function(e){e.stopPropagation();subSrc(k,v);});
+    if(on) g.appendChild(el('rect',{x:ox+1.5,y:y+1.5,width:sw-3,height:h-3,rx:4,fill:'#00b894'}));
+    g.appendChild(el('rect',{x:ox,y:y,width:sw,height:h,fill:'transparent'}));
+    g.appendChild(txt(ox+sw/2,y+h/2+3.5,'PANEL '+v,{anchor:'middle',size:7.5,w:800,fill:on?'#001a16':'#8695b5'})); svg.appendChild(g);
+    svg.appendChild(el('path',{d:'M '+ox+' '+(y+3)+' L '+ox+' '+(y+h-3),stroke:'#2b3a5e','stroke-width':1})); }); }
+function drawSub(svg,k,P,g){
+  var S=SB[k], CK=subCk(k), isK=k==='K', fromB=P.src==='B', on=P.feedOn, FRED=g.FRED, DEAD=g.DEAD, ph=g.phases, OBJ='#f5c542', CU='#c98a4a', ACC=isK?'#7fe0c9':'#5fd4ff';
+  function halo(x,y,str,o){ var t=txt(x,y,str,o); t.setAttribute('stroke',lc('#0b1020')); t.setAttribute('stroke-width','4'); t.setAttribute('stroke-linejoin','round'); t.setAttribute('paint-order','stroke'); svg.appendChild(t); return t; }
+  var G=subGeo(k), PSH=G.PSH, PAX=G.PAX, PC=G.PC, rowH=G.rowH, rows=G.rows, pTop=G.pTop, busTop=G.busTop, busBot=G.busBot;
+  var bIL=G.bIL, bOL=G.bOL, bIR=G.bIR, bOR=G.bOR, xNL=G.xNL, xGL=G.xGL, xNR=G.xNR, xGR=G.xGR, eL1=G.eL1, eL0=G.eL0, eR0=G.eR0, eR1=G.eR1;
+  var fdrB=fromB?S.fdrB:null, fF=fromB?!!fdrB:g.fdrF, ft=fromB&&fdrB?fdrB.ft:faultType, fK=fromB&&fdrB?fdrB.k:S.fdrK;
+  var pOVR=[], pREV=[], pBADGE=[], pBPROBE=[], pObj=S.bond&&on, anyF=(S.fault!==null)&&on, fC=anyF?CK[S.fault]:null, fP=anyF?protOf(k,S.fault):'std', fGF=protGF(fP)||fP==='gfpe';
+  var gRed=anyF&&!fGF&&faultType!=='ARC'&&subEgcOf(k,S.fault)!=='broken'&&!(isK&&(faultType==='LL'||faultType==='LN'||faultType==='NG'));
+  var fdrHot=fF&&(ft==='LG')&&S.egc!=='intact'&&!(isK&&S.gfpe), gridHot=isK?(S.wet>0||fdrHot):((anyF&&!fC.gf&&subEgcOf(k,S.fault)!=='intact')||fdrHot);
+  S.live=on; S.gPh=fdrHot?fK:(gridHot&&anyF?(Math.floor((fC.slot-1)/2)%2):-1); S.gFrac=isK&&!fdrHot?(S.wet>=1?1:(S.wet>0?0.5:0)):(((fdrHot?S.egc:(anyF?subEgcOf(k,S.fault):S.egc))==='broken')?1:0.5); var pMark=null;
   var gCol=gRed?FRED:COL.egc;   // objectionable current: green conductor, yellow dots (same everywhere)
-  var kT=(P.hy[0]<P.hy[1])?0:1, kB=1-kT;
-  function bxAt(p,y){ return PC+((p===kT)?11:-11)+6*tri((y-busTop)/(2*rowH)+p/2); }
+  var kT=(P.hy[0]<P.hy[1])?0:1, kB=1-kT, kR=fromB?kB:kT;   // kR: the phase that lands on the RIGHT lug (fed from the left: top exit; fed from the right: bottom exit) — no crossings
+  var nIn=fromB?xNR:xNL, nOt=fromB?xNL:xNR, gIn=fromB?xGR:xGL, gOt=fromB?xGL:xGR;   // the feeder N / EGC land on the bars on the side the feeder comes in from
+  function bxAt(p,y){ return PC+((p===kR)?11:-11)+6*tri((y-busTop)/(2*rowH)+p/2); }
   function bPath(p){ var d='M '+bxAt(p,busTop).toFixed(1)+' '+busTop; for(var y=busTop+4;y<=busBot;y+=4) d+=' L '+bxAt(p,y).toFixed(1)+' '+y; return d; }
   // ---- enclosure ----
-  svg.appendChild(el('rect',{x:xGL-12,y:pTop-20,width:(xGR+12)-(xGL-12),height:(busBot+50)-(pTop-20),rx:10,fill:'#0e1526',stroke:'#5fd4ff','stroke-width':1.5}));
-  // ---- 4-wire feeder from the main panel: out, UP, over, and DOWN into the top of the pool panel (no crossings) ----
-  // exits top→bottom L1, L2, N, G; risers step outward; top runs stack; drops land right→left L1, L2, N, G
-  var yT1=P.hy[kT], yT2=P.hy[kB], RX=[650+PAX,662+PAX,674+PAX,686+PAX], TY=[110-PSH,122-PSH,134-PSH,146-PSH];   // pool feeder runs high, above the panel controls
-  var F=[ {d:'M '+P.bOut+' '+yT1+' L '+RX[0]+' '+yT1+' L '+RX[0]+' '+TY[0]+' L '+(PC+12)+' '+TY[0]+' L '+(PC+12)+' '+busTop, c:ph[kT].c, k:kT},
-          {d:'M '+P.bOut+' '+yT2+' L '+RX[1]+' '+yT2+' L '+RX[1]+' '+TY[1]+' L '+(PC-12)+' '+TY[1]+' L '+(PC-12)+' '+busTop, c:ph[kB].c, k:kB} ];
-  var fF=g.fdrF, ft=faultType;
-  F.forEach(function(f){ var red=fF&&(f.k===poolFdrK||ft==='LL');
+  svg.appendChild(el('rect',{x:xGL-12,y:pTop-20,width:(xGR+12)-(xGL-12),height:(busBot+50)-(pTop-20),rx:10,fill:'#0e1526',stroke:ACC,'stroke-width':1.5}));
+  // ---- 4-wire feeder: out of its breaker, up, over and DOWN into the top of the subpanel (no crossings) ----
+  var yT1=P.hy[kT], yT2=P.hy[kB], yLo=Math.max(yT1,yT2), TY=G.TY, F, dN, dG, lab, labX;
+  if(fromB){ var RX=SUBB[k].lanes;   // exits leftward: the top exit turns up closest to Panel B, rides the highest lane and lands farthest left
+    F=[ {d:'M '+P.bOut+' '+yT1+' L '+RX[0]+' '+yT1+' L '+RX[0]+' '+TY[0]+' L '+(PC-12)+' '+TY[0]+' L '+(PC-12)+' '+busTop, c:ph[kT].c, k:kT},
+        {d:'M '+P.bOut+' '+yT2+' L '+RX[1]+' '+yT2+' L '+RX[1]+' '+TY[1]+' L '+(PC+12)+' '+TY[1]+' L '+(PC+12)+' '+busTop, c:ph[kB].c, k:kB} ];
+    dN='M '+P.xN+' '+(yLo+9)+' L '+RX[2]+' '+(yLo+9)+' L '+RX[2]+' '+TY[2]+' L '+xNR+' '+TY[2]+' L '+xNR+' '+busTop;
+    dG='M '+P.xG+' '+(yLo+17)+' L '+RX[3]+' '+(yLo+17)+' L '+RX[3]+' '+TY[3]+' L '+xGR+' '+TY[3]+' L '+xGR+' '+busTop;
+    lab=(isK?'60 A 2P GFPE 100 mA':'100 A 2P')+' in PANEL B (slots '+SUBB[k].s+'/'+(SUBB[k].s+2)+') · 4-wire '+(isK?'dock':'pool')+' feeder · L1 · L2 · N · insulated Cu EGC'; labX=PC+60;
+  } else if(isK){ var RXa=[g.eqR1+14,g.eqR1+26,g.eqR1+38,g.eqR1+50];   // dock from Panel A slots 40/42 (bottom right): out, UP beside Panel A's loads, over, DOWN
+    F=[ {d:'M '+P.bOut+' '+yT1+' L '+RXa[0]+' '+yT1+' L '+RXa[0]+' '+TY[0]+' L '+(PC+12)+' '+TY[0]+' L '+(PC+12)+' '+busTop, c:ph[kT].c, k:kT},
+        {d:'M '+P.bOut+' '+yT2+' L '+RXa[1]+' '+yT2+' L '+RXa[1]+' '+TY[1]+' L '+(PC-12)+' '+TY[1]+' L '+(PC-12)+' '+busTop, c:ph[kB].c, k:kB} ];
+    dN='M '+g.xNR+' '+(yLo+9)+' L '+RXa[2]+' '+(yLo+9)+' L '+RXa[2]+' '+TY[2]+' L '+xNL+' '+TY[2]+' L '+xNL+' '+busTop;
+    dG='M '+g.xGR+' '+(yLo+17)+' L '+RXa[3]+' '+(yLo+17)+' L '+RXa[3]+' '+TY[3]+' L '+xGL+' '+TY[3]+' L '+xGL+' '+busTop;
+    lab='60 A 2P GFPE 100 mA (slots 40/42) · 4-wire dock feeder · L1 · L2 · N · insulated Cu EGC (555.35(A) · 555.37)'; labX=PC-60;
+  } else { var RXp=[650+PAX,662+PAX,674+PAX,686+PAX];   // pool from Panel A slots 2/4: exits top→bottom L1, L2, N, G; risers step outward; top runs stack; drops land right→left
+    F=[ {d:'M '+P.bOut+' '+yT1+' L '+RXp[0]+' '+yT1+' L '+RXp[0]+' '+TY[0]+' L '+(PC+12)+' '+TY[0]+' L '+(PC+12)+' '+busTop, c:ph[kT].c, k:kT},
+        {d:'M '+P.bOut+' '+yT2+' L '+RXp[1]+' '+yT2+' L '+RXp[1]+' '+TY[1]+' L '+(PC-12)+' '+TY[1]+' L '+(PC-12)+' '+busTop, c:ph[kB].c, k:kB} ];
+    var tN=g.busTopZ+50, tG=g.busTopZ+58;   // pool N / EGC tap the main panel's right N and G bars just below their tops
+    dN='M '+g.xNR+' '+tN+' L '+RXp[2]+' '+tN+' L '+RXp[2]+' '+TY[2]+' L '+xNL+' '+TY[2]+' L '+xNL+' '+busTop;
+    dG='M '+g.xGR+' '+tG+' L '+RXp[3]+' '+tG+' L '+RXp[3]+' '+TY[3]+' L '+xGL+' '+TY[3]+' L '+xGL+' '+busTop;
+    lab='100 A 2P (slots 2/4) · 4-wire pool feeder · L1 · L2 · N · insulated Cu EGC (680.7(A))'; labX=940+PAX; }
+  F.forEach(function(f){ var red=fF&&(f.k===fK||ft==='LL');
     svg.appendChild(el('path',{d:f.d,stroke:red?FRED:(on?f.c:DEAD),'stroke-width':red?3.2:2.4,fill:'none',opacity:P.on?1:0.4}));
-    if(red) addDots(svg,f.d,(ft==='LL'&&f.k!==poolFdrK)?-1:1,20,FRED); else if(on)addDots(svg,f.d,g.dirPh(f.k),22,null,g.angPh(f.k));
+    if(red) addDots(svg,f.d,(ft==='LL'&&f.k!==fK)?-1:1,20,FRED); else if(on)addDots(svg,f.d,g.dirPh(f.k),22,null,g.angPh(f.k));
     var hf=el('path',{d:f.d,stroke:'transparent','stroke-width':13,fill:'none'}); hf.style.cursor='pointer';
-    hf.addEventListener('click',function(e){e.stopPropagation(); poolFdrK=f.k; applyFault(2);}); svg.appendChild(hf); });
-  var tN=g.busTopZ+50, tG=g.busTopZ+58;   // pool N / EGC tap the main panel's right N and G bars just below their tops (follows the panel when the generator makes the service taller)
-  var dN='M '+g.xNR+' '+tN+' L '+RX[2]+' '+tN+' L '+RX[2]+' '+TY[2]+' L '+xNL+' '+TY[2]+' L '+xNL+' '+busTop;
+    hf.addEventListener('click',function(e){e.stopPropagation(); S.fdrK=f.k; if(fromB) subFdrB(k,f.k); else applyFault(SUBA[k]);}); svg.appendChild(hf); });
   var nF=fF&&(ft==='LN'||ft==='NG'); svg.appendChild(el('path',{d:dN,stroke:nF?FRED:COL.neu,'stroke-width':nF?3:2.2,fill:'none'}));
-  var anyN=on&&POOLCKTS.some(function(c,i){return c.nt&&!poolOff[i];}); if(nF)addDots(svg,dN,-1,20,FRED); else if(anyN)addDots(svg,dN,-1,22);
-  var dG='M '+g.xGR+' '+tG+' L '+RX[3]+' '+tG+' L '+RX[3]+' '+TY[3]+' L '+xGL+' '+TY[3]+' L '+xGL+' '+busTop;
-  var gF=fF&&(ft==='LG'||ft==='NG')&&!g.egcOpen; svg.appendChild(el('path',{d:dG,stroke:gF?FRED:gCol,'stroke-width':(gF||gRed||pObj)?3:2.2,fill:'none'})); if(gF||gRed)addDots(svg,dG,-1,20,FRED); else if(pObj)addDots(svg,dG,-1,20,OBJ);
-  halo(940+PAX,102-PSH,'100 A 2P (slots 2/4) · 4-wire pool feeder · L1 · L2 · N · insulated Cu EGC (680.7(A))',{anchor:'middle',size:10,w:700,fill:'#5fd4ff'});
-  // ---- main lugs (fed by the 100 A breaker) ----
-  [0,1].forEach(function(k){ var x=PC+(k===kT?12:-12); svg.appendChild(el('rect',{x:x-5,y:busTop-4,width:10,height:8,rx:2,fill:COL.box,stroke:ph[k].c,'stroke-width':1.3})); });
-  halo(PC,busBot+40,'POOL PANEL · 100 A · 12-SPACE · MAIN LUGS',{anchor:'middle',size:9,w:700,fill:'#5fd4ff'});
+  var anyN=on&&CK.some(function(c,i){return c.nt&&!S.off[i];}); if(nF)addDots(svg,dN,-1,20,FRED); else if(anyN)addDots(svg,dN,-1,22);
+  var gF=fF&&(ft==='LG'||ft==='NG')&&!(fromB?S.egc==='broken':g.egcOpen); svg.appendChild(el('path',{d:dG,stroke:gF?FRED:gCol,'stroke-width':(gF||gRed||pObj)?3:2.2,fill:'none'})); if(gF||gRed)addDots(svg,dG,-1,20,FRED); else if(pObj)addDots(svg,dG,-1,20,OBJ);
+  halo(labX,TY[0]-8,lab,{anchor:'middle',size:10,w:700,fill:ACC});
+  // ---- main lugs (fed by the feeder breaker) ----
+  [0,1].forEach(function(q){ var x=PC+(q===kR?12:-12); svg.appendChild(el('rect',{x:x-5,y:busTop-4,width:10,height:8,rx:2,fill:COL.box,stroke:ph[q].c,'stroke-width':1.3})); });
+  halo(PC,busBot+40,isK?'DOCK PANEL · 100 A · 12-SPACE · MAIN LUGS':'POOL PANEL · 100 A · 12-SPACE · MAIN LUGS',{anchor:'middle',size:9,w:700,fill:ACC});
   // ---- N & G bars both sides, tied underneath — kept SEPARATE (subpanel) ----
   [xNL,xNR].forEach(function(x){ svg.appendChild(el('line',{x1:x,y1:busTop,x2:x,y2:busBot-16,stroke:COL.neu,'stroke-width':2.6})); });
   svg.appendChild(el('path',{d:'M '+xNL+' '+(busBot-16)+' L '+xNR+' '+(busBot-16),stroke:COL.neu,'stroke-width':2.2,fill:'none'}));
-  if(anyN){ /* feeder N lands on the LEFT bar: right bar DOWN, tie right→left, left bar UP to the feeder */ addDots(svg,'M '+xNR+' '+busTop+' L '+xNR+' '+(busBot-16)+' L '+xNL+' '+(busBot-16)+' L '+xNL+' '+busTop,1,22); }
+  if(anyN){ /* the feeder N lands on the near bar: far bar DOWN, tie across, near bar UP to the feeder */ addDots(svg,'M '+nOt+' '+busTop+' L '+nOt+' '+(busBot-16)+' L '+nIn+' '+(busBot-16)+' L '+nIn+' '+busTop,1,22); }
   [xGL,xGR].forEach(function(x){ svg.appendChild(el('line',{x1:x,y1:busTop,x2:x,y2:busBot-4,stroke:gCol,'stroke-width':(gRed||pObj)?3:2.6})); });
   svg.appendChild(el('path',{d:'M '+xGL+' '+(busBot-4)+' L '+xGR+' '+(busBot-4),stroke:gCol,'stroke-width':(gRed||pObj)?3:2.2,fill:'none'}));
-  if(gRed){ /* fault current also heads for the feeder EGC on the LEFT bar */ addDots(svg,'M '+xGR+' '+busTop+' L '+xGR+' '+(busBot-4)+' L '+xGL+' '+(busBot-4)+' L '+xGL+' '+busTop,1,22,FRED); }
-  else if(pObj){ addDots(svg,'M '+xGR+' '+(busBot-10)+' L '+xGR+' '+(busBot-4)+' L '+xGL+' '+(busBot-4)+' L '+xGL+' '+busTop,1,22,OBJ); }
+  if(gRed){ addDots(svg,'M '+gOt+' '+busTop+' L '+gOt+' '+(busBot-4)+' L '+gIn+' '+(busBot-4)+' L '+gIn+' '+busTop,1,22,FRED); }
+  else if(pObj){ addDots(svg,fromB?('M '+xGR+' '+(busBot-10)+' L '+xGR+' '+busTop):('M '+xGR+' '+(busBot-10)+' L '+xGR+' '+(busBot-4)+' L '+xGL+' '+(busBot-4)+' L '+xGL+' '+busTop),1,22,OBJ); }
   svg.appendChild(txt(xNL,busTop-4,'N',{anchor:'middle',size:7.5,fill:'#d7dbe3'})); svg.appendChild(txt(xGL,busTop-4,'G',{anchor:'middle',size:7.5,fill:'#8fd6a3'}));
   svg.appendChild(txt(xNR,busTop-4,'N',{anchor:'middle',size:7.5,fill:'#d7dbe3'})); svg.appendChild(txt(xGR,busTop-4,'G',{anchor:'middle',size:7.5,fill:'#8fd6a3'}));
-  if(poolBond){ var jy=busBot-10; svg.appendChild(el('path',{d:'M '+xNR+' '+jy+' L '+xGR+' '+jy,stroke:'#ff6b6b','stroke-width':2.4,'stroke-dasharray':'4 3',fill:'none'})); if(pObj)addDots(svg,'M '+xNR+' '+jy+' L '+xGR+' '+jy,1,12,OBJ); }
-  svg.appendChild(txt(PC,busBot+24,P.shed?'SHED BY EMS — feeder breaker held open':(poolBond?'⚠ N–G ILLEGALLY BONDED':'N & G separate (subpanel)'),{anchor:'middle',size:10,w:700,fill:P.shed?'#ffd27a':(poolBond?'#ff8a8a':COL.txt2)}));
-  // ---- the pool panel's OWN illegal-bond toggle (separate from the main panel's) ----
-  diagPill(svg,eR1-140,pTop-62,140,20,poolBond,'BOND POOL','POOL BONDED',poolBondToggle);
-  diagEgcSel(svg,eR1-140,pTop-38,140,20,poolEgc,poolEgcSet);
+  if(S.bond){ var jy=busBot-10; svg.appendChild(el('path',{d:'M '+xNR+' '+jy+' L '+xGR+' '+jy,stroke:'#ff6b6b','stroke-width':2.4,'stroke-dasharray':'4 3',fill:'none'})); if(pObj)addDots(svg,'M '+xNR+' '+jy+' L '+xGR+' '+jy,1,12,OBJ); }
+  svg.appendChild(txt(PC,busBot+24,P.shed?'SHED BY EMS — feeder breaker held open':(S.bond?'⚠ N–G ILLEGALLY BONDED':'N & G separate (subpanel)'),{anchor:'middle',size:10,w:700,fill:P.shed?'#ffd27a':(S.bond?'#ff8a8a':COL.txt2)}));
+  // ---- the subpanel's OWN controls (separate from the main panel's) ----
+  diagPill(svg,eR1-140,pTop-62,140,20,S.bond,isK?'BOND DOCK N–G':'BOND POOL',isK?'DOCK N–G BONDED':'POOL BONDED',function(){ subBondToggle(k); });
+  diagEgcSel(svg,eR1-140,pTop-38,140,20,S.egc,function(v){ subEgcSet(k,v); });
+  if(s4On()) fedFromSel(svg,eL0,pTop-62,k);
+  if(isK) diagPill(svg,eL0,pTop-38,132,20,!S.gfpe,'FEEDER GFPE ON','NO FEEDER GFPE',dockGfpeTog);
   // ---- zig-zag bus ----
-  [0,1].forEach(function(k){ var d=bPath(k); svg.appendChild(el('path',{d:d,stroke:on?ph[k].c:DEAD,'stroke-width':3.2,fill:'none',opacity:0.95})); if(on)addDots(svg,d,g.dirPh(k),26,null,g.angPh(k)); });
+  [0,1].forEach(function(q){ var d=bPath(q); svg.appendChild(el('path',{d:d,stroke:on?ph[q].c:DEAD,'stroke-width':3.2,fill:'none',opacity:0.95})); if(on)addDots(svg,d,g.dirPh(q),26,null,g.angPh(q)); });
   // ---- 12 spaces ----
-  var owner={}; POOLCKTS.forEach(function(c,i){ for(var j=0;j<c.p;j++) owner[c.slot+2*j]={i:i,k:j}; });
+  var owner={}; CK.forEach(function(c,i){ for(var j=0;j<c.p;j++) owner[c.slot+2*j]={i:i,k:j}; });
   for(var r=0;r<rows;r++){ [0,1].forEach(function(side){
-    var num=2*r+1+side, isL=(side===0), y=pTop+r*rowH+rowH/2, L=r%2, pc=ph[L].c, own=owner[num];
+    var num=2*r+1+side, isL=(side===0), y=pTop+r*rowH+rowH/2, own=owner[num];
     if(own&&own.k>0) return;                       // drawn with its first pole
-    var c=own?POOLCKTS[own.i]:null, i=own?own.i:-1, poles=c?c.p:1, live=c&&on&&!poolOff[i], flt=c&&anyF&&poolFault===i;
+    var c=own?CK[own.i]:null, i=own?own.i:-1, poles=c?c.p:1, live=c&&on&&!S.off[i], flt=c&&anyF&&S.fault===i;
     var bIn=isL?bIL:bIR, bOut=isL?bOL:bOR, bx=Math.min(bIn,bOut), bw=Math.abs(bIn-bOut), bodyY=y-rowH/2+3, bodyH=rowH*poles-6;
-    var body=el('rect',{x:bx,y:bodyY,width:bw,height:bodyH,rx:3,fill:c?(poolOff[i]?'#2a1620':COL.box):COL.boxOff,stroke:flt?FRED:(c?(poolOff[i]?COL.off:'#9fb0d6'):'#2b3a5e'),'stroke-width':1});
-    if(c){ body.style.cursor='pointer'; body.addEventListener('click',function(e){e.stopPropagation();poolToggle(i);}); }
+    var body=el('rect',{x:bx,y:bodyY,width:bw,height:bodyH,rx:3,fill:c?(S.off[i]?'#2a1620':COL.box):COL.boxOff,stroke:flt?FRED:(c?(S.off[i]?COL.off:'#9fb0d6'):'#2b3a5e'),'stroke-width':1});
+    if(c){ body.style.cursor='pointer'; body.addEventListener('click',function(e){e.stopPropagation();subToggle(k,i);}); }
     svg.appendChild(body);
-    for(var k=0;k<poles;k++){ var yy=y+k*rowH, LL=(r+k)%2, cc=ph[LL].c, xb=bxAt(LL,yy), hot=flt&&k===0;
+    for(var q=0;q<poles;q++){ var yy=y+q*rowH, LL=(r+q)%2, cc=ph[LL].c, xb=bxAt(LL,yy), hot=flt&&q===0;
       var o=1-LL, xo=bxAt(o,yy), dir=(xb>bIn)?1:-1, sd='M '+bIn+' '+yy;
       if((xo-bIn)*dir>3 && (xb-xo)*dir>3) sd+=' L '+(xo-dir*4)+' '+yy+' A 4 4 0 0 '+(dir>0?1:0)+' '+(xo+dir*4)+' '+yy;
       sd+=' L '+xb+' '+yy; svg.appendChild(el('path',{d:sd,stroke:hot?FRED:(on?cc:DEAD),'stroke-width':2,fill:'none',opacity:c?1:0.4}));
       if(live)addDots(svg,'M '+xb+' '+yy+' L '+bIn+' '+yy,hot?1:g.dirPh(LL),15,hot?FRED:null,hot?null:g.angPh(LL));
-      var nn=num+2*k, chipX=isL?(bIn-13):(bIn+2);
+      var nn=num+2*q, chipX=isL?(bIn-13):(bIn+2);
       svg.appendChild(el('rect',{x:chipX,y:yy-6.5,width:11,height:13,rx:2,fill:c?cc:'#2b3a5e',opacity:c?1:0.7}));
       svg.appendChild(txt(chipX+5.5,yy+3.5,nn,{anchor:'middle',size:7.5,w:700,fill:'#fff'}));
-      var lab=ph[LL].id, bw2=15, bxx=isL?(bIn+3):(bIn-3-bw2);
-      svg.appendChild(el('rect',{x:bxx,y:yy-13,width:bw2,height:10,rx:2,fill:cc,opacity:c?1:0.55})); svg.appendChild(txt(bxx+bw2/2,yy-5.2,lab,{anchor:'middle',size:7,w:700,fill:'#fff'}));
+      var lb=ph[LL].id, bw2=15, bxx=isL?(bIn+3):(bIn-3-bw2);
+      svg.appendChild(el('rect',{x:bxx,y:yy-13,width:bw2,height:10,rx:2,fill:cc,opacity:c?1:0.55})); svg.appendChild(txt(bxx+bw2/2,yy-5.2,lb,{anchor:'middle',size:7,w:700,fill:'#fff'}));
     }
     if(!c) return;
-    if(poles>1) svg.appendChild(el('rect',{x:isL?(bx+10):(bx+bw-16),y:bodyY+3,width:6,height:bodyH-6,rx:3,fill:poolOff[i]?COL.off:'#f5c542',opacity:0.85}));
-    protChip(svg,isL?(bx+26):(bx+bw-26),bodyY+1.5,protOf('P',i),protShort('P',i));
+    if(poles>1) svg.appendChild(el('rect',{x:isL?(bx+10):(bx+bw-16),y:bodyY+3,width:6,height:bodyH-6,rx:3,fill:S.off[i]?COL.off:'#f5c542',opacity:0.85}));
+    protChip(svg,isL?(bx+26):(bx+bw-26),bodyY+1.5,protOf(k,i),protShort(k,i));
     var e0=isL?eL0:eR0, e1=isL?eL1:eR1, eEdge=isL?e1:e0, nbar=isL?xNL:xNR, gbar=isL?xGL:xGR, yT=y, yB=y+(poles-1)*rowH;
     for(var h=0;h<poles;h++){ var hy=y+h*rowH, LL2=(r+h)%2, hc=ph[LL2].c, hr=flt&&h===0, hd='M '+bOut+' '+hy+' L '+eEdge+' '+hy;
-      svg.appendChild(el('path',{d:hd,stroke:hr?FRED:(on?hc:DEAD),'stroke-width':hr?2.8:1.9,fill:'none',opacity:poolOff[i]?0.35:1}));
+      svg.appendChild(el('path',{d:hd,stroke:hr?FRED:(on?hc:DEAD),'stroke-width':hr?2.8:1.9,fill:'none',opacity:S.off[i]?0.35:1}));
       if(live)addDots(svg,hd,hr?1:g.dirPh(LL2),15,hr?FRED:null,hr?null:g.angPh(LL2));
-      var pbid='PBK:'+(c.slot+2*h); BRK[pbid]={ph:ph[LL2].id, live:on&&!poolOff[i], on:!poolOff[i], bus:on, n:c.slot+2*h, name:c.n, pool:1}; pBPROBE.push([bOut,hy,pbid,hc]); }
+      var pbid=k+'BK:'+(c.slot+2*h); BRK[pbid]={ph:ph[LL2].id, live:on&&!S.off[i], on:!S.off[i], bus:on, n:c.slot+2*h, name:c.n, pool:k==='P'?1:0, sub:k}; pBPROBE.push([bOut,hy,pbid,hc]); }
     var ny=yB+6, gy=yB+(c.nt?11:6);
-    if(c.nt){ var nd='M '+eEdge+' '+ny+' L '+nbar+' '+ny; svg.appendChild(el('path',{d:nd,stroke:COL.neu,'stroke-width':1.5,fill:'none',opacity:poolOff[i]?0.35:1})); if(live&&!flt)addDots(svg,nd,c.p===1?g.dirPh(r%2):1,18,null,c.p===1?g.angPh(r%2):null); }
-    var pE=ckEgc['P:'+i], pR=!!ckRev['P:'+i]&&c.nt, egR=flt&&!protGF(protOf('P',i))&&faultType!=='ARC'&&poolEgcOf(i)!=='broken';
-    if(pE&&pE!=='intact') pOVR.push([(eEdge+gbar)/2,gy,pE]); else if(flt&&poolEgc!=='intact') pMark={x:(eEdge+gbar)/2,y:gy};
+    if(c.nt){ var nd='M '+eEdge+' '+ny+' L '+nbar+' '+ny; svg.appendChild(el('path',{d:nd,stroke:COL.neu,'stroke-width':1.5,fill:'none',opacity:S.off[i]?0.35:1})); if(live&&!flt)addDots(svg,nd,c.p===1?g.dirPh(r%2):1,18,null,c.p===1?g.angPh(r%2):null); }
+    var pE=ckEgc[k+':'+i], pR=!!ckRev[k+':'+i]&&c.nt, egR=flt&&gRed;
+    if(pE&&pE!=='intact') pOVR.push([(eEdge+gbar)/2,gy,pE]);
     if(pR) pREV.push([eEdge,isL?18:-18,yT,ny,ph[r%2].c]); var gd='M '+eEdge+' '+gy+' L '+gbar+' '+gy; svg.appendChild(el('path',{d:gd,stroke:egR?FRED:COL.egc,'stroke-width':egR?2.4:1.4,fill:'none'}));
     if(egR)addDots(svg,gd,1,14,FRED);
     var eb=el('rect',{x:e0,y:yT-11,width:e1-e0,height:(yB+13)-(yT-11),rx:4,fill:flt?'#3a1620':'#16233f',stroke:flt?FRED:(live?'#9fb0d6':'#3a4b6b'),'stroke-width':flt?1.8:1.1});
-    eb.style.cursor='pointer'; eb.addEventListener('click',function(e){e.stopPropagation();openCkMenu('P',i,e);}); svg.appendChild(eb);
+    eb.style.cursor='pointer'; eb.addEventListener('click',function(e){e.stopPropagation();openCkMenu(k,i,e);}); svg.appendChild(eb);
     pBADGE.push([e0,e1,yT-11,pE,pR,isL]);
-    var pTg=c.v+(poolOff[i]?' · OFF':(pR?' · REVERSED':protTagTxt('P',i)));
+    var pTg=c.v+(S.off[i]?' · OFF':(pR?' · REVERSED':protTagTxt(k,i)));
     svg.appendChild(txt((e0+e1)/2,(yT+yB)/2+1,c.n,{anchor:'middle',size:fitSz(c.n,e1-e0,10),w:600,fill:live?COL.txt:COL.idle}));
-    svg.appendChild(txt((e0+e1)/2,(yT+yB)/2+12,pTg,{anchor:'middle',size:fitSz(pTg,e1-e0,8.5),fill:poolOff[i]?'#ff8a8a':(pR?'#ffb35c':COL.txt2)}));
+    svg.appendChild(txt((e0+e1)/2,(yT+yB)/2+12,pTg,{anchor:'middle',size:fitSz(pTg,e1-e0,8.5),fill:S.off[i]?'#ff8a8a':(pR?'#ffb35c':COL.txt2)}));
     c._box={x0:e0,x1:e1,yBot:yB+13};
   }); }
-  // ---- 680.26 equipotential bonding grid (copper) — pool metal tied together, NOT run to the panel ----
-  var px0=PC-170, px1=PC+170, poolTop=busBot+100, poolBot=poolTop+66;
+  if(isK) drawDockScene(svg,G,S,gridHot,halo); else drawPoolGrid(svg,G,gridHot);
+  pREV.forEach(function(r){ revCross(svg,r[0],r[1],r[2],r[3],r[4]); }); pOVR.forEach(function(o){ egcMark(svg,o[0],o[1],o[2],true); }); pBADGE.forEach(function(b){ ckBadges(svg,b[0],b[1],b[2],b[3],b[4],b[5]); }); pBPROBE.forEach(function(q){ brkProbe(svg,q[0],q[1],q[2],q[3]); });
+  if(S.egc!=='intact'){ if(pMark) egcMark(svg,pMark.x,pMark.y,S.egc,true); else egcMark(svg,fromB?(xGR+90):(xGL-90),TY[3],S.egc,true); }
+  // probe circles on the feeder, just above the subpanel
+  var py=busTop-22, PL=[];
+  [[k+':L1',kR===0?PC+12:PC-12,ph[0].c,'L1'],[k+':L2',kR===1?PC+12:PC-12,ph[1].c,'L2'],[k+':N',nIn,COL.neu,'N'],[k+':G',gIn,COL.egc,'G']].forEach(function(q){ var picked=probePick.indexOf(q[0])>=0, g2=el('g'); g2.style.cursor='pointer';
+    g2.addEventListener('click',function(e){e.stopPropagation();onProbe(q[0]);});
+    g2.appendChild(el('circle',{cx:q[1],cy:py,r:11,fill:'transparent',stroke:'none'}));
+    g2.appendChild(el('circle',{cx:q[1],cy:py,r:picked?9:7,fill:'#0b1020',stroke:picked?'#00d4ff':q[2],'stroke-width':picked?2.6:2}));
+    if(picked)g2.appendChild(el('circle',{cx:q[1],cy:py,r:3,fill:'#00d4ff'})); svg.appendChild(g2); PL.push(q); });
+  PL.forEach(function(q){ var w=q[3].length*5.6+6, c=q[2]===WIRE.black?'#c3cad8':q[2]; svg.appendChild(el('rect',{x:q[1]-w/2,y:py-22,width:w,height:11,rx:2,fill:'#0b1020',stroke:q[2],'stroke-width':0.8})); svg.appendChild(txt(q[1],py-13.5,q[3],{anchor:'middle',size:8,w:700,fill:c})); });
+}
+function drawPoolGrid(svg,G,gridHot){   // 680.26 equipotential bonding grid (copper) — pool metal tied together, NOT run to the panel
+  var PC=G.PC, CU='#c98a4a', FRED='#ff3b30', px0=PC-170, px1=PC+170, poolTop=G.busBot+100, poolBot=poolTop+66;
   svg.appendChild(el('rect',{x:px0,y:poolTop,width:px1-px0,height:poolBot-poolTop,rx:18,fill:'#0d3550',stroke:'#3fa7d6','stroke-width':1.5}));
   svg.appendChild(txt(PC,poolBot-12,'POOL',{anchor:'middle',size:13,w:700,fill:'#7fd0f5'}));
   var gridY=poolTop-16;
   var gdP='M '+(PC-330)+' '+gridY+' L '+(PC+330)+' '+gridY; svg.appendChild(el('path',{d:gdP,stroke:gridHot?FRED:CU,'stroke-width':gridHot?3:2.2,fill:'none'}));
-  if(gridHot){ addDots(svg,gdP,1,26,FRED); var gt=txt(PC,gridY-6,poolGFrac===1?'⚠ BONDING GRID ENERGIZED · ~120 V to remote earth':'⚠ BONDING GRID ELEVATED until the breaker trips',{anchor:'middle',size:9,w:700,fill:'#ff8a8a'}); gt.setAttribute('stroke',lc('#0b1020')); gt.setAttribute('stroke-width','4'); gt.setAttribute('paint-order','stroke'); svg.appendChild(gt); }
+  if(gridHot){ addDots(svg,gdP,1,26,FRED); var gt=txt(PC,gridY-6,SB.P.gFrac===1?'⚠ BONDING GRID ENERGIZED · ~120 V to remote earth':'⚠ BONDING GRID ELEVATED until the breaker trips',{anchor:'middle',size:9,w:700,fill:'#ff8a8a'}); gt.setAttribute('stroke',lc('#0b1020')); gt.setAttribute('stroke-width','4'); gt.setAttribute('paint-order','stroke'); svg.appendChild(gt); }
   [[POOLCKTS[0],0],[POOLCKTS[1],1]].forEach(function(a){ var c=a[0]; if(!c._box)return; var xe=a[1]?c._box.x1:c._box.x0, x=xe+(a[1]?12:-12), yy=c._box.yBot-14; svg.appendChild(el('path',{d:'M '+xe+' '+yy+' L '+x+' '+yy+' L '+x+' '+gridY,stroke:gridHot?FRED:CU,'stroke-width':2,fill:'none'})); svg.appendChild(el('circle',{cx:xe,cy:yy,r:2.5,fill:CU})); });
   svg.appendChild(el('path',{d:'M '+(px1-40)+' '+gridY+' L '+(px1-40)+' '+(poolTop+16)+' M '+(px1-28)+' '+(poolTop-6)+' l 0 26 M '+(px1-16)+' '+(poolTop-6)+' l 0 26 M '+(px1-28)+' '+(poolTop+4)+' l 12 0 M '+(px1-28)+' '+(poolTop+12)+' l 12 0',stroke:'#aeb6c9','stroke-width':1.6,fill:'none'}));
   svg.appendChild(el('path',{d:'M '+(px1-40)+' '+(poolTop+16)+' L '+(px1-28)+' '+(poolTop+16),stroke:CU,'stroke-width':2,fill:'none'}));
@@ -2917,18 +3054,45 @@ function drawPool(svg,P,g){
   if(!gridHot)svg.appendChild(txt(px0-10,gridY-4,'deck / perimeter',{anchor:'start',size:9,fill:'#e8c9a6'}));
   svg.appendChild(txt(PC,poolBot+20,'Equipotential bonding · #8 solid Cu · 680.26',{anchor:'middle',size:10.5,w:700,fill:CU}));
   svg.appendChild(txt(PC,poolBot+35,'ties pool metal together — NOT run to the panel, NOT a fault path',{anchor:'middle',size:9,fill:'#e8c9a6'}));
-  // EGC OPEN / HIGH-R marker for the pool: on the faulted branch EGC, otherwise on the pool feeder EGC
-  pREV.forEach(function(r){ revCross(svg,r[0],r[1],r[2],r[3],r[4]); }); pOVR.forEach(function(o){ egcMark(svg,o[0],o[1],o[2],true); }); pBADGE.forEach(function(b){ ckBadges(svg,b[0],b[1],b[2],b[3],b[4],b[5]); }); pBPROBE.forEach(function(q){ brkProbe(svg,q[0],q[1],q[2],q[3]); });
-  if(poolEgc!=='intact'){ if(pMark) egcMark(svg,pMark.x,pMark.y,poolEgc,true); else egcMark(svg,xGL-90,TY[3],poolEgc,true); }
-  // probe circles on the pool feeder, just above the pool panel
-  var py=busTop-22, PL=[];
-  [['P:L1',kT===0?PC+12:PC-12,ph[0].c,'L1'],['P:L2',kT===1?PC+12:PC-12,ph[1].c,'L2'],['P:N',xNL,COL.neu,'N'],['P:G',xGL,COL.egc,'G']].forEach(function(q){ var picked=probePick.indexOf(q[0])>=0, g2=el('g'); g2.style.cursor='pointer';
-    g2.addEventListener('click',function(e){e.stopPropagation();onProbe(q[0]);});
-    g2.appendChild(el('circle',{cx:q[1],cy:py,r:11,fill:'transparent',stroke:'none'}));
-    g2.appendChild(el('circle',{cx:q[1],cy:py,r:picked?9:7,fill:'#0b1020',stroke:picked?'#00d4ff':q[2],'stroke-width':picked?2.6:2}));
-    if(picked)g2.appendChild(el('circle',{cx:q[1],cy:py,r:3,fill:'#00d4ff'})); svg.appendChild(g2); PL.push(q); });
-  PL.forEach(function(q){ var w=q[3].length*5.6+6, c=q[2]===WIRE.black?'#c3cad8':q[2]; svg.appendChild(el('rect',{x:q[1]-w/2,y:py-22,width:w,height:11,rx:2,fill:'#0b1020',stroke:q[2],'stroke-width':0.8})); svg.appendChild(txt(q[1],py-13.5,q[3],{anchor:'middle',size:8,w:700,fill:c})); });
-
+}
+function drawDockScene(svg,G,S,hot,halo){   // the dock itself: deck on pilings over the water, boat lift, shore-power pedestal, ladder, sink, 555.10 sign, 555.13 bonding
+  var PC=G.PC, FRED='#ff3b30', CU='#c98a4a', WOOD='#7a5634', dTop=G.busBot+96, wTop=dTop+12, wBot=wTop+54, x0=PC-300, x1=PC+300;
+  svg.appendChild(el('rect',{x:x0-10,y:wTop,width:x1-x0+20,height:wBot-wTop,rx:10,fill:hot?'#3a1620':'#0d3550',stroke:hot?FRED:'#3fa7d6','stroke-width':hot?2:1.5}));
+  for(var wv=0;wv<3;wv++){ var wy=wTop+16+wv*14, d='M '+(x0+4)+' '+wy; for(var xx=x0+4;xx<x1-8;xx+=24) d+=' q 6 -4 12 0 t 12 0'; svg.appendChild(el('path',{d:d,stroke:hot?'#ff8a8a':'#3fa7d6','stroke-width':1,fill:'none',opacity:0.55})); }
+  if(hot){ addDots(svg,'M '+(x0+10)+' '+(wTop+26)+' L '+(x1-10)+' '+(wTop+26),1,22,FRED); addDots(svg,'M '+(x1-10)+' '+(wTop+40)+' L '+(x0+10)+' '+(wTop+40),1,26,FRED); }
+  for(var px=x0+30;px<=x1-30;px+=60) svg.appendChild(el('rect',{x:px-4,y:dTop,width:8,height:wBot-dTop-6,fill:'#5a3e24',stroke:'#3d2a18','stroke-width':0.8}));   // pilings
+  svg.appendChild(el('rect',{x:x0,y:dTop,width:x1-x0,height:12,rx:2,fill:WOOD,stroke:'#a07850','stroke-width':1}));   // deck
+  for(var pl=x0+16;pl<x1;pl+=16) svg.appendChild(el('path',{d:'M '+pl+' '+dTop+' l 0 12',stroke:'#5a3e24','stroke-width':0.8}));
+  // boat lift: two posts, cradle, the hull riding on it
+  var lx=PC+150; [lx-56,lx+56].forEach(function(x){ svg.appendChild(el('rect',{x:x-3,y:dTop-34,width:6,height:wBot-dTop+28,fill:'#8b95a8'})); });
+  svg.appendChild(el('path',{d:'M '+(lx-56)+' '+(dTop-30)+' L '+(lx+56)+' '+(dTop-30),stroke:'#8b95a8','stroke-width':3}));
+  svg.appendChild(el('path',{d:'M '+(lx-48)+' '+(wTop+6)+' L '+(lx+48)+' '+(wTop+6)+' L '+(lx+38)+' '+(wTop+20)+' L '+(lx-40)+' '+(wTop+20)+' Z',fill:'#dfe6f5',stroke:'#9fb0d6','stroke-width':1}));
+  svg.appendChild(txt(lx,dTop-38,'boat lift',{anchor:'middle',size:9,fill:'#aeb6c9'}));
+  // shore power pedestal + cord to the boat
+  var sx=PC-170; svg.appendChild(el('rect',{x:sx-7,y:dTop-30,width:14,height:30,rx:2,fill:'#16233f',stroke:'#7fe0c9','stroke-width':1.2}));
+  svg.appendChild(el('path',{d:'M '+(sx+7)+' '+(dTop-20)+' q 30 6 40 '+(wTop-dTop+30),stroke:'#f5c542','stroke-width':1.6,fill:'none'}));
+  svg.appendChild(el('path',{d:'M '+(sx+20)+' '+(wTop+8)+' L '+(sx+110)+' '+(wTop+8)+' L '+(sx+98)+' '+(wTop+24)+' L '+(sx+28)+' '+(wTop+24)+' Z',fill:'#dfe6f5',stroke:'#9fb0d6','stroke-width':1}));
+  svg.appendChild(txt(sx,dTop-34,'shore power',{anchor:'middle',size:9,fill:'#aeb6c9'}));
+  // 555.10 warning sign on the dock
+  var gx=PC-30; svg.appendChild(el('rect',{x:gx-34,y:dTop-30,width:68,height:22,rx:2,fill:'#f5c542',stroke:'#1a1a1a','stroke-width':1}));
+  svg.appendChild(el('path',{d:'M '+gx+' '+(dTop-8)+' l 0 8',stroke:'#aeb6c9','stroke-width':2}));
+  svg.appendChild(txt(gx,dTop-21,'⚠ SHOCK HAZARD',{anchor:'middle',size:7,w:800,fill:'#1a1a1a'})); svg.appendChild(txt(gx,dTop-12,'current in water',{anchor:'middle',size:6.5,w:700,fill:'#1a1a1a'}));
+  // ladder + fish-cleaning sink (metal in the water / metal piping)
+  var ldx=PC+40; [ldx-8,ldx+8].forEach(function(x){ svg.appendChild(el('path',{d:'M '+x+' '+(dTop-18)+' L '+x+' '+(wBot-8),stroke:'#aeb6c9','stroke-width':2.2})); });
+  for(var ry=dTop-12;ry<wBot-10;ry+=9) svg.appendChild(el('path',{d:'M '+(ldx-8)+' '+ry+' l 16 0',stroke:'#aeb6c9','stroke-width':1.6}));
+  var skx=PC-250; svg.appendChild(el('rect',{x:skx-16,y:dTop-16,width:32,height:16,rx:2,fill:'#16233f',stroke:'#aeb6c9','stroke-width':1.2}));
+  svg.appendChild(el('path',{d:'M '+skx+' '+dTop+' L '+skx+' '+(wBot-10),stroke:'#aeb6c9','stroke-width':2.4}));
+  svg.appendChild(txt(skx,dTop-20,'fish sink',{anchor:'middle',size:9,fill:'#aeb6c9'}));
+  // 555.13: metal in the water, metal piping and metal that could become energized → solid #8 Cu to the DOCK PANEL G bus
+  var bY=wTop+4, BC=hot?FRED:CU, bd='M '+G.xGR+' '+(G.busBot-4)+' L '+G.xGR+' '+bY+' M '+(skx)+' '+bY+' L '+(lx+56)+' '+bY;
+  svg.appendChild(el('path',{d:bd,stroke:BC,'stroke-width':hot?2.6:2,fill:'none'}));
+  [skx,ldx+8,lx-56,lx+56].forEach(function(x){ svg.appendChild(el('circle',{cx:x,cy:bY,r:3,fill:BC})); });
+  if(hot){ addDots(svg,'M '+G.xGR+' '+bY+' L '+G.xGR+' '+(G.busBot-4),1,20,FRED); }
+  svg.appendChild(txt(PC,wBot+16,'555.35: feeder GFPE ≤ 100 mA · shore power GFPE ≤ 30 mA · other outlets + boat hoists GFCI',{anchor:'middle',size:10,w:700,fill:'#7fe0c9'}));
+  svg.appendChild(txt(PC,wBot+31,'555.13 bonding · #8 solid Cu: lift frame, ladder and metal piping tied to the DOCK PANEL G bus (unlike a pool grid, it IS run to the panel)',{anchor:'middle',size:9.5,w:700,fill:CU}));
+  svg.appendChild(txt(PC,wBot+45,'insulated Cu EGC on every circuit (555.37) · shock-hazard sign at the dock (555.10)',{anchor:'middle',size:9,fill:'#aeb6c9'}));
+  if(hot){ var wl=S.wet>=1||(S.gFrac===1)?'⚠ WATER ENERGIZED — electric shock drowning risk':'⚠ VOLTAGE IN THE WATER until something trips', ww=wl.length*5.9+16;   /* drawn last, on its own plate, so the ladder / lift never cover it */
+    svg.appendChild(el('rect',{x:PC-ww/2,y:wTop+20,width:ww,height:17,rx:4,fill:'#2a0f16',stroke:FRED,'stroke-width':1.2})); svg.appendChild(txt(PC,wTop+32,wl,{anchor:'middle',size:10,w:800,fill:'#ff8a8a'})); }
 }
 /* ===== page chrome: theme + CODE reference modal ===== */
 function $(id){return document.getElementById(id);}
