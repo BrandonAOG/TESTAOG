@@ -752,7 +752,7 @@ test('400 A Panel B loads open the same circuit menu (fault · EGC · polarity �
 
 test('generator controller: weekly exercise Friday 12:00 PM runs unloaded, then stops; load shed only when the generator would be overloaded', async ({ page }) => {
   const errs = []; page.on('pageerror', e => errs.push(e.message));
-  await page.clock.install({ time: new Date(2026, 10, 20, 12, 5, 0) });
+  await page.clock.install({ time: new Date('2026-11-20T12:05:00-05:00') });   // Friday 12:05 PM Eastern (the browser runs on America/New_York)
   await page.goto('/electrical-theory/');
   await page.evaluate(() => { document.getElementById('genBtn').click(); render(); });
   await page.clock.runFor(3000);

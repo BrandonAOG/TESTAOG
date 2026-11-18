@@ -13,6 +13,7 @@ module.exports = defineConfig({
   reporter: process.env.CI ? [['github'], ['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: 'http://localhost:8080',
+    timezoneId: 'America/New_York',   // the app is for Florida jobs: the sun model and the Friday-noon generator exercise read the local clock — GitHub's runners are on UTC
     serviceWorkers: 'block',          // test the pages themselves, not an old offline copy
     launchOptions: { args: ['--autoplay-policy=no-user-gesture-required'] },   // let the sound checks play
   },
