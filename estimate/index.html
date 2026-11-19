@@ -1651,6 +1651,11 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
   .action-bar .btn, .action-bar .ab-btn { font-size: 8.5px !important; padding: 6px 3px !important; letter-spacing: 0 !important; }
   .action-bar .theme-toggle-btn { width: 32px !important; height: 32px !important; }
 }
+
+/* Generator brand: a real text line (prints / captures / PDFs like typed text); type any brand, or ⇄ to switch */
+.bt-sw { background: none; border: 1px solid rgba(250,103,0,0.45); border-radius: 4px; color: var(--cyan); font-weight: 700; font-size: 0.85rem; line-height: 1; padding: 3px 6px; margin: 0 6px 0 4px; cursor: pointer; flex: 0 0 auto; }
+body.dark-mode .bt-sw { border-color: rgba(0,255,200,0.4); color: #00FFC8; }
+@media print { .bt-sw { display: none !important; } }
 </style>
 <script src="../update-banner.js"></script>
 </head>
@@ -1810,7 +1815,9 @@ body.dark-mode .action-bar .theme-toggle-btn { background: rgba(0,255,200,0.08);
       </div>
       <div class="section-body">
         <div class="inline-row">
-          <label for="gen_size">Size</label>
+          <span class="inline-label">Brand</span>
+          <button type="button" class="bt-sw" id="gen_brand_btn" data-html2canvas-ignore title="Switch Generac ⇄ Kohler" aria-label="Switch generator brand" onclick="aogBrandToggle()">⇄</button><input type="text" id="gen_brand" name="gen_brand" value="Generac" maxlength="18" class="brand-input" title="Generator brand — ⇄ switches Generac → Kohler → Generac/Kohler, or type any brand" aria-label="Generator brand (type, or use ⇄ to switch Generac / Kohler)" autocomplete="off" autocapitalize="words" style="width:9ch;min-width:9ch;">
+          <label for="gen_size" style="margin-left:var(--gap-phone-label-md);">Size</label>
           <input type="text" id="gen_size" name="gen_size" title="Generator size in kW — e.g. 22kW, 26kW, 48kW" placeholder="22kW" autocomplete="off" style="width:var(--w-phone-gen-size);min-width:var(--w-phone-gen-size);" aria-label="Generator size">
           <span class="inline-label" style="margin-left:var(--gap-phone-label-md);">Placement</span>
           <div class="check-group" role="group" aria-label="Generator placement">
@@ -3986,6 +3993,12 @@ function cropCanvasToContent(canvas) {
     ].join('\n');
   }
 
+function _aogBrandCapCalc(e){   /* capture width of the brand line: its text in the 20px capture font + padding (e = an input that already has the capture font) */
+  var _gb = document.getElementById('gen_brand'); if (!_gb || !e) return 72;
+  var _c = document.createElement('canvas').getContext('2d'), _cs = getComputedStyle(e);
+  _c.font = _cs.fontStyle + ' ' + _cs.fontWeight + ' 20px ' + _cs.fontFamily;
+  var _ls = parseFloat(_cs.letterSpacing) || 0, v = _gb.value || '';
+  return Math.max(72, Math.min(215, Math.ceil(_c.measureText(v).width + _ls * v.length + 12 + 6))); }
 function _estimatePreparePage() {
     var page = document.getElementById('page');
     var prevWidth    = page.style.width;
@@ -4045,10 +4058,26 @@ function _estimatePreparePage() {
         e.style.setProperty('min-height', '34px', 'important');
         e.style.setProperty('padding-top', '8px', 'important');
         e.style.setProperty('padding-bottom', '0px', 'important');
-        if (e.id === 'gen_size') {
-          e.style.setProperty('width', '240px', 'important');
-          e.style.setProperty('min-width', '240px', 'important');
-          e.style.setProperty('max-width', '240px', 'important');
+        if (e.id === 'gen_size') {   // Brand + Size share one width budget so the row stays on one line through Seal Window
+          var _bwN = _aogBrandCapCalc(e);
+          var _sw = Math.max(85, Math.min(196, 300 - _bwN)) + 'px';   /* Brand + Size share one fixed budget, so the row never grows past Seal Window */
+          e.style.setProperty('width', _sw, 'important');
+          e.style.setProperty('min-width', _sw, 'important');
+          e.style.setProperty('max-width', _sw, 'important');
+        }
+        if (e.id === 'gen_brand') {   // hugs the brand text
+          var _bw = _aogBrandCapCalc(document.getElementById('gen_size')) + 'px';   /* hugs the text — measured in the capture font, no empty line before SIZE */
+          e.style.setProperty('width', _bw, 'important');
+          e.style.setProperty('min-width', _bw, 'important');
+          e.style.setProperty('max-width', _bw, 'important');
+          // the ⇄ button never prints — take it out of the capture layout too, so its space goes to the Size line
+          _tweak(document.getElementById('gen_brand_btn'), function(bb){ bb.style.setProperty('display','none','important'); });
+          // and tighten the rest of this row a little (Placement boxes + label spacing) so Seal Window stays on line 1
+          var _gr = e.closest('.inline-row');
+          if (_gr) {
+            _gr.querySelectorAll('.check-item').forEach(function(ci){ _tweak(ci, function(c){ c.style.setProperty('padding-left','4px','important'); c.style.setProperty('padding-right','5px','important'); c.style.setProperty('gap','4px','important'); }); });
+            _gr.querySelectorAll('.inline-label, label[for="gen_size"]').forEach(function(lb){ _tweak(lb, function(l){ l.style.setProperty('letter-spacing','1px','important'); }); });
+          }
         }
         // First Transfer Switch row was overflowing 1050px at capture font sizes, which
         // wrapped #num_ts below its label. Pin the small count boxes and trim the type
@@ -5776,5 +5805,22 @@ setTimeout(adjustTopPadding, 600);
 })();
 </script>
 <script src="../aog-footer.js"></script>
+<script>
+/* Generator brand: Generac by default; ⇄ cycles Generac → Kohler → Generac/Kohler; any brand can be typed */
+function aogBrandFit(){ var h=document.getElementById('gen_brand'); if(!h) return;   /* grows with what's typed — measured in its own font (ch units vary between fonts) */
+  var cs=getComputedStyle(h), c=(aogBrandFit._c||(aogBrandFit._c=document.createElement('canvas'))).getContext('2d'); c.font=cs.fontStyle+' '+cs.fontWeight+' '+cs.fontSize+' '+cs.fontFamily;
+  var tw=c.measureText(h.value||'').width, base=c.measureText('Generac').width, ls=(parseFloat(cs.letterSpacing)||0)*(h.value||'').length;
+  var w=Math.ceil(Math.max(base, tw+ls) + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 14)+'px';
+  h.style.setProperty('width',w,'important'); h.style.setProperty('min-width',w,'important'); h.style.setProperty('flex','0 0 auto','important'); }
+/* The width follows the value however it gets set — typing, the ⇄ tap, the saved draft on reload, LOAD from a PDF, NEW JOB */
+(function(){ var h=document.getElementById('gen_brand'); if(!h) return;
+  var d=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');
+  Object.defineProperty(h,'value',{configurable:true, get:function(){ return d.get.call(this); }, set:function(v){ d.set.call(this, (v==null||String(v).trim()==='') ? 'Generac' : v); aogBrandFit(); }   /* NEW JOB / an old draft with no brand → back to the Generac default */});
+  h.addEventListener('input',aogBrandFit); h.addEventListener('blur',function(){ if(!h.value.trim()) h.value='Generac'; }); aogBrandFit(); })();   /* left blank → back to Generac */
+function aogBrandToggle(){ var h=document.getElementById('gen_brand'); if(!h) return;
+  var L=['Generac','Kohler','Generac/Kohler'], i=L.indexOf(h.value); h.value=L[(i+1)%L.length];   // Generac → Kohler → both → Generac
+  aogBrandFit();
+  try{ h.dispatchEvent(new Event('input',{bubbles:true})); h.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){} }   // autosave picks it up like typing
+</script>
 </body>
 </html>

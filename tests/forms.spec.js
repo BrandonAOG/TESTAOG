@@ -236,3 +236,22 @@ test('QC: page 2 customer name and date copy page 1 and cannot be typed into', a
   expect(r).toEqual([[true, 'Page One Name'], [true, '2026-04-09']]);
 });
 
+
+test('Estimate: generator Brand — Generac default, ⇄ cycles Generac → Kohler → Generac/Kohler, any brand can be typed, blank/NEW JOB → Generac, width survives a reload, ⇄ never moves', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'runs once');
+  expect(await open(page, '/estimate/', { settle: 1200 })).toEqual([]);
+  const v = () => page.evaluate(() => document.getElementById('gen_brand').value);
+  const bx = () => page.evaluate(() => Math.round(document.getElementById('gen_brand_btn').getBoundingClientRect().x));
+  expect(await v()).toBe('Generac'); const x0 = await bx();
+  await page.click('#gen_brand_btn'); expect(await v()).toBe('Kohler');
+  await page.click('#gen_brand_btn'); expect(await v()).toBe('Generac/Kohler'); expect(await bx()).toBe(x0);
+  await page.waitForTimeout(1500);                                       // autosave
+  await page.reload(); await page.waitForTimeout(1500);
+  expect(await v()).toBe('Generac/Kohler');
+  expect(await page.evaluate(() => { const e = document.getElementById('gen_brand'); return e.scrollWidth <= e.clientWidth; })).toBe(true);
+  await page.click('#gen_brand_btn'); expect(await v()).toBe('Generac');
+  await page.fill('#gen_brand', 'Champion'); expect(await v()).toBe('Champion');
+  await page.fill('#gen_brand', ''); await page.locator('#gen_size').focus(); expect(await v()).toBe('Generac');
+  await page.fill('#gen_brand', 'Kohler'); await page.evaluate(() => doClearForm()); expect(await v()).toBe('Generac');
+  expect(await page.locator('#gen_brand_btn').getAttribute('data-html2canvas-ignore')).not.toBeNull();   // ⇄ never prints
+});
