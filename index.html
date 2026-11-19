@@ -577,7 +577,7 @@ body.fav-dragging-active, body.fav-dragging-active * { cursor: grabbing !importa
 
   <div class="footer">
     <div class="footer-text">Always On Generators &middot; Field Operations Portal</div>
-    <div class="footer-version">SYSTEM <span id="footer-version">v1.0</span> &middot; OFFLINE READY &middot; GITHUB PAGES</div>
+    <div class="footer-version">SYSTEM <span id="footer-version">&mdash;</span> &middot; OFFLINE READY &middot; GITHUB PAGES</div>
   </div>
 </div>
 
@@ -4578,6 +4578,8 @@ if('serviceWorker' in navigator){
     setTimeout(function(){ clearInterval(interval); }, 120000);
   }
 
+  // Footer version: show the last known one right away (it was a hard-coded "v1.0" until the offline engine answered)
+  try{ var _rv=localStorage.getItem('aog-app-version'), _rm=_rv&&_rv.match(/Ver (\d+(?:\.\d+)+)( TEST)?/), _fe=document.getElementById('footer-version'); if(_rm&&_fe) _fe.textContent='v'+(_rm[2]?'TEST':'')+_rm[1]; }catch(e){}
   window.addEventListener('load',function(){
     navigator.serviceWorker.register('./sw.js',{scope:'./'}).then(function(reg){
       _swHadActive = !!reg.active;   // set BEFORE any controllerchange can fire — see below
@@ -4592,10 +4594,15 @@ if('serviceWorker' in navigator){
           var v=String(e.data.version).replace(/^aog-forms-/,'');
           var el=document.getElementById('footer-version');
           if(el) el.textContent=v;
+          // remember it (same key + format the tool pages use) so the next launch shows it right away, offline too
+          var m=v.match(/^v(TEST)?(\d+(?:\.\d+)+)/i); if(m){ try{ localStorage.setItem('aog-app-version','Ver '+m[2]+(m[1]?' TEST':'')); }catch(x){} }
         };
-        worker.postMessage({action:'GET_CHANGELOG'},[ch.port2]);
+        try{ worker.postMessage({action:'GET_CHANGELOG'},[ch.port2]); }catch(x){}
       }
       updateFooterVersion(navigator.serviceWorker.controller || reg.active);
+      // the offline engine may not be running yet (first install, or just after an update) — ask again once it is
+      navigator.serviceWorker.ready.then(function(r){ updateFooterVersion(r.active); }).catch(function(){});
+      navigator.serviceWorker.addEventListener('controllerchange',function(){ updateFooterVersion(navigator.serviceWorker.controller); });
       function askAndShowToast(worker){
         waitingWorker=worker;
         var ch=new MessageChannel();

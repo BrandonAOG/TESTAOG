@@ -56,3 +56,16 @@ test('printed forms show © with the current year (and roll over to 2027 on thei
   }
   expect(bad).toEqual([]);
 });
+
+test('hub footer shows the real version — never the old "v1.0" placeholder — and remembers it for the next launch', async ({ page }) => {
+  test.skip(test.info().project.name !== 'desktop', 'once');
+  await open(page, '/index.html', { settle: 600 });
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await expect(page.locator('#footer-version')).toHaveText(new RegExp(`^v(TEST)?${SW_VER.replace(/\./g, '\\.')}$`));
+  expect(await page.evaluate(() => localStorage.getItem('aog-app-version'))).toMatch(new RegExp(`^Ver ${SW_VER.replace(/\./g, '\\.')}`));
+  // next launch: before the offline engine answers, the remembered version is already there
+  await page.route('**/sw.js', r => r.abort());
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  expect(await page.locator('#footer-version').textContent()).not.toBe('v1.0');
+  expect(await page.locator('#footer-version').textContent()).toMatch(/^v(TEST)?\d/);
+});
