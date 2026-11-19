@@ -255,3 +255,29 @@ test('Estimate: generator Brand — Generac default, ⇄ cycles Generac → Kohl
   await page.fill('#gen_brand', 'Kohler'); await page.evaluate(() => doClearForm()); expect(await v()).toBe('Generac');
   expect(await page.locator('#gen_brand_btn').getAttribute('data-html2canvas-ignore')).not.toBeNull();   // ⇄ never prints
 });
+
+test('Estimate CAPTURE / PDF: every field label is one size (the first Transfer Switch row is no longer smaller) and Bore sits clear of Cu', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'runs once');
+  expect(await open(page, '/estimate/', { settle: 1200 })).toEqual([]);
+  const r = await page.evaluate(async () => { const pr = _estimatePreparePage(); await pr.ready;
+    const fs = id => getComputedStyle(document.getElementById(id).previousElementSibling).fontSize;
+    const out = { panels: fs('num_panels'), brandLbl: getComputedStyle(document.querySelector('#gen_brand_btn').previousElementSibling).fontSize,
+      bore: getComputedStyle(document.querySelector('.bore-col')).marginLeft };
+    if (pr.restore) pr.restore(); return out; });
+  expect(r.panels).toBe(r.brandLbl);
+  expect(r.bore).toBe('24px');
+  expect(await page.evaluate(() => getComputedStyle(document.querySelector('.bore-col')).marginLeft)).toBe('0px');   // screen layout unchanged
+});
+
+test('Estimate CAPTURE / PDF: typed values 18px (≈9.6 pt), Fuel Tank labels (gas appliances, underground / above ground / attic, bore) match every other label', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'runs once');
+  expect(await open(page, '/estimate/', { settle: 1200 })).toEqual([]);
+  const r = await page.evaluate(async () => { const pr = _estimatePreparePage(); await pr.ready;
+    const st = el => { const c = getComputedStyle(el); return c.fontSize + ' ' + c.fontFamily.split(',')[0]; };
+    const ref = st(document.querySelector('#gen_brand_btn').previousElementSibling);
+    const o = { ref, typed: getComputedStyle(document.getElementById('gen_size')).fontSize,
+      fuel: ['.gas-appliances-label', 'label[for="fuel_underground"]', 'label[for="fuel_aboveground"]', 'label[for="fuel_attic"]', '.fuel-bore-label'].map(s => st(document.querySelector(s))) };
+    if (pr.restore) pr.restore(); return o; });
+  expect(r.typed).toBe('18px');
+  for (const f of r.fuel) expect(f).toBe(r.ref);
+});

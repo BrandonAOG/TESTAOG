@@ -1844,7 +1844,7 @@ body.dark-mode .bt-sw { border-color: rgba(0,255,200,0.4); color: #00FFC8; }
             <label class="check-item"><input type="checkbox" name="wiring" value="aluminum"><span>Al</span></label>
             <label class="check-item"><input type="checkbox" name="wiring" value="copper"><span>Cu</span></label>
           </div>
-          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;">
+          <div class="bore-col" style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;">
             <span class="inline-label" style="margin:0;">Bore</span>
             <div class="yn-group" role="group" aria-label="Bore required">
               <input type="radio" name="bore_gen" id="bore_gen_y" value="Y" class="yn-y"><label class="yn-label yn-label-y" for="bore_gen_y">Y</label>
@@ -1978,7 +1978,7 @@ body.dark-mode .bt-sw { border-color: rgba(0,255,200,0.4); color: #00FFC8; }
           <div class="field-block" style="flex:1;min-width:80px;"><label for="fuel_aboveground" style="margin-bottom:-20px;font-size:var(--fs-fuel-label);font-family:var(--font-body);-webkit-font-smoothing:antialiased;">Above Ground (ft)</label><input type="number" id="fuel_aboveground" name="fuel_aboveground" title="Above-ground gas line run in feet" inputmode="numeric" autocomplete="off" aria-label="Above ground fuel run in feet"></div>
           <div class="field-block" style="flex:1;min-width:80px;"><label for="fuel_attic" style="margin-bottom:-20px;font-size:var(--fs-fuel-label);font-family:var(--font-body);-webkit-font-smoothing:antialiased;">Attic (ft)</label><input type="number" id="fuel_attic" name="fuel_attic" title="Gas line run through attic in feet" inputmode="numeric" autocomplete="off" aria-label="Attic fuel run in feet"></div>
           <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;">
-            <label style="font-size:var(--fs-bore-label-phone);white-space:nowrap;">Bore</label>
+            <label class="fuel-bore-label" style="font-size:var(--fs-bore-label-phone);white-space:nowrap;">Bore</label>
             <div class="yn-group" role="group" aria-label="Fuel bore required" style="width:fit-content;min-width:0;flex-shrink:0;">
               <input type="radio" name="bore_fuel" id="bf_y" value="Y" class="yn-y"><label class="yn-label yn-label-y" for="bf_y" style="font-size:0.65rem;padding:0 10px;">Y</label>
               <input type="radio" name="bore_fuel" id="bf_n" value="N" class="yn-n"><label class="yn-label yn-label-n" for="bf_n" style="font-size:0.65rem;padding:0 10px;">N</label>
@@ -3996,7 +3996,7 @@ function cropCanvasToContent(canvas) {
 function _aogBrandCapCalc(e){   /* capture width of the brand line: its text in the 20px capture font + padding (e = an input that already has the capture font) */
   var _gb = document.getElementById('gen_brand'); if (!_gb || !e) return 72;
   var _c = document.createElement('canvas').getContext('2d'), _cs = getComputedStyle(e);
-  _c.font = _cs.fontStyle + ' ' + _cs.fontWeight + ' 20px ' + _cs.fontFamily;
+  _c.font = _cs.fontStyle + ' ' + _cs.fontWeight + ' 18px ' + _cs.fontFamily;
   var _ls = parseFloat(_cs.letterSpacing) || 0, v = _gb.value || '';
   return Math.max(72, Math.min(215, Math.ceil(_c.measureText(v).width + _ls * v.length + 12 + 6))); }
 function _estimatePreparePage() {
@@ -4051,7 +4051,7 @@ function _estimatePreparePage() {
     });
     page.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="number"], input[type="date"], select').forEach(function(el) {
       _tweak(el, function(e) {
-        e.style.setProperty('font-size', '20px', 'important');
+        e.style.setProperty('font-size', '18px', 'important');   // typed values (was 20px → 10.7 in the PDF; now 9.6 — sizes step by whole px)
         e.style.setProperty('box-sizing', 'border-box', 'important');
         e.style.setProperty('border-bottom-color', '#FA6700', 'important');
         e.style.setProperty('height', '34px', 'important');
@@ -4072,6 +4072,8 @@ function _estimatePreparePage() {
           e.style.setProperty('max-width', _bw, 'important');
           // the ⇄ button never prints — take it out of the capture layout too, so its space goes to the Size line
           _tweak(document.getElementById('gen_brand_btn'), function(bb){ bb.style.setProperty('display','none','important'); });
+          // Bore Y/N: a little more room from Cu on the capture / PDF only (the screen layout is unchanged)
+          _tweak(document.querySelector('.bore-col'), function(bc){ bc.style.setProperty('margin-left','24px','important'); });
           // and tighten the rest of this row a little (Placement boxes + label spacing) so Seal Window stays on line 1
           var _gr = e.closest('.inline-row');
           if (_gr) {
@@ -4119,16 +4121,20 @@ function _estimatePreparePage() {
         }
         // Make every field/inline label the same size in the capture: the plain field labels,
         // the generator "Size" label, AND the .inline-label elements all forced to one value.
-        else if (e.matches('.inline-label, .field-row label:not(.yn-label), .field-block label:not(.yn-label), .flood-item label:not(.yn-label), label[for="gen_size"], .survey-legend')) {
+        // Fuel Tank: "Existing Gas Appliances", the Underground / Above Ground / Attic (ft) labels and its Bore
+        // label print the same size and font as every other field label (they were smaller / a different font)
+        else if (e.matches('.gas-appliances-label, label[for="fuel_underground"], label[for="fuel_aboveground"], label[for="fuel_attic"], .fuel-bore-label')) {
+          e.style.setProperty('font-size', '0.88rem', 'important');
+          e.style.setProperty('font-family', 'var(--font-display)', 'important');
+          e.style.setProperty('letter-spacing', '1.5px', 'important');
+          e.style.setProperty('text-transform', 'uppercase', 'important');
+        }
+else if (e.matches('.inline-label, .field-row label:not(.yn-label), .field-block label:not(.yn-label), .flood-item label:not(.yn-label), label[for="gen_size"], .survey-legend')) {
           // The first Transfer Switch row is the widest line on the page; its labels get a
           // slightly smaller size in the capture so the row fits without wrapping.
           var tsRow = e.closest && e.closest('#transfer-switch-row .inline-row');
           var firstTsRow = document.querySelector('#transfer-switch-row .inline-row');
-          if (tsRow && tsRow === firstTsRow) {
-            e.style.setProperty('font-size', '0.78rem', 'important');
-          } else {
-            e.style.setProperty('font-size', '0.88rem', 'important');
-          }
+          e.style.setProperty('font-size', '0.88rem', 'important');   // one size for every label (the first Transfer Switch row used to be 0.78rem)
         }
       });
     });
