@@ -14,6 +14,26 @@ test('Load Calc: default job = 31,491 VA service demand, 150 A, LQ 32KW', async 
   expect(r).toEqual({ dem: '31491', svc: '150', gen: 'LQ 32KW' });
 });
 
+test('Load Calc STANDARD method (Art. 220 Part III): Table 220.45, heat at 100 %, 25 % largest motor, 220.53 75 %, Table 220.54 / 220.55, 70 % neutral', async ({ page }) => {
+  expect(await open(page, '/load-calcs/', { settle: 1500 })).toEqual([]);
+  const r = await page.evaluate(() => { const sel = document.getElementById('calc_method'); sel.value = 'std'; sel.dispatchEvent(new Event('change'));
+    const A = window.AOG_STD;
+    return { A, dem: document.getElementById('s_dem').textContent.replace(/\D/g, ''), svc: document.getElementById('s_svc').textContent.trim(),
+      hdr: document.getElementById('hdr_method').textContent, back: (sel.value = 'opt', sel.dispatchEvent(new Event('change')), document.getElementById('s_dem').textContent.replace(/\D/g, '')) }; });
+  const A = r.A;
+  // Table 220.45: first 3,000 VA at 100 %, 3,001–120,000 at 35 %, the rest at 25 %
+  expect(A.s1Std).toBeCloseTo(Math.min(A.s1, 3000) + Math.min(Math.max(A.s1 - 3000, 0), 117000) * 0.35 + Math.max(A.s1 - 120000, 0) * 0.25, 3);
+  expect(A.s2Std).toBe(Math.max(A.heatSide, A.coolSide));          // 220.60 noncoincident: larger side only
+  expect(A.motorAdd).toBeCloseTo(A.bigMotor * 0.25, 3);             // 220.50 → 430.24
+  expect(A.apF).toBe(A.qualN >= 4 ? 0.75 : 1);                      // 220.53
+  expect(A.applStd).toBeCloseTo(A.qualVA * A.apF + A.smallVA, 3);
+  expect(A.dryStd).toBeGreaterThanOrEqual(5000);                    // 220.54: 5,000 VA floor
+  expect(A.svc).toBeCloseTo(A.s1Std + A.s2Std + A.motorAdd + A.applStd + A.evseVA + A.dryStd + A.cookStd, 3);
+  expect(r.dem).toBe(String(Math.round(A.svc)));
+  expect(r.hdr).toContain('220 Part III');
+  expect(r.back).toBe('31491');                                     // back to Optional: the 220.82 answer is untouched
+});
+
 test('Conduit Fill: 3 × 1/0 + 1 × #6 THHN → 1-1/2" EMT; USE-2 sized as RHW-2', async ({ page }) => {
   expect(await open(page, '/conduit-fill/')).toEqual([]);
   const r = await page.evaluate(() => {

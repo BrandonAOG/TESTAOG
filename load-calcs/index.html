@@ -606,7 +606,7 @@ body.dark [style*="#fff3cd"] *{color:inherit;}
   <div style="width:1px;height:32px;background:rgba(217,119,6,0.3);margin:0 4px;"></div>
   <div>
     <div style="font-family:'Orbitron',monospace;font-size:11px;font-weight:700;color:#fff;letter-spacing:2px;line-height:1.1;">LOAD CALC</div>
-    <div style="font-family:'Inter',Arial,Helvetica,sans-serif;font-size:9px;color:rgba(255,255,255,0.4);letter-spacing:1px;">NEC 2023 · Art. 220.82</div>
+    <div style="font-family:'Inter',Arial,Helvetica,sans-serif;font-size:9px;color:rgba(255,255,255,0.4);letter-spacing:1px;" id="hdr_method">NEC 2023 · Art. 220.82</div>
   </div>
 
   <div class="hdr-stats">
@@ -643,7 +643,7 @@ body.dark [style*="#fff3cd"] *{color:inherit;}
 <div class="tab-panel active" id="tab-summary">
 
   <div class="sum-panel">
-    <h2>NEC 2023 Art. 220.82 — Optional Method — Residential Service</h2>
+    <h2 id="sum_h2">NEC 2023 Art. 220.82 — Optional Method — Residential Service</h2>
     <div class="sum-chips">
       <div class="sc big"><div class="sl">Min. Generator</div><div class="sv" id="s_gen">—</div><div class="su" id="s_fuel">Propane LP</div></div>
       <div class="sc"><div class="sl">Service Demand</div><div class="sv" id="s_dem">—</div><div class="su">VA</div></div>
@@ -662,6 +662,12 @@ body.dark [style*="#fff3cd"] *{color:inherit;}
     <div class="card-head"><div class="card-title">⚙️ Configuration</div></div>
     <div class="card-body">
       <div class="fg fg-3 cfg-grid">
+        <div class="field"><label>Calculation Method</label>
+          <select id="calc_method" onchange="aogMethodUI();calc()">
+            <option value="opt" selected>Optional — 220.82</option>
+            <option value="std">Standard — Part III</option>
+          </select>
+        </div>
         <div class="field"><label>Generator Brand</label>
           <select id="brand" onchange="calc()">
             <option value="generac" selected>Generac</option>
@@ -747,9 +753,9 @@ body.dark [style*="#fff3cd"] *{color:inherit;}
   </div>
 
   <div class="card">
-    <div class="card-head"><div class="card-title">Load Breakdown — Optional Method</div></div>
+    <div class="card-head"><div class="card-title" id="br_title">Load Breakdown — Optional Method</div></div>
     <div class="card-body" style="padding:10px 14px;">
-      <table class="br-table">
+      <table class="br-table" id="br_table">
         <tr><td class="bl">Step 1 — Gen. Lighting, Sm. Appl. &amp; Laundry</td><td class="bv" id="br1">—</td></tr>
         <tr><td class="bl">Step 2 — A/C or Heat (largest)<br><span class="br-note">added @ 100% after demand factor</span></td><td class="bv" id="br2">—</td></tr>
         <tr><td class="bl">Step 3 — Fixed Appliances (raw VA)</td><td class="bv" id="br3">—</td></tr>
@@ -763,7 +769,7 @@ body.dark [style*="#fff3cd"] *{color:inherit;}
       </table>
 
       <div class="calc-show">
-        <h4>220.82 Calculation Steps</h4>
+        <h4 id="cd_title">220.82 Calculation Steps</h4>
         <div id="calc_detail">—</div>
       </div>
     </div>
@@ -777,7 +783,7 @@ body.dark [style*="#fff3cd"] *{color:inherit;}
     <div class="card-head">
       <span class="step-tag">STEP 1</span>
       <div class="card-title">General Lighting, Small Appliance &amp; Laundry</div>
-      <div class="card-sub">Art. 220.82(B)(1)(2)(3) — 3 VA/sq ft + 1,500 VA per required circuit</div>
+      <div class="card-sub" id="sub1">Art. 220.82(B)(1)(2)(3) — 3 VA/sq ft + 1,500 VA per required circuit</div>
     </div>
     <div class="card-body">
       <div class="fg fg-3 s1-grid">
@@ -810,7 +816,7 @@ body.dark [style*="#fff3cd"] *{color:inherit;}
     <div class="card-head">
       <span class="step-tag">STEP 2</span>
       <div class="card-title">A/C Condensers &amp; Fixed Electric Space Heating</div>
-      <div class="card-sub">Art. 220.82(C) — larger of: A/C @ 100% vs heat @ 65% (1–3 elec. heat units) or 40% (4 or more). Blower @ 100% both sides.</div>
+      <div class="card-sub" id="sub2">Art. 220.82(C) — larger of: A/C @ 100% vs heat @ 65% (1–3 elec. heat units) or 40% (4 or more). Blower @ 100% both sides.</div>
     </div>
     <div class="card-body" style="padding:8px 14px;">
       <div id="ahu_rows"></div>
@@ -831,7 +837,7 @@ body.dark [style*="#fff3cd"] *{color:inherit;}
     <div class="card-head">
       <span class="step-tag">STEP 3</span>
       <div class="card-title">Fixed Appliances</div>
-      <div class="card-sub">Art. 220.82(B)(3) — Raw VA, no separate demand factor · GAS excludes load · voltage sets neutral</div>
+      <div class="card-sub" id="sub3">Art. 220.82(B)(3) — Raw VA, no separate demand factor · GAS excludes load · voltage sets neutral</div>
     </div>
     <div class="card-body" style="padding:0;overflow:hidden;">
       <div class="appl-wrap">
@@ -863,7 +869,7 @@ body.dark [style*="#fff3cd"] *{color:inherit;}
     <div class="card-head">
       <span class="step-tag">STEP 4</span>
       <div class="card-title">Electric Clothes Dryers</div>
-      <div class="card-sub">Art. 220.82(B)(3) — nameplate rating · Gas dryers excluded</div>
+      <div class="card-sub" id="sub4">Art. 220.82(B)(3) — nameplate rating · Gas dryers excluded</div>
     </div>
     <div class="card-body">
       <div id="dryer_list"></div>
@@ -881,7 +887,7 @@ body.dark [style*="#fff3cd"] *{color:inherit;}
     <div class="card-head">
       <span class="step-tag">STEP 5</span>
       <div class="card-title">Electric Cooking Equipment</div>
-      <div class="card-sub">Art. 220.82(B)(3) — Raw VA added to demand pool · 5,000–12,500 W in 500 W steps · Gas excludes individual appliance</div>
+      <div class="card-sub" id="sub5">Art. 220.82(B)(3) — Raw VA added to demand pool · 5,000–12,500 W in 500 W steps · Gas excludes individual appliance</div>
     </div>
     <div class="card-body">
 
@@ -896,7 +902,7 @@ body.dark [style*="#fff3cd"] *{color:inherit;}
       <button class="btn btn-add btn-sm" onclick="addCookItem('oven')">+ Add Wall Oven</button>
       <div class="div"></div>
       <div class="chips">
-        <div class="chip hl"><div class="cl">Step 5 Cooking Total</div><div class="cv" id="r5_dem">—</div><div class="cu">VA (raw, no demand factor)</div></div>
+        <div class="chip hl"><div class="cl">Step 5 Cooking Total</div><div class="cv" id="r5_dem">—</div><div class="cu" id="r5_cu">VA (raw, no demand factor)</div></div>
       </div>
 
     </div>
@@ -989,6 +995,18 @@ body.dark [style*="#fff3cd"] *{color:inherit;}
         <h3>Overview</h3>
         <p>Performs a <strong>Residential Optional Load Calculation</strong> per <strong>NEC 2023, Art. 220.82</strong> for single-family dwellings. Complete Steps 1–5 in order, then view results on the <strong>Summary</strong> tab.</p>
         <p>The Optional Method sums all loads, then applies a demand factor: first 10,000 VA @ 100%, remainder @ 40%.</p>
+        <p>Pick <strong>Optional — 220.82</strong> or <strong>Standard — Part III</strong> under <strong>Calculation Method</strong> (Summary tab → Configuration). Both use the same inputs; only the demand math changes.</p>
+      </div>
+      <div class="help-sec">
+        <h3>Standard Method (Art. 220 Part III)</h3>
+        <p>The method every dwelling can use. Usually gives a <strong>larger</strong> answer than 220.82 for an all-electric house, because heat counts at 100% and each load gets its own demand rule instead of one 40% factor. Switching back to Optional leaves the 220.82 answer untouched.</p>
+        <p><strong>Step 1</strong> — the same 3 VA/sq ft + 1,500 VA per small-appliance and laundry circuit, then <strong>Table 220.45</strong>: first 3,000 VA @ 100%, 3,001–120,000 VA @ 35%, the rest @ 25%.</p>
+        <p><strong>Step 2 · HVAC</strong> — the larger of heating or cooling at <strong>100%</strong> (220.60, noncoincident loads). A heat pump counts its compressor plus supplemental heat; the blower counts on both sides. Then <strong>+25% of the largest motor</strong> (220.50 → 430.24) — the largest A/C compressor or pool pump.</p>
+        <p><strong>Step 3 · Fixed appliances</strong> — 75% of the total when there are <strong>4 or more</strong> fastened-in-place appliances rated 500 VA or more (220.53); smaller ones count at 100%. Pool equipment is counted unit by unit. <strong>EV chargers</strong> are kept out of the 75% and count at the larger of <strong>7,200 VA or nameplate</strong> (220.57).</p>
+        <p><strong>Step 4 · Dryers</strong> — Table 220.54: 5,000 VA or nameplate, whichever is larger, with the table's factor for 5 or more.</p>
+        <p><strong>Step 5 · Cooking</strong> — Table 220.55, every range, cooktop and oven counted as its own appliance (Note 3 lets Column A/B be used for 1¾–8¾ kW units).</p>
+        <p><strong>Neutral</strong> — Step 1 + the 120 V appliances + <strong>70%</strong> of the range and dryer demand (220.61(B)(1)). 240 V loads like A/C, heat and EV chargers carry no neutral.</p>
+        <p>Managed (load-shed) loads and gas appliances are handled the same way as on the Optional method. The printed sheet, the steps on the Summary tab and the generator size all follow the method you pick.</p>
       </div>
       <div class="help-sec">
         <h3><span class="hbadge">Step 1</span> General Lighting, Small Appliance &amp; Laundry</h3>
@@ -2281,6 +2299,7 @@ function buildMotorSel(id, defVA, volt){
 
 // ══ MAIN CALC ══
 function calc(){
+  if(typeof aogMethodUI==='function') aogMethodUI();
   var isAl=gs('conductor')==='al';
   var sets=parseInt(gs('sets'))||1;
   var wireTbl=isAl?AL75:CU75;
@@ -2720,6 +2739,95 @@ function calc(){
                    t55items:t55Items.slice(),
                    t54va:t54VA, gasCook:gasCookVA, gasDry:gasDryVA};
   var neutralVA=s1+totNeut120+neutralDryerVA+neutralCookVA;
+  // ══════════ STANDARD METHOD — NEC 2023 Art. 220 Part III (dwelling) ══════════
+  // Same inputs as the optional method; only the demand math changes. With the
+  // method on Optional nothing below runs and every 220.82 figure is untouched.
+  //  220.41/220.52  Step 1 → Table 220.45 (3,000 @ 100%, to 120,000 @ 35%, rest 25%)
+  //  220.51/220.60  heat at 100% (no 65/40%), larger of heating or cooling
+  //  220.50/430.24  + 25% of the largest motor (compressor or pool pump)
+  //  220.53         75% of fixed appliances when 4 or more are ≥ 500 VA (not EVSE)
+  //  220.57         EVSE at the larger of 7,200 VA or nameplate, 100%
+  //  220.54         dryers: Table 220.54, 5,000 VA floor each
+  //  220.55         cooking: Table 220.55 on each appliance — the feeder counts
+  //                 every unit separately; Note 6 combining is a branch-circuit rule
+  //  220.61(B)(1)   70% of the range and dryer demand on the neutral
+  var _std = gs('calc_method')==='std';
+  window.AOG_STD = null;
+  if(_std){
+    var _t45 = function(va){ return Math.min(va,3000)+Math.min(Math.max(va-3000,0),117000)*0.35+Math.max(va-120000,0)*0.25; };
+    var s1Std = _t45(s1);
+    // HVAC — heat at 100%; a heat pump's compressor is on both sides.
+    var heatSide = totHeatElement + hpCompressor + hpSupplement + totBlower;
+    var coolSide = totCU + totBlower;
+    var s2Std = Math.max(heatSide, coolSide);
+    // Largest motor: compressors (non-managed AHUs) and pool pumps.
+    var bigMotor=0, bigName='';
+    for(var _a=1;_a<=MAX_AHU;_a++){
+      if(!document.getElementById('cu'+_a) || gc('mgd_ahu'+_a)) continue;
+      var _cv=gv('cu'+_a); if(_cv>bigMotor){ bigMotor=_cv; bigName='AHU '+_a+' compressor'; }
+    }
+    var _poolOn = gc('has_pool') && !gc('mgd_pool');
+    if(_poolOn){
+      for(var _p=1;_p<=poolPumpCount;_p++){
+        if(!document.getElementById('ppump_'+_p) || gc('mgd_pp'+_p)) continue;
+        var _pv=gv('ppva_'+_p); if(_pv>bigMotor){ bigMotor=_pv; bigName='Pool Pump '+_p; }
+      }
+    }
+    var motorAdd = bigMotor*0.25;
+    // Fixed appliances — one entry per physical unit so 220.53 can count them.
+    var units=[], evseVA=0;   // units: {va, v120}
+    var _push=function(va,q,v120){ for(var k=0;k<q;k++) units.push({va:va,v120:v120}); };
+    for(var _i=0;_i<APPLS.length;_i++){
+      var _ap=APPLS[_i];
+      if(gc('mgd_'+_ap.id)) continue;
+      var _q=gq('qty_'+_ap.id); if(!_q) continue;
+      var _g=_ap.canGas&&gc('gas_'+_ap.id);
+      var _v120=(parseInt(gs('volt_'+_ap.id))||240)===120;
+      if(_ap.id==='car'){ if(!_g) evseVA+=_q*Math.max(7200,gv('va_'+_ap.id)); continue; }   // 220.57, outside 220.53
+      _push(_g?(_ap.gasVA||0):gv('va_'+_ap.id), _q, _v120||_g);
+    }
+    for(var _x=1;_x<=extraApplCount;_x++){
+      if(!document.getElementById('xrow_'+_x) || gc('xmgd_'+_x)) continue;
+      var _xq=gq('xqty_'+_x); if(!_xq) continue;
+      var _xg=gc('xgas_'+_x);
+      _push(_xg?100:gv('xva_'+_x), _xq, _xg||(parseInt(gs('xvolt_'+_x))||240)===120);
+    }
+    if(_poolOn){   // pool equipment is fastened-in-place appliances, counted one by one
+      var _sq=gq('qty_spa');  if(_sq&&!gc('mgd_spa'))  _push(gc('gas_spa')?500:gv('va_spa'), _sq, false);
+      var _hq=gq('qty_ph35'); if(_hq&&!gc('mgd_ph35')) _push(gc('gas_ph35')?500:gv('va_ph35'), _hq, false);
+      var _h5=gq('qty_ph5');  if(_h5&&!gc('mgd_ph5'))  _push(gc('gas_ph5')?500:gv('va_ph5'), _h5, false);
+      if(!gc('mgd_blower') && gv('va_blower')>0) _push(gv('va_blower'),1,(parseInt(gs('pvolt_blower'))||240)===120);
+      var _lq=gq('qty_plight'); if(_lq) _push(300,_lq,true);
+      for(var _p2=1;_p2<=poolPumpCount;_p2++){ if(!document.getElementById('ppump_'+_p2)||gc('mgd_pp'+_p2)) continue;
+        if(gv('ppva_'+_p2)>0) _push(gv('ppva_'+_p2),1,(parseInt(gs('ppvolt_'+_p2))||240)===120); }
+      for(var _n2=1;_n2<=poolNcCount;_n2++){ if(!document.getElementById('pnc_'+_n2)||gc('mgd_pnc'+_n2)) continue;
+        if(gv('pncva_'+_n2)>0) _push(gv('pncva_'+_n2),1,(parseInt(gs('pncvolt_'+_n2))||240)===120); }
+      for(var _e2=1;_e2<=poolExtraCount;_e2++){ if(!document.getElementById('pex_'+_e2)||gc('mgd_pex'+_e2)) continue;
+        if(gv('pexva_'+_e2)>0) _push(gv('pexva_'+_e2),1,(parseInt(gs('pexvolt_'+_e2))||240)===120); }
+    }
+    var qualN=0, qualVA=0, smallVA=0, qual120=0, small120=0;
+    units.forEach(function(u){ if(u.va>=500){ qualN++; qualVA+=u.va; if(u.v120) qual120+=u.va; } else { smallVA+=u.va; if(u.v120) small120+=u.va; } });
+    var apF = qualN>=4 ? 0.75 : 1;
+    var applStd = qualVA*apF + smallVA;
+    // Dryers — Table 220.54 (already run above for the neutral) + gas control loads.
+    var dryStd = t54VA + gasDryVA;
+    // Cooking — every electric appliance on its own, Table 220.55.
+    var _cookItems=[];
+    Object.keys(rooms).forEach(function(r){ var b=rooms[r]; _cookItems=_cookItems.concat(b.rg,b.ct,b.ov); });
+    var t55s = t55Demand(_cookItems);
+    var cookStd = t55s.kw*1000 + (t55s.belowKw||0)*1000 + gasCookVA;
+    var svcStd = s1Std + s2Std + motorAdd + applStd + evseVA + dryStd + cookStd;
+    var neutStd = s1Std + (qual120*apF + small120) + t54VA*0.70 + gasDryVA
+                + t55s.kw*1000*0.70 + (t55s.belowKw||0)*1000 + gasCookVA;
+    window.AOG_STD = {s1:s1, s1Std:s1Std, heatSide:heatSide, coolSide:coolSide, s2Std:s2Std,
+      heatGoverns:heatSide>coolSide, bigMotor:bigMotor, bigName:bigName, motorAdd:motorAdd,
+      qualN:qualN, apF:apF, qualVA:qualVA, smallVA:smallVA, smallN:units.length-qualN, applConn:qualVA+smallVA, applStd:applStd, evseVA:evseVA,
+      dryStd:dryStd, t54:t54VA, cookStd:cookStd, cookBasis:t55s.basis, cookN:_cookItems.filter(function(k){return k>1.75;}).length,
+      svc:svcStd, neut:neutStd};
+    svcDem = svcStd;
+    amps = svcDem/240;
+    neutralVA = neutStd;
+  }
   // NEC 220.61(A): neutral shall not exceed demand amps of ungrounded conductors
   // Apply 200A threshold: first 200A @ 100%, above 200A @ 70%
   var neutral_amps_raw=neutralVA/240;
@@ -3066,6 +3174,52 @@ function calc(){
     +'<div class="calc-line"><span>EGC (NEC 250.122, OCPD='+svcSize+'A)</span><span class="cv">'+egc+'</span></div>'
     +'<div class="calc-line"><span>Generator kW needed</span><span class="cv">'+kw.toFixed(1)+' kW → '+gen+'</span></div>';
 
+  // ── Standard method: summary breakdown, step chips, calculation steps ──
+  if(_std){
+    var A=window.AOG_STD, F_=function(n){return fmt(Math.round(n))+' VA';};
+    var bt=document.getElementById('br_table');
+    if(bt){
+      if(!window._brOrig) window._brOrig=bt.innerHTML;
+      window._brIsStd=true;
+      bt.innerHTML=
+        '<tr><td class="bl">Step 1 — Lighting, Sm. Appl. &amp; Laundry<br><span class="br-note">'+fmt(A.s1)+' VA → Table 220.45</span></td><td class="bv">'+F_(A.s1Std)+'</td></tr>'
+       +'<tr><td class="bl">Step 2 — Heat or A/C (larger) @ 100%<br><span class="br-note">220.51, 220.60 · heat '+fmt(Math.round(A.heatSide))+' / A/C '+fmt(Math.round(A.coolSide))+'</span></td><td class="bv">'+F_(A.s2Std)+'</td></tr>'
+       +(A.motorAdd?'<tr><td class="bl">+ 25% largest motor<br><span class="br-note">430.24 · '+A.bigName+'</span></td><td class="bv">'+F_(A.motorAdd)+'</td></tr>':'')
+       +'<tr><td class="bl">Step 3 — Fixed Appliances incl. pool<br><span class="br-note">220.53 · '+fmt(A.applConn)+' VA'+(A.apF<1?' · '+A.qualN+' units @ 75%':'')+'</span></td><td class="bv">'+F_(A.applStd)+'</td></tr>'
+       +(A.evseVA?'<tr><td class="bl">EV Charger(s) — 220.57 (7,200 VA min.)</td><td class="bv">'+F_(A.evseVA)+'</td></tr>':'')
+       +'<tr><td class="bl">Step 4 — Dryers — Table 220.54</td><td class="bv">'+F_(A.dryStd)+'</td></tr>'
+       +'<tr><td class="bl">Step 5 — Cooking — Table 220.55<br><span class="br-note">'+A.cookBasis+'</span></td><td class="bv">'+F_(A.cookStd)+'</td></tr>'
+       +'<tr class="br-demand"><td>Service Demand<br><span class="br-note">NEC 220 Part III standard method</span></td><td class="bv">'+F_(A.svc)+'</td></tr>';
+    }
+    sv('r2_hf','100%'); sv('r2_heatdem',Math.round(A.heatSide));
+    var _hn=document.getElementById('r2_hfnote'); if(_hn) _hn.textContent='VA · 220.51 — no demand factor';
+    sv('r2_s2',Math.round(A.s2Std));
+    document.getElementById('r2_note').textContent=A.heatGoverns?'Heat governs':'A/C governs';
+    sv('r3_dem',Math.round(A.applStd)); sv('r4_tot',Math.round(A.dryStd)); sv('r5_dem',Math.round(A.cookStd));
+    var _r5=document.getElementById('r5_cu'); if(_r5) _r5.textContent='VA · Table 220.55';
+    if(cd) cd.innerHTML=
+      '<div class="calc-line"><span>Step 1 — '+fmt(A.s1)+' VA: 3,000 @ 100% + '+fmt(Math.min(Math.max(A.s1-3000,0),117000))+' @ 35%'+(A.s1>120000?' + rest @ 25%':'')+'</span><span class="cv">'+F_(A.s1Std)+'</span></div>'
+     +'<div class="calc-line"><span>Step 2 — larger of heat '+fmt(Math.round(A.heatSide))+' / A/C '+fmt(Math.round(A.coolSide))+' (220.60)</span><span class="cv">'+F_(A.s2Std)+'</span></div>'
+     +(A.motorAdd?'<div class="calc-line"><span>430.24: 25% × '+A.bigName+' ('+fmt(A.bigMotor)+' VA)</span><span class="cv">'+F_(A.motorAdd)+'</span></div>':'')
+     +'<div class="calc-line"><span>Step 3 — fixed appliances '+fmt(A.applConn)+' VA'+(A.apF<1?' — '+A.qualN+' units ≥ 500 VA @ 75% (220.53)':' — fewer than 4, 100%')+'</span><span class="cv">'+F_(A.applStd)+'</span></div>'
+     +(A.evseVA?'<div class="calc-line"><span>EV charger(s) — 220.57</span><span class="cv">'+F_(A.evseVA)+'</span></div>':'')
+     +'<div class="calc-line"><span>Step 4 — dryers, Table 220.54 (5,000 VA floor each)</span><span class="cv">'+F_(A.dryStd)+'</span></div>'
+     +'<div class="calc-line"><span>Step 5 — cooking, '+A.cookN+' appliance(s) → '+A.cookBasis+'</span><span class="cv">'+F_(A.cookStd)+'</span></div>'
+     +'<div class="calc-line" style="background:var(--blue-lt);padding:6px;border-radius:4px;"><span><strong>Service demand (Art. 220 Part III)</strong></span><span class="cv"><strong>'+F_(svcDem)+'</strong></span></div>'
+     +'<div class="calc-line"><span>÷ 240V = demand amps</span><span class="cv">'+amps.toFixed(2)+' A</span></div>'
+     +'<div class="calc-line"><span>Min. service size</span><span class="cv">'+svcSize+' A</span></div>'
+     +'<div class="calc-line"><span>Neutral (220.61) — Step 1 demand + 120V appliances + 70% cooking &amp; dryer</span><span class="cv">'+neutral_amps.toFixed(2)+' A</span></div>'
+     +'<div class="calc-line"><span>Feeder ('+sets+' set'+(sets>1?'s':'')+', '+amps_per.toFixed(1)+'A/set)</span><span class="cv">'+feederWire+'</span></div>'
+     +'<div class="calc-line"><span>Neutral wire</span><span class="cv">'+neutralWire+'</span></div>'
+     +'<div class="calc-line"><span>EGC (NEC 250.122, OCPD='+svcSize+'A)</span><span class="cv">'+egc+'</span></div>'
+     +'<div class="calc-line"><span>Generator kW needed</span><span class="cv">'+kw.toFixed(1)+' kW → '+gen+'</span></div>';
+  } else if(window._brIsStd){
+    // Back to Optional: put the original breakdown rows back, then run once more
+    // so they are filled in.
+    var _bt=document.getElementById('br_table'); if(_bt) _bt.innerHTML=window._brOrig;
+    window._brIsStd=false; window._brRestore=true;
+  }
+
   // ── Pool panel calc (display amps = raw; conductor sizing = with 125%) ──
   var pncVA_total=pncVA_;
   // Display Phase A/B = raw load current
@@ -3130,6 +3284,7 @@ function calc(){
     +'<div class="calc-line" style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px;"><span><strong>Pool panel nameplate → Step 3</strong> <span style="color:var(--text3);">(100% — the 125% sizes wire, not the load calc)</span></span><span class="cv"><strong>'+fmt(Math.round(poolNameplateVA))+' VA</strong></span></div>';
 
   aogRoomVis();
+  if(window._brRestore){ window._brRestore=false; calc(); return; }
   if(typeof aogBlankZeros==='function') aogBlankZeros();
   if(typeof aogScheduleSave==='function') aogScheduleSave();
 }
@@ -3160,6 +3315,30 @@ function aogRoomVis(){
   var hint=document.getElementById('room_hint');
   if(hint) hint.style.display=show?'':'none';
 }
+
+
+// ══ METHOD LABELS — Optional (220.82) vs Standard (Part III) ══
+var AOG_STD_LABELS={
+  hdr_method:'NEC 2023 · Art. 220 Part III',
+  sum_h2:'NEC 2023 Art. 220 Part III — Standard Method — Residential Service',
+  br_title:'Load Breakdown — Standard Method',
+  cd_title:'Standard Method Calculation Steps',
+  sub1:'220.41 — 3 VA/ft² · 220.52 — 1,500 VA per small-appliance &amp; laundry circuit · Table 220.45: 3,000 VA @ 100%, to 120,000 @ 35%, rest @ 25%',
+  sub2:'220.51 — electric heat @ 100% (no 65/40%) · 220.60 — larger of heat or A/C · blower both sides · heat pump compressor both sides · + 25% largest motor (430.24)',
+  sub3:'220.53 — nameplate · 75% when 4 or more fastened-in-place appliances ≥ 500 VA (pool equipment counted unit by unit) · EV charger 220.57: 7,200 VA min., outside the 75%',
+  sub4:'220.54 — 5,000 VA or nameplate, whichever is larger · Table 220.54 · gas dryer: control load only',
+  sub5:'220.55 — Table 220.55 on each appliance (Col. C, Notes 1–3) · gas: control load only'
+};
+function aogMethodUI(){
+  var std=(document.getElementById('calc_method')||{}).value==='std';
+  Object.keys(AOG_STD_LABELS).forEach(function(id){
+    var e=document.getElementById(id); if(!e) return;
+    if(e.getAttribute('data-opt')===null) e.setAttribute('data-opt',e.innerHTML);
+    e.innerHTML=std?AOG_STD_LABELS[id]:e.getAttribute('data-opt');
+  });
+  if(!std){ var r5=document.getElementById('r5_cu'); if(r5) r5.textContent='VA (raw, no demand factor)'; }
+}
+window.addEventListener('load',function(){ setTimeout(function(){ aogMethodUI(); if(typeof calc==='function') calc(); },0); });
 
 // ══ TABS ══
 document.querySelectorAll('.tab').forEach(function(t){
@@ -3333,6 +3512,9 @@ function aogApplySnapshot(data){
   try{
     aogClearDyn();
     aogRebuildRows(data.rows);
+    // A job saved before the method switch existed has no calc_method: it was
+    // an Optional (220.82) job, so open it that way whatever is on screen now.
+    var _cm=document.getElementById('calc_method'); if(_cm) _cm.value='opt';
     Object.keys(data.fields).forEach(function(id){ aogSetEl(id,data.fields[id]); });
     var _pm=document.getElementById('mgd_pool');
     var _pm2=document.getElementById('mgd_pool2');
@@ -3532,7 +3714,8 @@ function cookName(cid, fallback){
   return v||fallback;
 }
 
-function buildReportHTML(){
+function buildReportHTML(lv){
+  lv=lv||0;
   try{
   // Ensure globals exist
   if(typeof dryerCount==='undefined') dryerCount=0;
@@ -3840,6 +4023,13 @@ function buildReportHTML(){
   var applRows = applLines.map(function(r){
     return '<tr><td>'+r.name+'</td><td class="r">'+r.tot+' VA</td></tr>';
   }).join('');
+  // Compact level 2+: a long appliance list runs in two side-by-side columns.
+  if(lv>=2 && applLines.length>8){
+    var _half=Math.ceil(applLines.length/2);
+    var _col=function(a){return '<table class="dt">'+a.map(function(r){return '<tr><td>'+r.name+'</td><td class="r">'+r.tot+' VA</td></tr>';}).join('')+'</table>';};
+    applRows='<tr><td colspan="2" style="padding:0;border:none;"><div style="display:grid;grid-template-columns:1fr 1fr;gap:0 8pt;">'
+      +_col(applLines.slice(0,_half))+_col(applLines.slice(_half))+'</div></td></tr>';
+  }
   // Steps 4 & 5 print one summary figure each, which leaves a reader guessing why
   // a cooking load is 500 VA. Build a short qualifier from the same rows: the
   // unit count when there is more than one, and the fuel when any of them is gas
@@ -3917,6 +4107,33 @@ function buildReportHTML(){
     step2Rows = '<tr class="tot"><td>Step 2 Applied</td><td class="r" colspan="2">'+tv('r2_s2')+' VA</td></tr>';
   }
 
+  // Standard method (Part III): same sheet, different citations and demand block.
+  var STD = (gs('calc_method')==='std') ? window.AOG_STD : null;
+  var _V=function(n){return Math.round(n).toLocaleString();};
+  var _cite=function(t){return ' <span style="font-weight:400;letter-spacing:0.5px;color:#8a6a3a;text-transform:none;">'+t+'</span>';};
+  var R_hdr = STD ? 'RESIDENTIAL LOAD CALCULATION — NEC 2023 ART. 220 PART III, STANDARD METHOD'
+                  : 'RESIDENTIAL LOAD CALCULATION — NEC 2023 ART. 220 PART IV, 220.82 OPTIONAL METHOD';
+  var R_c1 = STD ? '220.41, 220.52, Table 220.45' : '220.82(B)(1),(2)';
+  var R_c2 = STD ? '220.51, 220.60 &middot; heat @ 100%' : '220.82(C) &middot; added @ 100%';
+  var R_c3 = STD ? '220.53 &middot; pool equipment included' : '220.82(B)(3)a,d &amp; (B)(4)';
+  var R_c4 = STD ? 'Table 220.54' : '220.82(B)(3)c';
+  var R_c5 = STD ? 'Table 220.55' : '220.82(B)(3)b';
+  var R_ftr = STD ? 'Art. 220 Part III Standard Method' : 'Art. 220.82 Optional Method';
+  var R_s1dem = STD ? '<tr><td style="padding-left:12pt;color:#555;">&bull; Table 220.45: 3,000 @ 100%, next @ 35%'+(STD.s1>120000?', over 120,000 @ 25%':'')+'</td><td class="r" style="color:#555;font-weight:400;">'+_V(STD.s1Std)+' VA</td></tr>' : '';
+  var R_s3lbl = STD ? 'Step 3 Connected' : 'Step 3 Total (raw VA)';
+  // Step 3 in plain lines: what got 75%, what stayed 100%, and the EV charger.
+  var _sub=function(t,v){return '<tr><td style="padding-left:12pt;color:#555;">&bull; '+t+'</td><td class="r" style="color:#555;font-weight:400;">'+v+'</td></tr>';};
+  var R_s3dem = STD ? (
+       (STD.qualN?_sub(STD.qualN+' appliance'+(STD.qualN>1?'s':'')+' 500 VA &amp; up: '+_V(STD.qualVA)+' VA × '+(STD.apF<1?'75% (220.53, 4 or more)':'100% (fewer than 4)'),_V(STD.qualVA*STD.apF)+' VA'):'')
+      +(STD.smallVA?_sub(STD.smallN+' small load'+(STD.smallN>1?'s':'')+' under 500 VA @ 100%',_V(STD.smallVA)+' VA'):'')
+      +(STD.evseVA?_sub('EV charger @ 100% — 220.57 (not in the 75%)',_V(STD.evseVA)+' VA'):'')
+      +'<tr class="tot"><td>Step 3 Demand</td><td class="r">'+_V(STD.applStd+STD.evseVA)+' VA</td></tr>') : '';
+  if(STD){
+    step2Rows='<tr class="tot"><td style="white-space:nowrap;">Step 2 Applied</td><td class="r" colspan="2" style="white-space:normal;">'+_V(STD.s2Std)+' VA<br>'
+      +'<span style="font-weight:400;color:#666;">A/C: '+_V(STD.coolSide)+' &middot; heat @ 100%: '+_V(STD.heatSide)+'</span></td></tr>'
+      +(STD.motorAdd?'<tr><td>+ 25% largest motor (430.24)<br><span style="font-weight:400;color:#666;font-size:7.5pt;">'+STD.bigName+'</span></td><td class="r" colspan="2">'+_V(STD.motorAdd)+' VA</td></tr>':'');
+    qualCook=qualCook+' <span style="color:#8a6a3a;">'+STD.cookBasis+'</span>';
+  }
   var D = (window.AOG_DEMAND||{baseLoads:0,baseDem:0,hvac:0,svcDem:0});
   D = {baseLoads:Math.round(D.baseLoads), baseDem:Math.round(D.baseDem),
        hvac:Math.round(D.hvac), svcDem:Math.round(D.svcDem)};
@@ -3925,7 +4142,7 @@ function buildReportHTML(){
 <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2pt solid #D97706;padding-bottom:6pt;margin-bottom:10pt;">
   <div>
     <div style="font-family:Orbitron,monospace;font-size:16pt;font-weight:700;color:#D97706;letter-spacing:2px;">Always On Generators</div>
-    <div style="font-size:8pt;color:#555;letter-spacing:0.5px;margin-top:2pt;">RESIDENTIAL LOAD CALCULATION — NEC 2023 ART. 220 PART IV, 220.82 OPTIONAL METHOD</div>
+    <div style="font-size:8pt;color:#555;letter-spacing:0.5px;margin-top:2pt;">${R_hdr}</div>
   </div>
   <div style="text-align:right;font-size:8pt;color:#333;">
     <!-- This block is the JOB SITE, not the contractor. It used to print the
@@ -3942,36 +4159,46 @@ function buildReportHTML(){
 
   <!-- Left: load inputs -->
   <div>
-    <div class="sh">Step 1 — Lighting &amp; Circuits <span style="font-weight:400;letter-spacing:0.5px;color:#8a6a3a;text-transform:none;">220.82(B)(1),(2)</span></div>
+    <div class="sh">Step 1 — Lighting &amp; Circuits${_cite(R_c1)}</div>
     <table class="dt"><tr><td>General Lighting (${esc(sqftVal)||'—'} sq ft × 3VA/ft²)</td><td class="r">${tv('r1_gl')} VA</td></tr>
     <tr><td>Small Appliance Circuits ×${esc(iv('smapp'))||0} (1,500 VA ea.)</td><td class="r">${tv('r1_sa')} VA</td></tr>
     <tr><td>Laundry Circuits ×${esc(iv('laundry'))||0} (1,500 VA ea.)</td><td class="r">${tv('r1_lc')} VA</td></tr>
-    <tr class="tot"><td>Step 1 Total</td><td class="r">${s1} VA</td></tr></table>
+    <tr class="tot"><td>Step 1 Total</td><td class="r">${s1} VA</td></tr>${R_s1dem}</table>
 
-    <div class="sh">Step 2 — HVAC <span style="font-weight:400;letter-spacing:0.5px;color:#8a6a3a;text-transform:none;">220.82(C) &middot; added @ 100%</span></div>
+    <div class="sh">Step 2 — HVAC${_cite(R_c2)}</div>
     <table class="dt"><tr><th>Unit</th><th class="r">CU/HP</th><th class="r">Heat (nameplate)</th></tr>${hvacRows||'<tr><td colspan="3" style="color:#888">No HVAC entered</td></tr>'}
     ${step2Rows}</table>
 
-    <div class="sh">Step 3 — Fixed Appliances <span style="font-weight:400;letter-spacing:0.5px;color:#8a6a3a;text-transform:none;">220.82(B)(3)a,d &amp; (B)(4)</span></div>
+    <div class="sh">Step 3 — Fixed Appliances${_cite(R_c3)}</div>
     <table class="dt">${applRows||'<tr><td>None</td><td></td></tr>'}
-    <tr class="tot"><td>Step 3 Total (raw VA)</td><td class="r">${s3} VA</td></tr></table>
+    <tr class="tot"><td>${R_s3lbl}</td><td class="r">${s3} VA</td></tr>${R_s3dem}</table>
 
     <div class="sh">Steps 4 &amp; 5 — Cooking &amp; Dryer</div>
-    <table class="dt"><tr><td>Cooking Load <span style="color:#8a6a3a;">220.82(B)(3)b</span>${qualCook}</td><td class="r">${s5} VA</td></tr>${cookDetailRows}
-    <tr><td>Dryer Load <span style="color:#8a6a3a;">220.82(B)(3)c</span>${qualDryer}</td><td class="r">${s4} VA</td></tr></table>
+    <table class="dt"><tr><td>Cooking Load <span style="color:#8a6a3a;">${R_c5}</span>${qualCook}</td><td class="r">${s5} VA</td></tr>${cookDetailRows}
+    <tr><td>Dryer Load <span style="color:#8a6a3a;">${R_c4}</span>${qualDryer}</td><td class="r">${s4} VA</td></tr></table>
   </div>
 
   <!-- Right: results -->
   <div>
-    <div class="sh">Service Demand — NEC 220.82</div>
+    ${STD?`<div class="sh">Service Demand — NEC 220 Part III</div>
+    <table class="dt">
+      <tr><td>Step 1 after Table 220.45</td><td class="r">${_V(STD.s1Std)} VA</td></tr>
+      <tr><td>Step 2 HVAC @ 100% (220.60)</td><td class="r">${_V(STD.s2Std)} VA</td></tr>
+      ${STD.motorAdd?`<tr><td>+ 25% largest motor (430.24)</td><td class="r">${_V(STD.motorAdd)} VA</td></tr>`:''}
+      <tr><td>Step 3 Appliances (220.53)${STD.evseVA?' + EVSE':''}</td><td class="r">${_V(STD.applStd+STD.evseVA)} VA</td></tr>
+      <tr><td>Step 4 Dryers (Table 220.54)</td><td class="r">${_V(STD.dryStd)} VA</td></tr>
+      <tr><td>Step 5 Cooking (Table 220.55)</td><td class="r">${_V(STD.cookStd)} VA</td></tr>
+      <tr class="tot"><td>Service Demand</td><td class="r">${svcDem} VA</td></tr>
+      `:`<div class="sh">Service Demand — NEC 220.82</div>
     <table class="dt">
       <tr><td>Base loads (Steps 1+3+4+5)</td><td class="r">${D.baseLoads.toLocaleString()} VA</td></tr>
       <tr><td>Demand (first 10k@100%, rest@40%)</td><td class="r">${D.baseDem.toLocaleString()} VA</td></tr>
       <tr><td>+ HVAC @ 100% (220.82(C))</td><td class="r">+ ${D.hvac.toLocaleString()} VA</td></tr>
       <tr class="tot"><td>Service Demand</td><td class="r">${svcDem} VA</td></tr>
+      `}
       <tr><td>Demand @ 240V, 1φ</td><td class="r">${rAmps} A</td></tr>
       <tr><td>${window.AOG_ANYMGD?'Minimum Service / Gen Feeder Size<br><span class="br-note" style="font-size:7.5pt;color:#777;">Managed loads excluded (generator feeder). The utility service must still carry all loads.</span>':'Minimum Service Size'}</td><td class="r">${rMinSvc} A</td></tr>
-      <tr><td>Neutral Demand (NEC 220.61)<br><span class="br-note" style="font-size:7.5pt;color:#777;">${(function(){var N=window.AOG_NEUT||{};return 'Cooking '+esc(N.t55basis||'—')+(N.note4?' + Note 6':'')+' &middot; dryer Table 220.54 &middot; both &times;70% per 220.61(B)(1)';})()}</span></td><td class="r">${neutral} A</td></tr>
+      <tr><td>Neutral Demand (NEC 220.61)<br><span class="br-note" style="font-size:7.5pt;color:#777;">${(function(){var N=window.AOG_NEUT||{};if(STD)return 'Cooking '+esc(STD.cookBasis)+' &middot; dryer Table 220.54 &middot; both &times;70% per 220.61(B)(1)';return 'Cooking '+esc(N.t55basis||'—')+(N.note4?' + Note 6':'')+' &middot; dryer Table 220.54 &middot; both &times;70% per 220.61(B)(1)';})()}</span></td><td class="r">${neutral} A</td></tr>
     </table>
 
     <div class="sh">Conductor Sizing — ${mat}</div>
@@ -4007,7 +4234,7 @@ ${managedLines.length>0?'<div style="margin-top:10pt;border:1.5pt solid #D97706;
 +'</table>'
 +'</div>':''}
 <div style="border-top:1pt solid #ccc;padding-top:5pt;font-size:7pt;color:#888;display:flex;justify-content:space-between;">
-  <span>Generated by Always On Generators Load Calc · NEC 2023 · Art. 220.82 Optional Method</span>
+  <span>Generated by Always On Generators Load Calc · NEC 2023 · ${R_ftr}</span>
   <span>${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</span>
 </div>
 
@@ -4023,11 +4250,37 @@ ${managedLines.length>0?'<div style="margin-top:10pt;border:1.5pt solid #D97706;
 </style>`;
 
   // Wrap in 2.5pt orange page border — fills 8.5×11 page inside .15in margins
-  return '<div style="border:2.5pt solid #D97706;padding:10pt 12pt;background:#fff;min-height:10.5in;box-sizing:border-box;">'+html+'</div>';
+  // Compact levels tighten spacing (never shrink the page) so a big house keeps
+  // the full-width sheet; aogFitReportHTML() picks the loosest one that fits.
+  var _CMP=['',
+    '.dt td,.dt th{padding:0.9pt 4pt;line-height:1.15;} .sh{margin:3pt 0 1pt;padding:1.5pt 0 1pt;}',
+    '.dt td,.dt th{padding:0.5pt 3pt;line-height:1.1;} .dt{font-size:8pt;} .sh{margin:2pt 0 1pt;padding:1pt 0 0.5pt;font-size:7pt;}',
+    '.dt td,.dt th{padding:0.3pt 3pt;line-height:1.05;} .dt{font-size:7.4pt;} .sh{margin:1.5pt 0 0;padding:1pt 0 0;font-size:6.8pt;}'];
+  if(lv) html+='<style>'+_CMP[Math.min(lv,3)]+'</style>';
+  return '<div style="border:2.5pt solid #D97706;padding:'+(lv>=2?'7pt 10pt':'10pt 12pt')+';background:#fff;min-height:10.5in;box-sizing:border-box;">'+html+'</div>';
   } catch(e){ console.error('buildReportHTML error:', e); alert('Report error: '+e.message); return null; }
 }
 
 // Shared print-window styles (also used as the wrapper for image capture)
+// Pick the loosest compact level whose sheet fits one US Letter page at 816 px
+// wide (8.5 in @ 96 dpi). A report that already fits prints exactly as before.
+function aogFitReportHTML(){
+  var probe=document.createElement('div');
+  probe.style.cssText='position:fixed;left:-10000px;top:0;width:816px;background:#fff;'
+    +'font-family:Arial,Helvetica,sans-serif;font-variant-numeric:tabular-nums;font-size:9.5pt;color:#000;'
+    +'padding:14.4px;box-sizing:border-box;z-index:-1;';
+  document.body.appendChild(probe);
+  var html=null;
+  try{
+    for(var lv=0;lv<=3;lv++){
+      html=buildReportHTML(lv); if(html===null) break;
+      probe.innerHTML=html.replace(/font-weight:\s*600/g,'font-weight:700');
+      if(probe.scrollHeight<=1056) break;
+    }
+  } finally { document.body.removeChild(probe); }
+  return html;
+}
+
 function reportWrapStyles(){
   return '*{box-sizing:border-box;margin:0;padding:0;}'
     +'html,body{height:auto;overflow:hidden;}'
@@ -4058,7 +4311,7 @@ function loadHtml2Canvas(){
 // Capture the report as a JPG image. Uses the native share sheet when available
 // (great on iPhone & Android), otherwise downloads the file.
 function captureReport(){
-  var html = buildReportHTML();
+  var html = aogFitReportHTML();
   if(html===null) return;
 
   var btn = document.getElementById('ab-capture');
@@ -4093,7 +4346,7 @@ function captureReport(){
     // Both cases are tagged: an untagged file then reliably means an export from
     // before this existed, rather than "probably no managed loads".
     var mgdPfx = window.AOG_HAS_MANAGED ? 'Managed-' : 'Unmanaged-';
-    var fileName = mgdPfx + ('AOG_LoadCalc_' + co + (addr?('_'+addr):'') + '_' + stamp)
+    var fileName = mgdPfx + ((gs('calc_method')==='std'?'AOG_LoadCalcStd_':'AOG_LoadCalc_') + co + (addr?('_'+addr):'') + '_' + stamp)
                      .replace(/[^a-z0-9_\-]+/gi,'_').replace(/_+/g,'_') + '.jpg';
 
     canvas.toBlob(function(blob){
@@ -4391,7 +4644,7 @@ function aogPdfFileName(){
   var addr = (iv('j_addr')||'');
   var stamp = new Date().toISOString().slice(0,10);
   var mgdPfx = window.AOG_HAS_MANAGED ? 'Managed-' : 'Unmanaged-';
-  return mgdPfx + ('AOG_LoadCalc_' + co + (addr?('_'+addr):'') + '_' + stamp)
+  return mgdPfx + ((gs('calc_method')==='std'?'AOG_LoadCalcStd_':'AOG_LoadCalc_') + co + (addr?('_'+addr):'') + '_' + stamp)
            .replace(/[^a-z0-9_\-]+/gi,'_').replace(/_+/g,'_') + '.pdf';
 }
 
@@ -4404,7 +4657,7 @@ function aogDeliverPdf(pdf, restore){
   try{
     pdf.setProperties({
       title:   'AOG Load Calculation' + (co && co!=='AOG' ? ' \u2014 ' + co : ''),
-      subject: 'NEC 2023 Art. 220.82 optional-method residential load calculation'
+      subject: (gs('calc_method')==='std'?'NEC 2023 Art. 220 Part III standard-method':'NEC 2023 Art. 220.82 optional-method')+' residential load calculation'
                + ' \u2014 reopen this PDF with LOAD in the AOG Load Calc to keep editing',
       creator: 'AOG Load Calc',
       keywords: aogPdfPayload()
@@ -4433,7 +4686,7 @@ function aogDeliverPdf(pdf, restore){
 }
 
 function capturePDF(btn){
-  var html = buildReportHTML();
+  var html = aogFitReportHTML();
   if(html===null) return;
 
   var origText = btn ? btn.textContent : '';
@@ -4475,7 +4728,7 @@ function capturePDF(btn){
     var drawW = pageW, x = 0;
     // Same rule as the image path: a report a hair over one page is shrunk to
     // fit rather than spilling a near-empty second sheet.
-    if(hPt > pageH && hPt <= pageH * 1.08){
+    if(hPt > pageH && hPt <= pageH * 1.30){
       drawW = pageW * (pageH / hPt);
       x = (pageW - drawW) / 2;
     }
@@ -4487,7 +4740,14 @@ function capturePDF(btn){
       // spans once a report runs past one page, so it is not used.
       margin: 0, autoPaging: 'slice',
       html2canvas: { backgroundColor:'#ffffff', useCORS:true, logging:false }
-    }).then(function(){ flush(); return pdf; });
+    }).then(function(){
+      flush();
+      // Drop a blank trailing page left by a fraction of a point of rounding.
+      var drawnH = hPt * (drawW / pageW);
+      var need = Math.max(1, Math.ceil(drawnH / pageH - 0.02));
+      while(pdf.getNumberOfPages() > need) pdf.deletePage(pdf.getNumberOfPages());
+      return pdf;
+    });
   }).then(function(pdf){
     cleanup();
     aogDeliverPdf(pdf, restore);
@@ -4502,7 +4762,7 @@ function capturePDF(btn){
 // Fallback: capture the report as a picture PDF (same rendering pipeline as
 // SAVE IMG — no print dialog). Only used if the text PDF above fails.
 function capturePDFRaster(btn){
-  var html = buildReportHTML();
+  var html = aogFitReportHTML();
   if(html===null) return;
 
   var origText = btn ? btn.textContent : '';
@@ -4540,7 +4800,7 @@ function capturePDFRaster(btn){
     // carrying nothing but the bottom border — one pixel of rounding was enough.
     // If the whole thing is within a few percent of a page, shrink it to fit
     // rather than hand a tech a blank second page.
-    if(pages === 2 && canvas.height <= pagePx * 1.08){
+    if(pages === 2 && canvas.height <= pagePx * 1.30){
       var drawW = pageW * (pagePx / canvas.height);
       var imgAll = canvas.toDataURL('image/jpeg', 0.92);
       pdf.addImage(imgAll, 'JPEG', (pageW - drawW) / 2, 0, drawW, pageH);
