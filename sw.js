@@ -78,6 +78,8 @@ var cacheProgress = { percent: 0, label: '', done: false };
 var CHANGELOG = [
   '🗺️ PROPERTY LOOKUP — Collier house-number labels now sit on their own lot (not the neighbor or the street).',
   '🏘️ PROPERTY LOOKUP — townhomes and villas label by unit number, like Collier GIS; crowded units show as dots until you zoom in.',
+  '👤 PROPERTY LOOKUP — Collier owners now come from the county\'s current Parcels Join (the old layer was 3 months behind).',
+  '🏢 PROPERTY LOOKUP — tapping a Collier condo building on the map asks WHICH UNIT? again, with each owner.',
   '🛠️ PROPERTY LOOKUP — fixed Collier "bad path" data sources; city layers no longer checked for unincorporated addresses.',
 ]
 //

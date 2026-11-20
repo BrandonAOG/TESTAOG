@@ -374,3 +374,34 @@ test('Property Lookup: units with their own address point label by unit; ones th
   expect(r.overlap).toBe(false);
   expect(r.dotsZoomed).toBeLessThan(r.dots);       // zooming in turns dots back into labels
 });
+
+test('Property Lookup: Collier owners come from Parcels Join (current), not the August parcel layer; a condo tap opens the unit list', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'runs once');
+  const fresh = { '76835000128': 'WILKINSON, CHRISTOPHER', '76835000144': 'BARTOLOMUCCI, MARIA' };
+  await page.route(/Parcels\/FeatureServer\/42\/query/, async r => {
+    const body = decodeURIComponent(r.request().postData() || '');
+    const feats = Object.keys(fresh).filter(f => body.includes(f)).map(f => ({ attributes: { FOLIO: f, NAME1: fresh[f] } }));
+    r.fulfill({ contentType: 'application/json', body: JSON.stringify({ features: feats }) });
+  });
+  await page.route(/Parcel\/FeatureServer\/2\/query/, r => r.fulfill({ contentType: 'application/json',
+    body: JSON.stringify({ features: [{ attributes: { SiteStreetAddress: '210 TIMBER LAKE CIR', SiteCity: 'NAPLES', SiteZipCode: '34104', Folio: '76835000128', OwnerLine1: 'OLD OWNER FROM AUGUST' } }] }) }));
+  const pts = [{ u: 'A', f: '00383960003', x: -81.752474, y: 26.151114 }, ...['A-101', 'A-102', 'A-202', 'A-203'].map((u, i) => ({ u, f: '7683500' + (['0021', '0047', '0128', '0144'][i]), x: -81.752238, y: 26.151174 }))];
+  await page.route(/Site_Address_Points_b\/FeatureServer\/3\/query/, r => r.fulfill({ contentType: 'application/json',
+    body: JSON.stringify({ features: pts.map(p => ({ attributes: { ADDRNUM: '210', FULLNAME: 'Timber Lake CIR', FULLADDR: '210 Timber Lake CIR, Naples', UNITID: p.u, FLN: p.f }, geometry: { x: p.x, y: p.y } })) }) }));
+  expect(await open(page, '/property-lookup/', { settle: 1500 })).toEqual([]);
+  const r = await page.evaluate(async () => {
+    const m = await collierFreshOwners(['76835000128', '76835000144', '99999999999']);
+    const byFolio = await lookupCountyParcelByFolio('Collier', '76835000128');
+    renderParcelCandidates([{ lat: 26.151174, lng: -81.752238, label: '210 Timber Lake CIR', folio: '76835000144', owner: 'STALE', unit: 'A-203' },
+                            { lat: 26.151174, lng: -81.752238, label: '210 Timber Lake CIR', folio: '76835000128', owner: 'STALE', unit: 'A-202' }], '210 Timber Lake Cir');
+    await new Promise(res => setTimeout(res, 600));
+    const modal = document.getElementById('unitModal').innerText;
+    // a tap on the building (no search typed) is turned into the address search
+    let searched = null; const _ds = window.doSearch; window.doSearch = () => { searched = document.getElementById('addr').value; };
+    const tap = await _collierTapUnits(26.15115, -81.75240);
+    const lee = await _collierTapUnits(26.6, -81.8);                  // outside Collier → normal tap
+    window.doSearch = _ds;
+    return { n: m.size, a: m.get('76835000128'), byFolio: byFolio && byFolio.owner, modalFresh: /BARTOLOMUCCI/.test(modal) && !/STALE/.test(modal), tap, searched, lee };
+  });
+  expect(r).toMatchObject({ n: 2, a: 'WILKINSON, CHRISTOPHER', byFolio: 'WILKINSON, CHRISTOPHER', modalFresh: true, tap: true, searched: '210 Timber Lake CIR, Naples, FL', lee: false });
+});

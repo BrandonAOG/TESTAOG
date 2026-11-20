@@ -12050,8 +12050,55 @@ map.on('click', e => {
   }
   const um=document.getElementById('unitModal');
   if(um && um.classList.contains('show')) return;   // modal is open; the map is not the target
-  newSearch(); runLookup(e.latlng.lat, e.latlng.lng, { viaMap:true });   // a map tap must not yank the mobile sheet up
+  newSearch();
+  const _tlat=e.latlng.lat, _tlng=e.latlng.lng, _tseq=searchSeq;
+  _collierTapUnits(_tlat, _tlng).then(hit=>{
+    if(hit || _tseq!==searchSeq) return;          // handled as a unit search, or the user moved on
+    runLookup(_tlat, _tlng, { viaMap:true });      // a map tap must not yank the mobile sheet up
+  });
 });
+
+/* COLLIER CONDO TAP (19 Nov 2026). Collier's parcel layer has NO polygon per condo unit — the whole
+   complex is one common-element parcel owned by the association (210 Timber Lake Cir tapped as
+   "270 TIMBER LAKE CIR", no owner, no unit list). The units only exist as address points, each with
+   its own folio (FLN). So a tap first asks the address-point layer what is within ~30 m:
+     • nearest building has 2+ units on one point (a stacked condo) → run the address search, which
+       opens the same "WHICH UNIT?" picker with every unit's owner that typing the address does;
+     • units each have their own point (townhome / villa row) → look up the exact unit tapped;
+     • anything else (a house, nothing near, outside Collier, slow or offline) → the normal tap. */
+async function _collierTapUnits(lat, lng){
+  try{
+    if(!(lat>25.80 && lat<26.33 && lng>-81.90 && lng<-80.87)) return false;     // Collier only
+    const cfg=LABEL_SNAP_POINTS.COLLIER, d=0.00028;
+    const url=cfg.url+`?geometry=${encodeURIComponent((lng-d)+','+(lat-d)+','+(lng+d)+','+(lat+d))}`+
+      `&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects`+
+      `&where=${encodeURIComponent(cfg.where)}&outFields=${encodeURIComponent('ADDRNUM,FULLNAME,FULLADDR,UNITID,FLN')}`+
+      `&returnGeometry=true&outSR=4326&resultRecordCount=500&f=json`;
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),2500);
+    let j=null; try{ const r=await fetch(url,{signal:ctrl.signal}); if(r.ok) j=await r.json(); }catch(e){} clearTimeout(t);
+    if(!j || j.error || !j.features || !j.features.length) return false;
+    const kx=Math.cos(lat*Math.PI/180)*111320, ky=110950;
+    const pts=j.features.filter(f=>f.geometry&&f.geometry.x!=null).map(f=>{ const a=f.attributes||{};
+      return { key:String(a.ADDRNUM||'')+'|'+String(a.FULLNAME||'').toUpperCase(), addr:String(a.FULLADDR||''),
+               unit:String(a.UNITID==null?'':a.UNITID).trim(), fln:String(a.FLN||''), x:f.geometry.x, y:f.geometry.y,
+               m:Math.hypot((f.geometry.x-lng)*kx,(f.geometry.y-lat)*ky) }; });
+    if(!pts.length) return false;
+    pts.sort((a,b)=>a.m-b.m);
+    const near=pts[0]; if(near.m>30) return false;
+    const same=pts.filter(p=>p.key===near.key && p.unit);
+    const folios=new Set(same.map(p=>p.fln).filter(Boolean));
+    if(same.length<2 || folios.size<2) return false;                         // not a multi-unit address
+    const byPos=new Map(); for(const p of same){ const k=p.y.toFixed(5)+','+p.x.toFixed(5); byPos.set(k,(byPos.get(k)||0)+1); }
+    const stacked=[...byPos.values()].some(n=>n>=2);
+    const base=near.addr.split(',')[0].trim(), city=(near.addr.split(',')[1]||'').trim();
+    const q = stacked ? base : (near.unit ? `${base} #${near.unit}` : base);
+    const inp=document.getElementById('addr'); if(!inp) return false;
+    inp.value = q + (city?`, ${city}`:'') + ', FL';
+    try{ updateClearBtn(); }catch(e){}
+    doSearch();
+    return true;
+  }catch(e){ return false; }
+}
 
 /* ---------- City/county separation: color-coded INCORPORATED city outlines ----------
    EP.city is Census TIGERweb "Incorporated Places" (layer 4), which by definition contains no
@@ -28023,6 +28070,18 @@ async function _runLookupInner(lat,lng,searchCtx){
       }
     }catch(e){}
   }
+  // CURRENT OWNER (Collier): swap Parcel/2's August owner for today's from Parcels Join — see collierFreshOwners.
+  if(liveRes && liveRes.features && liveRes.features[0] && countyName && norm(countyName)==='COLLIER'){
+    try{
+      const _a=liveRes.features[0].attributes||{}; const _fol=_a.Folio||_a.FOLIO;
+      if(_fol && ('OwnerLine1' in _a)){
+        const _m=await collierFreshOwners([_fol]);
+        if(myId!==runId) return;
+        const _n=_m.get(String(_fol).trim());
+        if(_n){ _a.OwnerLine1=_n; liveRes.__ownerFresh=true; }
+      }
+    }catch(e){}
+  }
   // RE-ANCHOR THE STATEWIDE ROLL: the statewide parcel (`parcel`) was queried at the raw geocoded
   // point, which can land on the NEIGHBOUR's lot (the off-by-one geocoder drift). When the live-feed
   // lookup resolved an authoritative address point (liveRes.__ngLat/__ngLng) that sits meaningfully
@@ -30670,7 +30729,7 @@ async function _runLookupInner(lat,lng,searchCtx){
         .forEach(_k=>{ if(det[_k] && !_s(_la[det[_k]])) det[_k]=null; });
     }
     const le=liveMeta&&liveMeta.lastEdit;
-    html += `<div class="freshline"><span class="badge live">● LIVE</span> ${esc((liveMeta&&liveMeta.name)||'county parcel service')}${le?' · updated '+esc(le.toLocaleDateString()):' · real-time query'}</div>`;
+    html += `<div class="freshline"><span class="badge live">● LIVE</span> ${esc((liveMeta&&liveMeta.name)||'county parcel service')}${le?' · updated '+esc(le.toLocaleDateString()):' · real-time query'}${liveRes.__ownerFresh?' · owner from Parcels Join (current)':''}</div>`;
     // CONDO UNIT CORRECTION (live-owner-by-folio): self-addressed City-of-Naples / Marco towers aren't
     // in the live address layer, so the live parcel feed resolves the whole tower to ONE parcel by
     // coordinate — the wrong unit. The compact file carries each unit's FOLIO (searchCtx.folio, set on
@@ -33513,6 +33572,37 @@ async function countyNameAt(lat,lng){
    a street-match guard, then resolve the real parcel from the Parcel/FeatureServer/2 layer BY that
    folio — which carries the correct SiteStreetAddress. So a mis-filed point can't win, but a
    correctly-filed one lets us catch recently re-addressed lots the parcel layer's text lags on. */
+/* COLLIER CURRENT OWNERS (19 Nov 2026). Collier's main parcel layer (Parcel/FeatureServer/2 — address,
+   values, folio, OwnerLine1) stopped being refreshed on 24 Aug 2026; the county keeps owners current in
+   "Parcels Join (Editable)" (Parcels/FeatureServer/42 — FOLIO + NAME1, edited daily). Sampled 1,000
+   folios on 19 Nov: 19 owners had already changed (sales since August), e.g. 20161120003 PECK, LAWRENCE
+   → AZURE PROPERTIES SIX LLC. Everything else still comes from Parcel/2; only the owner NAME is taken
+   from layer 42 by folio. One batched query, cached per session; slow/offline → the old name stays. */
+const COLLIER_OWNER_URL = "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Parcels/FeatureServer/42/query";
+const _collierOwnerCache = new Map();
+async function collierFreshOwners(folios, ms){
+  const out=new Map(), need=[];
+  for(const f0 of (folios||[])){
+    const f=String(f0==null?'':f0).trim(); if(!/^\d{6,}$/.test(f)) continue;
+    if(_collierOwnerCache.has(f)){ const v=_collierOwnerCache.get(f); if(v) out.set(f,v); } else if(need.indexOf(f)<0) need.push(f);
+  }
+  for(let i=0;i<need.length;i+=200){
+    const chunk=need.slice(i,i+200);
+    try{
+      const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(), ms||2500);
+      const r=await fetch(COLLIER_OWNER_URL,{method:'POST',signal:ctrl.signal,
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:'where='+encodeURIComponent("FOLIO IN ('"+chunk.join("','")+"')")+'&outFields=FOLIO,NAME1&returnGeometry=false&f=json'});
+      clearTimeout(t);
+      if(!r.ok) continue; const j=await r.json(); if(!j || j.error) continue;
+      for(const c of chunk) _collierOwnerCache.set(c, null);
+      for(const ft of (j.features||[])){ const a=ft.attributes||{}; const f=String(a.FOLIO||'').trim(), n=String(a.NAME1||'').trim();
+        if(f && n){ _collierOwnerCache.set(f,n); out.set(f,n); } }
+    }catch(e){ /* keep the Parcel/2 name */ }
+  }
+  return out;
+}
+function _isCollierPt(lat,lng){ return lat>25.80 && lat<26.33 && lng>-81.90 && lng<-80.87; }
 const COUNTY_PARCEL_RESOLVERS = {
   COLLIER: {
     url: "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Parcel/FeatureServer/2/query",
@@ -34069,8 +34159,10 @@ async function lookupCountyParcelByFolio(countyName, folio){
     if(!r.ok) return null; const j=await r.json(); if(j.error) return null;
     const f=(j.features||[])[0]; if(!f) return null; const a=f.attributes||{};
     const addr=a[cfg.addrField]; if(!addr) return null;
+    let owner=a[cfg.ownerField]||null;
+    if(norm(countyName)==='COLLIER'){ try{ const _m=await collierFreshOwners([a[cfg.folioField]||folio]); const _n=_m.get(String(a[cfg.folioField]||folio).trim()); if(_n) owner=_n; }catch(e){} }
     return { addr:String(addr).trim(), city:a[cfg.cityField]||null, zip:a[cfg.zipField]||null,
-             folio:a[cfg.folioField]||folio, owner:a[cfg.ownerField]||null };
+             folio:a[cfg.folioField]||folio, owner };
   }catch(e){ return null; }
 }
 /* ---------- "Several lots match" candidate picker ----------
@@ -34079,6 +34171,15 @@ async function lookupCountyParcelByFolio(countyName, folio){
    Rows are also keyboard-reachable (Enter/Space) for accessibility. */
 window.__pcCands=null;
 function renderParcelCandidates(cands, basisText){
+  // Collier: refresh every candidate's owner from Parcels Join first (one batched query), then paint.
+  if(cands && cands.length && !cands.__ownersFresh && isFinite(cands[0].lat) && _isCollierPt(cands[0].lat, cands[0].lng)
+     && cands.some(c=>c.folio)){
+    cands.__ownersFresh=true;
+    collierFreshOwners(cands.map(c=>c.folio)).then(m=>{
+      for(const c of cands){ const n=m.get(String(c.folio==null?'':c.folio).trim()); if(n) c.owner=n; }
+    }).catch(()=>{}).then(()=>renderParcelCandidates(cands, basisText));
+    return;
+  }
   // Show ALL candidates (a condo tower can be 30-100+ units) inside a scrollable container, so the
   // one you want is never hidden by a cap. A high safety ceiling guards against a pathological result
   // set; in practice a single address returns at most a few hundred.
