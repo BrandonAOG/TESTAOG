@@ -28075,10 +28075,10 @@ async function _runLookupInner(lat,lng,searchCtx){
     try{
       const _a=liveRes.features[0].attributes||{}; const _fol=_a.Folio||_a.FOLIO;
       if(_fol && ('OwnerLine1' in _a)){
-        const _m=await collierFreshOwners([_fol]);
+        const [_m,_od]=await Promise.all([collierFreshOwners([_fol]), collierOwnerDate()]);
         if(myId!==runId) return;
         const _n=_m.get(String(_fol).trim());
-        if(_n){ _a.OwnerLine1=_n; liveRes.__ownerFresh=true; }
+        if(_n){ _a.OwnerLine1=_n; liveRes.__ownerFresh=true; liveRes.__ownerDate=_od||null; }
       }
     }catch(e){}
   }
@@ -30729,7 +30729,10 @@ async function _runLookupInner(lat,lng,searchCtx){
         .forEach(_k=>{ if(det[_k] && !_s(_la[det[_k]])) det[_k]=null; });
     }
     const le=liveMeta&&liveMeta.lastEdit;
-    html += `<div class="freshline"><span class="badge live">● LIVE</span> ${esc((liveMeta&&liveMeta.name)||'county parcel service')}${le?' · updated '+esc(le.toLocaleDateString()):' · real-time query'}${liveRes.__ownerFresh?' · owner from Parcels Join (current)':''}</div>`;
+    html += `<div class="freshline"><span class="badge live">● LIVE</span> ${esc((liveMeta&&liveMeta.name)||'county parcel service')}${
+      liveRes.__ownerFresh
+        ? ' · owner updated '+esc(liveRes.__ownerDate?liveRes.__ownerDate.toLocaleDateString():'today')+(le?' · parcel data '+esc(le.toLocaleDateString()):'')
+        : (le?' · updated '+esc(le.toLocaleDateString()):' · real-time query')}</div>`;
     // CONDO UNIT CORRECTION (live-owner-by-folio): self-addressed City-of-Naples / Marco towers aren't
     // in the live address layer, so the live parcel feed resolves the whole tower to ONE parcel by
     // coordinate — the wrong unit. The compact file carries each unit's FOLIO (searchCtx.folio, set on
@@ -33601,6 +33604,17 @@ async function collierFreshOwners(folios, ms){
     }catch(e){ /* keep the Parcel/2 name */ }
   }
   return out;
+}
+// When layer 42 was last edited (its owners' "as of" date for the card). One metadata call per session.
+let _collierOwnerDateP=null;
+function collierOwnerDate(){
+  if(!_collierOwnerDateP) _collierOwnerDateP=(async()=>{
+    try{ const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),2500);
+      const r=await fetch(COLLIER_OWNER_URL.replace(/\/query$/,'')+'?f=json',{signal:ctrl.signal}); clearTimeout(t);
+      const j=await r.json(); const e=j&&j.editingInfo; const ms=e&&(e.dataLastEditDate||e.lastEditDate);
+      return ms?new Date(ms):null; }catch(e){ _collierOwnerDateP=null; return null; }
+  })();
+  return _collierOwnerDateP;
 }
 function _isCollierPt(lat,lng){ return lat>25.80 && lat<26.33 && lng>-81.90 && lng<-80.87; }
 const COUNTY_PARCEL_RESOLVERS = {
