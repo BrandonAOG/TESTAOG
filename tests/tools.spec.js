@@ -405,3 +405,19 @@ test('Property Lookup: Collier owners come from Parcels Join (current), not the 
   });
   expect(r).toMatchObject({ n: 2, a: 'WILKINSON, CHRISTOPHER', byFolio: 'WILKINSON, CHRISTOPHER', modalFresh: true, tap: true, searched: '210 Timber Lake CIR, Naples, FL', lee: false });
 });
+
+test('Property Lookup: Collier data file is the appraiser rebuild — per-unit owners and a folio on (nearly) every row', async ({}, info) => {
+  test.skip(info.project.name !== 'desktop', 'runs once');
+  const zlib = require('zlib');
+  const j = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(ROOT, 'property-lookup/collier_compact_v3.json.gz'))).toString('utf8'));
+  expect(j.fmt).toBe('collier-full-v1');
+  expect(j.rows.length).toBeGreaterThan(230000);
+  const withFolio = j.rows.filter(r => r.length >= 8 && r[7]).length;
+  expect(withFolio / j.rows.length).toBeGreaterThan(0.99);
+  const si = j.streets.indexOf('Timber Lake CIR');
+  const own = Object.fromEntries(j.rows.filter(r => r[3] === si && String(r[2]) === '210' && r[4]).map(r => [r[4], j.owners[r[5]]]));
+  expect(own['A-202']).toBe('WILKINSON, CHRISTOPHER');
+  expect(own['A-203']).toBe('BARTOLOMUCCI, MARIA');
+  // the app asks for this exact version, so phones holding the 08-24 copy fetch the new one
+  expect(read('property-lookup/index.html')).toMatch(/COLLIER_DATA_VERSION = '2026-11-19'/);
+});

@@ -22987,6 +22987,10 @@ const ADDRPOINT_FEEDS = {
 // fetch (and a fresh parse). Use the file's build date, e.g. '2026-08-24'.
 const DATA_VERSION = '2026-08-24c';
 const _addrFile = (name) => name + '?v=' + DATA_VERSION;
+/* Collier's file is rebuilt on its own schedule from the Property Appraiser's daily INT files
+   (int_parcels + int_buildings — owners, folios, living area), so it carries its own version: bumping
+   it re-downloads only Collier, not Lee's 11 MB. Use the appraiser files' date. */
+const COLLIER_DATA_VERSION = '2026-11-19';
 const ADDRPOINT_FILES = {
   // Lee's full address-point set, served as one compact file sitting next to this
   // index.html in your repo (no external host, no account needed). If you ever move
@@ -22995,7 +22999,7 @@ const ADDRPOINT_FILES = {
   // Collier also served from a compact file (offline-capable). Collier additionally
   // has a live feed in ADDRPOINT_FEEDS below, which acts as an automatic fallback if
   // this file ever fails to load.
-  COLLIER: _addrFile("collier_compact_v3.json.gz"),
+  COLLIER: "collier_compact_v3.json.gz?v=" + COLLIER_DATA_VERSION,
   // Sarasota: built by joining the county address-points (coords) with the ParcelHosted
   // attribute file (owner/sqft) via build_county.py.
   SARASOTA: _addrFile("sarasota_compact_v3.json.gz"),
@@ -28537,7 +28541,7 @@ async function _runLookupInner(lat,lng,searchCtx){
            few months old is fine; a few YEARS old is not, and now you can tell which. */
         _livVal=_fileLiv;
         _livSrc='compact file (appraiser under-air, built '
-          + String(typeof DATA_VERSION==='string' ? DATA_VERSION.replace(/[a-z]$/,'') : '?') + ')';
+          + String(typeof COLLIER_DATA_VERSION==='string' ? COLLIER_DATA_VERSION : '?') + ')';
       } else if(_isNum(_fileLiv) && _isNum(_rollLivL)){
         // Heated area is always <= an adjusted/under-roof figure and <= a multi-structure sum, so
         // take the SMALLER. Corrects the file when IT carries the gross figure and the roll when IT

@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v3.1.1';
+var CACHE_VERSION = 'v3.1.2';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -76,10 +76,9 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  '🗺️ PROPERTY LOOKUP — Collier house-number labels now sit on their own lot (not the neighbor or the street).',
-  '🏘️ PROPERTY LOOKUP — townhomes and villas label by unit number, like Collier GIS; crowded units show as dots until you zoom in.',
-  '👤 PROPERTY LOOKUP — Collier owners now come from the county\'s current Parcels Join (the old layer was 3 months behind).',
-  '🏢 PROPERTY LOOKUP — tapping a Collier condo building on the map asks WHICH UNIT? again, with each owner.',
+  '🗺️ PROPERTY LOOKUP — Collier address labels sit on their own lot; townhomes and villas show unit numbers like Collier GIS.',
+  '👤 PROPERTY LOOKUP — current Collier owners: live from the county\'s Parcels Join, plus a data file rebuilt from the appraiser\'s 11/19 records.',
+  '🏢 PROPERTY LOOKUP — tapping a Collier condo building asks WHICH UNIT? again, with each owner.',
   '🛠️ PROPERTY LOOKUP — fixed Collier "bad path" data sources; city layers no longer checked for unincorporated addresses.',
 ]
 //
@@ -631,6 +630,18 @@ function cacheFirst(request, cacheName) {
         var responseClone = networkResponse.clone();
         caches.open(cacheName || CACHE_NAME).then(function(cache) {
           putUnpadded(cache, request, responseClone);
+          // A data file saved under a NEW ?v= replaces the old one: drop every other copy of the same
+          // file so a rebuilt county file (collier_compact 2026-08-24c → 2026-11-19) doesn't leave
+          // the previous 4-11 MB sitting in storage forever.
+          if (cacheName === DATA_CACHE) {
+            var want = new URL(request.url);
+            cache.keys().then(function(keys) {
+              keys.forEach(function(k) {
+                var u = new URL(k.url);
+                if (u.pathname === want.pathname && u.search !== want.search) cache.delete(k);
+              });
+            }).catch(function(){});
+          }
         }).catch(function(){});   // same: caching is best-effort, the fetch already succeeded
       }
       return networkResponse;
