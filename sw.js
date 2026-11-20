@@ -79,7 +79,7 @@ var CHANGELOG = [
   '🗺️ PROPERTY LOOKUP — Collier address labels sit on their own lot; townhomes and villas show unit numbers like Collier GIS.',
   '👤 PROPERTY LOOKUP — current Collier owners: live from the county\'s Parcels Join, plus a data file rebuilt from the appraiser\'s 11/19 records.',
   '🏢 PROPERTY LOOKUP — tapping a Collier condo building asks WHICH UNIT? again, with each owner.',
-  '🛠️ PROPERTY LOOKUP — fixed Collier "bad path" data sources; city layers no longer checked for unincorporated addresses.',
+  '🛠️ PROPERTY LOOKUP — fixed Collier "bad path" data sources and the 📝 certificate opening a blank page on iPhone.',
 ]
 //
 // ============================================================

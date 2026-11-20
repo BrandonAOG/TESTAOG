@@ -421,3 +421,20 @@ test('Property Lookup: Collier data file is the appraiser rebuild — per-unit o
   // the app asks for this exact version, so phones holding the 08-24 copy fetch the new one
   expect(read('property-lookup/index.html')).toMatch(/COLLIER_DATA_VERSION = '2026-11-19'/);
 });
+
+test('Property Lookup: the 📝 certificate note opens its PDF through a real link (window.open showed a blank page on iPhone)', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'runs once');
+  expect(await open(page, '/property-lookup/', { settle: 1500 })).toEqual([]);
+  const r = await page.evaluate(() => {
+    const got = []; let wo = 0;
+    const _c = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () { got.push({ href: this.href, target: this.target, rel: this.rel }); };
+    const _o = window.open; window.open = () => { wo++; return null; };
+    const url = 'https://florida.withforerunner.com/view-file/7b9a17b2-64ff-4aa0-bb61-244da9ff1f6e';
+    _ecMakeNote(26.2577, -81.8211, url).fire('click');
+    HTMLAnchorElement.prototype.click = _c; window.open = _o;
+    return { got, wo, leftover: document.querySelectorAll('a[href*="view-file"]').length };
+  });
+  expect(r.wo).toBe(0);
+  expect(r.got).toEqual([{ href: 'https://florida.withforerunner.com/view-file/7b9a17b2-64ff-4aa0-bb61-244da9ff1f6e', target: '_blank', rel: 'noopener noreferrer' }]);
+  expect(r.leftover).toBe(0);
+});

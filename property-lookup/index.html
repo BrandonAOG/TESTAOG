@@ -25014,6 +25014,18 @@ const ecNoteLayer = L.layerGroup();
    Keeping them in their own layer means the sweep never touches them and they survive all map moves. */
 const ecLookupLayer = L.layerGroup();
 function clearEcNote(){ try{ ecNoteLayer.clearLayers(); if(map.hasLayer(ecNoteLayer)) map.removeLayer(ecNoteLayer); ecLookupLayer.clearLayers(); if(map.hasLayer(ecLookupLayer)) map.removeLayer(ecLookupLayer); window.__ecFromLookup=false; }catch(e){} }
+/* Open a link in a new tab the way a real <a target="_blank"> does. The 📝 note used
+   window.open(url,'_blank','noopener'), and from the home-screen app on iPhone that can open a
+   BLANK WHITE PAGE instead of the certificate (261 Oak Ave, Naples — the same PDF opens fine from
+   the card's "↗ Elevation Certificate (PDF)" link, which is a plain <a>). A clicked anchor is the
+   path iOS handles reliably, so the note now goes through one. */
+function _openLinkNewTab(url){
+  try{
+    const a=document.createElement('a');
+    a.href=url; a.target='_blank'; a.rel='noopener noreferrer';
+    a.style.display='none'; document.body.appendChild(a); a.click(); a.remove();
+  }catch(e){ try{ window.open(url,'_blank'); }catch(_){} }
+}
 function _ecMakeNote(latN, lngN, pdf){
   const tip = pdf ? 'Elevation Certificate on file — click to open the PDF'
                   : 'Elevation Certificate record here (no PDF attached — see the EC card)';
@@ -25024,7 +25036,7 @@ function _ecMakeNote(latN, lngN, pdf){
     iconSize:null, iconAnchor:[11,40] });
   const mk = L.marker([latN, lngN], { icon, interactive:true, keyboard:false, zIndexOffset:1200 });
   if(pdf){
-    mk.on('click', ()=>{ try{ window.open(pdf, '_blank', 'noopener'); }catch(e){} });
+    mk.on('click', ()=>_openLinkNewTab(pdf));
   } else {
     mk.bindPopup(`<div style="font:12px/1.4 system-ui;max-width:220px">An Elevation Certificate record exists at this point, but no PDF is attached to it. Open the county EC map (linked in the Elevation Certificate card) to view it.</div>`);
   }
