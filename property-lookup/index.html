@@ -958,6 +958,13 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   /* collapsed condo/tower stack: one badge that fans out its units on hover */
   .nbr-num.stack{background:rgba(57,211,255,.18);border-color:rgba(57,211,255,.7);color:#dff6ff;font-weight:700}
   .nbr-num.stack .nbr-st{opacity:.9}
+  /* unit label (townhome / villa / warehouse bay with its own address point): unit on top, building # below */
+  .nbr-num.unit .nbr-hn{font-size:11px}
+  .nbr-num.unit .nbr-st{font-size:7.5px}
+  /* a unit label that would overlap a neighbour is drawn as a dot instead (zoom in to see it) — same as Collier GIS */
+  .nbr-dot{width:9px;height:9px;border-radius:50%;background:#39d3ff;border:1.5px solid rgba(10,16,22,.85);
+    box-shadow:0 0 3px rgba(0,0,0,.5);transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer}
+  .nbr-dot.subject{background:var(--signal);border-color:#ffd166;width:11px;height:11px}
   /* neighbor labels are hoverable for their own address tooltip, and clickable to look up that address */
   .leaflet-marker-icon.nbr-hit{pointer-events:auto!important;cursor:pointer}
   .nbr-hit .nbr-num{pointer-events:auto;cursor:pointer}
@@ -3684,7 +3691,9 @@ const COUNTY_LIVE = {
     //    actual tax amounts (CountyTaxes / SchoolTaxes / TotalTaxes, MillageArea).
     // The thin layer stays behind it as the fallback, and the two share Folio / OwnerLine1 / SiteCity
     // so the neighbour-label and address-resolver paths below keep working unchanged.
-    "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/ParcelJoin/FeatureServer/0/query",
+    /* ⚰️ REMOVED 19 Nov 2026: ParcelJoin/FeatureServer/0 is GONE from the Collier org ("Invalid URL" — the
+       app's own diagnostic showed BAD PATH; the org's service list no longer has it). Its 103-field values
+       now come from the statewide roll fallback, as before ParcelJoin was wired. Re-add only if it returns. */
     "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Parcel/FeatureServer/2/query",
     // Secondary: the lean parcels layer (owner/folio/acres only, no address) as a fallback.
     "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Parcels/FeatureServer/42/query"
@@ -5091,7 +5100,7 @@ const EASEMENTS = {
      covered. The layer duplicates some records, so identical rows are collapsed. 128 ms. */
   COLLIER: [
     /* coverage: partial — measured 35% in the City of Naples; unincorporated Collier not covered at all */
-    { coverage:'partial', label:'City of Naples easements', url:'https://g.naplesgov.com/arcgis/rest/services/City/Easements/MapServer/0/query',
+    { coverage:'partial', label:'City of Naples easements', city:'NAPLES', url:'https://g.naplesgov.com/arcgis/rest/services/City/Easements/MapServer/0/query',
       typeFields:['Type'], purposeField:'Purpose', widthField:'Width', recField:'Book_Page',
       linkField:'Hyperlink', granteeField:'Grantee', statusField:'Status',
       deadRe:/^(v|rs|rp|vacated|rescinded|replatted)$/i,
@@ -5339,9 +5348,9 @@ const SEPTIC_SEWER = {
   /* Collier — the City of Naples sewer service area and Marco Island's 23 sewer districts. Both are
      city layers; unincorporated Collier is not covered and stays silent. 171 ms / 78 ms. */
   COLLIER: [
-    { kind:'sewer', label:'City of Naples sewer service area',
+    { kind:'sewer', label:'City of Naples sewer service area', city:'NAPLES',
       url:'https://g.naplesgov.com/arcgis/rest/services/PublicWorks_Utilities/SewerServiceArea/MapServer/0/query' },
-    { kind:'sewer', label:'Marco Island sewer district', nameField:'NAME1',
+    { kind:'sewer', label:'Marco Island sewer district', nameField:'NAME1', city:'MARCOISLAND',
       url:'https://gis.cityofmarcoisland.com/arcgis/rest/services/General/SewerDist/MapServer/0/query' }
   ],
   /* Marion — found 20 Sep 2026 on the county’s own server (gis.marionfl.org), which the imagery
@@ -8057,8 +8066,8 @@ const ZONING_LIVE = {
     // ✅ confirmed: the districts polygon layer Collier's Base Zoning app reads on parcel click.
     // Hosted on ArcGIS Online (CORS-friendly); fields BASE / DISTRICT / MUNICODE / ZONING.
     "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Zoning_General_(Editable)_view/FeatureServer/1/query",
-    // fallback: map-sheet index (gives the official zoning map sheet PDF if the above is unavailable)
-    "https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Zoning_Links_view/FeatureServer/0/query"
+    /* ⚰️ the old map-sheet fallback (Zoning_Links_view/FeatureServer/0) is GONE ("Invalid URL", 19 Nov 2026).
+       It never carried a ZONING field anyway; the atlas-sheet PDF link below now reads its replacement. */
   ]},
   // ✅ Charlotte carries the zoning district ON its parcel layer (layer 17, the same feed the owner/
   // value lookup uses): field "zoningcode" = district (e.g. RSF-3.5, CG), "landuse" = readable use.
@@ -10675,9 +10684,8 @@ const LOCAL_AERIAL = {
     // list (which feeds the county-aerial time-lapse / export path). FDEP statewide ortho leads here.
     // NOTE (Aug 2026): the ags2.colliercountyfl.gov candidates below returned DNS NXDOMAIN in testing —
     // kept for now but they will fail the probe and fall through to FDEP. Remove if confirmed retired.
-    candidates:[ ...fdepChain("COLLIER"),
-                 "https://ags2.colliercountyfl.gov/gis/rest/services/Public/Aerials_2024/ImageServer",
-                 "https://ags2.colliercountyfl.gov/gis/rest/services/Public/Aerials/MapServer" ] },
+    // ⚰️ the two ags2.colliercountyfl.gov candidates were removed 19 Nov 2026 — still no DNS for that host.
+    candidates:[ ...fdepChain("COLLIER") ] },
   MANATEE:  { label:"Manatee County (2025)", bounds:[-82.70,27.385,-82.00,27.65], kind:"tilexyz",
     /* ⚠️ SOUTH EDGE CORRECTED 20 Sep 2026: was 27.30, which reached ~0.09° INTO Sarasota and
        overlapped Sarasota’s box (north edge 27.39). Because localCountyForCenter() resolves an
@@ -14519,18 +14527,9 @@ const PLAT_LAYERS_COUNTY = {
      block, lot and map number; the subdivision NAME comes from the legal description the HOA card already
      parsed (window.__parcelSubdivName). Link → the PA property card for this folio (legal line shows the plat
      reference) and the Clerk's records search. Upgrade to a direct sheet link when a PA layer with PB/PG is found. */
-  COLLIER:   { url:'https://services2.arcgis.com/SlIq32SqARUHIhSx/ArcGIS/rest/services/Parcel_Tax_Assessment_and_Ownership/FeatureServer/0',
-               fields:'Folio,SubdivisionCondoNumber,BlockBldg,LotUnit,MapNumber,StrapNumber',
-               pick:a=>{ const nm=(window.__parcelPlatName||window.__parcelSubdivName||'').trim(); const bits=[]; if(a.BlockBldg&&String(a.BlockBldg).trim()) bits.push('Block '+String(a.BlockBldg).trim()); if(a.LotUnit&&String(a.LotUnit).trim()) bits.push('Lot '+String(a.LotUnit).trim()); if(a.MapNumber&&String(a.MapNumber).trim()) bits.push('PA map '+String(a.MapNumber).trim());
-                        const label=(nm||('Subdivision #'+(a.SubdivisionCondoNumber||'?')))+(bits.length?' · '+bits.join(', '):''); const folio=a.Folio?String(a.Folio).trim():'';
-                        // COR Access (cor.collierclerk.com) is a Blazor app: plat sheets stream over a live session with no URL, so the
-                        // best link is its Map search. Copy button for the subdivision name → paste → Search → the sheet.
-                        // COR Access honours ?mapName= — the link opens the plat search already run for this subdivision.
-                        const q = nm.replace(/\bEST\b/g,'ESTATES').replace(/\bHTS\b/g,'HEIGHTS').replace(/\bGDNS\b/g,'GARDENS').replace(/\bTERR\b/g,'TERRACE').replace(/\bVLG\b/g,'VILLAGE').replace(/\bADD\b/g,'ADDITION').replace(/\bRPLT\b/g,'REPLAT').replace(/\bSUB\b/g,'SUBDIVISION').replace(/\bPK\b/g,'PARK').replace(/\bMNR\b/g,'MANOR').replace(/\bLKS?\b/g,'LAKES').replace(/\b(UNIT|PHASE|PH)\s+(?=\d)/g,'').replace(/\s{2,}/g,' ').trim();   // COR Map Name: "GOLDEN GATE ESTATES 97", "NAPLES PARK 5", "NAPLES MANOR LAKES REPLAT" — the number without the word UNIT
-                        return { label, link: nm?`https://cor.collierclerk.com/coraccess/search/map?mapName=${encodeURIComponent(q)}`:'https://cor.collierclerk.com/coraccess/search/map', linkLabel: nm?`Recorded plat "${q}" — Collier Clerk (COR Access)`:'Collier Clerk plat search (COR Access)', copyText: nm?q:null, copyLabel: 'Copy name', copyNote: 'COR Access remembers your last search in the same browser session — if it shows the previous plat, paste this name into Map Name and search again.',
-                                 extraLink: null, extraLabel: null }; } },
-  /* Hillsborough: same Subdivision Names layer — carries the recorded plat book/page and the date
-     it was recorded, which is exactly what the Permits card wants for easements/setback lines. */
+  /* ⚰️ COLLIER entry REMOVED 19 Nov 2026: Parcel_Tax_Assessment_and_Ownership/FeatureServer/0 is gone from the
+     Collier org ("Invalid URL" — BAD PATH in the diagnostic). Re-add with a live layer that carries
+     SubdivisionCondoNumber / BlockBldg / LotUnit (the old pick read those + MapNumber). */
   HILLSBOROUGH:{ url:'https://maps.hillsboroughcounty.org/arcgis/rest/services/DSD_Viewer_Services/DSD_Viewer_Governance/MapServer/2',
       pick:a=>{ const nm=(a.COMM_NAME&&String(a.COMM_NAME).trim())||(a.LEGAL_NAME&&String(a.LEGAL_NAME).trim());
                 if(!nm) return null;
@@ -14671,7 +14670,7 @@ const COMMUNITY_LAYERS = {
   COLLIER: [
     // City of Naples' own HOA boundaries (Planning/HOA) — answers only inside the city limits; the association
     // NAME straight from the city, which beats inferring it from the legal description.
-    { key:'assoc', url:'https://g.naplesgov.com/arcgis/rest/services/Planning/HOA/MapServer/0',
+    { key:'assoc', city:'NAPLES', url:'https://g.naplesgov.com/arcgis/rest/services/Planning/HOA/MapServer/0',
       pick:a=>({ name:a.Layer, type:'City of Naples HOA map', master:null, note:a.Overlapping_Districts||null }) },
     { key:'pd',  url:'https://services2.arcgis.com/SlIq32SqARUHIhSx/ArcGIS/rest/services/PUD/FeatureServer/5',
       pick:a=>({ name:a.NAME, category:[a.STATUS, a.AKA&&String(a.AKA).trim()?('aka '+String(a.AKA).trim()):null].filter(Boolean).join(' · ')||null,
@@ -14680,8 +14679,20 @@ const COMMUNITY_LAYERS = {
       pick:a=>{ const k=Object.keys(a).find(k=>/name/i.test(k)&&a[k]&&String(a[k]).trim()); return { name:k?String(a[k]).trim():null }; } },
   ],
 };
+/* CITY-ONLY SOURCES. A source tagged city:'NAPLES' / 'MARCOISLAND' is a municipal layer — it covers only that
+   city. When the lookup has RESOLVED the jurisdiction (Census incorporated-place boundary, not the postal city)
+   and it is somewhere else, the source is skipped: an unincorporated "Naples" address was querying the City of
+   Naples sewer, easement and HOA servers (and the Marco Island sewer server) on every lookup — wasted round
+   trips that showed up in the data-source check as city layers searched for unincorporated land. When the city
+   is only the postal fallback (window.__cityIsPostal) we can't be sure, so the source still runs (a point
+   query outside the city just returns nothing). */
+function _srcInJurisdiction(src){
+  if(!src || !src.city) return true;
+  if(window.__cityIsPostal) return true;
+  return norm(window.__lastCity||'') === src.city;
+}
 async function queryCommunity(lat, lng, countyName, timeoutMs){
-  const layers = COMMUNITY_LAYERS[norm(countyName||'')] || [];
+  const layers = (COMMUNITY_LAYERS[norm(countyName||'')] || []).filter(_srcInJurisdiction);
   if(!layers.length) return null;
   const pt = encodeURIComponent(JSON.stringify({x:lng,y:lat,spatialReference:{wkid:4326}}));
   const out = {};
@@ -19957,9 +19968,9 @@ async function diagnoseLiveFeeds(){
   // Septic/sewer sources are queried on every lookup in the counties that have them, so a dead one
   // looks identical to "nothing wired" without this. Each source is probed separately.
   const _ss = cn ? SEPTIC_SEWER[norm(cn)] : null;
-  if(_ss) _ss.forEach(x=>targets.push({label:'septic/sewer — '+x.label, url:x.url}));
+  if(_ss) _ss.filter(_srcInJurisdiction).forEach(x=>targets.push({label:'septic/sewer — '+x.label, url:x.url}));
   const _ea = cn ? EASEMENTS[norm(cn)] : null;
-  if(_ea) _ea.forEach(x=>targets.push({label:'easements — '+x.label+(x.typeLabel?' ('+x.typeLabel+')':''), url:x.url}));
+  if(_ea) _ea.filter(_srcInJurisdiction).forEach(x=>targets.push({label:'easements — '+x.label+(x.typeLabel?' ('+x.typeLabel+')':''), url:x.url}));
   // Zoning feeds (county AND city — city takes priority the same way queryZoning() does) were
   // previously invisible to this diagnostic entirely, so a broken/misconfigured zoning layer for any
   // jurisdiction looked identical to "nothing wired" with no way to tell them apart. Probe both here.
@@ -21726,7 +21737,7 @@ function _easeRecords(src, feats, lat, lng){
    Never throws; returns null when nothing is wired or nothing was found. */
 async function easementsForParcel(countyName, rings, lat, lng){
   try{
-    const srcs = countyName ? EASEMENTS[norm(countyName)] : null;
+    const srcs = countyName ? (EASEMENTS[norm(countyName)]||[]).filter(_srcInJurisdiction) : null;
     if(!srcs || !srcs.length || !rings || !rings.length) return null;
     const results = await Promise.all(srcs.map(src =>
       _easeQuery(src, rings).then(f => _easeRecords(src, f, lat, lng)).catch(()=>[])
@@ -21906,7 +21917,7 @@ function _ssLines(src, feats){
 /* Public entry point: county name + point => array of lines (possibly empty). Never throws. */
 async function septicSewerAtPoint(countyName, lat, lng){
   try{
-    const srcs = countyName ? SEPTIC_SEWER[norm(countyName)] : null;
+    const srcs = countyName ? (SEPTIC_SEWER[norm(countyName)]||[]).filter(_srcInJurisdiction) : null;
     if(!srcs || !srcs.length || !isFinite(lat) || !isFinite(lng)) return [];
     const results = await Promise.all(srcs.map(src =>
       _ssQuery(src, lat, lng).then(feats => _ssLines(src, feats)).catch(()=>[])
@@ -25414,9 +25425,11 @@ function _nbrRenderParcelLabels(labels, subjIdx){
 
     // helper: build a single unit's marker at a given draw position
     function makeUnitMarker(L0, isSubj, dlat, dlng){
-      const labelHTML = numStreetLabelHTML(L0.txt, L0.hn);
-      const icon=L.divIcon({ className:'nbr-hit', html:`<div class="nbr-num${isSubj?' subject':''}">${labelHTML}</div>`, iconSize:null });
+      const _u = _nbrUnitOf(L0);
+      const labelHTML = _u ? _nbrUnitLabelHTML(L0, _u) : numStreetLabelHTML(L0.txt, L0.hn);
+      const icon=L.divIcon({ className:'nbr-hit', html:`<div class="nbr-num${isSubj?' subject':''}${_u?' unit':''}">${labelHTML}</div>`, iconSize:null });
       const mk=L.marker([dlat,dlng],{icon, interactive:true, keyboard:false, zIndexOffset:isSubj?1000:5}).addTo(nbrNumLayer);
+      mk._nbrUnit=_u||null; mk._nbrSubj=!!isSubj;
       if(isSubj) _nbrSubjDrawn=true;
       mk.on('click', (ev)=>{ try{ L.DomEvent.stop(ev); }catch(e){}
         suppressUiClick(900);   // block the replayed tap landing on the map underneath
@@ -25442,11 +25455,12 @@ function _nbrRenderParcelLabels(labels, subjIdx){
     // (and scaled-down ones don't leave a sparse column of gaps).
     const _ns = nbrScaleForView();
     const STEP_Y = 22*_ns*degPerPx, STEP_X = 96*_ns*degPerPx, PER_COL = 12;
+    const _singles=[];
 
     for(const idxs of groups.values()){
       // ---- singleton: just render it ----
       if(idxs.length<2){
-        const i=idxs[0]; makeUnitMarker(labels[i], i===subjIdx, labels[i].lat, labels[i].lng);
+        const i=idxs[0]; _singles.push(makeUnitMarker(labels[i], i===subjIdx, labels[i].lat, labels[i].lng));
         continue;
       }
       // ---- stack: collapsed badge that fans out on hover ----
@@ -25508,7 +25522,44 @@ function _nbrRenderParcelLabels(labels, subjIdx){
       // if the subject is in this stack, fan it open immediately so the highlighted unit is visible
       if(subjInStack) fanOut();
     }
-    if(labels.length){ nbrNumLayer.addTo(map); }
+    if(labels.length){ nbrNumLayer.addTo(map); _nbrDeclutterUnits(_singles); }
+}
+
+/* UNIT LABELS (19 Nov 2026). Townhomes, villas and warehouse bays where the county gives every unit
+   its own address point used to draw "3899 / MANNIX DR #416" for each one — a row of full-width
+   boxes stacked on top of each other with the unit unreadable. Collier's own GIS labels these by
+   unit and drops a dot where a label won't fit; we do the same: the unit on top, the building
+   number under it, and any unit label that would overlap one already drawn becomes a dot (still
+   hover- and click-able). Zooming in re-runs this, so the dots turn back into labels as room opens. */
+function _nbrUnitOf(L0){
+  try{
+    const a=(L0.feat&&L0.feat.attributes)||{};
+    let u=pick(a,'UNITID','UNIT','SITEUNIT','UNIT_NO');
+    if(!u){ const m=String(L0.txt||'').split(',')[0].match(/(?:#|\bunit\b|\bapt\b|\bste\b|\bsuite\b)\.?\s*#?\s*([A-Za-z0-9][A-Za-z0-9\-]*)\s*$/i); if(m) u=m[1]; }
+    u=String(u||'').trim().replace(/^#/,'');
+    return u || null;
+  }catch(e){ return null; }
+}
+function _nbrUnitLabelHTML(L0, u){
+  const {num}=numStreetParts(L0.txt, L0.hn);
+  return `<span class="nbr-hn">#${esc(u)}</span>`+(num?`<span class="nbr-st">${esc(num)}</span>`:'');
+}
+function _nbrDeclutterUnits(markers){
+  try{
+    if(!markers || !markers.length) return;
+    const R=m=>{ const el=m.getElement(); const b=el && el.firstElementChild; return b ? b.getBoundingClientRect() : null; };
+    const hit=(a,b)=> a.left<b.right+2 && b.left<a.right+2 && a.top<b.bottom+1 && b.top<a.bottom+1;
+    const kept=[];
+    for(const m of markers){ if(!m._nbrUnit || m._nbrSubj){ const r=R(m); if(r) kept.push(r); } }
+    const units=markers.filter(m=>m._nbrUnit && !m._nbrSubj)
+      .sort((x,y)=> String(x._nbrUnit).localeCompare(String(y._nbrUnit), undefined, {numeric:true}));
+    for(const m of units){
+      const r=R(m); if(!r) continue;
+      if(kept.some(k=>hit(r,k))){
+        m.setIcon(L.divIcon({ className:'nbr-hit', html:'<div class="nbr-dot"></div>', iconSize:null }));
+      } else kept.push(r);
+    }
+  }catch(e){}
 }
 
 function _nbrRenderPoints(ptLabels, ptSubjIdx){
@@ -25576,6 +25627,50 @@ function _nbrRepaintFromCache(){
   }catch(e){ return false; }
 }
 
+/* SNAP FILE LABELS ONTO THE COUNTY'S ADDRESS POINTS (19 Nov 2026).
+   collier_compact_v3's coordinates are PARCEL CENTROIDS, not the address points. For an ordinary
+   rectangular lot the centroid is inside the lot, so the label looks right — but for a cul-de-sac
+   wedge, an L-shaped or flag lot, a curved lot, or a big condo / commercial parcel the centroid falls
+   on the NEIGHBOUR, in the street, or in a pond. Measured against the county's Site_Address_Points:
+   24,080 of 228,061 matched rows sit more than 15 m from their own address point, 3,233 more than
+   60 m (e.g. 350 Foxtail Ct drew on 1030 Kingsway; 4975 Radio Rd on 444 Briarwood Blvd).
+   The search PIN was always right because it uses the address point; the labels now do too: one
+   envelope query to the live address-point layer per redraw, and every file label whose address
+   matches moves onto its point. Offline, slow or failed → the file's own coordinates stay (no worse
+   than before). Matching is number + street + unit, the same key the county uses. */
+const LABEL_SNAP_POINTS = {
+  COLLIER: { url:"https://services2.arcgis.com/SlIq32SqARUHIhSx/arcgis/rest/services/Site_Address_Points_b/FeatureServer/3/query",
+             num:'ADDRNUM', street:'FULLNAME', unit:'UNITID', type:'POINTTYPE', where:"STATUS='Current'",
+             // Points the county files on a dock, lift station, meter or outbuilding — used only when no house/building point exists
+             skipTypes:['OTHERSTRUCTURE','UTILITYASSET','DOCK','BOATSLIP'] }
+};
+async function _snapFileLabelsToAddrPoints(labels, env, countyName){
+  try{
+    const cfg = countyName ? LABEL_SNAP_POINTS[norm(countyName)] : null;
+    if(!cfg || !labels || !labels.length || !env) return 0;
+    const N=v=>String(v==null?'':v).toUpperCase().replace(/[^A-Z0-9]/g,'');
+    const url=cfg.url+`?geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`+
+      `&spatialRel=esriSpatialRelIntersects&where=${encodeURIComponent(cfg.where||'1=1')}`+
+      `&outFields=${encodeURIComponent([cfg.num,cfg.street,cfg.unit,cfg.type].filter(Boolean).join(','))}&returnGeometry=true&outSR=4326&resultRecordCount=2000&f=json`;
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),5000);
+    let j=null; try{ const r=await fetch(url,{signal:ctrl.signal}); if(r.ok) j=await r.json(); }catch(e){} clearTimeout(t);
+    if(!j || j.error || !j.features || !j.features.length) return 0;
+    const idx=new Map(), skip=new Set(cfg.skipTypes||[]);
+    for(const f of j.features){ const a=f.attributes||{}, g=f.geometry; if(!g||g.x==null||g.y==null) continue;
+      const rk=(cfg.type && skip.has(N(a[cfg.type])))?1:0;   // prefer house/building points; dock/utility only as a fallback
+      const k=N(a[cfg.num])+'|'+N(a[cfg.street])+'|'+N(a[cfg.unit]); let arr=idx.get(k); if(!arr){ arr=[]; idx.set(k,arr); } arr.push([g.x,g.y,rk]); }
+    let moved=0;
+    for(const L0 of labels){
+      const a=(L0.feat&&L0.feat.attributes)||{};
+      const street=String(a.FULLADDR||L0.txt||'').replace(/\s*#.*$/,'').replace(/^\S+\s+/,'');
+      const arr=idx.get(N(a.ADDRNUM||L0.hn)+'|'+N(street)+'|'+N(a.UNITID)); if(!arr) continue;
+      const r0=Math.min(...arr.map(p=>p[2]));
+      let best=null, bd=Infinity; for(const p of arr){ if(p[2]!==r0) continue; const dd=(p[0]-L0.lng)*(p[0]-L0.lng)+(p[1]-L0.lat)*(p[1]-L0.lat); if(dd<bd){ bd=dd; best=p; } }
+      if(best && bd>2.5e-9){ L0.lng=best[0]; L0.lat=best[1]; if(L0.feat&&L0.feat.geometry){ L0.feat.geometry.x=best[0]; L0.feat.geometry.y=best[1]; } moved++; }   // > ~5 m
+    }
+    return moved;
+  }catch(e){ return 0; }
+}
 async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAnchorBox){
   /* With the layer off we still draw the subject's own number, but ONLY on a new lookup or an
      explicit toggle (both pass forceAnchorBox). A pan or zoom must never re-enter here in that
@@ -25693,6 +25788,7 @@ async function showNeighborNumbers(subjectHN, subjLat, subjLng, subjPid, forceAn
             labels.push({ hn, lat:cy, lng:cx, feat:f, txt });
           }
           if(labels.length) usedFile=true;
+          if(usedFile) await _snapFileLabelsToAddrPoints(labels, env, _cty);
         }
       }
     }catch(e){ /* file-first is best-effort; fall through to county server */ }
@@ -31911,11 +32007,11 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
       try{
         const pt=encodeURIComponent(JSON.stringify({x:lng,y:lat,spatialReference:{wkid:4326}}));
         const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),8000);
-        const r=await fetch(`https://services2.arcgis.com/SlIq32SqARUHIhSx/ArcGIS/rest/services/Zoning_Links_view/FeatureServer/0/query?f=json&geometry=${pt}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=Zoning_url,TSS&returnGeometry=false&resultRecordCount=1`,{signal:ctrl.signal});
+        const r=await fetch(`https://services2.arcgis.com/SlIq32SqARUHIhSx/ArcGIS/rest/services/Zoning_Links_(Editable)_Test_View/FeatureServer/11/query?f=json&geometry=${pt}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=MapURL,MapName,AtlasBook,AtlasPage&returnGeometry=false&resultRecordCount=1`,{signal:ctrl.signal});
         const j=await r.json(); clearTimeout(t);
         const a=j.features&&j.features[0]&&j.features[0].attributes;
-        if(myId!==runId || !a || !a.Zoning_url) return;
-        patchSlot(_atlasSlot, `<a class="palink" href="${esc(a.Zoning_url)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Zoning atlas sheet for this parcel${a.TSS?` (Twp-Rng-Sec ${esc(a.TSS)})`:''} — PDF</a>`
+        if(myId!==runId || !a || !(a.MapURL||a.Zoning_url)) return;   /* Zoning_Links_view (Zoning_url / TSS) was retired 19 Nov 2026 — its replacement view (layer 11) carries MapURL / MapName / AtlasBook */
+        patchSlot(_atlasSlot, `<a class="palink" href="${esc(a.MapURL||a.Zoning_url)}" target="_blank" rel="noopener" style="margin-top:8px">↗ Zoning atlas sheet for this parcel${(a.AtlasBook||a.TSS)?` (Twp-Rng-Sec ${esc(a.AtlasBook||a.TSS)})`:''} — PDF</a>`
           + `<div class="note">The county&rsquo;s official zoning map page covering this section: shows the district labels and any PUD boundary around the lot. Confirms the live read above.</div>`);
       }catch(e){}
     })();

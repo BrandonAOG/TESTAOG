@@ -310,3 +310,67 @@ test('Hub: every tool card opens a real page', async ({ page }) => {
   const missing = [...new Set(links)].map(h => h.replace(/^\.\//, '').replace(/[?#].*$/, '')).filter(h => h && !fs.existsSync(path.join(ROOT, h.endsWith('/') || !path.extname(h) ? path.join(h, 'index.html') : h)));
   expect(missing).toEqual([]);
 });
+
+test('Property Lookup: City of Naples / Marco Island layers are not queried for an unincorporated Collier lookup; dead Collier layers are gone', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'runs once');
+  const hits = [];
+  await page.route(/naplesgov\.com|cityofmarcoisland\.com/, r => { hits.push(r.request().url()); r.fulfill({ contentType: 'application/json', body: '{"features":[]}' }); });
+  expect(await open(page, '/property-lookup/', { settle: 1500 })).toEqual([]);
+  const r = await page.evaluate(async () => {
+    window.__lastCity = ''; window.__cityIsPostal = false;                        // resolved: unincorporated
+    await septicSewerAtPoint('Collier', 26.15, -81.74); await queryCommunity(26.15, -81.74, 'Collier', 2000);
+    await easementsForParcel('Collier', [[[-81.74, 26.15], [-81.739, 26.15], [-81.739, 26.151], [-81.74, 26.15]]], 26.15, -81.74);
+    const html = document.documentElement.outerHTML;
+    return { dead: /ParcelJoin\/FeatureServer\/0\/query"|Parcel_Tax_Assessment_and_Ownership\/FeatureServer\/0'|Zoning_Links_view\/FeatureServer\/0\/query\?/.test(html),
+      inCity: (window.__lastCity = 'Naples', _srcInJurisdiction({ city: 'NAPLES' })), out: (window.__lastCity = '', _srcInJurisdiction({ city: 'NAPLES' })) };
+  });
+  expect(hits).toEqual([]);
+  expect(r).toEqual({ dead: false, inCity: true, out: false });
+});
+
+test('Property Lookup: Collier map address labels snap from the file (parcel centroid) onto the county address point', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'runs once');
+  await page.route(/Site_Address_Points_b\/FeatureServer\/3\/query/, r => r.fulfill({ contentType: 'application/json',
+    body: JSON.stringify({ features: [{ attributes: { ADDRNUM: '350', FULLNAME: 'Foxtail CT', UNITID: null, POINTTYPE: 'Single Family' }, geometry: { x: -81.74998, y: 26.15270 } },
+                                      { attributes: { ADDRNUM: '350', FULLNAME: 'Foxtail CT', UNITID: null, POINTTYPE: 'Dock' }, geometry: { x: -81.75007, y: 26.15219 } },
+                                      { attributes: { ADDRNUM: '1054', FULLNAME: 'Forest Lakes DR', UNITID: 'H-101' }, geometry: { x: -81.7, y: 26.2 } }] }) }));
+  expect(await open(page, '/property-lookup/', { settle: 1500 })).toEqual([]);
+  const r = await page.evaluate(async () => {
+    const labels = [ { hn: '350', lat: 26.15218, lng: -81.75008, txt: '350 Foxtail CT', feat: { attributes: { ADDRNUM: '350', FULLADDR: '350 Foxtail CT' }, geometry: { x: -81.75008, y: 26.15218 } } },
+                     { hn: '1054', lat: 26.21, lng: -81.71, txt: '1054 Forest Lakes DR #H-101', feat: { attributes: { ADDRNUM: '1054', FULLADDR: '1054 Forest Lakes DR #H-101', UNITID: 'H-101' }, geometry: { x: -81.71, y: 26.21 } } },
+                     { hn: '9', lat: 26.3, lng: -81.8, txt: '9 Nowhere ST', feat: { attributes: { ADDRNUM: '9', FULLADDR: '9 Nowhere ST' } } } ];
+    const moved = await _snapFileLabelsToAddrPoints(labels, '-81.8,26.1,-81.6,26.3', 'Collier');
+    const lee = await _snapFileLabelsToAddrPoints(labels, '-81.8,26.1,-81.6,26.3', 'Lee');   // not wired → untouched
+    return { moved, lee, a: [labels[0].lat, labels[0].lng], unit: [labels[1].lat, labels[1].lng], other: [labels[2].lat, labels[2].lng] };
+  });
+  expect(r).toEqual({ moved: 2, lee: 0, a: [26.15270, -81.74998], unit: [26.2, -81.7], other: [26.3, -81.8] });
+});
+
+test('Property Lookup: units with their own address point label by unit; ones that would overlap become dots', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'runs once');
+  expect(await open(page, '/property-lookup/', { settle: 1500 })).toEqual([]);
+  const r = await page.evaluate(async () => {
+    nbrNumOn = true; map.setView([26.1561, -81.6781], 19, { animate: false });
+    const labels = [];
+    for (let i = 0; i < 12; i++) {                                  // a townhome row, units ~4 m apart
+      const u = String(401 + i), lng = -81.6786 + i * 0.00004;
+      labels.push({ hn: '3899', lat: 26.1561, lng, txt: `3899 Mannix DR #${u}`, feat: { attributes: { ADDRNUM: '3899', FULLADDR: `3899 Mannix DR #${u}`, UNITID: u } } });
+    }
+    labels.push({ hn: '3893', lat: 26.1555, lng: -81.6781, txt: '3893 Mannix DR', feat: { attributes: { ADDRNUM: '3893', FULLADDR: '3893 Mannix DR' } } });
+    clearNeighborNumbers(); _nbrRenderParcelLabels(labels, -1);
+    const units = [...document.querySelectorAll('.nbr-num.unit')].map(e => e.textContent);
+    const dots = document.querySelectorAll('.nbr-dot').length;
+    // no two drawn unit labels overlap
+    const rs = [...document.querySelectorAll('.nbr-num.unit')].map(e => e.getBoundingClientRect());
+    let overlap = false; for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) { const a = rs[i], b = rs[j]; if (a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom) overlap = true; }
+    map.setView([26.1561, -81.6781], 21, { animate: false }); clearNeighborNumbers(); _nbrRenderParcelLabels(labels, -1);
+    const dotsZoomed = document.querySelectorAll('.nbr-dot').length;
+    return { first: units[0], plain: [...document.querySelectorAll('.nbr-num:not(.unit)')].some(e => /3893/.test(e.textContent)), drawn: units.length, dots, overlap, total: units.length + dots, dotsZoomed };
+  });
+  expect(r.first).toBe('#4013899');                // "#401" over "3899"
+  expect(r.plain).toBe(true);                      // a normal address keeps its normal label
+  expect(r.total).toBe(12);
+  expect(r.dots).toBeGreaterThan(0);
+  expect(r.overlap).toBe(false);
+  expect(r.dotsZoomed).toBeLessThan(r.dots);       // zooming in turns dots back into labels
+});

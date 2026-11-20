@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v3.1.0';
+var CACHE_VERSION = 'v3.1.1';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -76,12 +76,9 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  '⚡ NEW — ELECTRICAL THEORY (Tools tab): a live panel one-line that shows current flow and fault paths. Tap a wire or load to fault it, break an EGC, swap breaker types, and add a generator, transformer, pool or dock panel, or solar + battery — with a 400 A service and code notes for every setup.',
-  '🧮 LOAD CALC — choose the Standard method (NEC 220 Part III) or the Optional method (220.82).',
-  '⚙️ ESTIMATE — new generator Brand line in front of Size: Generac by default, ⇄ switches to Kohler or Generac/Kohler, or type any brand.',
-  '📝 ESTIMATE + MAINTENANCE — PDF✎ now saves real, editable text instead of a flat picture.',
-  // hidden for now (card hidden on the hub) — put this line back when the walkthrough is shown again:
-  // '✨ NEW — WALKTHROUGH → ESTIMATE (beta, under the Estimate tab): snap a few photos on the job, add notes, and Claude drafts the equipment, electrical + gas materials and a scope to start the estimate. Needs internet and a one-time API-key setup on the device — try it and tell us what you think.',
+  '🗺️ PROPERTY LOOKUP — Collier house-number labels now sit on their own lot (not the neighbor or the street).',
+  '🏘️ PROPERTY LOOKUP — townhomes and villas label by unit number, like Collier GIS; crowded units show as dots until you zoom in.',
+  '🛠️ PROPERTY LOOKUP — fixed Collier "bad path" data sources; city layers no longer checked for unincorporated addresses.',
 ]
 //
 // ============================================================
