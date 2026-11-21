@@ -1,5 +1,5 @@
 // Launch intro on the hub (v3.1.3): logo spin-up with glitter, once per app launch, tap to skip, never traps
-// the hub, silent unless "Intro spin-up" is switched on in Sound Settings.
+// the hub, sound on by default and switched off in Sound Settings.
 const { test, expect } = require('@playwright/test');
 
 const errs = (page) => { const e = []; page.on('pageerror', x => e.push(x.message)); return e; };
@@ -17,11 +17,35 @@ test('intro plays, removes itself, and leaves the hub usable', async ({ page }) 
   expect(e).toEqual([]);
 });
 
-test('a tap skips it right away', async ({ page }) => {
+test('a tap skips it right away — and does NOT open the form card underneath (Brandon, Nov 21)', async ({ page }) => {
   await page.goto('/?intro');
-  await page.waitForTimeout(400);
-  await page.locator('#aog-intro').dispatchEvent('pointerdown');
-  await expect(page.locator('#aog-intro')).toHaveCount(0, { timeout: 1000 });
+  await page.waitForTimeout(600);
+  const start = page.url();
+  // tap exactly where a hub card / link sits under the intro
+  const pt = await page.evaluate(() => { const i = document.getElementById('aog-intro'); i.style.visibility = 'hidden';
+    const c = [...document.querySelectorAll('a[href], .card, button')].find(e => { const r = e.getBoundingClientRect(); return r.width > 40 && r.height > 30 && r.top > 120 && r.bottom < innerHeight - 40; });
+    i.style.visibility = ''; const r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await page.mouse.click(pt.x, pt.y);
+  await page.waitForTimeout(150);
+  await page.mouse.click(pt.x, pt.y);                       // an impatient second tap during the fade
+  await expect(page.locator('#aog-intro')).toHaveCount(0, { timeout: 1500 });
+  await page.waitForTimeout(500);
+  expect(page.url()).toBe(start);
+  expect(await page.evaluate(() => !!document.querySelector('.modal.open, [class*="overlay"][style*="flex"]'))).toBe(false);
+});
+
+test('an update that arrives during the intro shows only after it has finished', async ({ page }) => {
+  await page.goto('/?intro');
+  await page.waitForFunction(() => window.AOGIntro);
+  // the hub's update card is filled in and shown by the same code path the service worker answer runs
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'index.html'), 'utf8');
+  expect(src).toMatch(/AOGIntro\.active\) window\.AOGIntro\.onDone\(show\)/);
+  await page.evaluate(() => { const show = () => document.getElementById('update-toast').classList.add('visible');
+    if (window.AOGIntro.active) window.AOGIntro.onDone(show); else show(); });
+  await page.waitForTimeout(300);
+  await expect(page.locator('#update-toast')).not.toBeVisible();
+  await expect(page.locator('#aog-intro')).toHaveCount(0, { timeout: 7000 });
+  await expect(page.locator('#update-toast')).toBeVisible();
 });
 
 test('it does not replay when coming back to the hub in the same launch, and test browsers skip it', async ({ page }) => {
@@ -42,14 +66,37 @@ test('it is skipped when the phone asks for reduced motion', async ({ browser })
   await ctx.close();
 });
 
-test('intro sound is off by default, and the setting turns it on', async ({ page }) => {
+test('intro sound is on by default, and the setting turns it off (and back on)', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => window.AOGSound);
-  expect(await page.evaluate(() => window.AOGSound.getPrefs().intro)).toBe(false);
+  expect(await page.evaluate(() => window.AOGSound.getPrefs().intro)).toBe(true);
   await page.click('#sound-toggle-btn');
   const sw = page.locator('[data-cat="intro"]');
   await expect(sw).toBeVisible();
   await sw.click();
+  expect(await page.evaluate(() => window.AOGSound.getPrefs().intro)).toBe(false);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('aog-sound-prefs')).intro)).toBe(false);
+  await page.reload(); await page.waitForFunction(() => window.AOGSound);
+  expect(await page.evaluate(() => window.AOGSound.getPrefs().intro)).toBe(false);          // remembered
+  await page.click('#sound-toggle-btn'); await page.locator('[data-cat="intro"]').click();
   expect(await page.evaluate(() => window.AOGSound.getPrefs().intro)).toBe(true);
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('aog-sound-prefs')).intro)).toBe(true);
+});
+
+test('while the intro is up: no page sounds or background bed; normal again afterwards', async ({ page }) => {
+  await page.addInitScript(() => {           // record every sound the engine is asked to make
+    window.__played = [];
+    const o = AudioNode.prototype.connect;
+    AudioNode.prototype.connect = function (...a) { if (this instanceof OscillatorNode || this instanceof AudioBufferSourceNode) window.__played.push(performance.now()); return o.apply(this, a); };
+  });
+  await page.goto('/?intro');
+  await page.waitForFunction(() => window.AOGSound && window.AOGIntro);
+  // hub effects asking for sound during the intro are ignored; the intro's own sound is allowed through
+  const r = await page.evaluate(() => { const n = window.__played.length; AOGSound.play('boltStrike'); AOGSound.play('zap'); return { before: n, after: window.__played.length, amb: AOGSound._ambStatus().key }; });
+  expect(r.after).toBe(r.before); expect(r.amb).toBeFalsy();
+  await expect(page.locator('#aog-intro')).toHaveCount(0, { timeout: 7000 });
+  expect(await page.evaluate(() => window.AOGIntro.active)).toBe(false);
+  // afterwards sounds work normally again (desktop: an iPhone stays silent until the first tap, by design)
+  if (test.info().project.name !== 'desktop') return;
+  const n2 = await page.evaluate(() => { const n = window.__played.length; AOGSound.previewPlay('click'); return window.__played.length - n; });
+  expect(n2).toBeGreaterThan(0);
 });

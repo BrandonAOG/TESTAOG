@@ -58,7 +58,7 @@
     } catch (e) {}
   }
   // Per-category sound preferences (controlled by the hub Sound Panel)
-  var DEFAULT_PREFS = { taps: true, animations: true, seasonal: true, forms: true, alerts: true, intro: false }; // intro: launch spin-up, opt-in
+  var DEFAULT_PREFS = { taps: true, animations: true, seasonal: true, forms: true, alerts: true, intro: true }; // intro: launch spin-up — on by default, off in Sound Settings
   var prefs;
   try { prefs = JSON.parse(lsGet('aog-sound-prefs')) || {}; } catch (e) { prefs = {}; }
   for (var pk in DEFAULT_PREFS) if (typeof prefs[pk] !== 'boolean') prefs[pk] = DEFAULT_PREFS[pk];
@@ -66,8 +66,12 @@
   var mode = lsGet('aog-sound-mode') || 'sound';
   if (mode !== 'sound' && mode !== 'vibrate' && mode !== 'both') mode = 'sound';
   var preview = false; // true while the Sound Settings panel is open
+  // Hub launch intro on screen (window.AOGIntro, set by the hub before this file loads): only the intro's
+  // own sound plays; the background bed and page effects wait until it has finished.
+  var held = !!(window.AOGIntro && window.AOGIntro.active);
   function allowed(cat) {
     if (muted) return false;
+    if (held && cat !== 'intro') return false;
     if (preview && (cat === 'animations' || cat === 'seasonal')) return false;
     return prefs[cat] !== false;
   }
@@ -194,7 +198,7 @@
   //   4. Catch every gesture type as the fallback unlock
   var sceneStarted = false;
   function goLive() {
-    if (sceneStarted || muted) return;
+    if (sceneStarted || muted || held) return;
     
     sceneStarted = true;
     applyScene();
@@ -976,7 +980,7 @@
   }
 
   // Hub launch intro (v3.1.3): a 1.7 s rising hum + whoosh as the logo spins up, then a soft bell chime when
-  // it stops. Category 'intro' is OFF by default (Sound Settings → Intro spin-up).
+  // it stops. Category 'intro' is ON by default; switch off in Sound Settings → Intro spin-up.
   function introSpin() {
     if (muted) return;
     var c = getCtx(); if (!c) return;
@@ -2031,6 +2035,7 @@
   };
 
   function applyScene() {
+    if (held) return;   // launch intro on screen — the bed starts when it finishes
     // Resolve the target profile FIRST so an unchanged scene is a no-op.
     // applyScene is re-triggered constantly (window focus, pageshow,
     // visibilitychange, ANY body class mutation) and used to tear down and
@@ -2270,6 +2275,8 @@
 
   // Battery saver turned on / off: stop or bring back the ambient loops right away
   if (window.AOGSaver) window.AOGSaver.onChange(function () { try { applyScene(); } catch (e) {} });
+
+  if (held) window.AOGIntro.onDone(function () { held = false; sceneStarted = false; tryStart(); });
 
   window.AOGSound = {
     version: 'v1.0.9',

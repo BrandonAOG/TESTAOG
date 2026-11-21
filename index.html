@@ -346,7 +346,7 @@ body.fav-dragging-active, body.fav-dragging-active * { cursor: grabbing !importa
 <style>
 /* ═══ LAUNCH INTRO — logo spins up as gold glitter swirls in (v3.1.3). Once per app launch; tap skips. ═══ */
 #aog-intro{position:fixed;inset:0;z-index:100002;background:radial-gradient(ellipse 90% 60% at 50% 45%,#0d1430 0%,#060913 70%);overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:opacity .45s ease;--u:min(1vw,.5625vh)}
-#aog-intro.out{opacity:0;pointer-events:none}
+#aog-intro.out{opacity:0}   /* keeps catching taps while it fades, so the skip tap can't land on a hub card underneath */
 #aog-intro canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 #aog-intro .ai-l{position:absolute;left:50%;top:38%;width:calc(var(--u)*36);height:calc(var(--u)*36);margin:calc(var(--u)*-18) 0 0 calc(var(--u)*-18)}
 #aog-intro .ai-logo{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 50%;border-radius:50%;opacity:0}
@@ -370,14 +370,24 @@ body.fav-dragging-active, body.fav-dragging-active * { cursor: grabbing !importa
     if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   }
 
+  // While the intro is up, the rest of the hub holds back: sounds.js plays only the intro's own sound (no
+  // background bed, no bolt/zap effects) and the hub's "update ready" card waits until it has finished.
+  var waiting=[];
+  window.AOGIntro={ active:true, onDone:function(fn){ if(window.AOGIntro.active) waiting.push(fn); else fn(); } };
   var el=document.createElement('div'); el.id='aog-intro'; el.setAttribute('aria-hidden','true');
   el.innerHTML='<canvas></canvas><div class="ai-l"><img class="ai-logo" alt="" src="./logo.png"></div><div class="ai-w"><span>ALWAYS ON</span><span>GENERATORS</span></div><div class="ai-skip">TAP TO SKIP</div>';
   document.body.appendChild(el);
   var cv=el.querySelector('canvas'), c=cv.getContext('2d'), logo=el.querySelector('.ai-logo'), word=el.querySelector('.ai-w');
   var done=false, raf=0;
-  function finish(){ if(done) return; done=true; el.classList.add('out'); setTimeout(function(){ cancelAnimationFrame(raf); if(el.parentNode) el.parentNode.removeChild(el); },500); }
+  function finish(){ if(done) return; done=true; el.classList.add('out');
+    setTimeout(function(){ cancelAnimationFrame(raf); if(el.parentNode) el.parentNode.removeChild(el);
+      window.AOGIntro.active=false; var w=waiting; waiting=[]; w.forEach(function(fn){ try{ fn(); }catch(e){} }); },450); }
   setTimeout(finish,6000);                                   // safety net: never trap the hub behind it
-  el.addEventListener('pointerdown',finish); el.addEventListener('touchstart',finish,{passive:true});
+  // Skip on the CLICK, and swallow it. Skipping on touch-down let the rest of that same tap (the click that
+  // follows it) fall through to whatever form card was under the finger.
+  function swallow(e){ e.preventDefault(); e.stopPropagation(); }
+  el.addEventListener('click',function(e){ swallow(e); finish(); });
+  el.addEventListener('pointerup',swallow); el.addEventListener('touchend',function(e){ e.stopPropagation(); },{passive:true});
   try{ run(); }catch(e){ finish(); }
 
   function run(){
@@ -410,9 +420,11 @@ body.fav-dragging-active, body.fav-dragging-active * { cursor: grabbing !importa
     for(var i=0;i<8;i++) evs.push({t:2.6+i*.12,fn:function(){ var r=word.getBoundingClientRect(); emit({type:'star',x:r.left+rnd(.1,.9)*r.width,y:r.top+rnd(.15,.85)*r.height,life:.8,size:rnd(.6,.9)}); }});
     rain(2.9,1,false);
     evs.push({t:3.5,fn:finish});
-    // Sound: OFF unless "Intro spin-up" is switched on in Sound Settings. Goes through the shared engine, so it
+    // Sound: on unless "Intro spin-up" is switched off in Sound Settings (or all sound is muted). Goes through the shared engine, so it
     // mixes with (never stops) music/CarPlay and stays silent where the phone hasn't allowed audio yet.
-    setTimeout(function(){ var S=window.AOGSound; if(S){ S.play('introSpin'); } },s0*1000);
+    // Only when the phone already allows sound: otherwise the engine queues it and the tap that SKIPS the intro
+    // would unlock it — the spin-up would then play over the hub.
+    setTimeout(function(){ var S=window.AOGSound, ua=navigator.userActivation; if(S && !done && (!ua || ua.hasBeenActive)) S.play('introSpin'); },s0*1000);
 
     var t0=performance.now(), last=t0;
     function frame(now){
@@ -4706,7 +4718,9 @@ if('serviceWorker' in navigator){
           document.getElementById('update-toast-version').textContent=ver;
           var list=document.getElementById('update-toast-changelog'); list.innerHTML='';
           log.forEach(function(item){var li=document.createElement('li');li.textContent=item;list.appendChild(li);});
-          document.getElementById('update-toast').classList.add('visible');
+          // not under / over the launch intro — show it once the intro has finished
+          var show=function(){ document.getElementById('update-toast').classList.add('visible'); };
+          if(window.AOGIntro&&window.AOGIntro.active) window.AOGIntro.onDone(show); else show();
         };
         worker.postMessage({action:'GET_CHANGELOG'},[ch.port2]);
       }
