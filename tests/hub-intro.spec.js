@@ -100,3 +100,26 @@ test('while the intro is up: no page sounds or background bed; normal again afte
   const n2 = await page.evaluate(() => { const n = window.__played.length; AOGSound.previewPlay('click'); return window.__played.length - n; });
   expect(n2).toBeGreaterThan(0);
 });
+
+test('desktop app: the spin-up sound plays on launch where the browser allows sound before a click', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'desktop');
+  await page.addInitScript(() => { window.__osc = []; const o = AudioNode.prototype.connect;
+    AudioNode.prototype.connect = function (...a) { if (this instanceof OscillatorNode) window.__osc.push(this.type); return o.apply(this, a); }; });
+  await page.goto('/?intro');                        // config launches Chromium with autoplay allowed, like the installed app
+  await page.waitForTimeout(1600);
+  expect(await page.evaluate(() => window.__osc.filter(t => t === 'sawtooth').length)).toBeGreaterThan(0);   // the spin-up hum
+  await page.waitForTimeout(1200);
+  expect(await page.evaluate(() => window.__osc.filter(t => t === 'sine').length)).toBeGreaterThan(2);       // the bell chime
+});
+
+test('where sound is still blocked, the intro stays silent and a skip tap does NOT set it off afterwards', async ({ browser }, info) => {
+  test.skip(info.project.name !== 'desktop', 'desktop');
+  const b2 = await require('@playwright/test').chromium.launch({ args: ['--autoplay-policy=document-user-activation-required'] });
+  const page = await b2.newPage({ baseURL: 'http://localhost:8080' });
+  await page.addInitScript(() => { window.__osc = 0; const o = AudioNode.prototype.connect;
+    AudioNode.prototype.connect = function (...a) { if (this instanceof OscillatorNode && this.type === 'sawtooth') window.__osc++; return o.apply(this, a); }; });
+  await page.goto('/?intro'); await page.waitForTimeout(1200);
+  await page.mouse.click(5, 300); await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => window.__osc)).toBe(0);
+  await b2.close();
+});

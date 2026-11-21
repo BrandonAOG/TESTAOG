@@ -422,9 +422,10 @@ body.fav-dragging-active, body.fav-dragging-active * { cursor: grabbing !importa
     evs.push({t:3.5,fn:finish});
     // Sound: on unless "Intro spin-up" is switched off in Sound Settings (or all sound is muted). Goes through the shared engine, so it
     // mixes with (never stops) music/CarPlay and stays silent where the phone hasn't allowed audio yet.
-    // Only when the phone already allows sound: otherwise the engine queues it and the tap that SKIPS the intro
-    // would unlock it — the spin-up would then play over the hub.
-    setTimeout(function(){ var S=window.AOGSound, ua=navigator.userActivation; if(S && !done && (!ua || ua.hasBeenActive)) S.play('introSpin'); },s0*1000);
+    // Only where sound is allowed right now (the installed desktop app; a phone after a tap). Otherwise the engine
+    // would queue it and the tap that SKIPS the intro would unlock it — the spin-up then playing over the hub.
+    setTimeout(function(){ var S=window.AOGSound; if(!S||done) return;
+      if(S.whenRunning) S.whenRunning(350,function(ok){ if(ok&&!done) S.play('introSpin'); }); },s0*1000-150);
 
     var t0=performance.now(), last=t0;
     function frame(now){

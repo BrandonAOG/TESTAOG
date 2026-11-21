@@ -2302,6 +2302,17 @@
       return muted;
     },
     isMuted: function () { return muted; },
+    // Calls back true if audio is (or within `ms` becomes) actually running — the installed desktop app and
+    // browsers that allow sound before a tap — and false where the phone/browser is still holding it back.
+    // Used by the hub's launch intro so it plays its sound where it can, and never queues it for a later tap.
+    whenRunning: function (ms, cb) {
+      var done = false; function fin(ok) { if (!done) { done = true; cb(ok); } }
+      if (muted || mode === 'vibrate') return fin(false);
+      var c = getCtx(); if (!c) return fin(false);
+      if (c.state === 'running') return fin(true);
+      try { var p = c.resume(); if (p && p.then) p.then(function () { fin(c.state === 'running'); }, function () { fin(false); }); } catch (e) {}
+      setTimeout(function () { fin(c.state === 'running'); }, ms || 300);
+    },
     previewMode: function (on) {
       preview = !!on;
       if (preview) stopAmbient();
