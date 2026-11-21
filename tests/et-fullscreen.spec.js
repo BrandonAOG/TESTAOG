@@ -188,3 +188,21 @@ test('Phone: closing full screen puts the One-Line back at its normal size (Bran
   await page.reload(); await page.waitForTimeout(2000); await tap(); await page.waitForTimeout(400); const a2 = await box();
   expect(Math.abs(a1.w - a2.w)).toBeLessThan(3); expect(Math.abs(a1.h - a2.h)).toBeLessThan(3);
 });
+
+test('Phone: the Full screen button sits on its own row above the drawing (by the Utility switch), not wrapped under the title', async ({ page }, info) => {
+  phone(info);
+  expect(await open(page, PAGE, { settle: 2000 })).toEqual([]);
+  const g = await page.evaluate(() => { const b = document.querySelector('.fs-btn'), t = document.querySelector('.card-scope .card-title'), sv = document.getElementById('svg'), sub = document.getElementById('sub');
+    const rb = b.getBoundingClientRect(), rt = t.getBoundingClientRect(), rs = sv.getBoundingClientRect(), ru = sub.getBoundingClientRect();
+    return { inTitle: t.contains(b), titleOneLine: rt.height < 40, belowSub: rb.top >= ru.bottom - 2, aboveDrawing: rb.bottom <= rs.top + 2, left: Math.round(rb.left - rs.left) }; });
+  expect(g).toEqual(expect.objectContaining({ inTitle: false, titleOneLine: true, belowSub: true, aboveDrawing: true }));
+  expect(Math.abs(g.left)).toBeLessThan(40);
+  await page.evaluate(() => document.querySelector('.fs-btn').click()); await page.waitForTimeout(400);
+  await expect(page.locator('.fs-ov')).toHaveCount(1);
+});
+
+test('Desktop: the Full screen button stays in the title row', async ({ page }, info) => {
+  desk(info);
+  expect(await open(page, PAGE, { settle: 1500 })).toEqual([]);
+  expect(await page.evaluate(() => document.querySelector('.card-scope .card-title').contains(document.querySelector('.fs-btn')))).toBe(true);
+});

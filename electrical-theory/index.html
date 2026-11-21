@@ -3882,6 +3882,10 @@ setTimeout(adjustTopPadding, 100);
   var PHONE=function(){ return window.matchMedia('(max-width:760px)').matches; };
 
   var css=document.createElement('style'); css.textContent=`
+  .fs-row{padding:10px 16px 0;background:#0b1020;border-top:1px solid #1e2a4a}   /* the drawing's own top strip, so the button sits inside it */
+  body:not(.dark) .fs-row{background:#ffffff;border-top-color:var(--border)}
+  .fs-row + .scope{border-top:0}
+  .fs-btn.ph{margin:0;padding:5px 12px;font-size:12px;border-radius:999px}
   .fs-btn{margin-left:8px;font:700 12px system-ui;letter-spacing:.3px;padding:7px 11px;border-radius:8px;border:1px solid var(--accent,#39d3ff);background:transparent;color:var(--accent,#39d3ff);cursor:pointer}
   .fs-ov{position:fixed;inset:0;z-index:99999;background:#070b16;display:flex;flex-direction:column;color:#dfe8ff;overscroll-behavior:none}
   body:not(.dark) .fs-ov{background:#f2f4f9;color:#13203a}
@@ -3952,6 +3956,15 @@ setTimeout(adjustTopPadding, 100);
   /* ---- full screen ---- */
   var title=document.querySelector('.card-scope .card-title'); if(!title) return;
   var btn=document.createElement('button'); btn.className='fs-btn'; btn.type='button'; btn.textContent='⛶ Full screen'; title.appendChild(btn);
+  // Phones: the title row (ONE-LINE + the colour legend) has no room left, so the button wrapped onto a line of
+  // its own. It sits instead on its own short row right above the drawing — over the Utility switch — and
+  // moves back into the title row when the screen is wide again (turning a tablet, resizing a window).
+  var fsRow=document.createElement('div'); fsRow.className='fs-row';
+  var scopeStart=document.querySelector('.card-scope .scope');
+  scopeStart.parentNode.insertBefore(fsRow,scopeStart);
+  var phoneMQ=window.matchMedia&&matchMedia('(max-width:760px)');
+  function placeBtn(){ var ph=!!(phoneMQ&&phoneMQ.matches); btn.classList.toggle('ph',ph); fsRow.style.display=ph?'':'none'; (ph?fsRow:title).appendChild(btn); }
+  placeBtn(); if(phoneMQ){ if(phoneMQ.addEventListener) phoneMQ.addEventListener('change',placeBtn); else if(phoneMQ.addListener) phoneMQ.addListener(placeBtn); }
   var ov=null, home=null, sy0=0, zc=1, cT=null, z=1, px=0, py=0, fitZ=1, rot=false, lastWH='';
   function svgEl(){ return document.getElementById('svg'); }
   function dims(){ var vb=svgEl().viewBox.baseVal; return {W:vb.width||1000,H:vb.height||800}; }
