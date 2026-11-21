@@ -78,3 +78,16 @@ test('Electrical Theory never blames a breaker, disconnect or generator control 
   expect(bad, bad.join('\n')).toEqual([]);
   expect(errs).toEqual([]);
 });
+
+test('400 A two-disconnect service: the gutter taps are called SERVICE conductors (not feeders) and the line-side splice rule is named', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'text check — runs once');
+  expect(await open(page, '/electrical-theory/', { settle: 1200 })).toEqual([]);
+  const t = await page.evaluate(() => { document.querySelector('[data-svc="400"]').click(); const o = {};
+    for (const m of ['dual', 'mm']) { s4Set(m); o[m] = document.getElementById('readout').textContent.replace(/\s+/g, ' '); } return o; });
+  expect(t.dual).toMatch(/meter to the gutter\): 400 kcmil Cu/);
+  expect(t.dual).toMatch(/tap conductors to a 200 A disconnect is still a service conductor/);
+  expect(t.dual).toMatch(/past the disconnect the feeder runs on to its panel/);
+  expect(t.dual).toMatch(/suitable for use on the line side of the service equipment" \(230\.46\)/);
+  expect(t.mm).not.toMatch(/tap conductors|gutter/);                       // meter-main: no taps, wording unchanged
+  expect(t.mm).toMatch(/Each 200 A feeder to a panel does NOT carry the whole load/);
+});
