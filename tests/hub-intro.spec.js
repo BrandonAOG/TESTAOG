@@ -131,9 +131,10 @@ test('the full intro: signature writes, tagline types, the arc blast opens a hol
     AudioNode.prototype.connect = function (...a) { if (this instanceof OscillatorNode) window.__osc.push(this.type + ':' + Math.round(performance.now())); return o.apply(this, a); }; });
   await page.goto('/?intro');
   const st = () => page.evaluate(() => { const i = document.getElementById('aog-intro'); if (!i) return null;
-    const clip = i.querySelector('#aiSc rect'); return { sig: +clip.getAttribute('width'), tag: i.querySelector('.ai-tag').textContent, mask: i.querySelector('.ai-bg').style.maskImage || i.querySelector('.ai-bg').style.webkitMaskImage || '' }; });
+    const ink = [...i.querySelectorAll('.ai-ink path')]; const drawn = ink.reduce((a, p) => a + (parseFloat(p.style.strokeDasharray) - parseFloat(p.style.strokeDashoffset)), 0);
+    return { sig: Math.round(drawn), strokes: ink.length, tag: i.querySelector('.ai-tag').textContent, mask: i.querySelector('.ai-bg').style.maskImage || i.querySelector('.ai-bg').style.webkitMaskImage || '' }; });
   await page.waitForTimeout(2400); const a = await st(); expect(a.sig).toBe(0); expect(a.tag).toBe('');
-  await page.waitForTimeout(1300); const b = await st(); expect(b.sig).toBeGreaterThan(50);                   // writing
+  await page.waitForTimeout(1300); const b = await st(); expect(b.sig).toBeGreaterThan(50); expect(b.strokes).toBeGreaterThan(15);   // ink laid along the pen strokes
   await page.waitForTimeout(1500); const c = await st(); expect(c.tag.length).toBeGreaterThan(10);            // typing
   await page.waitForTimeout(2600); const d = await st(); expect(d.mask).toMatch(/radial-gradient/);           // the hub is opening
   await expect(page.locator('#aog-intro')).toHaveCount(0, { timeout: 6000 });
