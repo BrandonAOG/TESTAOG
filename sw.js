@@ -77,6 +77,8 @@ var cacheProgress = { percent: 0, label: '', done: false };
 // ============================================================
 var CHANGELOG = [
   '📝 PROPERTY LOOKUP — the Elevation Certificate note on the map is easier to tap and opens the PDF instead of looking up the map spot underneath.',
+  '🦃 THANKSGIVING — form pages with the Thanksgiving theme now have turkeys gobbling in the distance every so often.',
+  '🎅 CHRISTMAS — real sleigh bells jingle softly in the background, and Santa gives a "ho ho ho" every 15–20 seconds.',
 ]
 //
 // ============================================================

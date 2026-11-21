@@ -438,3 +438,25 @@ test('Property Lookup: the 📝 certificate note opens its PDF through a real li
   expect(r.got).toEqual([{ href: 'https://florida.withforerunner.com/view-file/7b9a17b2-64ff-4aa0-bb61-244da9ff1f6e', target: '_blank', rel: 'noopener noreferrer' }]);
   expect(r.leftover).toBe(0);
 });
+
+test('Sounds: the holiday recordings are embedded in sounds.js and decode — no separate audio files', async ({ page }) => {
+  const src = read('sounds.js'), sw = read('sw.js');
+  expect(src).toMatch(/thanksgiving:\s*\{[^}]*\['gobble',/);
+  expect(src).toMatch(/christmas:\s*\{\s*loop: 'hearth', occ: \[\['hohoho', 15000, 20000\]/);
+  expect(sw).not.toMatch(/\.mp3'/);                                         // nothing extra to precache
+  for (const f of ['turkey-gobble.mp3', 'santa-hohoho.mp3', 'sleigh-bells-loop.mp3']) expect(fs.existsSync(path.join(ROOT, f))).toBe(false);
+  const mp3 = []; page.on('request', r => { if (/\.mp3(\?|$)/.test(r.url())) mp3.push(r.url()); });
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  expect(await open(page, '/estimate/', { settle: 1500 })).toEqual([]);
+  await page.mouse.click(5, 5);                                  // unlock audio
+  await page.evaluate(() => {
+    [...document.body.classList].filter(c => /^seasonal-/.test(c)).forEach(c => document.body.classList.remove(c));
+    document.body.classList.add('seasonal-christmas');            // starts the hearth bed + bell loop
+    AOGSound.previewPlay('hohoho'); AOGSound.previewPlay('gobble');
+  });
+  await page.waitForTimeout(2500);
+  const st = await page.evaluate(() => AOGSound._recStatus ? AOGSound._recStatus() : null);
+  expect(st).toEqual({ gobble: true, hohoho: true, bells: true });
+  expect(mp3).toEqual([]);
+  expect(errs).toEqual([]);
+});
