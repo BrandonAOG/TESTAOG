@@ -77,7 +77,7 @@ var cacheProgress = { percent: 0, label: '', done: false };
 // ============================================================
 var CHANGELOG = [
   '⚡ ELECTRICAL THEORY — ⛶ Full screen for the one-line (pinch, drag, quick controls), Ctrl+scroll zooms just the drawing, and a slim "What\'s happening" bar on phones.',
-  '🎄 HOLIDAY SOUNDS — turkeys gobble on Thanksgiving pages; sleigh bells and a "ho ho ho" on Christmas pages.',
+  '🎄 HOLIDAY SOUNDS — a steady autumn wind with turkeys gobbling on Thanksgiving pages; sleigh bells and a "ho ho ho" on Christmas pages.',
   '🎵 SOUNDS — opening the app on iPhone no longer pauses your music or CarPlay audio.',
   '📝 PROPERTY LOOKUP — the Elevation Certificate note on the map is easier to tap and opens the PDF.',
 ]

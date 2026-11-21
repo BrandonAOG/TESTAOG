@@ -1853,6 +1853,46 @@
       oscLoopNode('sine', 220, 0.007); oscLoopNode('sine', 233.1, 0.006);
       noiseLoopNode('bandpass', 280, 0.7, 0.018, true);
     },
+    /* Thanksgiving bed: a STEADY autumn wind that slowly builds and eases (Brandon, Nov 21 2026 — the
+       old "silence, then a 2-3 s gust that snaps on" felt off). Brown-ish noise (smoother than white —
+       sounds like air, not hiss) through a broad low band, plus a narrow higher "whistle" band that only
+       comes up when it blows hard. Every few seconds the wind picks a new speed (mostly gentle, now and
+       then a stronger swell) and glides there over 4-8 s: faster = louder + a little higher. Fades in
+       over 3 s; never stops, never hits. Level = the 50% chosen in the mockup. */
+    autumnwind: function () {
+      var c = ctx, t = c.currentTime, sr = c.sampleRate, key = amb.playingKey;
+      var buf = c._autumnNoise;
+      if (!buf) {
+        var n = Math.floor(sr * 6); buf = c.createBuffer(1, n, sr); var d = buf.getChannelData(0), l = 0;
+        for (var i = 0; i < n; i++) { l = (l + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = l * 3.5; }
+        c._autumnNoise = buf;
+      }
+      var master = c.createGain(); master.gain.setValueAtTime(0.0001, t); master.gain.linearRampToValueAtTime(0.45, t + 3);
+      master.connect(out(c));
+      var s1 = c.createBufferSource(); s1.buffer = buf; s1.loop = true;
+      var f1 = c.createBiquadFilter(); f1.type = 'bandpass'; f1.Q.value = 0.5; f1.frequency.value = 260;
+      var g1 = c.createGain(); g1.gain.value = 0.05;
+      s1.connect(f1).connect(g1).connect(master);
+      var s2 = c.createBufferSource(); s2.buffer = buf; s2.loop = true; s2.loopStart = 1.3; s2.loopEnd = 5.7;
+      var f2 = c.createBiquadFilter(); f2.type = 'bandpass'; f2.Q.value = 3; f2.frequency.value = 700;
+      var g2 = c.createGain(); g2.gain.value = 0;
+      s2.connect(f2).connect(g2).connect(master);
+      s1.start(t); s2.start(t, 2.1);
+      amb.nodes.push(s1, s2, f1, f2, g1, g2, master);
+      function glide(p, v, now, ramp) { p.cancelScheduledValues(now); p.setValueAtTime(p.value, now); p.linearRampToValueAtTime(v, now + ramp); }
+      function step() {
+        if (amb.playingKey !== key || ctx !== c) return;              // theme changed or context rebuilt
+        var now = c.currentTime;
+        var sp = Math.random() < 0.25 ? 0.75 + Math.random() * 0.25 : 0.15 + Math.random() * 0.45;
+        var ramp = 4 + Math.random() * 4;
+        glide(g1.gain, 0.035 + 0.075 * sp, now, ramp);
+        glide(f1.frequency, 200 + 260 * sp, now, ramp);
+        glide(g2.gain, 0.03 * sp * sp, now, ramp);
+        glide(f2.frequency, 550 + 500 * sp, now, ramp);
+        amb.timers.push(setTimeout(step, (ramp + 1 + Math.random() * 3) * 1000));
+      }
+      step();
+    },
     // Winter bed: a soft, cold wind under the window — quieter than Halloween's
     winterwind: function () { noiseLoopNode('bandpass', 520, 0.6, 0.010, true); noiseLoopNode('bandpass', 1400, 0.9, 0.003, true); },
     // Christmas bed: a fire in the hearth (low roar + crackle pops) with a soft
@@ -1957,7 +1997,7 @@
     newyear:      { occ: [['explosion', 9000, 20000], ['fanfare', 30000, 70000]] },
     fall:         { occ: [['wind', 8000, 18000]] },
     winter:       { loop: 'winterwind', occ: [['wind', 12000, 24000], ['snowsteps', 50000, 100000]] },
-    thanksgiving: { occ: [['wind', 10000, 20000], ['gobble', 30000, 60000]] },
+    thanksgiving: { loop: 'autumnwind', occ: [['gobble', 30000, 60000]] },   // steady, swelling wind (no more snap-on gusts)
     spring:       { occ: [['chirp', 5000, 12000]] },
     easter:       { occ: [['chirp', 6000, 14000]] },
     summer:       { occ: [['chirp', 9000, 18000]] },
@@ -2214,6 +2254,8 @@
     // even for 'animations' sounds (fireworks/thunder) that preview mode
     // silences to stop background bleed. Still respects master mute + mode.
     // Test/diagnostic hook: which embedded recordings have decoded on the live audio context.
+    // Test/diagnostic hook: which background bed is playing and how many audio nodes it holds.
+    _ambStatus: function () { return { key: amb.playingKey, nodes: amb.nodes.length, timers: amb.timers.length }; },
     _recStatus: function () { var c = ctx || {}; return { gobble: !!c._rec_gobble, hohoho: !!c._rec_hohoho, bells: !!c._rec_bells }; },
     previewPlay: function (name) {
       if (!RAW[name]) return;

@@ -441,7 +441,7 @@ test('Property Lookup: the 📝 certificate note opens its PDF through a real li
 
 test('Sounds: the holiday recordings are embedded in sounds.js and decode — no separate audio files', async ({ page }) => {
   const src = read('sounds.js'), sw = read('sw.js');
-  expect(src).toMatch(/thanksgiving:\s*\{[^}]*\['gobble',/);
+  expect(src).toMatch(/thanksgiving:\s*\{\s*loop: 'autumnwind', occ: \[\['gobble',/);
   expect(src).toMatch(/christmas:\s*\{\s*loop: 'hearth', occ: \[\['hohoho', 15000, 20000\]/);
   expect(sw).not.toMatch(/\.mp3'/);                                         // nothing extra to precache
   for (const f of ['turkey-gobble.mp3', 'santa-hohoho.mp3', 'sleigh-bells-loop.mp3']) expect(fs.existsSync(path.join(ROOT, f))).toBe(false);
@@ -458,5 +458,22 @@ test('Sounds: the holiday recordings are embedded in sounds.js and decode — no
   const st = await page.evaluate(() => AOGSound._recStatus ? AOGSound._recStatus() : null);
   expect(st).toEqual({ gobble: true, hohoho: true, bells: true });
   expect(mp3).toEqual([]);
+  expect(errs).toEqual([]);
+});
+
+test('Sounds: Thanksgiving pages play a steady wind bed (no snap-on gusts) under the turkeys', async ({ page }) => {
+  const errs = []; page.on('pageerror', e => errs.push(e.message));
+  expect(await open(page, '/estimate/', { settle: 1500 })).toEqual([]);
+  await page.mouse.click(5, 5);                                  // unlock audio
+  await page.evaluate(() => {
+    [...document.body.classList].filter(c => /^seasonal-/.test(c)).forEach(c => document.body.classList.remove(c));
+    document.body.classList.add('seasonal-thanksgiving');
+  });
+  await page.waitForTimeout(1200);
+  const a = await page.evaluate(() => AOGSound._ambStatus());
+  expect(a.key).toMatch(/^season:thanksgiving/);
+  expect(a.nodes).toBeGreaterThanOrEqual(7);                     // two noise layers + filters + gains + master, running continuously
+  expect(a.timers).toBeGreaterThanOrEqual(2);                    // the next speed change + the next gobble
+  expect(read('sounds.js')).not.toMatch(/thanksgiving:\s*\{[^}]*'wind'/);
   expect(errs).toEqual([]);
 });
