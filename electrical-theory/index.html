@@ -4026,6 +4026,9 @@ setTimeout(adjustTopPadding, 100);
   }
   function close(){
     if(!ov) return; home.appendChild(svgEl()); ov.remove(); ov=null;
+    // Drop full screen's sizing before the page re-lays the drawing out. On a phone the page only sets the
+    // WIDTH, so the full-screen height stayed behind and the drawing came back shrunk inside its box.
+    var sv=svgEl(); sv.style.width=''; sv.style.height=''; sv.style.maxWidth=''; sv.style.flexShrink='';
     if(document.fullscreenElement){ try{ document.exitFullscreen(); }catch(e){} }
     try{ render(); }catch(e){}
     window.scrollTo(0,sy0);

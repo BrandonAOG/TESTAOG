@@ -167,3 +167,24 @@ test('Phone: the opened "What\'s happening" text runs full width under the label
     return { open: b.classList.contains('open'), wide: rt.width / rb.width, below: rt.top >= rl.bottom - 1, leftAligned: Math.abs(rt.left - rl.left) < 4 }; });
   expect(g.open).toBe(true); expect(g.wide).toBeGreaterThan(0.85); expect(g.below).toBe(true); expect(g.leftAligned).toBe(true);
 });
+
+test('Phone: closing full screen puts the One-Line back at its normal size (Brandon\'s screen recording, Nov 21)', async ({ page }, info) => {
+  phone(info);
+  expect(await open(page, PAGE, { settle: 2000 })).toEqual([]);
+  const box = () => page.evaluate(() => { const s = document.getElementById('svg'), r = s.getBoundingClientRect(), b = s.getBBox ? null : null;
+    return { w: Math.round(r.width), h: Math.round(r.height), styleH: s.style.height }; });
+  const before = await box();
+  for (const zoom of [false, true]) {
+    await page.evaluate(() => document.querySelector('.fs-btn').click()); await page.waitForTimeout(500);
+    if (zoom) { await page.evaluate(() => document.querySelector('.fs-ov [data-z=in]').click()); await page.waitForTimeout(400); }
+    await page.evaluate(() => document.querySelector('.fs-ov [data-z=x]').click()); await page.waitForTimeout(500);
+    const after = await box();
+    expect(Math.abs(after.w - before.w)).toBeLessThan(3);
+    expect(Math.abs(after.h - before.h)).toBeLessThan(3);
+  }
+  // and a tap on the page after that redraws exactly as it would had full screen never been opened
+  const tap = () => page.evaluate(() => { document.querySelectorAll('[data-sys]')[1].click(); });
+  await tap(); await page.waitForTimeout(400); const a1 = await box();
+  await page.reload(); await page.waitForTimeout(2000); await tap(); await page.waitForTimeout(400); const a2 = await box();
+  expect(Math.abs(a1.w - a2.w)).toBeLessThan(3); expect(Math.abs(a1.h - a2.h)).toBeLessThan(3);
+});
