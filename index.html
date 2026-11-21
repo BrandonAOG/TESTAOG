@@ -343,6 +343,100 @@ body.fav-dragging-active, body.fav-dragging-active * { cursor: grabbing !importa
   window.addEventListener('unhandledrejection',function(e){ var r=e.reason; log('Unhandled promise rejection: '+(r&&r.message?r.message:r), r&&r.stack?String(r.stack).split('\n')[1]:''); });
 })();
 </script>
+<style>
+/* ═══ LAUNCH INTRO — logo spins up as gold glitter swirls in (v3.1.3). Once per app launch; tap skips. ═══ */
+#aog-intro{position:fixed;inset:0;z-index:100002;background:radial-gradient(ellipse 90% 60% at 50% 45%,#0d1430 0%,#060913 70%);overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:opacity .45s ease;--u:min(1vw,.5625vh)}
+#aog-intro.out{opacity:0;pointer-events:none}
+#aog-intro canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#aog-intro .ai-l{position:absolute;left:50%;top:38%;width:calc(var(--u)*36);height:calc(var(--u)*36);margin:calc(var(--u)*-18) 0 0 calc(var(--u)*-18)}
+#aog-intro .ai-logo{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 50%;border-radius:50%;opacity:0}
+#aog-intro .ai-w{position:absolute;left:0;right:0;top:62%;text-align:center;font:900 calc(var(--u)*10.6)/1.06 "Arial Black","Segoe UI Black",system-ui,-apple-system,sans-serif;color:#FCD34D;letter-spacing:.03em;text-shadow:0 0 calc(var(--u)*2.2) rgba(251,191,36,.55);opacity:0;transform:translateY(-50%)}
+#aog-intro .ai-w span{display:block;white-space:nowrap}
+#aog-intro .ai-skip{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);text-align:center;font:600 12px system-ui,-apple-system,sans-serif;letter-spacing:.12em;color:rgba(203,213,240,.45);opacity:0;animation:aiSkip .4s ease 1.2s forwards}
+@keyframes aiSkip{to{opacity:1}}
+</style>
+<script>
+(function(){
+  'use strict';
+  // Once per launch: sessionStorage is wiped when the app (or browser tab) is closed, so coming back to the
+  // hub from a tool doesn't replay it. Skipped when Battery Saver is on (low battery / Reduce Motion).
+  // Add ?intro to the hub's address to replay it any time. Automated test browsers skip it (they'd be clicking
+  // the intro instead of the hub) unless ?intro is there.
+  var KEY='aog-intro-shown', force=/[?&]intro\b/.test(location.search);
+  if(!force){
+    if(navigator.webdriver) return;
+    try{ if(sessionStorage.getItem(KEY)) return; sessionStorage.setItem(KEY,'1'); }catch(e){ return; }
+    if(window.AOGSaver&&window.AOGSaver.on) return;
+    if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  }
+
+  var el=document.createElement('div'); el.id='aog-intro'; el.setAttribute('aria-hidden','true');
+  el.innerHTML='<canvas></canvas><div class="ai-l"><img class="ai-logo" alt="" src="./logo.png"></div><div class="ai-w"><span>ALWAYS ON</span><span>GENERATORS</span></div><div class="ai-skip">TAP TO SKIP</div>';
+  document.body.appendChild(el);
+  var cv=el.querySelector('canvas'), c=cv.getContext('2d'), logo=el.querySelector('.ai-logo'), word=el.querySelector('.ai-w');
+  var done=false, raf=0;
+  function finish(){ if(done) return; done=true; el.classList.add('out'); setTimeout(function(){ cancelAnimationFrame(raf); if(el.parentNode) el.parentNode.removeChild(el); },500); }
+  setTimeout(finish,6000);                                   // safety net: never trap the hub behind it
+  el.addEventListener('pointerdown',finish); el.addEventListener('touchstart',finish,{passive:true});
+  try{ run(); }catch(e){ finish(); }
+
+  function run(){
+    var GOLD=['#FFF7D6','#FDE68A','#FCD34D','#FBBF24','#F59E0B'];
+    var rnd=function(a,b){return a+Math.random()*(b-a);}, pick=function(a){return a[Math.random()*a.length|0];};
+    var clamp=function(x,a,b){return Math.max(a,Math.min(b,x));};
+    var W=innerWidth, H=innerHeight, d=Math.min(2,devicePixelRatio||1);
+    cv.width=W*d; cv.height=H*d; c.setTransform(d,0,0,d,0,0);
+    var u=Math.min(W/100,H*.5625/100), parts=[], fns=[], evs=[];
+    function rectOf(e){ var r=e.getBoundingClientRect(); return {x:r.left,y:r.top,w:r.width,h:r.height,cx:r.left+r.width/2,cy:r.top+r.height/2}; }
+    function A(e,frames,dur,delay,easing){ if(!e.animate){ e.style.opacity=1; return; } return e.animate(frames,{duration:dur*1000,delay:(delay||0)*1000,easing:easing||'ease',fill:'both'}); }
+    function emit(o){ var p={type:'spark',x:0,y:0,vx:0,vy:0,g:0,drag:.96,life:1,size:.5,color:pick(GOLD),tw:rnd(8,18),ph:rnd(0,6),alpha:1}; for(var k in o) p[k]=o[k];
+      p.vx*=u; p.vy*=u; p.g*=u; p.size*=u; p.max=p.life; parts.push(p); }
+    function burst(x,y,n,sp,g,type,life){ for(var i=0;i<n;i++){ var a=rnd(0,6.283), s=rnd(10,sp); emit({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rnd(.5,life||1.2),size:rnd(.25,.6),g:g,type:type||(Math.random()<.25?'star':'spark')}); } }
+    function star(x,y,r,a,col){ c.globalAlpha=a; c.fillStyle=col; c.beginPath(); c.moveTo(x,y-r*2.4); c.quadraticCurveTo(x,y,x+r*2.4,y); c.quadraticCurveTo(x,y,x,y+r*2.4); c.quadraticCurveTo(x,y,x-r*2.4,y); c.quadraticCurveTo(x,y,x,y-r*2.4); c.fill(); }
+    function glow(x,y,r,a,col){ var g=c.createRadialGradient(x,y,0,x,y,r); g.addColorStop(0,col); g.addColorStop(1,'rgba(251,191,36,0)'); c.globalAlpha=a; c.fillStyle=g; c.beginPath(); c.arc(x,y,r,0,7); c.fill(); }
+    function rainDrop(y,life){ return {type:Math.random()<.5?'star':'dot',x:rnd(0,W),y:y,vx:rnd(-3,3),vy:rnd(28,46),drag:1,life:life,size:rnd(.3,.65),alpha:.8}; }
+    function rain(until,rate,pre){ if(pre) for(var i=0;i<45;i++) emit(rainDrop(rnd(-10,H*.55),rnd(1.6,3.2)));
+      fns.push(function(t){ if(t>until) return; for(var i=0;i<rate;i++) emit(rainDrop(-2*u,rnd(4,6))); }); }
+
+    var L=rectOf(logo.parentNode);
+    // 1) glitter falling, 2) pulled into a whirl around the logo, 3) logo spins up throwing sparks, 4) burst, name
+    rain(1.0,3,true);
+    evs.push({t:.9,fn:function(){ for(var i=0;i<110;i++){ var a=rnd(0,6.283), r=rnd(32,60)*u; parts.push({orbit:true,type:Math.random()<.3?'star':'dot',cx:L.cx,cy:L.cy,a:a,r:r,rmin:L.w*.5,va:-rnd(4,7),shrink:.35,x:0,y:0,life:rnd(.9,1.3),max:1.3,size:u*rnd(.3,.55),color:pick(GOLD),tw:rnd(8,16),ph:rnd(0,6),alpha:.9}); } }});
+    var s0=.6, sd=1.8;
+    A(logo,[{opacity:0,filter:'blur(8px)',transform:'rotate(0deg) scale(.75)'},{opacity:1,filter:'blur(0px)',transform:'rotate(-900deg) scale(1)',offset:.8},{opacity:1,filter:'blur(0px) drop-shadow(0 0 12px rgba(251,191,36,.7))',transform:'rotate(-1080deg) scale(1)'}],sd,s0,'cubic-bezier(.5,0,.3,1)');
+    fns.push(function(t){ var k=(t-s0-sd*.15)/(sd*.7); if(k<0||k>1) return; var spd=Math.sin(k*Math.PI), n=1+spd*3|0; for(var i=0;i<n;i++){ var a=rnd(0,6.283), r=L.w*.48; emit({x:L.cx+Math.cos(a)*r,y:L.cy+Math.sin(a)*r,vx:-Math.sin(a)*60*spd+Math.cos(a)*10,vy:Math.cos(a)*60*spd+Math.sin(a)*10,g:20,life:rnd(.3,.7),size:rnd(.25,.45)}); } });
+    evs.push({t:s0+sd*.95,fn:function(){ burst(L.cx,L.cy,60,42,14); burst(L.cx,L.cy,18,22,4,'star',1.4); }});
+    A(word,[{opacity:0,filter:'blur(10px)'},{opacity:1,filter:'blur(0px)'}],.8,2.0);
+    for(var i=0;i<8;i++) evs.push({t:2.6+i*.12,fn:function(){ var r=word.getBoundingClientRect(); emit({type:'star',x:r.left+rnd(.1,.9)*r.width,y:r.top+rnd(.15,.85)*r.height,life:.8,size:rnd(.6,.9)}); }});
+    rain(2.9,1,false);
+    evs.push({t:3.5,fn:finish});
+    // Sound: OFF unless "Intro spin-up" is switched on in Sound Settings. Goes through the shared engine, so it
+    // mixes with (never stops) music/CarPlay and stays silent where the phone hasn't allowed audio yet.
+    setTimeout(function(){ var S=window.AOGSound; if(S){ S.play('introSpin'); } },s0*1000);
+
+    var t0=performance.now(), last=t0;
+    function frame(now){
+      if(done&&!el.parentNode) return;
+      var t=(now-t0)/1000, dt=Math.min(.05,(now-last)/1000); last=now;
+      evs=evs.filter(function(e){ if(t>=e.t){ e.fn(); return false; } return true; });
+      c.clearRect(0,0,W,H); fns.forEach(function(f){ f(t); });
+      c.globalCompositeOperation='lighter';
+      for(var i=parts.length-1;i>=0;i--){ var p=parts[i];
+        if(p.orbit){ p.a+=p.va*dt; p.r=Math.max(p.rmin,p.r*Math.pow(p.shrink,dt)); p.x=p.cx+Math.cos(p.a)*p.r; p.y=p.cy+Math.sin(p.a)*p.r*.92; }
+        else { var dr=Math.pow(p.drag,dt*60); p.vx*=dr; p.vy=p.vy*dr+p.g*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; }
+        p.life-=dt; if(p.life<=0||p.y>H+20){ parts.splice(i,1); continue; }
+        var a=clamp(p.life/p.max,0,1);
+        if(p.type==='spark'){ c.globalAlpha=a; c.strokeStyle=p.color; c.lineWidth=p.size; c.lineCap='round'; c.beginPath(); c.moveTo(p.x-p.vx*.035,p.y-p.vy*.035); c.lineTo(p.x,p.y); c.stroke(); }
+        else if(p.type==='star'){ var r=p.size*(.55+.45*Math.sin(t*p.tw+p.ph)); star(p.x,p.y,r,a,p.color); glow(p.x,p.y,r*3,a*.5,'rgba(255,240,180,.9)'); }
+        else glow(p.x,p.y,p.size*3,a*p.alpha,p.color);
+      }
+      c.globalAlpha=1; c.globalCompositeOperation='source-over';
+      raf=requestAnimationFrame(frame);
+    }
+    raf=requestAnimationFrame(frame);
+  }
+})();
+</script>
 <canvas id="bg-canvas"></canvas>
 <div id="offline-banner">No network connection · Hub available offline</div>
 
@@ -4181,9 +4275,10 @@ document.querySelectorAll('.cat-btn').forEach(function(btn) {
     ['animations', '⚡', 'Background Animations'],
     ['seasonal',   '🎆', 'Seasonal & Fireworks'],
     ['forms',      '✅', 'Forms & Checklists'],
-    ['alerts',     '🔔', 'Alerts & Updates']
+    ['alerts',     '🔔', 'Alerts & Updates'],
+    ['intro',      '🌀', 'Intro spin-up (when the app opens)']
   ];
-  var SAMPLE = { master:'click', taps:'click', animations:'boltStrike', seasonal:'explosion', forms:'pop', alerts:'notify' };
+  var SAMPLE = { master:'click', taps:'click', animations:'boltStrike', seasonal:'explosion', forms:'pop', alerts:'notify', intro:'introSpin' };
   var TONES = [
     ['click', '👆 Button Click', [['thock','Thock'],['knock','Knock'],['classic','Classic'],['typewriter','Typewriter'],['bubble','Bubble'],['waterdrop','Water Drop'],['retro','Retro 8-Bit'],['pluck','Pluck'],['switch','Switch'],['chirpclick','Chirp'],['doubletap','Double Tap'],['softpad','Soft Pad'],['glasstap','Glass Tap'],['zapclick','Zap'],['boing','Boing'],['keypress','Keypress'],['pebble','Pebble'],['muffled','Muffled'],['hitick','Hi Tick'],['clack','Clack'],['dew','Dew'],['smallping','Small Ping'],['buzztap','Buzz Tap'],['fingersnap','Finger Snap']]],
     ['pop', '✅ Checkbox', [['bubblepop','Bubble Pop'],['pop','Pop'],['tick','Wood Tick'],['blip','Blip'],['cork','Cork'],['marble','Marble'],['ding','Ding'],['snap','Snap'],['clave','Woodblock'],['boop','Boop'],['kiss','Kiss'],['latch','Latch'],['droppop','Drop Pop'],['tinybell','Tiny Bell'],['chirppop','Chirp Pop'],['plip','Plip'],['knuckle','Knuckle'],['softsnap','Soft Snap'],['uncork','Uncork'],['pip','Pip'],['taptap','Tap-Tap'],['bloopdn','Bloop Down'],['stone','Stone'],['clickpop','Click Pop']]],

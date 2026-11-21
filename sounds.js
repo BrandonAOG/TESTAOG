@@ -58,7 +58,7 @@
     } catch (e) {}
   }
   // Per-category sound preferences (controlled by the hub Sound Panel)
-  var DEFAULT_PREFS = { taps: true, animations: true, seasonal: true, forms: true, alerts: true };
+  var DEFAULT_PREFS = { taps: true, animations: true, seasonal: true, forms: true, alerts: true, intro: false }; // intro: launch spin-up, opt-in
   var prefs;
   try { prefs = JSON.parse(lsGet('aog-sound-prefs')) || {}; } catch (e) { prefs = {}; }
   for (var pk in DEFAULT_PREFS) if (typeof prefs[pk] !== 'boolean') prefs[pk] = DEFAULT_PREFS[pk];
@@ -91,7 +91,7 @@
     chirp:'seasonal', harp:'seasonal', wind:'seasonal',
     owl:'seasonal', moan:'seasonal', toll:'seasonal', creak:'seasonal', howl:'seasonal',
     sleigh:'seasonal', chimes:'seasonal', musicbox:'seasonal', snowsteps:'seasonal', hohoho:'seasonal',
-    gobble:'seasonal',
+    gobble:'seasonal', introSpin:'intro',
     pop:'forms', fanfare:'forms', result:'forms', shutter:'forms',
     trash:'forms', copied:'forms', sweep:'forms', clunk:'taps', tink:'taps'
   };
@@ -975,6 +975,29 @@
     }
   }
 
+  // Hub launch intro (v3.1.3): a 1.7 s rising hum + whoosh as the logo spins up, then a soft bell chime when
+  // it stops. Category 'intro' is OFF by default (Sound Settings → Intro spin-up).
+  function introSpin() {
+    if (muted) return;
+    var c = getCtx(); if (!c) return;
+    var t = c.currentTime + 0.02, dur = 1.7, o = out(c);
+    var osc = c.createOscillator(); osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(45, t); osc.frequency.exponentialRampToValueAtTime(520, t + dur * 0.85); osc.frequency.exponentialRampToValueAtTime(380, t + dur);
+    var lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 6;
+    lp.frequency.setValueAtTime(200, t); lp.frequency.exponentialRampToValueAtTime(2400, t + dur * 0.85);
+    var g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + dur * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.25);
+    osc.connect(lp).connect(g).connect(o); osc.start(t); osc.stop(t + dur + 0.3);
+    var len = Math.floor(c.sampleRate * (dur + 0.4)), nb = c.createBuffer(1, len, c.sampleRate), nd = nb.getChannelData(0);
+    for (var j = 0; j < len; j++) nd[j] = Math.random() * 2 - 1;
+    var ns = c.createBufferSource(); ns.buffer = nb;
+    var bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.2;
+    bp.frequency.setValueAtTime(300, t); bp.frequency.exponentialRampToValueAtTime(3200, t + dur * 0.85);
+    var ng = c.createGain(); ng.gain.setValueAtTime(0.0001, t); ng.gain.exponentialRampToValueAtTime(0.07, t + dur * 0.7); ng.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.35);
+    ns.connect(bp).connect(ng).connect(o); ns.start(t); ns.stop(t + dur + 0.4);
+    var bell = [[1318.5, 0.06], [1975.5, 0.045], [2637, 0.03], [3951, 0.018]];
+    for (var i = 0; i < bell.length; i++) tone({ type: 'sine', from: bell[i][0], dur: 1.4, vol: bell[i][1], delay: 0.02 + dur * 0.95 + i * 0.045 });
+  }
+
   function shimmer() { // cosmic / aurora: descending glassy notes
     var f = 2400 + Math.random() * 800;
     for (var i = 0; i < 5; i++) {
@@ -1558,6 +1581,7 @@
     pulse:   function () { tone({ type: 'sine', from: 200, to: 60, dur: 0.4, vol: 0.06 }); },
     explosion: function () { pick('explosion'); },
     launch:  launchWhistle,
+    introSpin: introSpin,
     thunder: function () { pick('thunder'); },
     boltStrike: function () { // homepage lightning: crack now, rumble after
       zap(true);
@@ -1612,7 +1636,7 @@
   // Haptic patterns (ms on/off). Android Chrome supports navigator.vibrate;
   // iPhones do not expose it to web apps, so iOS stays sound-only.
   var VIB = {
-    click: 8, hover: 0, tick: 5, pop: 12, result: 15, copied: [10, 40, 10],
+    click: 8, hover: 0, tick: 5, introSpin: 0, pop: 12, result: 15, copied: [10, 40, 10],
     toast: [20, 60, 20], notify: [30, 60, 30], online: [15, 50, 15], offline: [40, 60, 40],
     success: [20, 50, 20, 50, 40], error: [60, 40, 60], fanfare: [30, 60, 30, 60, 30, 60, 80],
     explosion: [10, 20, 120], launch: 20, boltStrike: [15, 30, 90], thunder: 120,

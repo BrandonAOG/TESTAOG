@@ -3905,8 +3905,9 @@ setTimeout(adjustTopPadding, 100);
   .wh-bar .lab{flex:none;font:800 10px 'Orbitron',system-ui;letter-spacing:1px;color:var(--accent,#39d3ff)}
   .wh-bar .txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .wh-bar .chev{flex:none;opacity:.7;transition:transform .2s}
-  .wh-bar.open{align-items:flex-start}
-  .wh-bar.open .txt{white-space:normal;max-height:45vh;overflow:auto}
+  .wh-bar.open{align-items:center;flex-wrap:wrap}
+  .wh-bar.open .chev{margin-left:auto}
+  .wh-bar.open .txt{order:5;flex:1 1 100%;white-space:normal;max-height:45vh;overflow:auto;text-align:left}   /* opened: the explanation drops under the label at full width */
   .wh-bar.open .chev{transform:rotate(180deg)}
   .wh-bar .dot{flex:none;width:8px;height:8px;border-radius:50%;background:#ffd27a;opacity:0}
   .wh-bar.new .dot{opacity:1}
@@ -3996,7 +3997,10 @@ setTimeout(adjustTopPadding, 100);
       (opt.chips?chipsHTML():'')+
       '<div class="fs-stage"><div class="pan"></div></div>';
     ov.appendChild(makeBar());
-    document.body.appendChild(ov); document.documentElement.style.overflow='hidden'; document.body.style.overflow='hidden';
+    // The page behind is frozen by scroll-lock.js (it spots this full-screen layer like any pop-up). Don't also
+    // set overflow:hidden here: scroll-lock saves the body's style when it locks and puts it back when it
+    // unlocks, so a hidden overflow set first was "restored" after closing and the page could no longer scroll.
+    document.body.appendChild(ov);
     home=svgEl().parentElement; ov.querySelector('.pan').appendChild(svgEl());
     fit(); syncChips();
     if(!PHONE() && document.documentElement.requestFullscreen){ try{ document.documentElement.requestFullscreen().catch(function(){}); }catch(e){} }
@@ -4022,7 +4026,6 @@ setTimeout(adjustTopPadding, 100);
   }
   function close(){
     if(!ov) return; home.appendChild(svgEl()); ov.remove(); ov=null;
-    document.documentElement.style.overflow=''; document.body.style.overflow='';
     if(document.fullscreenElement){ try{ document.exitFullscreen(); }catch(e){} }
     try{ render(); }catch(e){}
     window.scrollTo(0,sy0);

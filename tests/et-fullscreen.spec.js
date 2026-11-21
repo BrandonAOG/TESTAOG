@@ -137,3 +137,33 @@ test('Phone: in full screen a tap still works after zooming and dragging with a 
   await page.touchscreen.tap(t.x, t.y); await page.waitForTimeout(500);
   expect(await page.evaluate(() => utilOff)).toBe(true);
 });
+
+test('Phone: after closing full screen the page scrolls again (Brandon, Nov 21)', async ({ page }, info) => {
+  phone(info);
+  expect(await open(page, PAGE, { settle: 2000 })).toEqual([]);
+  await page.evaluate(() => window.scrollTo(0, 400)); await page.waitForTimeout(200);
+  await page.evaluate(() => document.querySelector('.fs-btn').click()); await page.waitForTimeout(500);
+  expect(await page.evaluate(() => getComputedStyle(document.body).position)).toBe('fixed');    // page behind is frozen
+  await page.evaluate(() => document.querySelector('.fs-ov [data-z=x]').click()); await page.waitForTimeout(800);
+  const st = await page.evaluate(() => ({ ov: !!document.querySelector('.fs-ov'), pos: getComputedStyle(document.body).position, ob: getComputedStyle(document.body).overflowY, oh: getComputedStyle(document.documentElement).overflowY, y: Math.round(scrollY) }));
+  expect(st).toEqual({ ov: false, pos: 'static', ob: 'visible', oh: 'visible', y: 400 });
+  // a real finger swipe moves the page
+  const y0 = await page.evaluate(() => scrollY);
+  await page.mouse.move(200, 600); await page.mouse.wheel(0, 500); await page.waitForTimeout(400);
+  expect(await page.evaluate(() => scrollY)).toBeGreaterThan(y0 + 100);
+  // and again after a second open/close
+  await page.evaluate(() => document.querySelector('.fs-btn').click()); await page.waitForTimeout(400);
+  await page.evaluate(() => document.querySelector('.fs-ov [data-z=x]').click()); await page.waitForTimeout(800);
+  expect(await page.evaluate(() => getComputedStyle(document.body).overflowY)).toBe('visible');
+});
+
+test('Phone: the opened "What\'s happening" text runs full width under the label, not squeezed to the right', async ({ page }, info) => {
+  phone(info);
+  expect(await open(page, PAGE, { settle: 2000 })).toEqual([]);
+  const bar = page.locator('#resultCard .wh-bar');
+  await bar.click(); await page.waitForTimeout(200);
+  const g = await page.evaluate(() => { const b = document.querySelector('#resultCard .wh-bar'), t = b.querySelector('.txt'), l = b.querySelector('.lab');
+    const rb = b.getBoundingClientRect(), rt = t.getBoundingClientRect(), rl = l.getBoundingClientRect();
+    return { open: b.classList.contains('open'), wide: rt.width / rb.width, below: rt.top >= rl.bottom - 1, leftAligned: Math.abs(rt.left - rl.left) < 4 }; });
+  expect(g.open).toBe(true); expect(g.wide).toBeGreaterThan(0.85); expect(g.below).toBe(true); expect(g.leftAligned).toBe(true);
+});
