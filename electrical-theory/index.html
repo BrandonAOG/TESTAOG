@@ -960,7 +960,7 @@ var DEMO={
   }
 };
 /* ---------------- svg helpers ---------------- */
-var ET_BUILD='2026-11-21n';   // shown by ?diag — confirms which copy the device is actually running
+var ET_BUILD='2026-11-21p';   // shown by ?diag — confirms which copy the device is actually running
 var SVGNS='http://www.w3.org/2000/svg', dotPool=[], anim=null;
 var LIGHT=false, LMAP={"#0b1020": "#ffffff", "#0e1526": "#f6f8fb", "#16233f": "#eef3fb", "#101830": "#f3f5f8", "#101a30": "#f6f8fb", "#0f1830": "#f6f8fb", "#2a1620": "#fdecec", "#3a1620": "#fde3e3", "#0d3550": "#dbeffa", "#2b3a5e": "#c3cbd8", "#3a4b6b": "#c3cbd8", "#4a5b80": "#9aa7bd", "#9fb0d6": "#64748b", "#2a3b5e": "#c3cbd8", "#1b2740": "#e3e8ef", "#cdd8f0": "#1f2937", "#8a97b4": "#4b5563", "#5a6b8a": "#94a3b8", "#aeb6c9": "#4b5563", "#8fa0c4": "#4b5563", "#8695b5": "#6b7280", "#6f80a8": "#6b7280", "#7d8aa3": "#9aa7bd", "#d7dbe3": "#374151", "#c3cad8": "#374151", "#e6eaf2": "#e5e7eb", "#55637f": "#6b7280", "#8795ad": "#6b7280", "#ff8a8a": "#dc2626", "#8fd6a3": "#059669", "#5fd4ff": "#0891b2", "#00d4ff": "#0891b2", "#ffd27a": "#b45309", "#ffb35c": "#c2410c", "#e8c9a6": "#92400e", "#e8d39a": "#92400e", "#7fd0f5": "#0369a1", "#3fa7d6": "#0284c7", "#f5c542": "#d99a00", "#c98a4a": "#b45309", "#ff6b6b": "#ef4444", "#ffffff": "#111827", "#1f6f45": "#d1fae5", "#6a5212": "#fef3c7", "#5a1a1f": "#fee2e2", "#6a3a12": "#ffedd5", "#565e6e": "#2f3542", "#c9ced8": "#9ca3af", "#e6c62e": "#c9a800", "#46c36b": "#16a34a", "#8a3030": "#b91c1c", "#3e2a5e": "#ede4fb", "#c69bff": "#7c3aed"};   // light theme: the one-line's colors re-picked for a white background
 function lightenStyles(root){   // the tap menu is HTML with inline colors: swap them for the light palette
@@ -3843,5 +3843,276 @@ window.addEventListener('load', adjustTopPadding);
 setTimeout(adjustTopPadding, 100);
 </script>
 <script src="../aog-footer.js"></script>
+<script>
+/* ===== FULL-SCREEN ONE-LINE · COMPACT "WHAT'S HAPPENING" · CTRL/SHIFT-WHEEL ZOOM  (v3.1.3) =====
+   • ⛶ Full screen (One-Line title) → the SAME live drawing full screen: taps still fault / switch.
+     Pinch, drag, wheel or − Fit + to zoom (laid out at the zoom you settle on, so text stays sharp);
+     Shift+wheel pans sideways. Quick chips: fault type, Utility, Generator, Reset (they press the
+     page's real buttons). A WIDE drawing on a phone held upright is turned sideways (⟳ to switch).
+     A redraw that changes the drawing's size keeps your zoom and keeps what you tapped under your
+     finger. Pop-ups (WHY, circuit / equipment menus) open above it. Esc / ✕ closes.
+   • "What's happening" on a phone is a one-line bar that lights up when it changes — tap to read it.
+   • On the page: Ctrl+wheel (or a trackpad pinch) over the One-Line zooms the DRAWING, not the
+     browser; Shift+wheel pans sideways; drag to pan; the 🔍 chip shows the zoom and resets it.
+   Built from Brandon's live mockup (Nov 21 2026). */
+(function(){
+  'use strict';
+  var opt={ chips:true, turn:true };
+  var PHONE=function(){ return window.matchMedia('(max-width:760px)').matches; };
+
+  var css=document.createElement('style'); css.textContent=`
+  .fs-btn{margin-left:8px;font:700 12px system-ui;letter-spacing:.3px;padding:7px 11px;border-radius:8px;border:1px solid var(--accent,#39d3ff);background:transparent;color:var(--accent,#39d3ff);cursor:pointer}
+  .fs-ov{position:fixed;inset:0;z-index:99999;background:#070b16;display:flex;flex-direction:column;color:#dfe8ff;overscroll-behavior:none}
+  body:not(.dark) .fs-ov{background:#f2f4f9;color:#13203a}
+  .fs-top{display:flex;align-items:center;gap:6px;padding:6px 8px;padding-top:max(6px,env(safe-area-inset-top));padding-left:max(8px,env(safe-area-inset-left));padding-right:max(8px,env(safe-area-inset-right));border-bottom:1px solid rgba(120,150,220,.25)}
+  .fs-top .t{font:800 12px 'Orbitron',system-ui;letter-spacing:1px;margin-right:auto;white-space:nowrap}
+  .fs-ib{min-width:40px;height:38px;border-radius:9px;border:1px solid rgba(120,150,220,.4);background:rgba(20,30,60,.6);color:inherit;font:700 15px system-ui;cursor:pointer;padding:0 10px}
+  body:not(.dark) .fs-ib{background:#fff}
+  .fs-ib.x{border-color:#ff6b6b;color:#ff6b6b}
+  .fs-chips{display:flex;gap:6px;overflow-x:auto;padding:6px 8px;border-bottom:1px solid rgba(120,150,220,.2);scrollbar-width:none}
+  .fs-chips::-webkit-scrollbar{display:none}
+  .fs-chips button{flex:none;font:700 12px system-ui;padding:8px 11px;border-radius:999px;border:1px solid rgba(120,150,220,.4);background:transparent;color:inherit;cursor:pointer}
+  .fs-chips button.on{background:var(--accent,#39d3ff);color:#001a16;border-color:transparent}
+  .fs-chips button.danger{border-color:#ff6b6b;color:#ff6b6b}
+  .fs-chips .sep{flex:none;width:1px;background:rgba(120,150,220,.3);margin:2px 2px}
+  .fs-stage{flex:1;position:relative;overflow:hidden;touch-action:none;cursor:grab;-webkit-user-select:none;user-select:none}
+  .fs-stage.grabbing{cursor:grabbing}
+  .fs-stage svg, .fs-stage svg *{-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
+  .fs-stage .pan{position:absolute;left:0;top:0;transform-origin:0 0}
+  /* ---- compact "What's happening" bar (full screen + phone page) ---- */
+  .wh-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom));border-top:1px solid rgba(120,150,220,.25);cursor:pointer;font:13px/1.35 system-ui;min-height:22px;-webkit-tap-highlight-color:transparent}
+  .wh-bar .lab{flex:none;font:800 10px 'Orbitron',system-ui;letter-spacing:1px;color:var(--accent,#39d3ff)}
+  .wh-bar .txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wh-bar .chev{flex:none;opacity:.7;transition:transform .2s}
+  .wh-bar.open{align-items:flex-start}
+  .wh-bar.open .txt{white-space:normal;max-height:45vh;overflow:auto}
+  .wh-bar.open .chev{transform:rotate(180deg)}
+  .wh-bar .dot{flex:none;width:8px;height:8px;border-radius:50%;background:#ffd27a;opacity:0}
+  .wh-bar.new .dot{opacity:1}
+  @keyframes whFlash{0%{background:rgba(255,210,122,.28)}100%{background:transparent}}
+  .wh-bar.flash{animation:whFlash 1.2s ease-out}
+  @media (max-width:760px){
+    body.wh-compact .result-card{padding:0!important;max-height:none!important;overflow:visible!important}
+    body.wh-compact .result-card > .result-header, body.wh-compact .result-card > #readout{display:none!important}
+    body.wh-compact .result-card .wh-bar{border-top:0;padding-bottom:8px}
+  }
+  .pz-chip{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:50;box-shadow:0 4px 14px rgba(0,0,0,.35);font:700 12px system-ui;padding:6px 10px;border-radius:999px;border:1px solid var(--accent,#39d3ff);background:rgba(10,16,30,.85);color:var(--accent,#39d3ff);cursor:pointer}
+  body:not(.dark) .pz-chip{background:rgba(255,255,255,.92)}
+  .card-scope .scope.pz-on{cursor:grab;-webkit-user-select:none;user-select:none}
+  .card-scope .scope.pz-drag{cursor:grabbing}`;
+  document.head.appendChild(css);
+
+  var readout=document.getElementById('readout');
+  function plain(){ return (readout && readout.textContent || '').replace(/\s+/g,' ').trim(); }
+
+  /* ---- the compact bar ---- */
+  function makeBar(){
+    var b=document.createElement('div'); b.className='wh-bar';
+    b.innerHTML='<span class="lab">WHAT’S HAPPENING</span><span class="dot"></span><span class="txt"></span><span class="chev">▲</span>';
+    b.addEventListener('click',function(){ b.classList.toggle('open'); b.classList.remove('new'); fillBar(b); if(ov) setTimeout(fit,0); });
+    fillBar(b); return b;
+  }
+  function fillBar(b){ var t=b.querySelector('.txt'); if(b.classList.contains('open')) t.innerHTML=readout?readout.innerHTML:''; else t.textContent=plain(); }
+  var pageBar=null;
+  function setupPageBar(){
+    var rc=document.getElementById('resultCard'); if(!rc || pageBar) return;
+    pageBar=makeBar(); rc.appendChild(pageBar); document.body.classList.add('wh-compact');
+  }
+  setupPageBar();
+  var lastTxt=plain();
+  if(readout) new MutationObserver(function(){
+    var t=plain(); if(t===lastTxt) return; lastTxt=t;
+    [pageBar, ov&&ov.querySelector('.wh-bar')].forEach(function(b){ if(!b) return; fillBar(b);
+      if(!b.classList.contains('open')){ b.classList.add('new'); b.classList.remove('flash'); void b.offsetWidth; b.classList.add('flash'); } });
+    syncChips();
+  }).observe(readout,{childList:true,subtree:true,characterData:true});
+
+  /* ---- full screen ---- */
+  var title=document.querySelector('.card-scope .card-title'); if(!title) return;
+  var btn=document.createElement('button'); btn.className='fs-btn'; btn.type='button'; btn.textContent='⛶ Full screen'; title.appendChild(btn);
+  var ov=null, home=null, sy0=0, zc=1, cT=null, z=1, px=0, py=0, fitZ=1, rot=false, lastWH='';
+  function svgEl(){ return document.getElementById('svg'); }
+  function dims(){ var vb=svgEl().viewBox.baseVal; return {W:vb.width||1000,H:vb.height||800}; }
+  function stage(){ return ov.querySelector('.fs-stage'); }
+  /* SHARP ZOOM: a CSS scale() enlarges a bitmap of the drawing, so zoomed-in text went soft. The SVG
+     is instead laid out at the zoom you settle on (zc) — the browser redraws the vectors crisp — and
+     only the in-between pinch/wheel frames use a scale() relative to it. commit() runs 140 ms after
+     the zoom stops changing. */
+  function apply(){ var p=ov.querySelector('.pan'); var k=z/zc; p.style.transform='translate('+px+'px,'+py+'px)'+(k!==1?' scale('+k+')':'')+(rot?' rotate(90deg) translateY(-100%)':''); }
+  function size(){ var d=dims(), s=svgEl(); s.style.width=(d.W*zc)+'px'; s.style.height=(d.H*zc)+'px'; s.style.maxWidth='none'; }
+  function commit(){ clearTimeout(cT); cT=null; if(!ov||zc===z) return; zc=z; size(); apply(); }
+  function commitSoon(){ clearTimeout(cT); cT=setTimeout(commit,140); }
+  function wantRot(){ var d=dims(), s=stage(); return opt.turn && PHONE() && s.clientHeight>s.clientWidth*1.15 && d.W>d.H*1.05; }
+  function fit(keepRot){
+    if(!ov) return; var d=dims(), s=stage(), sw=s.clientWidth, sh=s.clientHeight;
+    if(!keepRot) rot=wantRot();
+    var w=rot?d.H:d.W, h=rot?d.W:d.H;
+    fitZ=Math.min(sw/w, sh/h)*0.97; z=fitZ; zc=z; size(); px=(sw-w*z)/2; py=(sh-h*z)/2; apply();
+    var rb=ov.querySelector('[data-z=rot]'); if(rb) rb.style.display=(PHONE()&&opt.turn)?'':'none';
+    lastWH=d.W+'x'+d.H;
+  }
+  function zoomAt(f,cx,cy){ var s=stage(); if(cx==null){cx=s.clientWidth/2; cy=s.clientHeight/2;} var nz=Math.max(fitZ*0.7,Math.min(fitZ*8,z*f)); px=cx-(cx-px)*nz/z; py=cy-(cy-py)*nz/z; z=nz; apply(); commitSoon(); }
+
+  /* quick-control chips: forward to the page's real buttons so state stays in one place */
+  function realFt(){ return Array.prototype.slice.call(document.querySelectorAll('#ftGrp button')); }
+  function chipsHTML(){
+    var h=realFt().map(function(b){ return '<button data-ft="'+b.dataset.ft+'">'+b.textContent.trim()+'</button>'; }).join('');
+    return '<div class="fs-chips">'+h+'<span class="sep"></span><button data-act="util">⚡ Utility</button><button data-act="gen">⚙ Generator</button><button class="danger" data-act="reset">↺ Reset</button></div>';
+  }
+  function syncChips(){
+    if(!ov) return; var c=ov.querySelector('.fs-chips'); if(!c) return;
+    realFt().forEach(function(b){ var x=c.querySelector('[data-ft="'+b.dataset.ft+'"]'); if(x) x.classList.toggle('on', b.classList.contains('on')); });
+    var u=c.querySelector('[data-act=util]'); try{ u.classList.toggle('on', !utilOff); u.textContent = utilOff ? '⚡ Utility OFF' : '⚡ Utility on'; }catch(e){}
+    var g=c.querySelector('[data-act=gen]'), gb=document.getElementById('genBtn'); if(g&&gb) g.classList.toggle('on', gb.classList.contains('on'));
+  }
+
+  function open(){
+    if(ov) return; sy0=window.scrollY;
+    ov=document.createElement('div'); ov.className='fs-ov';
+    ov.innerHTML='<div class="fs-top"><span class="t">ONE-LINE</span>'+
+      '<button class="fs-ib" data-z="out" aria-label="Zoom out">−</button><button class="fs-ib" data-z="fit">Fit</button><button class="fs-ib" data-z="in" aria-label="Zoom in">+</button>'+
+      '<button class="fs-ib" data-z="rot" aria-label="Turn">⟳</button><button class="fs-ib x" data-z="x" aria-label="Close">✕</button></div>'+
+      (opt.chips?chipsHTML():'')+
+      '<div class="fs-stage"><div class="pan"></div></div>';
+    ov.appendChild(makeBar());
+    document.body.appendChild(ov); document.documentElement.style.overflow='hidden'; document.body.style.overflow='hidden';
+    home=svgEl().parentElement; ov.querySelector('.pan').appendChild(svgEl());
+    fit(); syncChips();
+    if(!PHONE() && document.documentElement.requestFullscreen){ try{ document.documentElement.requestFullscreen().catch(function(){}); }catch(e){} }
+    ov.addEventListener('click',onClick);
+    var st=stage(); st.addEventListener('pointerdown',pDown); st.addEventListener('pointermove',pMove); st.addEventListener('pointerup',pUp); st.addEventListener('pointercancel',pUp);
+    st.addEventListener('selectstart',function(e){ e.preventDefault(); }); st.addEventListener('dragstart',function(e){ e.preventDefault(); });
+    st.addEventListener('wheel',function(e){ e.preventDefault();
+      if(e.shiftKey && !e.ctrlKey){ var dd=(e.deltaX||e.deltaY)*(e.deltaMode===1?16:1); px-=dd; apply(); return; }   // Shift + wheel = pan left / right
+      var r=st.getBoundingClientRect(); zoomAt(e.deltaY<0?1.15:1/1.15, e.clientX-r.left, e.clientY-r.top); },{passive:false});
+    st.addEventListener('click',function(e){ if(moved){ e.stopPropagation(); e.preventDefault(); } },true);   // a drag is not a tap on the drawing
+  }
+  function onClick(e){
+    var b=e.target.closest('[data-z],[data-ft],[data-act]'); if(!b||!ov.contains(b)) return;
+    if(b.dataset.z){ var k=b.dataset.z;
+      if(k==='x') close(); else if(k==='fit') fit(); else if(k==='in') zoomAt(1.4); else if(k==='out') zoomAt(1/1.4);
+      else if(k==='rot'){ rot=!rot; fit(true); } return; }
+    if(b.dataset.ft){ var r=document.querySelector('#ftGrp button[data-ft="'+b.dataset.ft+'"]'); if(r) r.click(); syncChips(); return; }
+    var a=b.dataset.act;
+    if(a==='util'){ try{ toggleUtil(); }catch(err){} }
+    else if(a==='gen'){ var g=document.getElementById('genBtn'); if(g) g.click(); }
+    else if(a==='reset'){ var rs=document.getElementById('resetBtn'); if(rs) rs.click(); }
+    setTimeout(syncChips,50);
+  }
+  function close(){
+    if(!ov) return; home.appendChild(svgEl()); ov.remove(); ov=null;
+    document.documentElement.style.overflow=''; document.body.style.overflow='';
+    if(document.fullscreenElement){ try{ document.exitFullscreen(); }catch(e){} }
+    try{ render(); }catch(e){}
+    window.scrollTo(0,sy0);
+    // leaving the browser's full screen resizes the window a moment later and the page redraws —
+    // put the scroll back again once that has settled
+    var yBack=sy0; setTimeout(function(){ window.scrollTo(0,yBack); },180); setTimeout(function(){ window.scrollTo(0,yBack); },450);
+  }
+  btn.addEventListener('click',open);
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') close(); });
+  document.addEventListener('fullscreenchange',function(){ if(ov && !document.fullscreenElement && !PHONE()) close(); });
+  window.addEventListener('resize',function(){ if(ov) setTimeout(function(){ fit(); },60); });
+
+  /* The page redraws the SVG on every tap and re-sizes it — put our sizing back and KEEP THE ZOOM.
+     When the drawing changes size (inverter count, generator, 400 A…) do NOT refit (that threw you
+     out of your zoom): keep z, and slide the drawing so the control you tapped stays under your
+     finger — found again after the redraw the same way the page does it (gTxt / gSame). */
+  var anchor=null;
+  function anchorAt(e){ try{ var g=e.target.closest&&e.target.closest('g'); if(!g||!svgEl().contains(g)) { anchor=null; return; }
+      var tx=gTxt(g), same=tx?gSame(tx):[], r=g.getBoundingClientRect();
+      anchor={t:Date.now(), tx:tx, n:same.length, i:same.indexOf(g), cx:r.left+r.width/2, cy:r.top+r.height/2}; }catch(_){ anchor=null; } }
+  function keepAnchor(){ if(!anchor||Date.now()-anchor.t>2000||!anchor.tx||anchor.i<0) return; try{
+      var m=gSame(anchor.tx); if(m.length!==anchor.n) return; var r=m[anchor.i].getBoundingClientRect();
+      var dx=anchor.cx-(r.left+r.width/2), dy=anchor.cy-(r.top+r.height/2);
+      if(Math.abs(dx)>0.5||Math.abs(dy)>0.5){ px+=dx; py+=dy; apply(); } }catch(_){} }
+  new MutationObserver(function(){
+    if(!ov) return; var d=dims(), wh=d.W+'x'+d.H, changed=(wh!==lastWH);
+    lastWH=wh; size(); apply();
+    if(changed) keepAnchor();
+  }).observe(svgEl(),{attributes:true,attributeFilter:['viewBox','style','width','height']});
+  /* Menus the page opens while full screen is up (circuit / equipment menus, z-index 60) would sit
+     under it — lift anything fixed-position the page adds to <body> above the full-screen view. */
+  new MutationObserver(function(muts){
+    if(!ov) return;
+    muts.forEach(function(m){ Array.prototype.forEach.call(m.addedNodes,function(n){
+      if(n.nodeType!==1||n===ov) return; var cs=getComputedStyle(n);
+      if(cs.position==='fixed' && (parseInt(cs.zIndex,10)||0) < 99999) n.style.zIndex='100001'; }); });
+  }).observe(document.body,{childList:true});
+
+  /* pinch + drag */
+  var pts={}, start=null, moved=false;
+  function pDown(e){ anchorAt(e); if(e.pointerType==='mouse'){ if(e.button!==0) return; e.preventDefault(); }   // stop the browser starting a text selection / image drag
+    pts[e.pointerId]={x:e.clientX,y:e.clientY}; moved=false; begin(); }
+  function begin(){ var k=Object.keys(pts); var r=stage().getBoundingClientRect();
+    if(k.length===1){ var p=pts[k[0]]; start={mode:'pan',x:p.x,y:p.y,px:px,py:py}; }
+    else if(k.length>=2){ var a=pts[k[0]], b=pts[k[1]]; start={mode:'pinch',d:Math.hypot(a.x-b.x,a.y-b.y),cx:(a.x+b.x)/2-r.left,cy:(a.y+b.y)/2-r.top,z:z,px:px,py:py}; } }
+  function pMove(e){ if(!pts[e.pointerId]||!start) return; pts[e.pointerId]={x:e.clientX,y:e.clientY}; var k=Object.keys(pts);
+    if(start.mode==='pan' && k.length===1){ var dx=e.clientX-start.x, dy=e.clientY-start.y; if(!moved && Math.hypot(dx,dy)<6) return; moved=true;
+      try{ stage().setPointerCapture(e.pointerId); }catch(_){} stage().classList.add('grabbing'); px=start.px+dx; py=start.py+dy; apply(); }
+    else if(k.length>=2){ moved=true; var a=pts[k[0]], b=pts[k[1]], d=Math.hypot(a.x-b.x,a.y-b.y), r=stage().getBoundingClientRect();
+      var nz=Math.max(fitZ*0.7,Math.min(fitZ*8,start.z*d/start.d)), cx=(a.x+b.x)/2-r.left, cy=(a.y+b.y)/2-r.top;
+      px=cx-(start.cx-start.px)*nz/start.z; py=cy-(start.cy-start.py)*nz/start.z; z=nz; apply(); commitSoon(); } }
+  function pUp(e){ delete pts[e.pointerId]; if(Object.keys(pts).length) begin(); else { start=null; stage().classList.remove('grabbing'); setTimeout(function(){ moved=false; },0); } }
+
+  /* ===== CTRL + WHEEL ZOOM ON THE PAGE (not full screen) =====
+     Ctrl+wheel (and a trackpad pinch, which arrives as ctrl+wheel) over the One-Line box zooms the
+     DRAWING, not the browser. The box keeps its height and becomes a scrollable window onto the
+     enlarged drawing; the point under the mouse stays put. The SVG is laid out at the zoomed size
+     (crisp), and re-applied after every redraw (the page's sizeIt() would reset it). Drag to pan,
+     the plain wheel scrolls inside it, the chip in the corner shows the zoom and resets it. */
+  var pz={z:1, baseW:0, h0:0, chip:null};
+  function scopeEl(){ return document.querySelector('.card-scope .scope'); }
+  function pzApply(){
+    var sc=scopeEl(), sv=svgEl(); if(!sc||!sv||ov) return;
+    if(pz.z<=1.001){ pzReset(); return; }
+    var d=dims(), w=pz.baseW*pz.z, h=w*d.H/d.W;
+    sc.style.boxSizing='border-box'; sc.style.height=pz.h0+'px'; sc.style.overflow='auto'; sc.style.overflowX='auto'; sc.style.overflowY='auto';
+    sv.style.width=w+'px'; sv.style.height=h+'px'; sv.style.maxWidth='none'; sv.style.flexShrink='0';
+    if(!pz.chip){ pz.chip=document.createElement('button'); pz.chip.type='button'; pz.chip.className='pz-chip';
+      pz.chip.addEventListener('click',function(e){ e.stopPropagation(); pzReset(); });
+      document.body.appendChild(pz.chip);
+      // only while the one-line is on screen — scrolled away, the chip goes too
+      if(window.IntersectionObserver){ pz.io=new IntersectionObserver(function(en){ if(pz.chip) pz.chip.style.display=en[0].isIntersecting?'':'none'; }); pz.io.observe(sc); } }
+    pz.chip.textContent='🔍 '+Math.round(pz.z*100)+'% · Reset';
+  }
+  function pzReset(){
+    var sc=scopeEl(); pz.z=1;
+    if(sc){ sc.style.height=''; sc.style.boxSizing=''; sc.style.overflow=''; sc.style.overflowX=''; sc.style.overflowY=''; sc.classList.remove('pz-on'); }
+    if(pz.chip){ pz.chip.remove(); pz.chip=null; } if(pz.io){ pz.io.disconnect(); pz.io=null; }
+    try{ render(); }catch(e){}
+  }
+  var pzBusy=false;
+  new MutationObserver(function(){ if(ov||pz.z<=1.001||pzBusy) return; pzBusy=true; pzApply(); pzBusy=false; })
+    .observe(svgEl(),{attributes:true,attributeFilter:['viewBox','style','width','height']});
+  function pzWheel(e){
+    if(ov) return;
+    if(e.shiftKey && !e.ctrlKey){ if(pz.z<=1.001) return; var sc0=scopeEl(); if(!sc0) return; e.preventDefault(); sc0.scrollLeft+=(e.deltaX||e.deltaY)*(e.deltaMode===1?16:1); return; }   // Shift + wheel = pan left / right
+    if(!e.ctrlKey) return;                             // plain wheel: let it scroll as usual
+    var sc=scopeEl(), sv=svgEl(); if(!sc||!sv) return;
+    e.preventDefault();                                // stop the BROWSER zooming
+    if(pz.z<=1.001){ var r0=sv.getBoundingClientRect(); pz.baseW=r0.width; pz.h0=sc.getBoundingClientRect().height;   /* EXACTLY its current height — shrinking it made the page reflow and the What's Happening card slide up into view */ sc.classList.add('pz-on'); }
+    var f=Math.exp(-e.deltaY*(e.deltaMode===1?0.05:0.0022)), nz=Math.max(1,Math.min(8,pz.z*f));
+    if(nz===pz.z) return;
+    // measure the point under the mouse from the DRAWING's own corner (not the box's — its padding and
+    // the scrollbars that appear on the first step don't scale), then put that same point back under it
+    var sr=sv.getBoundingClientRect(), ux=(e.clientX-sr.left)/pz.z, uy=(e.clientY-sr.top)/pz.z;
+    pz.z=nz; pzBusy=true; pzApply(); pzBusy=false;
+    if(pz.z>1.001){ var nr=sv.getBoundingClientRect(); sc.scrollLeft+= (nr.left+ux*pz.z)-e.clientX; sc.scrollTop+= (nr.top+uy*pz.z)-e.clientY; }
+  }
+  (function(){ var sc=scopeEl(); if(!sc) return;
+    sc.addEventListener('wheel',pzWheel,{passive:false});
+    // drag to pan while zoomed (mouse); a drag never counts as a click on the drawing
+    var dn=null, mv=false;
+    sc.addEventListener('pointerdown',function(e){ if(pz.z<=1.001||e.pointerType!=='mouse'||e.button!==0) return; e.preventDefault(); dn={x:e.clientX,y:e.clientY,l:sc.scrollLeft,t:sc.scrollTop}; mv=false; });
+    window.addEventListener('pointermove',function(e){ if(!dn) return; var dx=e.clientX-dn.x, dy=e.clientY-dn.y; if(!mv&&Math.hypot(dx,dy)<6) return; mv=true; sc.classList.add('pz-drag'); sc.scrollLeft=dn.l-dx; sc.scrollTop=dn.t-dy; });
+    window.addEventListener('pointerup',function(){ if(!dn) return; dn=null; sc.classList.remove('pz-drag'); setTimeout(function(){ mv=false; },0); });
+    sc.addEventListener('click',function(e){ if(mv){ e.stopPropagation(); e.preventDefault(); } },true);
+    sc.addEventListener('selectstart',function(e){ if(pz.z>1.001) e.preventDefault(); });
+  })();
+  btn.addEventListener('click',function(){ if(pz.z>1.001){ var sc=scopeEl(); pz.z=1; if(sc){ sc.style.height=''; sc.style.overflow=''; sc.style.overflowX=''; sc.style.overflowY=''; sc.classList.remove('pz-on'); } if(pz.chip){ pz.chip.remove(); pz.chip=null; } if(pz.io){ pz.io.disconnect(); pz.io=null; } } }, true);   // full screen takes over the zoom
+})();
+
+</script>
 </body>
 </html>
