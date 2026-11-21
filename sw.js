@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v3.1.2';
+var CACHE_VERSION = 'v3.1.3';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -76,10 +76,7 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  '🗺️ PROPERTY LOOKUP — Collier address labels sit on their own lot; townhomes and villas show unit numbers like Collier GIS.',
-  '👤 PROPERTY LOOKUP — current Collier owners: live from the county\'s Parcels Join, plus a data file rebuilt from the appraiser\'s 11/19 records.',
-  '🏢 PROPERTY LOOKUP — tapping a Collier condo building asks WHICH UNIT? again, with each owner.',
-  '🛠️ PROPERTY LOOKUP — fixed Collier "bad path" data sources and the 📝 certificate opening a blank page on iPhone.',
+  '📝 PROPERTY LOOKUP — the Elevation Certificate note on the map is easier to tap and opens the PDF instead of looking up the map spot underneath.',
 ]
 //
 // ============================================================

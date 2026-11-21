@@ -974,6 +974,11 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
     font-size:14px;line-height:1;background:rgba(10,16,22,.82);border:1px solid var(--signal);border-radius:6px;
     box-shadow:0 1px 6px rgba(0,0,0,.45);transition:transform .12s ease}
   .ec-note:hover{transform:scale(1.25)}
+  /* 44px FINGER TARGET around the 22px glyph (Apple's minimum). A tap that missed the little box by a
+     few px fell through to the map and ran a lookup there instead of opening the certificate. The
+     ring is invisible and only widens what can be hit — the note looks exactly the same. */
+  .ec-note{position:relative}
+  .ec-note::before{content:'';position:absolute;left:-12px;top:-12px;right:-12px;bottom:-12px;border-radius:50%}
   /* thin stem connecting the raised note down to its point, so it's clear which structure it marks */
   .ec-note-stem{width:2px;height:16px;margin:0 auto;background:linear-gradient(to bottom, var(--signal), rgba(244,104,0,0));pointer-events:none}
   .crosshair{position:absolute;z-index:999;top:56px;right:18px;font-family:var(--mono);font-size:10.5px;color:var(--dim);background:var(--crosshair-bg);border:1px solid var(--line);padding:5px 12px;border-radius:20px;pointer-events:none}
@@ -25035,9 +25040,10 @@ function _ecMakeNote(latN, lngN, pdf){
     html:`<div class="ec-note" title="${esc(tip)}">📝</div><div class="ec-note-stem"></div>`,
     iconSize:null, iconAnchor:[11,40] });
   const mk = L.marker([latN, lngN], { icon, interactive:true, keyboard:false, zIndexOffset:1200 });
-  if(pdf){
-    mk.on('click', ()=>_openLinkNewTab(pdf));
-  } else {
+  /* Same guard the address labels use: stop the event and block the replayed tap, or on a phone the
+     tap also lands on the map underneath and runs a new lookup there instead of opening the note. */
+  mk.on('click', (ev)=>{ try{ L.DomEvent.stop(ev); }catch(e){} suppressUiClick(900); if(pdf) _openLinkNewTab(pdf); });
+  if(!pdf){
     mk.bindPopup(`<div style="font:12px/1.4 system-ui;max-width:220px">An Elevation Certificate record exists at this point, but no PDF is attached to it. Open the county EC map (linked in the Elevation Certificate card) to view it.</div>`);
   }
   return mk;
