@@ -95,7 +95,7 @@
     chirp:'seasonal', harp:'seasonal', wind:'seasonal',
     owl:'seasonal', moan:'seasonal', toll:'seasonal', creak:'seasonal', howl:'seasonal',
     sleigh:'seasonal', chimes:'seasonal', musicbox:'seasonal', snowsteps:'seasonal', hohoho:'seasonal',
-    gobble:'seasonal', introSpin:'intro',
+    gobble:'seasonal', introSpin:'intro', introTwinkle:'intro', introPen:'intro', introType:'intro', introBlast:'intro',
     pop:'forms', fanfare:'forms', result:'forms', shutter:'forms',
     trash:'forms', copied:'forms', sweep:'forms', clunk:'taps', tink:'taps'
   };
@@ -1002,6 +1002,48 @@
     for (var i = 0; i < bell.length; i++) tone({ type: 'sine', from: bell[i][0], dur: 1.4, vol: bell[i][1], delay: 0.02 + dur * 0.95 + i * 0.045 });
   }
 
+  // ── the rest of the hub launch intro (v3.1.3), same 'intro' switch ──
+  function introNoise(c, t, dur) { // looping white noise source, started at t for dur
+    var len = Math.floor(c.sampleRate * 1), b = c._introNoise;
+    if (!b) { b = c.createBuffer(1, len, c.sampleRate); var d = b.getChannelData(0); for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1; c._introNoise = b; }
+    var n = c.createBufferSource(); n.buffer = b; n.loop = true; n.start(t, Math.random() * 0.9); n.stop(t + dur); return n;
+  }
+  function introEnv(c, t, pts) { var g = c.createGain(); g.gain.setValueAtTime(0.0001, t); for (var i = 0; i < pts.length; i++) g.gain.exponentialRampToValueAtTime(Math.max(0.0001, pts[i][1]), t + pts[i][0]); return g; }
+  function introTwinkle() { // a few high glints as the name comes into focus
+    for (var i = 0; i < 5; i++) tone({ type: 'sine', from: 2600 + Math.random() * 2600, dur: 0.25, vol: 0.016, delay: Math.random() * 0.9 });
+  }
+  function introPen() { // pen on paper: bright filtered noise in short strokes, ~1.3 s
+    if (muted) return; var c = getCtx(); if (!c) return;
+    var t = c.currentTime + 0.01, dur = 1.3, g = c.createGain(); g.gain.value = 0.0001;
+    var bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 3800; bp.Q.value = 0.9;
+    var hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1500;
+    introNoise(c, t, dur + 0.1).connect(bp).connect(hp).connect(g).connect(out(c));
+    var x = t; while (x < t + dur) { var d = 0.07 + Math.random() * 0.12; g.gain.setTargetAtTime(0.035 + Math.random() * 0.035, x, 0.012); g.gain.setTargetAtTime(0.002, x + d * 0.8, 0.02); bp.frequency.setTargetAtTime(3000 + Math.random() * 2200, x, 0.03); x += d + 0.01 + Math.random() * 0.04; }
+    g.gain.setTargetAtTime(0.0001, t + dur, 0.03);
+    tone({ type: 'sine', from: 1318.5, dur: 1.2, vol: 0.035, delay: dur + 0.1 }); tone({ type: 'sine', from: 1975.5, dur: 1.2, vol: 0.025, delay: dur + 0.15 });
+  }
+  function introType() { // the tagline typing out: 28 soft ticks, 40 ms apart (spaces silent)
+    var txt = '// POWER WHEN YOU NEED IT //';
+    for (var i = 0; i < txt.length; i++) if (txt[i] !== ' ') tone({ type: 'square', from: 1700 + Math.random() * 400, dur: 0.035, vol: 0.012, delay: i * 0.04 });
+  }
+  function introBlast() { // 1.2 s charge-up buzz with crackle, then the arc: crack, thump, 120 Hz buzz dying away
+    if (muted) return; var c = getCtx(); if (!c) return;
+    var o = out(c), t = c.currentTime + 0.01, F = 1.2, i, s;
+    [120, 240].forEach(function (f, k) { var z = c.createOscillator(); z.type = 'sawtooth'; z.frequency.setValueAtTime(f, t); z.frequency.linearRampToValueAtTime(f * 1.12, t + F);
+      var bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1; bp.frequency.setValueAtTime(700, t); bp.frequency.exponentialRampToValueAtTime(2400, t + F);
+      z.connect(bp).connect(introEnv(c, t, [[F * 0.9, 0.05 / (k + 1)], [F + 0.02, 0.0001]])).connect(o); z.start(t); z.stop(t + F + 0.05); });
+    for (s = t; s < t + F; s += (0.03 + Math.random() * 0.08) * (1.2 - (s - t) / F)) { var h = c.createBiquadFilter(); h.type = 'bandpass'; h.frequency.value = 2500 + Math.random() * 3500; h.Q.value = 3;
+      introNoise(c, s, 0.015).connect(h).connect(introEnv(c, s, [[0.001, 0.04 + Math.random() * 0.06], [0.014, 0.0001]])).connect(o); }
+    var a = t + F;
+    var hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1800; introNoise(c, a, 0.09).connect(hp).connect(introEnv(c, a, [[0.002, 0.5], [0.08, 0.0001]])).connect(o);
+    var th = c.createOscillator(); th.frequency.setValueAtTime(95, a); th.frequency.exponentialRampToValueAtTime(30, a + 0.55); th.connect(introEnv(c, a, [[0.006, 0.42], [0.6, 0.0001]])).connect(o); th.start(a); th.stop(a + 0.65);
+    var lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; introNoise(c, a, 0.5).connect(lp).connect(introEnv(c, a, [[0.01, 0.32], [0.45, 0.0001]])).connect(o);
+    [120, 180, 240].forEach(function (f, k) { var z = c.createOscillator(); z.type = 'sawtooth'; z.frequency.value = f; var bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 0.8;
+      z.connect(bp).connect(introEnv(c, a + 0.01, [[0.01, 0.07 / (k + 1)], [0.3, 0.045 / (k + 1)], [1.3, 0.0001]])).connect(o); z.start(a); z.stop(a + 1.35); });
+    for (i = 0; i < 14; i++) { s = a + 0.03 + Math.random() * 0.9; var h2 = c.createBiquadFilter(); h2.type = 'bandpass'; h2.frequency.value = 2500 + Math.random() * 3500; h2.Q.value = 3;
+      introNoise(c, s, 0.02).connect(h2).connect(introEnv(c, s, [[0.001, 0.08 + Math.random() * 0.1], [0.018, 0.0001]])).connect(o); }
+  }
+
   function shimmer() { // cosmic / aurora: descending glassy notes
     var f = 2400 + Math.random() * 800;
     for (var i = 0; i < 5; i++) {
@@ -1585,7 +1627,7 @@
     pulse:   function () { tone({ type: 'sine', from: 200, to: 60, dur: 0.4, vol: 0.06 }); },
     explosion: function () { pick('explosion'); },
     launch:  launchWhistle,
-    introSpin: introSpin,
+    introSpin: introSpin, introTwinkle: introTwinkle, introPen: introPen, introType: introType, introBlast: introBlast,
     thunder: function () { pick('thunder'); },
     boltStrike: function () { // homepage lightning: crack now, rumble after
       zap(true);
@@ -1640,7 +1682,7 @@
   // Haptic patterns (ms on/off). Android Chrome supports navigator.vibrate;
   // iPhones do not expose it to web apps, so iOS stays sound-only.
   var VIB = {
-    click: 8, hover: 0, tick: 5, introSpin: 0, pop: 12, result: 15, copied: [10, 40, 10],
+    click: 8, hover: 0, tick: 5, introSpin: 0, introTwinkle: 0, introPen: 0, introType: 0, introBlast: 0, pop: 12, result: 15, copied: [10, 40, 10],
     toast: [20, 60, 20], notify: [30, 60, 30], online: [15, 50, 15], offline: [40, 60, 40],
     success: [20, 50, 20, 50, 40], error: [60, 40, 60], fanfare: [30, 60, 30, 60, 30, 60, 80],
     explosion: [10, 20, 120], launch: 20, boltStrike: [15, 30, 90], thunder: 120,

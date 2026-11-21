@@ -77,7 +77,7 @@ var cacheProgress = { percent: 0, label: '', done: false };
 // ============================================================
 var CHANGELOG = [
   '⚡ ELECTRICAL THEORY — ⛶ Full screen for the one-line (pinch, drag, quick controls), Ctrl+scroll zooms just the drawing, a slim "What\'s happening" bar on phones, and it now says "utility out" instead of blaming a breaker when the power fails.',
-  '🌀 HOME HUB — a quick logo spin-up with gold glitter when the app opens. Tap to skip; its sound can be switched off in Sound Settings.',
+  '🌀 HOME HUB — a new opening: the logo spins up in gold glitter, gets signed, and an arc blast opens the hub. Tap to skip; its sound can be switched off in Sound Settings.',
   '🎄 HOLIDAY SOUNDS — a steady autumn wind with turkeys gobbling on Thanksgiving pages; sleigh bells and a "ho ho ho" on Christmas pages.',
   '🎵 SOUNDS — opening the app on iPhone no longer pauses your music or CarPlay audio.',
   '📝 PROPERTY LOOKUP — the Elevation Certificate note on the map is easier to tap and opens the PDF.',

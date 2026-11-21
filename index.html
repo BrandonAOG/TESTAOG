@@ -344,14 +344,21 @@ body.fav-dragging-active, body.fav-dragging-active * { cursor: grabbing !importa
 })();
 </script>
 <style>
-/* ═══ LAUNCH INTRO — logo spins up as gold glitter swirls in (v3.1.3). Once per app launch; tap skips. ═══ */
-#aog-intro{position:fixed;inset:0;z-index:100002;background:radial-gradient(ellipse 90% 60% at 50% 45%,#0d1430 0%,#060913 70%);overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:opacity .45s ease;--u:min(1vw,.5625vh)}
+/* ═══ LAUNCH INTRO (v3.1.3) — gold glitter swirls into the logo as it spins up, the name, the Keilholz signature,
+   the tagline, then an arc blast that blows the hub open. Once per app launch; a tap skips it at any point. ═══ */
+@font-face{font-family:"AOG Sig";src:url(data:font/woff2;base64,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) format("woff2");font-display:block}  /* Allura (SIL Open Font License), cut down to the letters of "Keilholz" — 2 KB */
+#aog-intro{position:fixed;inset:0;z-index:100002;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:opacity .45s ease;--u:min(1vw,.5625vh)}
 #aog-intro.out{opacity:0}   /* keeps catching taps while it fades, so the skip tap can't land on a hub card underneath */
+#aog-intro .ai-bg{position:absolute;inset:0;background:radial-gradient(ellipse 90% 60% at 50% 45%,#0d1430 0%,#060913 70%)}   /* this layer gets the hole the blast blows open */
 #aog-intro canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 #aog-intro .ai-l{position:absolute;left:50%;top:38%;width:calc(var(--u)*36);height:calc(var(--u)*36);margin:calc(var(--u)*-18) 0 0 calc(var(--u)*-18)}
 #aog-intro .ai-logo{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 50%;border-radius:50%;opacity:0}
-#aog-intro .ai-w{position:absolute;left:0;right:0;top:62%;text-align:center;font:900 calc(var(--u)*10.6)/1.06 "Arial Black","Segoe UI Black",system-ui,-apple-system,sans-serif;color:#FCD34D;letter-spacing:.03em;text-shadow:0 0 calc(var(--u)*2.2) rgba(251,191,36,.55);opacity:0;transform:translateY(-50%)}
+#aog-intro .ai-w{position:absolute;left:0;right:0;top:61%;text-align:center;font:900 calc(var(--u)*10.6)/1.06 "Arial Black","Segoe UI Black",system-ui,-apple-system,sans-serif;color:#FCD34D;letter-spacing:.03em;text-shadow:0 0 calc(var(--u)*2.2) rgba(251,191,36,.55);opacity:0;transform:translateY(-50%)}
 #aog-intro .ai-w span{display:block;white-space:nowrap}
+#aog-intro .ai-sig{position:absolute;left:0;right:0;top:73%;height:calc(var(--u)*16);pointer-events:none}
+#aog-intro .ai-sig svg{width:100%;height:100%;overflow:visible}
+#aog-intro .ai-tag{position:absolute;left:0;right:0;top:85%;text-align:center;font:700 calc(var(--u)*3.3)/1 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.28em;color:#7fd8ff;white-space:pre}
+#aog-intro .ai-ring{position:absolute;left:50%;top:58%;width:0;height:0;border-radius:50%;transform:translate(-50%,-50%);border:calc(var(--u)*1.6) solid #e6f4ff;box-shadow:0 0 calc(var(--u)*6) calc(var(--u)*3) rgba(120,200,255,.85),inset 0 0 calc(var(--u)*6) calc(var(--u)*2) rgba(120,200,255,.7);pointer-events:none;opacity:0}
 #aog-intro .ai-skip{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);text-align:center;font:600 12px system-ui,-apple-system,sans-serif;letter-spacing:.12em;color:rgba(203,213,240,.45);opacity:0;animation:aiSkip .4s ease 1.2s forwards}
 @keyframes aiSkip{to{opacity:1}}
 </style>
@@ -369,20 +376,31 @@ body.fav-dragging-active, body.fav-dragging-active * { cursor: grabbing !importa
     if(window.AOGSaver&&window.AOGSaver.on) return;
     if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   }
-
-  // While the intro is up, the rest of the hub holds back: sounds.js plays only the intro's own sound (no
+  // While the intro is up, the rest of the hub holds back: sounds.js plays only the intro's own sounds (no
   // background bed, no bolt/zap effects) and the hub's "update ready" card waits until it has finished.
   var waiting=[];
   window.AOGIntro={ active:true, onDone:function(fn){ if(window.AOGIntro.active) waiting.push(fn); else fn(); } };
+
+  // ── timing (seconds from launch) — "version 6" ──
+  var T={ swirl:.8, spin:.5, spinDur:1.6, name:1.8, sign:2.7, signDur:1.3, tag:4.1, tagStep:.04, hold:.35, charge:1.2, open:1.4 };
+  var TAG='// POWER WHEN YOU NEED IT //';
+  var tagEnd=T.tag+TAG.length*T.tagStep, blastAt=Math.max(T.sign+T.signDur+.5,tagEnd)+T.hold, flashAt=blastAt+T.charge, END=flashAt+.3+T.open;
+
   var el=document.createElement('div'); el.id='aog-intro'; el.setAttribute('aria-hidden','true');
-  el.innerHTML='<canvas></canvas><div class="ai-l"><img class="ai-logo" alt="" src="./logo.png"></div><div class="ai-w"><span>ALWAYS ON</span><span>GENERATORS</span></div><div class="ai-skip">TAP TO SKIP</div>';
+  el.innerHTML='<div class="ai-bg"><div class="ai-l"><img class="ai-logo" alt="" src="./logo.png"></div><div class="ai-w"><span>ALWAYS ON</span><span>GENERATORS</span></div>'+
+    '<div class="ai-sig"><svg viewBox="0 0 600 130"><defs><linearGradient id="aiSg" x1="0" x2="1"><stop offset="0" stop-color="#F59E0B"/><stop offset=".5" stop-color="#FDE68A"/><stop offset="1" stop-color="#FBBF24"/></linearGradient><clipPath id="aiSc"><rect x="0" y="-40" width="0" height="220"/></clipPath></defs>'+
+    '<g clip-path="url(#aiSc)" style="filter:drop-shadow(0 0 4px rgba(251,191,36,.55))"><text x="300" y="88" text-anchor="middle" font-family="\'AOG Sig\',cursive" font-size="86" fill="url(#aiSg)" stroke="#FFF7D6" stroke-width=".6">Keilholz</text></g>'+
+    '<line x1="190" x2="410" y1="112" y2="112" stroke="#FBBF24" stroke-width="1.6" stroke-linecap="round" opacity="0"/></svg></div>'+
+    '<div class="ai-tag"></div><div class="ai-skip">TAP TO SKIP</div></div><canvas></canvas><div class="ai-ring"></div>';
   document.body.appendChild(el);
-  var cv=el.querySelector('canvas'), c=cv.getContext('2d'), logo=el.querySelector('.ai-logo'), word=el.querySelector('.ai-w');
+  var bg=el.querySelector('.ai-bg'), cv=el.querySelector('canvas'), c=cv.getContext('2d'), logo=el.querySelector('.ai-logo'), word=el.querySelector('.ai-w'),
+      sigBox=el.querySelector('.ai-sig'), sigSvg=sigBox.querySelector('svg'), sigTxt=sigSvg.querySelector('text'), sigClip=sigSvg.querySelector('clipPath rect'), sigLine=sigSvg.querySelector('line'),
+      tagEl=el.querySelector('.ai-tag'), ring=el.querySelector('.ai-ring');
   var done=false, raf=0;
   function finish(){ if(done) return; done=true; el.classList.add('out');
     setTimeout(function(){ cancelAnimationFrame(raf); if(el.parentNode) el.parentNode.removeChild(el);
       window.AOGIntro.active=false; var w=waiting; waiting=[]; w.forEach(function(fn){ try{ fn(); }catch(e){} }); },450); }
-  setTimeout(finish,6000);                                   // safety net: never trap the hub behind it
+  setTimeout(finish,(END+3)*1000);                           // safety net: never trap the hub behind it
   // Skip on the CLICK, and swallow it. Skipping on touch-down let the rest of that same tap (the click that
   // follows it) fall through to whatever form card was under the finger.
   function swallow(e){ e.preventDefault(); e.stopPropagation(); }
@@ -393,39 +411,78 @@ body.fav-dragging-active, body.fav-dragging-active * { cursor: grabbing !importa
   function run(){
     var GOLD=['#FFF7D6','#FDE68A','#FCD34D','#FBBF24','#F59E0B'];
     var rnd=function(a,b){return a+Math.random()*(b-a);}, pick=function(a){return a[Math.random()*a.length|0];};
-    var clamp=function(x,a,b){return Math.max(a,Math.min(b,x));};
+    var clamp=function(x,a,b){return Math.max(a,Math.min(b,x));}, easeIO=function(k){ k=clamp(k,0,1); return k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2; };
     var W=innerWidth, H=innerHeight, d=Math.min(2,devicePixelRatio||1);
     cv.width=W*d; cv.height=H*d; c.setTransform(d,0,0,d,0,0);
     var u=Math.min(W/100,H*.5625/100), parts=[], fns=[], evs=[];
     function rectOf(e){ var r=e.getBoundingClientRect(); return {x:r.left,y:r.top,w:r.width,h:r.height,cx:r.left+r.width/2,cy:r.top+r.height/2}; }
     function A(e,frames,dur,delay,easing){ if(!e.animate){ e.style.opacity=1; return; } return e.animate(frames,{duration:dur*1000,delay:(delay||0)*1000,easing:easing||'ease',fill:'both'}); }
+    function at(t,fn){ evs.push({t:t,fn:fn}); }
     function emit(o){ var p={type:'spark',x:0,y:0,vx:0,vy:0,g:0,drag:.96,life:1,size:.5,color:pick(GOLD),tw:rnd(8,18),ph:rnd(0,6),alpha:1}; for(var k in o) p[k]=o[k];
       p.vx*=u; p.vy*=u; p.g*=u; p.size*=u; p.max=p.life; parts.push(p); }
-    function burst(x,y,n,sp,g,type,life){ for(var i=0;i<n;i++){ var a=rnd(0,6.283), s=rnd(10,sp); emit({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rnd(.5,life||1.2),size:rnd(.25,.6),g:g,type:type||(Math.random()<.25?'star':'spark')}); } }
+    function burst(x,y,n,sp,g,type,life,color){ for(var i=0;i<n;i++){ var a=rnd(0,6.283), s=rnd(10,sp); emit({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rnd(.5,life||1.2),size:rnd(.25,.6),g:g,type:type||(Math.random()<.25?'star':'spark'),color:color||pick(GOLD)}); } }
     function star(x,y,r,a,col){ c.globalAlpha=a; c.fillStyle=col; c.beginPath(); c.moveTo(x,y-r*2.4); c.quadraticCurveTo(x,y,x+r*2.4,y); c.quadraticCurveTo(x,y,x,y+r*2.4); c.quadraticCurveTo(x,y,x-r*2.4,y); c.quadraticCurveTo(x,y,x,y-r*2.4); c.fill(); }
     function glow(x,y,r,a,col){ var g=c.createRadialGradient(x,y,0,x,y,r); g.addColorStop(0,col); g.addColorStop(1,'rgba(251,191,36,0)'); c.globalAlpha=a; c.fillStyle=g; c.beginPath(); c.arc(x,y,r,0,7); c.fill(); }
     function rainDrop(y,life){ return {type:Math.random()<.5?'star':'dot',x:rnd(0,W),y:y,vx:rnd(-3,3),vy:rnd(28,46),drag:1,life:life,size:rnd(.3,.65),alpha:.8}; }
     function rain(until,rate,pre){ if(pre) for(var i=0;i<45;i++) emit(rainDrop(rnd(-10,H*.55),rnd(1.6,3.2)));
       fns.push(function(t){ if(t>until) return; for(var i=0;i<rate;i++) emit(rainDrop(-2*u,rnd(4,6))); }); }
+    function bolt(x0,y0,x1,y1,depth,jit){ var pts=[[x0,y0],[x1,y1]]; for(var dd=0;dd<depth;dd++){ var n=[pts[0]]; for(var i=1;i<pts.length;i++){ var a=pts[i-1],b=pts[i]; n.push([(a[0]+b[0])/2+rnd(-jit,jit),(a[1]+b[1])/2+rnd(-jit,jit)],b); } pts=n; jit*=.55; } return pts; }
+    function strokeBolt(p,w){ c.beginPath(); p.forEach(function(q,i){ if(i) c.lineTo(q[0],q[1]); else c.moveTo(q[0],q[1]); });   // glow = wide faint strokes (shadowBlur is far too slow on phones)
+      c.strokeStyle='rgba(90,170,255,.18)'; c.lineWidth=u*4*w; c.stroke(); c.strokeStyle='rgba(150,210,255,.45)'; c.lineWidth=u*1.5*w; c.stroke(); c.strokeStyle='#f2f9ff'; c.lineWidth=u*.45*w; c.stroke(); }
 
     var L=rectOf(logo.parentNode);
-    // 1) glitter falling, 2) pulled into a whirl around the logo, 3) logo spins up throwing sparks, 4) burst, name
-    rain(1.0,3,true);
-    evs.push({t:.9,fn:function(){ for(var i=0;i<110;i++){ var a=rnd(0,6.283), r=rnd(32,60)*u; parts.push({orbit:true,type:Math.random()<.3?'star':'dot',cx:L.cx,cy:L.cy,a:a,r:r,rmin:L.w*.5,va:-rnd(4,7),shrink:.35,x:0,y:0,life:rnd(.9,1.3),max:1.3,size:u*rnd(.3,.55),color:pick(GOLD),tw:rnd(8,16),ph:rnd(0,6),alpha:.9}); } }});
-    var s0=.6, sd=1.8;
-    A(logo,[{opacity:0,filter:'blur(8px)',transform:'rotate(0deg) scale(.75)'},{opacity:1,filter:'blur(0px)',transform:'rotate(-900deg) scale(1)',offset:.8},{opacity:1,filter:'blur(0px) drop-shadow(0 0 12px rgba(251,191,36,.7))',transform:'rotate(-1080deg) scale(1)'}],sd,s0,'cubic-bezier(.5,0,.3,1)');
-    fns.push(function(t){ var k=(t-s0-sd*.15)/(sd*.7); if(k<0||k>1) return; var spd=Math.sin(k*Math.PI), n=1+spd*3|0; for(var i=0;i<n;i++){ var a=rnd(0,6.283), r=L.w*.48; emit({x:L.cx+Math.cos(a)*r,y:L.cy+Math.sin(a)*r,vx:-Math.sin(a)*60*spd+Math.cos(a)*10,vy:Math.cos(a)*60*spd+Math.sin(a)*10,g:20,life:rnd(.3,.7),size:rnd(.25,.45)}); } });
-    evs.push({t:s0+sd*.95,fn:function(){ burst(L.cx,L.cy,60,42,14); burst(L.cx,L.cy,18,22,4,'star',1.4); }});
-    A(word,[{opacity:0,filter:'blur(10px)'},{opacity:1,filter:'blur(0px)'}],.8,2.0);
-    for(var i=0;i<8;i++) evs.push({t:2.6+i*.12,fn:function(){ var r=word.getBoundingClientRect(); emit({type:'star',x:r.left+rnd(.1,.9)*r.width,y:r.top+rnd(.15,.85)*r.height,life:.8,size:rnd(.6,.9)}); }});
-    rain(2.9,1,false);
-    evs.push({t:3.5,fn:finish});
-    // Sound: on unless "Intro spin-up" is switched off in Sound Settings (or all sound is muted). Goes through the shared engine, so it
-    // mixes with (never stops) music/CarPlay and stays silent where the phone hasn't allowed audio yet.
-    // Only where sound is allowed right now (the installed desktop app; a phone after a tap). Otherwise the engine
-    // would queue it and the tap that SKIPS the intro would unlock it — the spin-up then playing over the hub.
-    setTimeout(function(){ var S=window.AOGSound; if(!S||done) return;
-      if(S.whenRunning) S.whenRunning(350,function(ok){ if(ok&&!done) S.play('introSpin'); }); },s0*1000-150);
+    // 1) glitter falling, pulled into a whirl around the logo as it spins up throwing sparks; a gold burst
+    rain(T.swirl+.1,3,true);
+    at(T.swirl,function(){ for(var i=0;i<110;i++){ parts.push({orbit:true,type:Math.random()<.3?'star':'dot',cx:L.cx,cy:L.cy,a:rnd(0,6.283),r:rnd(32,60)*u,rmin:L.w*.5,va:-rnd(4,7),shrink:.35,x:0,y:0,life:rnd(.9,1.3),max:1.3,size:u*rnd(.3,.55),color:pick(GOLD),tw:rnd(8,16),ph:rnd(0,6),alpha:.9}); } });
+    A(logo,[{opacity:0,filter:'blur(8px)',transform:'rotate(0deg) scale(.75)'},{opacity:1,filter:'blur(0px)',transform:'rotate(-900deg) scale(1)',offset:.8},{opacity:1,filter:'blur(0px) drop-shadow(0 0 12px rgba(251,191,36,.7))',transform:'rotate(-1080deg) scale(1)'}],T.spinDur,T.spin,'cubic-bezier(.5,0,.3,1)');
+    fns.push(function(t){ var k=(t-T.spin-T.spinDur*.15)/(T.spinDur*.7); if(k<0||k>1) return; var spd=Math.sin(k*Math.PI), n=1+spd*3|0; for(var i=0;i<n;i++){ var a=rnd(0,6.283), r=L.w*.48; emit({x:L.cx+Math.cos(a)*r,y:L.cy+Math.sin(a)*r,vx:-Math.sin(a)*60*spd+Math.cos(a)*10,vy:Math.cos(a)*60*spd+Math.sin(a)*10,g:20,life:rnd(.3,.7),size:rnd(.25,.45)}); } });
+    at(T.spin+T.spinDur*.95,function(){ burst(L.cx,L.cy,60,42,14); burst(L.cx,L.cy,18,22,4,'star',1.4); });
+    // 2) the name comes into focus with a few twinkles
+    A(word,[{opacity:0,filter:'blur(10px)'},{opacity:1,filter:'blur(0px)'}],.8,T.name);
+    for(var i=0;i<6;i++) at(T.name+.5+i*.12,function(){ var r=word.getBoundingClientRect(); emit({type:'star',x:r.left+rnd(.1,.9)*r.width,y:r.top+rnd(.15,.85)*r.height,life:.8,size:rnd(.6,.9)}); });
+    // 3) the signature writes itself left to right, a sparkler at the pen tip; then its underline
+    var bb; try{ bb=sigTxt.getBBox(); }catch(e){ bb={x:170,y:30,width:260,height:70}; } if(!bb.width) bb={x:170,y:30,width:260,height:70};
+    var sx0=bb.x-6, sx1=bb.x+bb.width+8;
+    fns.push(function(t){ var k=clamp((t-T.sign)/T.signDur,0,1); if(t<T.sign) return; var x=sx0+(sx1-sx0)*easeIO(k); sigClip.setAttribute('width',Math.max(0,x));
+      if(k<1){ var r=sigSvg.getBoundingClientRect(), s=r.width/600, px=r.left+x*s, py=r.top+(bb.y+bb.height*(.35+.35*Math.sin(t*26)))*s;
+        for(var i=0;i<3;i++) emit({x:px,y:py,vx:rnd(-22,22),vy:rnd(-28,10),g:45,life:rnd(.2,.5),size:rnd(.18,.35)}); emit({type:'dot',x:px,y:py,life:.1,size:1.3,color:'#FFF7D6'}); } });
+    at(T.sign+T.signDur+.05,function(){ if(sigLine.animate) sigLine.animate([{opacity:0,strokeDasharray:'0 300'},{opacity:.85,strokeDasharray:'300 0'}],{duration:450,fill:'both',easing:'ease-out'}); else sigLine.setAttribute('opacity',.85);
+      var r=sigSvg.getBoundingClientRect(); emit({type:'star',x:r.right-r.width*.25,y:r.top+r.height*.3,life:1.1,size:1.1}); });
+    // 4) the tagline types out
+    for(var j=0;j<TAG.length;j++) (function(j){ at(T.tag+j*T.tagStep,function(){ tagEl.textContent=TAG.slice(0,j+1)+(j<TAG.length-1?'▌':''); }); })(j);
+    rain(blastAt,1,false);
+    // 5) ARC BLAST: arcs crawl over the name and signature as it charges, ONE flash, big arcs crack out to the
+    //    edges, the screen kicks, and the hub blows open from the centre behind a ring of light. One flash only.
+    var Wr, box, ends, cx, cy;
+    at(blastAt,function(){ Wr=rectOf(word); cx=Wr.cx; cy=Wr.cy; var Sg=sigBox.getBoundingClientRect(); box=[Wr.x,Wr.y,Wr.x+Wr.w,Sg.top+Sg.height*.8];
+      ends=[]; for(var i=0;i<8;i++){ var a=i/8*6.283+rnd(-.3,.3), r=Math.hypot(W,H); ends.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r]); }
+      var F=T.charge;
+      A(word,[{transform:'translateY(-50%) scale(1)',filter:'brightness(1)'},{transform:'translateY(-50%) scale(1.03)',filter:'brightness(1.6)',offset:.55},{transform:'translateY(-50%) scale(1.08)',filter:'brightness(2.4)',offset:.75},{transform:'translateY(-50%) scale(1.4)',filter:'brightness(3) blur(4px)',opacity:0}],F+.4,0,'ease-in');
+      A(logo,[{filter:'brightness(1)'},{filter:'brightness(1.5)',offset:.55},{filter:'brightness(2.4)',offset:.75},{filter:'brightness(3) blur(4px)',opacity:0,transform:'scale(1.3)'}],F+.4,0,'ease-in');
+      [sigBox,tagEl].forEach(function(e){ A(e,[{opacity:1,filter:'brightness(1)'},{opacity:1,filter:'brightness(1.8)',offset:.6},{opacity:0,filter:'blur(4px) brightness(3)'}],F+.3,.05,'ease-in'); });
+      if(el.animate) el.animate([{transform:'translate(0,0)'},{transform:'translate(-6px,4px)'},{transform:'translate(5px,-3px)'},{transform:'translate(-3px,2px)'},{transform:'translate(2px,-1px)'},{transform:'translate(0,0)'}],{duration:520,delay:F*1000+20});
+      A(ring,[{width:'0px',height:'0px',opacity:1},{width:(H*1.6)+'px',height:(H*1.6)+'px',opacity:.9,offset:.85},{width:(H*1.8)+'px',height:(H*1.8)+'px',opacity:0}],T.open+.05,F+.3,'cubic-bezier(.5,0,.25,1)');
+    });
+    at(flashAt,function(){ burst(cx,cy,110,120,10,'spark',.9,'#dff0ff'); burst(cx,cy,60,75,20); });
+    fns.push(function(t){ if(t<blastAt||t>flashAt+T.open+.3||!box) return; var k=t-blastAt, F=T.charge; c.save(); c.globalCompositeOperation='lighter'; c.lineCap='round'; c.lineJoin='round';
+      if(k<F){ var n=1+Math.floor(k/F*5); for(var i=0;i<n;i++){ var x0=rnd(box[0],box[2]), y0=rnd(box[1],box[3]), a=rnd(0,6.283), Ln=u*rnd(4,12)*(1+k/F); strokeBolt(bolt(x0,y0,x0+Math.cos(a)*Ln,y0+Math.sin(a)*Ln,3,u*2.5),.55); }
+        var g=c.createRadialGradient(cx,cy,0,cx,cy,W*.6); g.addColorStop(0,'rgba(140,205,255,'+(.18*k/F)+')'); g.addColorStop(1,'rgba(60,120,255,0)'); c.fillStyle=g; c.fillRect(0,0,W,H);
+        if(Math.random()<.5) emit({x:rnd(box[0],box[2]),y:rnd(box[1],box[3]),vx:rnd(-20,20),vy:rnd(-25,5),g:30,life:.3,size:.3,color:'#dff0ff'}); }
+      else { var kk=k-F; ends.forEach(function(e,j){ if((kk>T.open*.45&&j%2)||(kk>T.open*.75&&j%4)) return; var reach=Math.min(1,kk/.12); strokeBolt(bolt(cx,cy,cx+(e[0]-cx)*reach,cy+(e[1]-cy)*reach,5,u*9),1); });
+        var f=kk<.06?kk/.06:Math.max(0,1-(kk-.06)/.45), g2=c.createRadialGradient(cx,cy,0,cx,cy,Math.hypot(W,H)*.7); g2.addColorStop(0,'rgba(235,246,255,'+(.85*f)+')'); g2.addColorStop(.5,'rgba(140,205,255,'+(.35*f)+')'); g2.addColorStop(1,'rgba(60,120,255,0)'); c.fillStyle=g2; c.fillRect(0,0,W,H); }
+      c.restore();
+      // the hole: the intro's background layer is cut away from the centre outward, showing the real hub
+      // it follows the ring of light exactly, so the hub only ever shows inside the ring
+      if(t>flashAt+.3){ var R=ring.getBoundingClientRect().width/2, m='radial-gradient(circle at 50% 58%, transparent '+R+'px, #000 '+(R+2)+'px)'; bg.style.webkitMaskImage=m; bg.style.maskImage=m; } });
+    at(END,finish);
+
+    // Sound (on by default; Sound Settings → "Intro spin-up" switches it off). Only where sound is allowed right
+    // now (the installed desktop app; a phone after a tap) — otherwise the engine would queue it and the tap that
+    // SKIPS the intro would unlock it, playing it over the hub. Each sound is skipped once the intro is.
+    var S=window.AOGSound, soundOK=false;
+    setTimeout(function(){ S=window.AOGSound; if(!S||done||!S.whenRunning) return; S.whenRunning(350,function(ok){ soundOK=ok; if(ok&&!done) S.play('introSpin'); }); },T.spin*1000-150);
+    function cue(t,name){ setTimeout(function(){ if(soundOK&&!done&&S) S.play(name); },t*1000); }
+    cue(T.name+.4,'introTwinkle'); cue(T.sign,'introPen'); cue(T.tag,'introType'); cue(blastAt,'introBlast');
 
     var t0=performance.now(), last=t0;
     function frame(now){

@@ -1,4 +1,4 @@
-// Launch intro on the hub (v3.1.3): logo spin-up with glitter, once per app launch, tap to skip, never traps
+// Launch intro on the hub (v3.1.3): glitter + logo spin-up, Keilholz signature, tagline and an arc blast that opens the hub; once per app launch, tap to skip, never traps
 // the hub, sound on by default and switched off in Sound Settings.
 const { test, expect } = require('@playwright/test');
 
@@ -13,7 +13,7 @@ test('intro plays, removes itself, and leaves the hub usable', async ({ page }) 
   // the logo is spinning and glitter is on the canvas
   const lit = await page.evaluate(() => { const c = document.querySelector('#aog-intro canvas'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 16) if (d[i] > 0) n++; return n; });
   expect(lit).toBeGreaterThan(200);
-  await expect(intro).toHaveCount(0, { timeout: 7000 });
+  await expect(intro).toHaveCount(0, { timeout: 14000 });
   expect(e).toEqual([]);
 });
 
@@ -44,7 +44,7 @@ test('an update that arrives during the intro shows only after it has finished',
     if (window.AOGIntro.active) window.AOGIntro.onDone(show); else show(); });
   await page.waitForTimeout(300);
   await expect(page.locator('#update-toast')).not.toBeVisible();
-  await expect(page.locator('#aog-intro')).toHaveCount(0, { timeout: 7000 });
+  await expect(page.locator('#aog-intro')).toHaveCount(0, { timeout: 14000 });
   await expect(page.locator('#update-toast')).toBeVisible();
 });
 
@@ -93,7 +93,7 @@ test('while the intro is up: no page sounds or background bed; normal again afte
   // hub effects asking for sound during the intro are ignored; the intro's own sound is allowed through
   const r = await page.evaluate(() => { const n = window.__played.length; AOGSound.play('boltStrike'); AOGSound.play('zap'); return { before: n, after: window.__played.length, amb: AOGSound._ambStatus().key }; });
   expect(r.after).toBe(r.before); expect(r.amb).toBeFalsy();
-  await expect(page.locator('#aog-intro')).toHaveCount(0, { timeout: 7000 });
+  await expect(page.locator('#aog-intro')).toHaveCount(0, { timeout: 14000 });
   expect(await page.evaluate(() => window.AOGIntro.active)).toBe(false);
   // afterwards sounds work normally again (desktop: an iPhone stays silent until the first tap, by design)
   if (test.info().project.name !== 'desktop') return;
@@ -122,4 +122,24 @@ test('where sound is still blocked, the intro stays silent and a skip tap does N
   await page.mouse.click(5, 300); await page.waitForTimeout(1500);
   expect(await page.evaluate(() => window.__osc)).toBe(0);
   await b2.close();
+});
+
+test('the full intro: signature writes, tagline types, the arc blast opens a hole onto the hub, then it removes itself', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'sequence check — runs once');
+  test.setTimeout(40000);
+  await page.addInitScript(() => { window.__osc = []; const o = AudioNode.prototype.connect;
+    AudioNode.prototype.connect = function (...a) { if (this instanceof OscillatorNode) window.__osc.push(this.type + ':' + Math.round(performance.now())); return o.apply(this, a); }; });
+  await page.goto('/?intro');
+  const st = () => page.evaluate(() => { const i = document.getElementById('aog-intro'); if (!i) return null;
+    const clip = i.querySelector('#aiSc rect'); return { sig: +clip.getAttribute('width'), tag: i.querySelector('.ai-tag').textContent, mask: i.querySelector('.ai-bg').style.maskImage || i.querySelector('.ai-bg').style.webkitMaskImage || '' }; });
+  await page.waitForTimeout(2400); const a = await st(); expect(a.sig).toBe(0); expect(a.tag).toBe('');
+  await page.waitForTimeout(1300); const b = await st(); expect(b.sig).toBeGreaterThan(50);                   // writing
+  await page.waitForTimeout(1500); const c = await st(); expect(c.tag.length).toBeGreaterThan(10);            // typing
+  await page.waitForTimeout(2600); const d = await st(); expect(d.mask).toMatch(/radial-gradient/);           // the hub is opening
+  await expect(page.locator('#aog-intro')).toHaveCount(0, { timeout: 6000 });
+  // sounds: spin (sawtooth), pen + tagline ticks (square), charge + blast (sawtooth again, later)
+  const kinds = await page.evaluate(() => window.__osc.map(x => x.split(':')[0]));
+  expect(kinds.filter(k => k === 'square').length).toBeGreaterThan(15);
+  expect(kinds.filter(k => k === 'sawtooth').length).toBeGreaterThan(4);
+  expect(await page.evaluate(() => window.AOGIntro.active)).toBe(false);
 });
