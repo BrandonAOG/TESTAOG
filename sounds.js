@@ -274,6 +274,15 @@
   // guard in gestureUnlock stands this down if music owns the session.
   // (pre-arm removed — AMBIENT ONLY policy; sessionForce is permanently false)
   var sessionEl = null, sessionLive = false, pipedCtx = null, pipedEl = null;
+  /* MUSIC-FIRST (20 Nov 2026): the silent looper is an HTMLMediaElement, and iOS treats a playing
+     media element as "Now Playing" — with the phone on CarPlay that took over the car's audio and
+     PAUSED the user's music the moment the app was opened, even under the 'ambient' category.
+     So the looper is now a LAST RESORT: it only runs after we've actually SEEN the WebAudio clock
+     stuck at 0 (the cold-launch dead-session bug). If music or a podcast is playing, the system
+     audio session is already live, our context ticks straight away, needKick never turns on, and
+     the looper never starts — the app's sounds just mix in. Cost: on the buggy cold launch with
+     nothing else playing, sound may take a second tap to wake up. Music is sacred. */
+  var needKick = false;
   function stopPipedEl() {
     if (pipedEl) { try { pipedEl.pause(); pipedEl.src = ''; } catch (e) {} pipedEl = null; }
   }
@@ -303,6 +312,7 @@
     if (!IS_IOS) { sessionLive = true; return; }
     if (sessionLive || LEGACY_IOS) return;
     setSession('ambient'); // AMBIENT ONLY
+    if (!needKick) return;   // MUSIC-FIRST: no media element until the clock has been seen stuck
     try {
       if (!sessionEl) {
         sessionEl = new Audio(SILENT_WAV);
@@ -399,7 +409,12 @@
     // 800ms (was 1500): resume() settles well inside this, and every extra
     // waiting round was a full silent cycle added to cold-start. The
     // looper's 'playing' listener usually recycles even sooner.
-    if (hadGesture && ctx._bornAt && Date.now() - ctx._bornAt > 800) recycleCtx();
+    if (hadGesture && ctx._bornAt && Date.now() - ctx._bornAt > 800) {
+      // Stuck after a real tap: this is the dead-session bug, not music (music would have the
+      // session live). Allow the looper from the NEXT tap on — playing media needs a gesture.
+      if (ctx.state === 'running' && ctx.currentTime === 0) needKick = true;
+      recycleCtx();
+    }
   }, 250);
   // Throw away a frozen pre-session context and build a fresh one — the only
   // cure for the iOS cold-launch dead session (see watchdog comment above).
@@ -427,7 +442,9 @@
         // AMBIENT ONLY: no 'playback' escalation on refreeze — just make
         // sure the ambient looper is playing and let the rebuild path run.
         setSession('ambient');
-        if (sessionEl) { try { sessionEl.play().catch(function(){}); } catch (e) {} }
+        // MUSIC-FIRST: don't restart a media element on a timer (that's what can grab "Now
+        // Playing"). Mark the kick as needed; the next tap — the user's own action — does it.
+        needKick = true;
       }
     } else stuckTicks = 0;
     lastLiveT = ctx.currentTime;
@@ -631,11 +648,9 @@
       try { ctx.resume().catch(function(){}); } catch (e) {}
     }
     unduck(); // master bus was faded to 0 on hide
-    // Re-arm the looper: a previously-allowed element may resume without a
-    // fresh gesture; if iOS blocks it, the next tap's unlock handles it.
-    if (sessionEl) {
-      try { var pv = sessionEl.play(); if (pv && pv.catch) pv.catch(function () {}); } catch (e) {}
-    }
+    // MUSIC-FIRST: do NOT auto-restart the silent looper on return — coming back to the app with
+    // music playing (CarPlay) would hand "Now Playing" to us and pause the music. If our clock is
+    // stuck after returning, the refreeze guard sets needKick and the user's next tap restarts it.
     if (ctx && ctx.state !== 'running') {
       if (!IS_IOS && ctx.state === 'suspended') {
         // non-iOS: resume() above will finish — don't tear down a healthy
