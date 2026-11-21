@@ -273,6 +273,27 @@ function genSize(){ var L=genSizes(), i=L.indexOf(GEN_KW); GEN_KW=L[(i+1)%L.leng
   genNote='<b style="color:#ffd27a">GENERATOR · '+GEN_KW+' kW '+genCool()+'</b> — output breaker '+I+' A. '+(GEN_KW<32?'Air-cooled units (22–28 kW) are the common home standby size: about 90–117 A at 240 V, enough for a whole 200 A house only with load management.':'Liquid-cooled units (32 kW and up) are built for long run times and bigger homes.')+' The output breaker, the conductors it protects and the load-shed limit all follow the size.';
   ckMsg=''; render(); }   // 48 kW (Generac QS spec sheet): 1Ø @ 1.0 PF 200 A → 200 A · 3Ø @ 0.8 PF (60 kVA): 167 A → 175 A @208 · 144 A → 150 A @240 Δ · 72 A → 80 A @480
 function srcLive(){ if(!genOK()) return utilAvail(); return SRC==='util' ? utilAvail() : (GST==='run' && !genBrkOff); }
+/* WHY there is no source on the feeder — the REAL cause, in plain words. Every message that explains a
+   dead feeder / bus / circuit goes through this, so none of them guesses "the service disconnect is open"
+   (or "the utility breaker is open") when it's actually a utility power failure, a generator that hasn't
+   started, an E-stop, or a transfer switch still waiting. long=true → a phrase for a sentence; false → a
+   short tag for the drawing. Returns '' when the source is live. */
+function srcWhy(long){
+  if(srcLive()) return '';
+  var u = utilOff&&svcOff ? (long?'the utility is out <b>and</b> the service disconnect is open':'UTILITY OUT + SERVICE OPEN')
+        : utilOff ? (long?'the utility is out (power failure) — no breaker is open':'UTILITY OUT')
+        : svcOff ? (long?'the service disconnect is open':'SERVICE OPEN') : '';
+  if(!genOK()) return u;
+  var g;
+  if(SRC==='gen'){ g = GST!=='run' ? (ESTOP?(long?'the generator E-stop is pressed':'GEN E-STOP'):GMODE==='off'?(long?'the generator controller is in OFF':'GEN IN OFF'):(long?'the generator is not running yet':'GEN NOT RUNNING'))
+                       : genBrkOff ? (long?'the generator breaker is open':'GEN BREAKER OPEN') : '';
+    return (u?u+(long?', and ':' · '):'')+(long?'the transfer switch is on the generator side, but ':'')+g; }
+  g = ESTOP ? (long?'the generator E-stop is pressed, so it won\'t start':'GEN E-STOP')
+    : GMODE==='off' ? (long?'the generator controller is in OFF, so it won\'t start':'GEN IN OFF')
+    : GST==='sense' ? (long?'the generator is starting':'GEN STARTING')
+    : GST==='run' ? (genBrkOff?(long?'the generator is running but its breaker is open':'GEN BREAKER OPEN'):(long?'the generator is running and the transfer switch is about to move to it':'TRANSFER PENDING'))
+    : (long?'the generator has not started':'GEN NOT ON LINE');
+  return u+(long?' — ':' · ')+g; }
 function genSched(what,sec,fn){ genCancel(); gWhat=what; gUntil=Date.now()+sec*1000/GSPEED; gTimer=setTimeout(function(){ gTimer=null; gWhat=''; fn(); render(); }, sec*1000/GSPEED); }
 function genCancel(){ if(gTimer)clearTimeout(gTimer); gTimer=null; gWhat=''; }
 function genLeft(){ return Math.max(0,Math.ceil((gUntil-Date.now())*GSPEED/1000)); }
@@ -873,13 +894,13 @@ function probeText(){ var a=probePick[0],b=probePick[1],v=voltBetween(a,b); if(/
   else if(svcOff&&sl&&!sd&&!dk) desc='<b style="color:#ffd27a">The service disconnect is OPEN — but its LINE side is still hot.</b> Only the utility can kill it (pull the meter / call the POCO). Treat it as energized.';
   else if(svcOff&&sd) desc='<b style="color:#ffd27a">Service disconnect is OPEN — its LOAD side reads 0 V.</b> The line side (meter side) is still hot.';
   else if(dk){ var bk=BRK[dk], why;
-    if(bk.pool&&!bk.bus) why=svcOff?'the service disconnect is open':(lcMainOff?'the panel main is OFF':'the 100 A pool breaker is OFF');
-    else if(!bk.bus) why=!srcLive()?(genOK()?'the utility breaker is open and the generator is not on line':'the service disconnect is open'):'the panel main is OFF';
+    if(bk.pool&&!bk.bus) why=!srcLive()?srcWhy(true):(lcMainOff?'the panel main is OFF':'the 100 A pool breaker is OFF');
+    else if(!bk.bus) why=!srcLive()?srcWhy(true):'the panel main is OFF';
     desc = !bk.bus
       ? '<b style="color:#ffd27a">The '+(bk.pool?'pool panel':'panel')+' bus is dead — '+why+' — so '+nodeLabel(dk)+' reads 0 V</b>, even though the breaker itself is '+(bk.on?'ON':'OFF')+'.'
       : '<b style="color:#ffd27a">'+nodeLabel(dk)+' is OFF — its load terminal reads 0 V.</b> The bus side of the breaker is still hot; the breaker is what opened the circuit.'; }
   else if(hot(a)&&hot(b)&&probePh(a)&&probePh(a)===probePh(b)&&v<1) desc='Same leg ('+probePh(a)+') on both probes — 0 V. Two points on the same conductor or leg have no voltage between them, even when both are hot.';
-  else if(!srcLive()&&(hot(a)||hot(b))) desc=genOK()?'No source on the feeder — utility breaker open and the generator is not on line yet.':'Service disconnect is open — the feeder is de-energized.';
+  else if(!srcLive()&&(hot(a)||hot(b))) desc='No source on the feeder — '+srcWhy(true)+'.';
   else if(genOK()&&SRC==='gen'&&hot(a)&&hot(b)) desc='Phase-to-phase from the <b>generator</b>.';
   else if(lcMainOff&&(hot(a)||hot(b))&&!(pool(a)||pool(b))) desc='<b style="color:#ffd27a">Panel main is OFF — but these probes are on its LINE side, so the feeder is still live.</b> Only the bus and branch circuits are dead.';
   else if((lcMainOff||!SB.P.live)&&(pool(a)||pool(b))&&(hot(a)||hot(b))&&v<1) desc='Subpanel feeder is de-energized (load side of the panel main / its feeder breaker).';
@@ -1947,7 +1968,7 @@ function renderCore(){ DRB=null; GWA=null;
   if(MODE==='single'&&DETAIL){ var fx=busC-11, fy=((tyG+4)+((D.on&&D.whole)?top-148:top-104))/2;   // centred between the lowest bend (EGC) and the top of the probe labels (or the backup gateway)   // Panel A feeder label, turned to run down the vertical stretch
     [[fx-21,s4On()?'200 A FEEDER → PANEL A':'200 A FEEDER → PANEL'],[fx-10,s4On()?'3/0 Cu (310.16) · L1 · L2 · N · EGC':'2/0 Cu · whole dwelling, 83 % (310.12(B))']].forEach(function(q){ var t=txt(q[0],fy,q[1],{anchor:'middle',size:9,w:700,fill:'#8fd6a3'}); t.setAttribute('stroke',lc('#0b1020')); t.setAttribute('stroke-width','4'); t.setAttribute('paint-order','stroke'); t.setAttribute('transform','rotate(-90 '+q[0]+' '+fy+')'); lateTxt.push(t); }); }
   if(!s4On()) svg.appendChild(txt(busC,14,(s4On()?'PANEL A · ':'')+'42-CIRCUIT PANELBOARD · '+sys.title,{anchor:'middle',size:12.5,w:700}));
-  if(!busLive){ svg.appendChild(txt(busC,busBotZ+26,(!feederLive?(GN?'NO SOURCE — utility breaker open, generator not on line':'SERVICE OPEN — whole panel de-energized'):'MAIN OPEN — bus dead, feeder live'),{anchor:'middle',size:9.5,w:700,fill:'#ff8a8a'})); }
+  if(!busLive){ svg.appendChild(txt(busC,busBotZ+26,(!feederLive?(srcLive()?'NO SOURCE — whole panel de-energized':'NO SOURCE — '+srcWhy(false)):'MAIN OPEN — bus dead, feeder live'),{anchor:'middle',size:9.5,w:700,fill:'#ff8a8a'})); }
 
   // N/G buses
   if(s4On()){ var aKW=mainKW(); if(genOK()&&SRC==='gen') genShedSet().forEach(function(k){ if(k[0]==='A'&&DEMO.single[+k.slice(1)]) aKW-=DEMO.single[+k.slice(1)].kw; });   // 400 A: Panel A gets the same footer as Panel B
