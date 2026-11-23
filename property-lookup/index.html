@@ -8898,8 +8898,15 @@ const ZONING_LIVE_CITY = {
     "https://gis.ctsfl.us/arcgis/rest/services/Hosted/Zoning_2025/FeatureServer/3/query"
   ]},
   NAPLES: { label:"City of Naples Zoning", codeField:"Layer", descField:"Descript", urls:[
-    // ✅ verified: City of Naples public GIS (backs the official city zoning map viewer)
-    "https://g.naplesgov.com/arcgis/rest/services/Planning/Zoning/FeatureServer/0/query"
+    /* ✅ The city's ArcGIS Online copy ("ZoningUpdated", owner NaplesGIS) — the layer the official
+       Naples Interactive Map (experience.arcgis.com/experience/91147e970654427cb923868e178f0f11) reads.
+       Same fields as the old one (Layer = district, Descript = name, plus ORD_1 / PD_NAME and a
+       Documentation link to the Municode district). CORS-OK, ~270 ms.
+       Replaces g.naplesgov.com/.../Planning/Zoning/FeatureServer/0: that on-prem server stopped
+       answering on 23 Nov 2026 (700 Park Shore Dr sat on "confirming live district…"). It is NOT kept
+       as a fallback — every candidate layer is awaited, so a dead host would still cost the full
+       ZONING_TIMEOUT on every Naples lookup. */
+    "https://services1.arcgis.com/rXoq3MI8ZjnfUJwc/arcgis/rest/services/ZoningUpdated/FeatureServer/0/query"
   ]},
   // ✅ City of Fort Lauderdale zoning (Broward's largest city; the county BMSD layer doesn't cover it,
   // so its own layer is required). Source: the city's own ArcGIS Server (gis.fortlauderdale.gov),
@@ -9961,6 +9968,12 @@ async function queryZoning(lat,lng, cityName, countyName){
     }
     return { code, desc, extras, sheetUrl, layerName:(info&&info.name)||null, lastEdit:(info&&info.lastEdit)||null, url:cu };
   }
+  /* Every layer FAILED (timeout / refused / HTTP error) — not "no polygon here". Say so: the card used to
+     read "the zoning service gave no polygon for this parcel" when the server never answered at all. */
+  // (Any failed layer counts: with the city layer dead, the county fallback still answers — but only with
+  //  a "CITY OF …" placeholder that is filtered out — so "no polygon" would be the wrong story.)
+  const _dead = _results.filter(x=>x.r && x.r.__err);
+  if(_dead.length) return { __down:true, hosts:[...new Set(_dead.map(x=>_poolHostOf(x.cu)))] };
   return null;
 }
 
@@ -31981,7 +31994,7 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
     return (async()=>{
       let inHit = null;
       try{ inHit = await _timed('zoning (inside lot — pin off-parcel)', queryZoning(st.lat, st.lng, cityName, countyName)); }catch(e){ inHit = null; }
-      if(inHit){ inHit.__fromLot = true; return inHit; }
+      if(inHit && !inHit.__down){ inHit.__fromLot = true; return inHit; }
       return pZoning;
     })();
   })();
@@ -32014,6 +32027,11 @@ const cut=u.search(/\b(BLK\b|BLOCK\b|LOTS?\b|TRACT\b|TR\s+\d|PB\s+\d|OR\s+\d|SEC
   // Returns a STRING; identical branch logic whether rendered now or a moment later.
   function _buildZoningInner(zhit){
     let html = '';
+    if(zhit && zhit.__down){
+    _timings.push({label:'zoning (server not responding: '+(zhit.hosts||[]).join(', ')+')', ms:0, err:true});
+    html += `<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ ZONING</span> ${esc(jurName)}'s zoning server isn't responding right now${zhit.hosts&&zhit.hosts.length?' ('+esc(zhit.hosts.join(', '))+')':''}</div>`;
+    html += `<div class="note">Their GIS is down or unreachable — nothing is wrong with this parcel or the app. The setbacks and district rules below come from the adopted code and still apply; confirm which district the parcel is in on the jurisdiction's zoning map, or search again later.</div>`;
+  } else
     if(zhit && zhit.__slow){
     _timings.push({label:'zoning (no live district returned)', ms:0, err:true});
     html += `<div class="freshline snap" style="margin-top:10px"><span class="badge unk">▣ ZONING</span> live district lookup didn't return — the ${esc(jurName)} zoning service gave no polygon for this parcel</div>`;
