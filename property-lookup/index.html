@@ -20026,7 +20026,7 @@ async function probeEndpoint(rawUrl){
   const metaUrl=root+'?f=json';
   // 1) normal CORS fetch
   try{
-    const r=await fetch(metaUrl,{signal:AbortSignal.timeout?AbortSignal.timeout(12000):undefined});
+    const r=await fetch(metaUrl,{signal:AbortSignal.timeout?AbortSignal.timeout(8000):undefined});
     const j=await r.json();
     if(j && j.error){
       return { verdict:'badpath', cors:'ok', detail:'server reachable & CORS-OK, but this layer/path is wrong ('+(j.error.message||('code '+j.error.code))+'). Edit the layer index.', root };
@@ -20042,7 +20042,7 @@ async function probeEndpoint(rawUrl){
   }catch(e){
     // 2) normal fetch failed → distinguish CORS block from unreachable via no-cors
     try{
-      await fetch(root, {mode:'no-cors', signal:AbortSignal.timeout?AbortSignal.timeout(12000):undefined});
+      await fetch(root, {mode:'no-cors', signal:AbortSignal.timeout?AbortSignal.timeout(6000):undefined});
       // no-cors resolved (opaque) → the HOST answered, so the normal fetch died on CORS
       return { verdict:'cors', cors:'blocked', detail:'host is reachable but blocks browser (CORS) requests. A direct client-side fetch can NOT work — route this layer through a proxy. The data is public, so a proxy is fine.', root };
     }catch(e2){
@@ -20112,9 +20112,22 @@ async function diagnoseLiveFeeds(){
 
   out.innerHTML='<span style="color:var(--signal)">probing '+targets.length+' endpoint'+(targets.length>1?'s':'')+' for '+(cn?esc(titleCase(cn))+' County':'this point')+'…</span>';
   const color={ok:'var(--good)',badpath:'var(--signal)',cors:'var(--warn)',unreachable:'var(--warn)'};
-  const lines=[];
-  for(const t of targets){
-    const p=await probeEndpoint(t.url);
+  /* LIVE ROWS, IN PARALLEL (23 Nov 2026). This used to probe one feed at a time and print nothing until the
+     last one finished, so a jurisdiction whose own server is down (City of Naples: six feeds on one dead host,
+     up to 24 s each) showed a blank panel for minutes. Now every row is drawn at once as "checking…" and
+     fills in the moment its probe answers — in the same order as before. Up to 3 probes per host at a time,
+     and once a host is known dead its remaining feeds are marked straight away instead of waiting again. */
+  const _diagId = 'dg'+Date.now().toString(36);
+  out.innerHTML = '<div style="font-size:11.5px;color:var(--signal)">probing '+targets.length+' endpoint'+(targets.length>1?'s':'')+' for '+(cn?esc(titleCase(cn))+' County':'this point')+' — rows fill in as each answers</div>'
+    + targets.map((t,i)=>'<div id="'+_diagId+'_'+i+'" style="margin-top:6px;border-top:1px solid var(--dash);padding-top:6px"><span style="color:var(--faint);font-weight:600">… checking</span>'+(t.label?' · '+esc(t.label):'')+'<br><span style="color:var(--faint);word-break:break-all">'+esc(t.url)+'</span></div>').join('');
+  const _deadHost = new Set();
+  const _row = (i, html) => { const el=document.getElementById(_diagId+'_'+i); if(el) el.outerHTML=html; };
+  await pooledMap(targets.map((t,i)=>({t,i,url:t.url})), async ({t,i})=>{
+    const _h = _poolHostOf(t.url);
+    const p = _deadHost.has(_h)
+      ? { verdict:'unreachable', cors:'unknown', detail:'same host as a feed above that did not respond — not probed again (server down or unreachable).', root:layerRoot(normalizeLayerUrl(t.url)) }
+      : await probeEndpoint(t.url);
+    if(p.verdict==='unreachable') _deadHost.add(_h);
     const tag=({ok:'LIVE-OK',badpath:'BAD PATH',cors:'CORS-BLOCKED',unreachable:'UNREACHABLE'})[p.verdict];
     const mark=({ok:'✓',badpath:'△',cors:'⊘',unreachable:'✗'})[p.verdict];
     // Address-point / footprint / zoning layers aren't parcel feeds, so don't report them by
@@ -20125,12 +20138,12 @@ async function diagnoseLiveFeeds(){
       if(_isAux) extra=' · '+esc(t.label)+(p.name?' ('+esc(p.name)+')':'')+(p.lastEdit?' · updated '+p.lastEdit.toLocaleDateString():'');
       else extra=(p.name?' · '+esc(p.name):'')+(p.owner?' · owner→'+esc(p.owner):'')+(p.pid?' · parcel→'+esc(p.pid):'')+(p.lastEdit?' · updated '+p.lastEdit.toLocaleDateString():'');
     } else if(t.label){ extra=' · '+esc(t.label); }
-    lines.push('<div style="margin-top:6px;border-top:1px solid var(--dash);padding-top:6px">'+
+    _row(i, '<div style="margin-top:6px;border-top:1px solid var(--dash);padding-top:6px">'+
       '<span style="color:'+color[p.verdict]+';font-weight:600">'+mark+' '+tag+'</span>'+extra+
       '<br><span style="color:var(--faint);word-break:break-all">'+esc(p.root)+'</span>'+
       '<br><span style="color:var(--dim)">'+esc(p.detail)+'</span></div>');
-  }
-  out.innerHTML=lines.join('');
+  }, 3);
+  const _hd = out.firstElementChild; if(_hd) _hd.outerHTML = '<div style="font-size:11.5px;color:var(--dim)">'+targets.length+' endpoint'+(targets.length>1?'s':'')+' checked'+(_deadHost.size?' · not responding: '+esc([..._deadHost].join(', ')):'')+'</div>';
 }
 /* ---------- Full diagnostic POPUP ----------
    Triggered by the Test button (and reusable). Runs probeEndpoint for a clear CORS verdict, then —
