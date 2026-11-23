@@ -567,11 +567,14 @@ function tapAok(){ return !MLO; }
 var pvHow='bkr', pvPanel='A';   // 400 A: TIE = service tap · feeder tap · backfed breaker, PANEL = A · B · both (both = inverter #1.. → A, inverter B → B)
 function pvWhole(){ return battOn&&battMode==='whole'; }
 function gwOk(I){ return 200+1.25*I<=240+1e-9; }   // the gateway's 200 A bus: 200 A supply breaker + 125 % of the inverters ≤ 120 % (705.12(B)(2))
+function chkWrap(L,W){ W=W||184; var out=[]; L.forEach(function(l){ var s=String(l[0]), cw=l[1]*(l[2]>=700?0.5:0.46);   // keep the PANEL A / B check column inside its 190 px rule (long lines ran under the battery bank)
+    if(s.length*cw<=W){ out.push(l); return; } var mx=Math.floor(W/cw), cut=-1; [' → ',' · ',' > ',' ≤ ',' = ',', ',' '].some(function(sep){ var i=s.lastIndexOf(sep,mx); if(i>mx*0.45){ cut=i; return true; } return false; }); if(cut<0) cut=mx;
+    out.push([s.slice(0,cut).replace(/[\s·,]+$/,''),l[1],l[2],l[3]]); out=out.concat(chkWrap([['   '+s.slice(cut).replace(/^[\s·,]+/,''),l[1],l[2],l[3]]],W)); }); return out; }
 function gwCheck(X,n,kw,I,mlo){ var c125=Math.round(1.25*I*10)/10, bk=nextStd(1.25*I), ok=gwOk(I);   // the same block for gateway A and gateway B
   return [[X?'SYSTEM '+X+' · GATEWAY '+X:'BACKUP GATEWAY',12,700,ok?'#8fd6a3':'#ff8a8a'],[(X?'on Panel '+X+'\'s feeder':'on the panel feeder')+' · 705.70',10.5,700,ok?'#8fd6a3':'#ff8a8a'],['inverters land on its',10,400,COL.txt2],['backed-up side, not the bus',10,400,COL.txt2],['gateway bus rated 200 A',10,400,COL.txt2],
     [n+' × '+kw+' kW = '+(Math.round(I*10)/10)+' A',10,700,COL.txt2],['125 % → '+bk+' A breaker in the gateway',10,400,COL.txt2],
     ok?['200 + '+c125+' A ≤ 1.2 × 200 = 240 A ✓',10,700,'#8fd6a3']:['200 + '+c125+' A > 240 A ✗ VIOLATION',10,700,'#ff8a8a'],
-    ok?['120 % rule on its bus · 705.12(B)(2)',10,400,COL.txt2]:['→ fewer / smaller inverters, or a supply-side tap',10,700,'#ffd27a']].concat(mlo?[[(X?'Panel '+X:'The panel')+' on MAIN LUGS ✗',10,700,'#ff8a8a'],['the gateway feeds it utility + inverter:',10,400,COL.txt2],['needs a 200 A main · 705.12(B)(1)',10,700,'#ffd27a']]:[[(X?'Panel '+X:'The panel')+' 200 A main protects its bus ✓',10,700,'#8fd6a3']]); }
+    ok?['120 % rule on its bus · 705.12(B)(2)',10,400,COL.txt2]:['→ fewer / smaller inverters, or a supply-side tap',10,700,'#ffd27a']].concat(mlo?[[(X?'Panel '+X:'The panel')+' on MAIN LUGS ✗',10,700,'#ff8a8a'],['gateway feeds it utility + inverter:',10,400,COL.txt2],['needs a 200 A main · 705.12(B)(1)',10,700,'#ffd27a']]:[[(X?'Panel '+X:'The panel')+' 200 A main protects its bus ✓',10,700,'#8fd6a3']]); }
 function sysBCheck(){   // system B's interconnection check lines (drawn under system A's, titled PANEL B)
       var iB=invAB(), c125=Math.round(1.25*iB*10)/10, bk=nextStd(1.25*iB), ok120=200+c125<=240+1e-9, okT=tapBok(), L, nB=nInvB, WH=bat2W();
       if(WH&&pvHow!=='bkr') L=gwCheck('B',nB,invKWB,iB,b4MLO);
@@ -621,7 +624,7 @@ function drawSolarTable(svg,X0,Y0,W){   // Option 1: a SITE strip (shared), then
       diagSeg(svg,x,y,110*tO.length+40,22,'TIE',tO,pvConn,function(v){derSet('conn',v);}); x+=110*tO.length+48; }
     else { diagSeg(svg,x,y,330,22,'TIE',hO,pvHow,function(v){derSet('how',v);}); x+=338; }
     whyBtn(x,y,'tie'); x+=58;
-    if(s4On()&&pvHow!=='svc'){ diagSeg(svg,x,y,190,22,'PANEL',[['A','A'],['B','B'],['both','BOTH']].map(g),P0,function(v){derSet('pnl',v);}); x+=198; whyBtn(x,y,'pnl'); x+=58; }
+    if(s4On()&&pvHow!=='svc'){ diagSeg(svg,x,y,260,22,'PANEL',[['A','A'],['B','B'],['both','BOTH']].map(g).concat([pnlSharedOpt()]),pnlVal(P0),pnlPick); x+=268; whyBtn(x,y,'pnl'); x+=58; }
     if(solarOn){ diagPill(svg,x,y,150,22,rsdOff,'PV RAPID SHUTDOWN','RSD INITIATED',function(){derSet('rsd');}); x+=158; }
     if(battOn){ diagPill(svg,x,y,150,22,essStop,'ESS SHUTDOWN','ESS STOPPED',function(){derSet('ess');}); x+=158; }
     if(battOn&&battMode==='whole'){ diagPill(svg,x,y,150,22,!emsOn,'EMS LOAD SHED · ON','EMS OFF',function(){derSet('ems');}); x+=158; }
@@ -648,7 +651,9 @@ function drawSolarTable(svg,X0,Y0,W){   // Option 1: a SITE strip (shared), then
       T(px+10,y+94,((b?pvStrB:pvStr)<(b?nInvB:nInv)?'⚠ '+(b?pvStrB:pvStr)+' string'+((b?pvStrB:pvStr)>1?'s':'')+' for '+(b?nInvB:nInv)+' inverters — one gets none · ':'')+(pm/(b?pvStrB:pvStr))+' modules per string · Voc '+(b?pvVocB():pvVoc())+' V (cold) '+((b?pvOverVB():pvOverV())?'> 600 V ⚠ 690.7':'≤ 600 V'),{anchor:'start',size:9,w:700,fill:((b?pvOverVB():pvOverV())||(b?pvStrB:pvStr)<(b?nInvB:nInv))?'#ff8a8a':COL.txt2}); }
     y+=(solarOn?112:84)+10;
     // BATTERY group
-    if(battOn){ box(gx,y,cw-24,(b&&!WH&&bBattMode==='batt')?140:112,'#33456b',true); T(gx+10,y+15,'BATTERY',{anchor:'start',size:9,w:800,fill:COL.txt2});
+    if(battOn&&b&&WH&&bankShared){ box(gx,y,cw-24,56,'#33456b',true); T(gx+10,y+15,'BATTERY',{anchor:'start',size:9,w:800,fill:COL.txt2});
+      T(gx+10,y+36,'SHARED BANK — set in SYSTEM A · one bank feeds inverters A + B',{anchor:'start',size:10,w:700,fill:'#8fd6a3'}); T(gx+10,y+50,'inverter B is paralleled with A: same size ('+invKW+' kW), battery data over the paralleling cable',{anchor:'start',size:9,fill:COL.txt2}); y+=66; }
+    else if(battOn){ box(gx,y,cw-24,(b&&!WH&&bBattMode==='batt')?140:112,'#33456b',true); T(gx+10,y+15,(!b&&WH&&bankShared)?'BATTERY · SHARED BANK (A + B)':'BATTERY',{anchor:'start',size:9,w:800,fill:(!b&&WH&&bankShared)?'#8fd6a3':COL.txt2});
       var x=gx+10, gH=112; if(b&&!WH){ diagSeg(svg,x,y+24,250,22,'B BATT',[['none','NONE'],['batt','BATTERY ONLY']].map(g),bBattMode,function(v){ bBattMode=v; derSocB=100; probePick=[]; render(); });
         T(x+262,y+39,bBattMode==='batt'?'grid-tied · stores solar · no backup':'Panel B: solar only',{anchor:'start',size:9.5,fill:COL.txt2}); if(bBattMode!=='batt'){ T(x,y+70,'WHOLE HOME (SITE) gives Panel B its own gateway, battery and backup.',{anchor:'start',size:10,fill:COL.txt2}); } else y+=28; }
       if(!(b&&!WH&&bBattMode!=='batt')){
@@ -779,9 +784,10 @@ var sunLast=null, sunRT=0;
 function derTick(){ var now=Date.now(), dt=Math.min(2,(now-derTickT)/1000); derTickT=now;
   if(solarOn&&sunMode==='auto'){ var was=derSun; sunUpd(); if(was!==derSun||now-sunRT>60000){ sunRT=now; render(); return; } }
   if(genBattCheck()){ render(); return; }
-  if(bat2On()&&!essStop&&!essDiscOff){ var sbT=sysB(); if(Math.abs(sbT.batt)>0.01){ var oB=derSocB; derSocB=Math.max(0,Math.min(100,derSocB+sbT.batt*dt*(DER_TS/60)/kwhB()*100)); if((oB>0&&derSocB<=0)||(oB<100&&derSocB>=100)||Math.floor(oB/5)!==Math.floor(derSocB/5)){ render(); return; } } }
-  if(!derOK()||!battOn||essStop||essDiscOff) return; var D=derState(); if(!D.on||!(Math.abs(D.batt)>=0.01)) return;   // no system A (Panel B only) → nothing to drain
-  var old=derSoc; derSoc=Math.max(0,Math.min(100,derSoc+D.batt*dt*(DER_TS/60)/derKwh()*100));
+  var shB=bankShared&&bat2W();   // one shared bank: inverter B draws from system A's bank (below), not a battery of its own
+  if(bat2On()&&!essStop&&!essDiscOff&&!shB){ var sbT=sysB(); if(Math.abs(sbT.batt)>0.01){ var oB=derSocB; derSocB=Math.max(0,Math.min(100,derSocB+sbT.batt*dt*(DER_TS/60)/kwhB()*100)); if((oB>0&&derSocB<=0)||(oB<100&&derSocB>=100)||Math.floor(oB/5)!==Math.floor(derSocB/5)){ render(); return; } } }
+  if(!derOK()||!battOn||essStop||essDiscOff) return; var D=derState(), bB=shB?(sysB().batt||0):0, net=(D.on?D.batt:0)+bB; if(!(Math.abs(net)>=0.01)) return;   // no system A (Panel B only) → nothing to drain
+  var old=derSoc; derSoc=Math.max(0,Math.min(100,derSoc+net*dt*(DER_TS/60)/derKwh()*100)); if(shB) derSocB=derSoc;
   if((old>0&&derSoc<=0)||(old<100&&derSoc>=100)||(Math.floor(old/10)!==Math.floor(derSoc/10)&&!document.querySelector('#svg [data-socbar]'))){ render(); return; }   // empty / full changes what the system does → redraw
   document.querySelectorAll('#svg [data-socbar]').forEach(function(b){ var h=(+b.getAttribute('data-h'))*derSoc/100; b.setAttribute('height',h); b.setAttribute('y',(+b.getAttribute('data-bot'))-h); b.setAttribute('fill',lc(derSocCol())); });
   var t=document.getElementById('derSocTxt'); if(t) t.textContent=Math.round(derSoc)+'% · '+derBattWhy(D);
@@ -1167,9 +1173,22 @@ function sysBSet(k,v){ derFltMsg=''; if(k==='n'){ nInvB=v; ugOffB={}; } else if(
   else if(k==='str') pvStrB=v; else if(k==='dcd') dcDiscB=v; else if(k==='nbat') nBatB=v; else if(k==='batt') batTB=v; else if(k==='bloc') batLocB=v; else if(k==='pri') battPriB=v;
   else if(k==='gchg') gridChgB=!gridChgB; else if(k==='soc') derSocB=v; else if(k==='ac') acOffB=!acOffB; else if(k==='pvd') pvDiscOffB=!pvDiscOffB;
   probePick=[]; render(); }
+var bankShared=false;   // v3.1.4: 400 A · BOTH PANELS · whole-home: one battery bank shared by inverters A + B (paralleled, EG4 18kPV §8.3)
 var bat2=false, derSocB=100, B_EMS=[9,1,5,21,2,6,13,17];   // Panel B's battery EMS shed order: air handler 2 · EV · A/C 2 · sauna · hot tub · welder · compressor · mini-split
 function bat2On(){ return bat2&&s4On()&&derOK()&&pvHow!=='svc'; }   // inverter B for Panel B (with a whole-home battery: a complete second system with its own gateway)
 function bat2W(){ return bat2On()&&battOn&&battMode==='whole'; }
+function pnlSharedOk(){ return battOn&&battMode==='whole'; }
+function pnlSharedOpt(){ return pnlSharedOk()?['shared','SHARED','#1f6f45','#8fd6a3']:['shared','SHARED','#1b2236','#5d6a88']; }
+function pnlVal(P0){ return (bankShared&&P0==='both')?'shared':P0; }
+function pnlPick(v){
+  if(v==='shared'){
+    if(!pnlSharedOk()){ ckMsg='<b style="color:#ffd27a">SHARED needs a whole-home battery</b> — SHARED is one battery bank feeding inverters A + B (paralleled), backing up both panels. Turn on <b>Battery</b> and set ESS to <b>WHOLE HOME</b> first.'; render(); return; }
+    bankShared=true; derSet('pnl','both'); derSocB=derSoc; batT=3; if(nBat<2) nBat=2; invKWB=invKW; ckMsg=bankWhy(); probePick=[]; render(); return; }
+  bankShared=false; derSet('pnl',v); }
+function bankWhy(){ var n=nBat, ext=n>4;
+  return '<b style="color:#5fd4ff">PANEL · SHARED — one battery bank, both panels (EG4 18kPV, manual §8.2–8.3)</b> — inverters A and B are <b>paralleled</b> (paralleling cable between them) and draw from <b>one</b> battery bank: each inverter has its own 2/0 + / − leads to the bank. Only the <b>master battery (ID 1)</b> talks to an inverter (inverter A); inverter B gets the battery data over the paralleling cable. Both panels go on and off backup together, and the bank is shared by the whole house. '+
+    (ext?'<b style="color:#ffb35c">'+n+' BATTERIES</b> — more than 4 with 2 inverters: the manual <b>requires</b> an external <b>fused</b> + busbar and an <b>unfused</b> − busbar, rated ≥ 200 A per battery, fuses ≤ 250 A.':'<b style="color:#8fd6a3">'+n+' BATTER'+(n>1?'IES':'Y')+' ON THE BUILT-IN BUSBARS ✓</b> — up to 4 with 2 inverters (paralleling kit, 2/0, 53.1 in).')+
+    ' The ESS emergency stop on the master battery shuts down the whole bank — and both inverters.'; }
 function b4Raw(){ return b4Lds().reduce(function(t,L){ return t+((b4C[L.s]||b4Flt===L.s||b4Shed(L.s))?0:L.kw); },0); }   // what Panel B's breakers that are ON would draw
 function sysB(){ var S={on:bat2On()}; if(!S.on) return S;
   if(!bat2W()){ var srcG=pvHow==='ftap'?(b4Feed()?(b4Gen()?'gen':'util'):'none'):((b4Live()&&!b4C[40])?(b4Gen()?'gen':'util'):'none'), pvG=pvB();   // grid-tied inverter B: follows Panel B's grid, never islands
@@ -1527,7 +1546,7 @@ function draw400(svg,c){   // c: base-drawing geometry; everything already drawn
       var gU=el('g',{transform:'translate('+(IX-DRB.IX0)+','+(IYb-DRB.IY0)+')'}); svg.appendChild(gU);
       var kwl=['PV '+k(pu)]; if(bHasBatt()) kwl.push('BATT '+(b.batt*sh>0.05?'+':(b.batt*sh<-0.05?'−':''))+k(b.batt*sh));
       var tp=(b.mode==='grid'||b.mode==='gen'||b.grid)?pu-b.batt*sh:b.toPanel*sh, sB0=battOn; battOn=bHasBatt();
-      try{ DRB.drawInv(gU,{st:stMap[md]||'off',stTxt:stT[md]||md,stCol:uOn?'#8fd6a3':'#ff8a8a',title:(WH?'HYBRID INVERTER B':'SOLAR INVERTER B')+(nB>1?u:''),sub:invKWB+' kW · '+(nB>1?(u===1?'leads system B':'follows B1'):'its own system'),kwLine:kwl.join(' · '),
+      try{ DRB.drawInv(gU,{st:stMap[md]||'off',stTxt:stT[md]||md,stCol:uOn?'#8fd6a3':'#ff8a8a',title:(WH?'HYBRID INVERTER B':'SOLAR INVERTER B')+(nB>1?u:''),sub:invKWB+' kW · '+((bankShared&&WH)?'follows #1':(nB>1?(u===1?'leads system B':'follows B1'):'its own system')),kwLine:kwl.join(' · '),
         flowLine:(uOn&&Math.abs(tp)>0.05)?((tp>0?'→ Panel B ':'← Panel B ')+k(tp)+' kW'):'',pv:pu,batt:bHasBatt()?b.batt*sh:0,toMain:uOn?tp:0,part:false,gridOff:uOff,onGrid:function(){sysBSet('ug',u);},onBu:function(){}}); } finally { battOn=sB0; }
       // AC out of its grid port (left side) → up the gap → across the top into the AC disconnect / combiner B. Lower conductors take the outer risers and the higher rows: nothing crosses
       [0,1,2,3].forEach(function(j){ var y=IYb+24+j*12, xr=IX-14-j*8, yr=Y0+6+((u-1)*4+(3-j))*9, hot=j<2, d='M '+IX+' '+y+' L '+xr+' '+y+' L '+xr+' '+yr+' L '+CB0+' '+yr, lv=hot&&uOn;
@@ -1577,7 +1596,50 @@ function draw400(svg,c){   // c: base-drawing geometry; everything already drawn
       halo(dX0-6,dY0+16,'AC DISC B'+(acOffB?' · OPEN':''),{anchor:'end',size:9,w:700,fill:acOffB?'#ff8a8a':COL.txt}); halo(dX0-6,dY0+29,'705.20 · lockable',{anchor:'end',size:8.5,fill:COL.txt2}); }
     // battery B: every unit's battery DC/DC on one + bus and one − bus (in parallel), like system A's bank
     var yEnd=IYb+212+16;
-    if(bHasBatt()){ var gS=genB?nB*36+16:0, yP=IYb+226+gS, yM=IYb+238+gS, BX=XB+20, BY=yM+22, BW=150, chg=b.batt>0.05, dis=b.batt<-0.05, bdir=chg?1:(dis?-1:0);
+    if(bankShared&&bat2W()&&DRB&&DRB.bankA){ (function(){ var A0=DRB.bankA, A=A0, probe=el('g'); svg.appendChild(probe);
+        // System A was drawn in its own (possibly shifted) group. Bring its points — and the screen boxes of the
+        // labels around the bank — into this drawing's coordinates, so the runs below can steer around them.
+        var essT=[].slice.call(document.querySelectorAll('#svg text')).filter(function(t){ return t.textContent==='ESS DISC 706.15'; })[0], Mb=null, cv=function(x,y){ return {x:x,y:y}; };
+        try{ var Ma=(essT||A0.ref).getScreenCTM(); Mb=probe.getScreenCTM().inverse(); var root=document.getElementById('svg');
+          cv=function(x,y){ var p=root.createSVGPoint(); p.x=x; p.y=y; return p.matrixTransform(Ma).matrixTransform(Mb); };
+          var c1=cv(A0.pbx0,A0.yP), c2=cv(A0.pbx1,A0.yP), c3=cv(A0.mbx0,A0.yM), c4=cv(A0.mbx1,A0.yM), c5=cv(A0.ix0,A0.iyIn);
+          A={pbx0:c1.x,pbx1:c2.x,yP:c1.y,mbx0:c3.x,mbx1:c4.x,yM:c3.y,ix0:c5.x,iyIn:c5.y,capX:cv(A0.capX,0).x}; }catch(e){}
+        var scr=function(r){ if(!Mb) return null; var root=document.getElementById('svg'), p=root.createSVGPoint(), q=root.createSVGPoint(); p.x=r.left; p.y=r.top; q.x=r.right; q.y=r.bottom; p=p.matrixTransform(Mb); q=q.matrixTransform(Mb); return {x0:p.x,y0:p.y,x1:q.x,y1:q.y}; };
+        var gS=genB?nB*36+16:0, xp=function(u){ return XB+(u-1)*SBP+68; }, xm=function(u){ return XB+(u-1)*SBP+96; }, yTop=IYb+212;
+        // the lane up the left of the bank: + , − and the paralleling cable, clear of the PANEL A / B check column
+        var xLp=Math.min(A.pbx0,A.capX)-14, xLm=xLp-12, xLc=xLp-24;
+        // how low the bank's own captions reach (SHARED BANK · idle · kWh · warnings · full · timer) — the run passes under them
+        var yLow=A.yM+20; [].slice.call(document.querySelectorAll('#svg text')).forEach(function(t){ var r=scr(t.getBoundingClientRect()); if(!r) return;
+          if(r.x1>xLm-4&&r.x0<xp(1)-30&&r.y0>A.yP&&r.y0<A.yP+460) yLow=Math.max(yLow,r.y1); });
+        var yPb=Math.max(IYb+236+gS,yLow+16), yMb=yPb+12, yCb=yPb+26;
+        var P=[], M=[];
+        // each B unit's DC port drops to B's + / − bus (− hops over the + bus)
+        for(var u=1;u<=nB;u++){ P.push('M '+xp(u)+' '+yTop+' L '+xp(u)+' '+yPb); M.push('M '+xm(u)+' '+yTop+' L '+xm(u)+' '+(yPb-4)+' A 4 4 0 0 1 '+xm(u)+' '+(yPb+4)+' L '+xm(u)+' '+yMb); }
+        // B's bus runs left under everything, up the lane, and lands on the bank's + / − bus (− hops over the + lane run)
+        P.push('M '+xp(nB)+' '+yPb+' L '+xLp+' '+yPb+' L '+xLp+' '+A.yP+' L '+A.pbx0+' '+A.yP);
+        M.push('M '+xm(nB)+' '+yMb+' L '+xLm+' '+yMb+' L '+xLm+' '+A.yM+' L '+(xLp-4)+' '+A.yM+' A 4 4 0 0 1 '+(xLp+4)+' '+A.yM+' L '+A.mbx0+' '+A.yM);
+        var bd=b.batt>0.05?1:(b.batt<-0.05?-1:0);
+        P.forEach(function(d){ svg.appendChild(el('path',{d:d,stroke:'#e2473f','stroke-width':2.4,fill:'none'})); if(bd) addDots(svg,d,bd,14,null,'dc'); });
+        M.forEach(function(d){ svg.appendChild(el('path',{d:d,stroke:'#565e6e','stroke-width':2.4,fill:'none'})); if(bd) addDots(svg,d,-bd,14,null,'dc'); });
+        svg.appendChild(el('circle',{cx:A.pbx0,cy:A.yP,r:3,fill:'#e2473f'})); svg.appendChild(el('circle',{cx:A.mbx0,cy:A.yM,r:3,fill:'#8a93a6'}));
+        // the paralleling cable rides the same lane into inverter A's left side
+        var cp='M '+(XB+14)+' '+yTop+' L '+(XB+14)+' '+yCb+' L '+xLc+' '+yCb+' L '+xLc+' '+A.iyIn+' L '+A.ix0+' '+A.iyIn;
+        svg.appendChild(el('path',{d:cp,stroke:'#4fb3ff','stroke-width':2,'stroke-dasharray':'7 5',fill:'none'}));
+        var mid=(xLp+xp(1))/2;
+        halo(mid,yPb-6,'2/0 + / − · inverter'+(nB>1?'s B1–B'+nB:' B')+' → SHARED BANK',{anchor:'middle',size:9,w:700,fill:'#ffd27a'});
+        // the rest of the daisy chain: … A3 – A2 – A1 – B1 – B2 – B3 …  short hops under neighbouring units' boxes
+        var root=document.getElementById('svg'), RS=[].slice.call(root.querySelectorAll('rect'));
+        var boxOf=function(re){ var t=[].slice.call(root.querySelectorAll('text')).filter(function(x){ return re.test(x.textContent); })[0]; if(!t) return null; var Tb=t.getBoundingClientRect(), best=null;
+          RS.forEach(function(r){ var R=r.getBoundingClientRect(); if(R.width>100&&R.height>80&&R.left<=Tb.left&&R.right>=Tb.right&&R.top<=Tb.top&&R.bottom>=Tb.bottom&&(!best||R.width*R.height<best.width*best.height)) best=R; }); return best?scr(best):null; };
+        var hop=function(a,b,dy){ if(!a||!b) return; var yH=Math.max(a.y1,b.y1)+(dy||14), d='M '+(a.x1-14)+' '+a.y1+' L '+(a.x1-14)+' '+yH+' L '+(b.x0+14)+' '+yH+' L '+(b.x0+14)+' '+b.y1;
+          svg.appendChild(el('path',{d:d,stroke:'#4fb3ff','stroke-width':2,'stroke-dasharray':'7 5',fill:'none'})); };
+        var AB=[]; for(var ua=1;ua<=nInv;ua++) AB.push(boxOf(nInv>1?new RegExp('^HYBRID INVERTER #'+ua+'$'):/^HYBRID INVERTER$/));
+        var BB=[]; for(var ub=1;ub<=nB;ub++) BB.push(boxOf(new RegExp('^HYBRID INVERTER B'+(nB>1?ub:'')+'$')));
+        for(var i=0;i+1<AB.length;i++) hop(AB[i],AB[i+1]); for(var j=0;j+1<BB.length;j++) hop(BB[j],BB[j+1],9);   // B: between the boxes and B's + / − bus
+        var chain=[]; for(var ca=nInv;ca>=1;ca--) chain.push(nInv>1?'#'+ca:'A'); for(var cb=1;cb<=nB;cb++) chain.push(nB>1?'B'+cb:'B');
+        halo(mid,yCb+13,'PARALLELING CABLES · daisy-chain '+chain.join(' – ')+' · terminate the two end units ('+chain[0]+', '+chain[chain.length-1]+')',{anchor:'middle',size:9,w:700,fill:'#4fb3ff'});
+        yEnd=yCb+30; })(); }
+    if(bHasBatt()&&!(bankShared&&bat2W())){ var gS=genB?nB*36+16:0, yP=IYb+226+gS, yM=IYb+238+gS, BX=XB+20, BY=yM+22, BW=150, chg=b.batt>0.05, dis=b.batt<-0.05, bdir=chg?1:(dis?-1:0);
       var xp=function(u){ return XB+(u-1)*SBP+68; }, xm=function(u){ return XB+(u-1)*SBP+96; };
       var bpd='M '+xp(1)+' '+yP+' L '+xp(nB)+' '+yP; svg.appendChild(el('path',{d:bpd,stroke:'#e2473f','stroke-width':2.4,fill:'none'}));
       if(nB>1){ var bmd='M '+xm(1)+' '+yM+' L '+xm(nB)+' '+yM; svg.appendChild(el('path',{d:bmd,stroke:'#565e6e','stroke-width':2.4,fill:'none'})); }
@@ -1608,7 +1670,7 @@ function draw400(svg,c){   // c: base-drawing geometry; everything already drawn
       yEnd=BY+116; }
     (function(){ var tie=function(isB){ var D0=derState(); if(pvHow==='svc') return 'service tap'; if(isB) return WH&&pvHow!=='bkr'?'gateway B':(pvHow==='ftap'?'feeder tap':'backfed 40/42'); return D0.whole&&pvHow==='ftap'?'gateway A':(pvHow==='ftap'?'feeder tap':'backfed 39/41'); };   // SYSTEM X → PANEL X · what's in it · how it ties in — the same wording for both
       return (aNone()?[]:[['SYSTEM A → PANEL A · '+(nInv>1?nInv+' inverters':'1 inverter')+(battOn&&battMode==='whole'?' + battery':'')+' · '+tie(false),'#5fd4ff',700]]).concat([['SYSTEM B → PANEL B · '+(nB>1?nB+' inverters':'1 inverter')+(bHasBatt()?' + battery':'')+' · '+tie(true),'#8fd6a3',700],
-     [aNone()?'the only system: Panel A is not backed up':(WH?'two separate systems: own gateway, inverters and battery each':'each system follows its own panel\'s grid'),COL.txt2,400],[aNone()?'(one 200 A gateway system on Panel B)':(WH?'(Tesla / Enphase: one 200 A system per panel)':'and each panel gets its own 120 % / tap check'),COL.txt2,400]]); })().forEach(function(l,i){ halo(XB-40,yEnd+i*13,l[0],{anchor:'start',size:8.5,w:l[2],fill:l[1]}); });
+     [aNone()?'the only system: Panel A is not backed up':(WH?(bankShared?'ONE paralleled system: '+(nInv+nInvB)+' inverters share one bank, #1 is master':'two separate systems: own gateway, inverters and battery each'):'each system follows its own panel\'s grid'),COL.txt2,400],[aNone()?'(one 200 A gateway system on Panel B)':(WH?(bankShared?'(EG4 18kPV × '+(nInv+nInvB)+' paralleled · one bank · manual §8.3)':'(Tesla / Enphase: one 200 A system per panel)'):'and each panel gets its own 120 % / tap check'),COL.txt2,400]]); })().forEach(function(l,i){ halo(XB-40,yEnd+i*13,l[0],{anchor:'start',size:8.5,w:l[2],fill:l[1]}); });
     var cy=yEnd+20;   // system B's settings live in the SOLAR · BATTERY SETTINGS table (drawSolarTable)
     DRB.sbEnd=cy+10;
   })();
@@ -1680,7 +1742,8 @@ function render(){   // every redraw keeps the page where it was: mid-redraw lay
     else if(vb&&vb.height&&rr.height){ var d=(rr.top+lastTap.dy*rr.height/vb.height)-lastTap.vy; if(Math.abs(d)>1) window.scrollBy(0,d); } lastTap=null; }
   if(sc&&sc.scrollLeft!==sl0) sc.scrollLeft=sl0;   // a swiped-over wide drawing stays where it was too
   return r; }
-function renderCore(){ DRB=null; GWA=null;
+function renderCore(){ DRB=null; GWA=null; if(bankShared&&!(pvPanel==='both'&&s4On()&&pvHow!=='svc')) bankShared=false; if(bankShared&&!pnlSharedOk()) bankShared=false;
+  if(bankShared&&bat2W()){ derSocB=derSoc; invKWB=invKW; nBatB=nBat; batTB=batT; battPriB=battPri; gridChgB=gridChg; if(typeof ckMsg==='string'&&ckMsg.indexOf('PANEL · SHARED')>=0) ckMsg=bankWhy(); }   /* one bank: system B's state of charge IS the bank's */
   BRK={}; if(genSizes().indexOf(GEN_KW)<0) GEN_KW=48;   // 3Ø: no air-cooled sizes
   LIGHT=!document.body.classList.contains('dark');
   var svg=document.getElementById('svg');
@@ -3051,8 +3114,8 @@ function drawDer(svg,DR,D,g){
     var hO=[['svc','SERVICE TAP','#1f6f45','#8fd6a3'],['ftap','FEEDER TAP','#1f6f45','#8fd6a3'],['bkr','BACKFED BKR','#1f6f45','#8fd6a3']]; if(!ftOK) hO[1]=bad(hO[1]); if(!bkOK) hO[2]=bad(hO[2]);
     diagSeg(svg,290,B0+6,330,22,'TIE',hO,pvHow,function(v){derSet('how',v);});
     if(pvHow!=='svc'){ var pO=[['A','A','#1f6f45','#8fd6a3'],['B','B','#1f6f45','#8fd6a3'],['both','BOTH','#1f6f45','#8fd6a3']];
-      diagSeg(svg,628,B0+6,190,22,'PANEL',pO,P0,function(v){derSet('pnl',v);}); }
-    tSh=(pvHow!=='svc'?198:0)+314; }   /* 400 A row starts right of the feeder-tap lanes (x 274/281) */
+      pO.push(pnlSharedOpt()); diagSeg(svg,628,B0+6,260,22,'PANEL',pO,pnlVal(P0),pnlPick); }
+    tSh=(pvHow!=='svc'?268:0)+314; }   /* 400 A row starts right of the feeder-tap lanes (x 274/281) */
   if(solarOn){ if(!sbTable()) diagPill(svg,316+tSh,B0+6,150,22,rsdOff,'PV RAPID SHUTDOWN','RSD INITIATED',function(){derSet('rsd');}); if(!D.bOnly&&!sbTable()) diagSeg(svg,560+SH,B+6,280,22,'PV',[15,20,25,30,35,40].map(function(n){ return [n,String(n),'#1f6f45','#8fd6a3']; }),pvMods,function(v){derSet('mods',v);}); if(!D.bOnly&&!sbTable()) diagSeg(svg,848+SH,B+6,140,22,'STR',pvStrOpts().map(function(n){ var bad=pvMods/n*PV_VOC>600||n<nInv; return [n,n+(bad?' ⚠':''),bad?'#5a1a1f':'#1f6f45',bad?'#ff8a8a':'#8fd6a3']; }),pvStr,function(v){derSet('str',v);}); }
   if(battOn&&!sbTable()) diagPill(svg,474+tSh,B0+6,150,22,essStop,'ESS SHUTDOWN','ESS STOPPED',function(){derSet('ess');});
   if(battOn&&battMode==='whole'&&!sbTable()) diagPill(svg,632+tSh,B0+6,150,22,!emsOn,'EMS LOAD SHED · ON','EMS OFF',function(){derSet('ems');});
@@ -3104,7 +3167,7 @@ function drawDer(svg,DR,D,g){
   if(D.tapA) C.forEach(function(q){ if(q.i!=null) svg.appendChild(el('circle',{cx:q.x0,cy:q.y0,r:4,fill:tapAok()?'#f5c542':'#ff6b6b',stroke:'#0b1020','stroke-width':1})); });
   if(D.tapA&&D.whole&&!D.midClosed&&mv) C.forEach(function(q){ if(q.i!=null){ var dd='M '+q.x0+' '+q.y0+' L '+q.x0+' '+(g.busTopZ-2); svg.appendChild(el('path',{d:dd,stroke:q.c,'stroke-width':2.4,fill:'none'})); addDots(svg,dd,g.dirPh(q.i),20,null,g.angPh(q.i)); } });   // islanded: from the tap down Panel A's feeder, through its main, onto the bus
   var NA=0, chkB=function(y0,withA){ if(withA){ halo(22,B+146,'PANEL A',{anchor:'start',size:13,w:800,fill:'#5fd4ff'}); svg.appendChild(el('line',{x1:22,y1:B+151,x2:212,y2:B+151,stroke:'#2b4a6b','stroke-width':1})); }
-    halo(22,y0,'PANEL B',{anchor:'start',size:13,w:800,fill:'#8fd6a3'}); svg.appendChild(el('line',{x1:22,y1:y0+5,x2:212,y2:y0+5,stroke:'#2f5a45','stroke-width':1})); sysBCheck().forEach(function(l,i){ halo(22,y0+20+i*14,l[0],{anchor:'start',size:l[1],w:l[2],fill:l[3]}); }); };
+    halo(22,y0,'PANEL B',{anchor:'start',size:13,w:800,fill:'#8fd6a3'}); svg.appendChild(el('line',{x1:22,y1:y0+5,x2:212,y2:y0+5,stroke:'#2f5a45','stroke-width':1})); chkWrap(sysBCheck()).forEach(function(l,i){ halo(22,y0+20+i*14,l[0],{anchor:'start',size:l[1],w:l[2],fill:l[3]}); }); };
   // AC disconnect (tap to open)
   if(!D.tap){ var acg=el('g'); acg.style.cursor='pointer'; acg.addEventListener('click',function(e){e.stopPropagation();derSet('ac');});
   acg.appendChild(el('rect',{x:ACX0,y:B+50,width:ACX1-ACX0,height:62,rx:6,fill:derAcOff?'#2a1620':COL.box,stroke:derAcOff?COL.off:'#9fb0d6','stroke-width':1.3}));
@@ -3113,7 +3176,7 @@ function drawDer(svg,DR,D,g){
   svg.appendChild(acg);
   halo((ACX0+ACX1)/2,B+42,'AC DISC',{anchor:'middle',size:10,w:700,fill:derAcOff?'#ff8a8a':COL.txt}); halo((ACX0+ACX1)/2,B+126,'705.20 · both sides can be hot',{anchor:'middle',size:8.5,fill:COL.txt2}); }
   var iA=invA()*nInv, okR=inv120ok(), bA=invBrk();
-  ((D.whole&&D.tapA&&GWA)?gwCheck(s4On()?'A':'',nInv,invKW,iA,MLO):(D.tapB||D.tapA)?[[(D.tapA?(s4On()?'PANEL A':'PANEL'):'PANEL B')+' · FEEDER TAP',12,700,okR?'#5fd4ff':'#ff8a8a'],['at Panel '+(D.tapA?'A':'B')+'\'s '+((D.tapA?MLO:b4MLO)?'main lugs':'main line side'),10.5,700,okR?'#5fd4ff':'#ff8a8a'],['far end of the feeder from',10,400,COL.txt2],['breaker '+(D.tapA?'A':'B')+' → no feeder upsizing',10,400,COL.txt2],['705.12(A)(2)',10,700,COL.txt2],okR?['Panel '+(D.tapA?'A':'B')+' main protects its bus ✓',10,700,'#8fd6a3']:['main lugs: 200 + '+Math.round(1.25*iA)+' A on a 200 A bus ✗',10,700,'#ff8a8a'],okR?['short tap → fused AC disc',10,400,COL.txt2]:['→ add a 200 A main to Panel '+(D.tapA?'A':'B'),10,700,'#ffd27a'],['taps: 240.21(B) · 705.12(A)(3)',10,400,COL.txt2]]:  [[D.busB?'PANEL B · 40/42':'BREAKER 39/41',12,700,okR?'#5fd4ff':'#ff8a8a'],[bA+' A 2P · backfed'+(nInv>1?' (combiner)':''),10.5,700,okR?'#5fd4ff':'#ff8a8a'],['bottom of the bus,',10,400,COL.txt2],[D.busB?'opposite the feeder lugs':'opposite the main',10,400,COL.txt2],['120 % rule · 705.12(B)(2):',10,700,COL.txt2],['125 % × '+(nInv>1?nInv+' × ':'')+Math.round(invA()*10)/10+' A = '+Math.round(1.25*iA*10)/10+' A',10,400,COL.txt2],okR?[(D.busB?'200 (bkr B)':mainA())+' + '+Math.round(1.25*iA)+' A ≤ 1.2 × 200 A ✓',10,700,'#8fd6a3']:['200 + '+Math.round(1.25*iA)+' A > 240 A ✗ VIOLATION',10,700,'#ff8a8a'],okR?(pvConn==='derate'?['main breaker derated to '+mainA()+' A',10,700,'#ffd27a']:['extra fastener · 408.36(D)',10,400,COL.txt2]):['→ supply-side tap'+(derMainA()>=150?', or a '+derMainA()+' A main':''),10,700,'#ffd27a'],['label: DO NOT RELOCATE',10,700,'#e8d39a']]).forEach(function(l,i){ halo(22,B+146+((s4On()&&bat2On())?20:0)+i*14,l[0],{anchor:'start',size:l[1],w:l[2],fill:l[3]}); NA=i+1; }); if(s4On()&&bat2On()) chkB(B+146+20+NA*14+22,true);
+  ((D.whole&&D.tapA&&GWA)?gwCheck(s4On()?'A':'',nInv,invKW,iA,MLO):(D.tapB||D.tapA)?[[(D.tapA?(s4On()?'PANEL A':'PANEL'):'PANEL B')+' · FEEDER TAP',12,700,okR?'#5fd4ff':'#ff8a8a'],['at Panel '+(D.tapA?'A':'B')+'\'s '+((D.tapA?MLO:b4MLO)?'main lugs':'main line side'),10.5,700,okR?'#5fd4ff':'#ff8a8a'],['far end of the feeder from',10,400,COL.txt2],['breaker '+(D.tapA?'A':'B')+' → no feeder upsizing',10,400,COL.txt2],['705.12(A)(2)',10,700,COL.txt2],okR?['Panel '+(D.tapA?'A':'B')+' main protects its bus ✓',10,700,'#8fd6a3']:['main lugs: 200 + '+Math.round(1.25*iA)+' A on a 200 A bus ✗',10,700,'#ff8a8a'],okR?['short tap → fused AC disc',10,400,COL.txt2]:['→ add a 200 A main to Panel '+(D.tapA?'A':'B'),10,700,'#ffd27a'],['taps: 240.21(B) · 705.12(A)(3)',10,400,COL.txt2]]:  [[D.busB?'PANEL B · 40/42':'BREAKER 39/41',12,700,okR?'#5fd4ff':'#ff8a8a'],[bA+' A 2P · backfed'+(nInv>1?' (combiner)':''),10.5,700,okR?'#5fd4ff':'#ff8a8a'],['bottom of the bus,',10,400,COL.txt2],[D.busB?'opposite the feeder lugs':'opposite the main',10,400,COL.txt2],['120 % rule · 705.12(B)(2):',10,700,COL.txt2],['125 % × '+(nInv>1?nInv+' × ':'')+Math.round(invA()*10)/10+' A = '+Math.round(1.25*iA*10)/10+' A',10,400,COL.txt2],okR?[(D.busB?'200 (bkr B)':mainA())+' + '+Math.round(1.25*iA)+' A ≤ 1.2 × 200 A ✓',10,700,'#8fd6a3']:['200 + '+Math.round(1.25*iA)+' A > 240 A ✗ VIOLATION',10,700,'#ff8a8a'],okR?(pvConn==='derate'?['main breaker derated to '+mainA()+' A',10,700,'#ffd27a']:['extra fastener · 408.36(D)',10,400,COL.txt2]):['→ supply-side tap'+(derMainA()>=150?', or a '+derMainA()+' A main':''),10,700,'#ffd27a'],['label: DO NOT RELOCATE',10,700,'#e8d39a']]).reduce(function(a,x){return a.concat(chkWrap([x]));},[]).forEach(function(l,i){ halo(22,B+146+((s4On()&&bat2On())?20:0)+i*14,l[0],{anchor:'start',size:l[1],w:l[2],fill:l[3]}); NA=i+1; }); if(s4On()&&bat2On()) chkB(B+146+20+NA*14+22,true);
   } else {   // fed from the supply-side tap at the service: an off-page connector, straight to the inverter
     [{k:'L1',r:B+64,c:ph[0].c,i:0},{k:'L2',r:B+76,c:ph[1].c,i:1},{k:'N',r:B+88,c:COL.neu},{k:'G',r:B+100,c:COL.egc}].forEach(function(q){ var dd='M 60 '+q.r+' L '+(PAR?176:IX0)+' '+q.r, hot=q.k==='L1'||q.k==='L2';
       svg.appendChild(el('path',{d:dd,stroke:hot?(gl?q.c:DEAD):q.c,'stroke-width':hot?2.4:2,fill:'none'})); if(hot){ var hz=el('path',{d:dd,stroke:'transparent','stroke-width':13,fill:'none'}); hz.style.cursor='pointer'; hz.addEventListener('click',function(e){e.stopPropagation();derFeederFault('grid');}); svg.appendChild(hz); } if(hot&&gl&&mv) addDots(svg,dd,fdir*g.dirPh(q.i),20,null,g.angPh(q.i)+(fdir<0?180:0)); else if(hot&&gl) vGlow(svg,dd,q.c,svg.lastChild);
@@ -3153,7 +3216,7 @@ function drawDer(svg,DR,D,g){
         svgB.appendChild(el('path',{d:d,stroke:hot?(ok?c[1]:DEAD):c[1],'stroke-width':hot?2.2:1.8,fill:'none'})); if(hot&&ok) fl(d,k,kwU,18); else if(hot&&ok) vGlow(svgB,d,c[1],svgB.lastChild); }); })(u); }
     svg=gR;   // everything from here on (inverters, PV, batteries, backup panel) is drawn shifted right
     DRB.sbY=(D.part?B+445+40*(nInv-2)+genBand():UD+B+(battOn?407+genBand():329))+40;   // system B goes below the paralleled units
-    var cmX=(genToB()&&!aNone()&&derGenPort())?720:1010; halo(cmX,(D.part?B+430+40*(nInv-2)+genBand():UD+B+(battOn?392+genBand():314)),'comm / sync cable ties every unit to #1,',{anchor:'start',size:11,fill:COL.txt2}); halo(cmX,(D.part?B+445+40*(nInv-2)+genBand():UD+B+(battOn?407+genBand():329)),battOn?'which sets the grid on battery':'for monitoring and anti-islanding',{anchor:'start',size:11,fill:COL.txt2});
+    var cmX=(genToB()&&!aNone()&&derGenPort())?720:1010; halo(cmX,(D.part?B+430+40*(nInv-2)+genBand():UD+B+(battOn?392+genBand():314)),(bankShared&&bat2W())?'paralleling cables chain every unit, A + B;':'comm / sync cable ties every unit to #1,',{anchor:'start',size:11,fill:COL.txt2}); halo(cmX,(D.part?B+445+40*(nInv-2)+genBand():UD+B+(battOn?407+genBand():329)),(bankShared&&bat2W())?'#1 is the master and sets the grid on battery':battOn?'which sets the grid on battery':'for monitoring and anti-islanding',{anchor:'start',size:11,fill:COL.txt2});
     if(solarOn){ var spl=strSplit(), sLen=pvMods/pvStr;   // #2 / #3: each has its own strings, drawn right above it (the same as system B) — a string never splits between inverters
       for(var su=2;su<=nInv;su++){ (function(su){ var mods=spl[su-1]*sLen, pvU=(D.pvU||[])[su]||0, pvOn=pvU>0.05, dOff=!!pvDiscU[su], hasV=derSun&&!rsdOff&&!pvOverV(), ov=pvOverV();
         var X=UX(su), nSu=spl[su-1], cmbU=nSu>=3, nr=Math.max(1,Math.ceil(mods/5)), AH=Math.max(36,8+nr*12), AY1=B+UD+40-30, AY0=AY1-AH, AX0=X+20, AX1=cmbU?X+124:X+188, mh=(AH-8)/nr-2, yP=B+UD+62, yM=B+UD+86;
@@ -3256,7 +3319,7 @@ function drawDer(svg,DR,D,g){
     sunG.appendChild(txt(sX+26,sY-2,sunMode==='auto'?'SUN · AUTO ⇄':(derSun?'SUN · DAY ⇄':'SUN · NIGHT ⇄'),{anchor:'start',size:11.5,w:700,fill:derSun?'#f5c542':'#8fa0c4'}));
     sunG.appendChild(txt(sX+26,sY+13,sunMode==='auto'?(derSun?ckT+' · '+Math.round(sf*100)+'% sun':ckT+' · dark'):'override · tap for AUTO',{anchor:'start',size:9.5,fill:COL.txt2})); [].slice.call(sunG.querySelectorAll('text')).forEach(function(t){ t.setAttribute('stroke',lc('#0b1020')); t.setAttribute('stroke-width','4'); t.setAttribute('paint-order','stroke'); }); svg.appendChild(sunG); }
   // ---- battery + ESS disconnect ----
-  if(battOn){ var gpS=derGenPort()?40:0, BX0=252+gpS, BY0=B+290+((PAR&&!D.part)?UD+24:0)+(PAR?genBand():0), UY0=BY0+50, UH=58, UW=gpS?32:34, UG=gpS?5:10, rowW=nBat*UW+(nBat-1)*UG, UX0=Math.max(232+gpS,312-rowW/2), BX1=UX0+rowW, BY1=BY0+178, chg=D.batt>0.05, dis=D.batt<-0.05, yP=BY0+12, yM=BY0+24;
+  if(battOn){ var gpS=derGenPort()?40:0, shS=(bankShared&&bat2W())?20:0, BX0=252+gpS+shS, BY0=B+290+((PAR&&!D.part)?UD+24:0)+(PAR?genBand():0), UY0=BY0+50, UH=58, UW=gpS?32:34, UG=gpS?5:10, rowW=nBat*UW+(nBat-1)*UG, UX0=Math.max(232+gpS+shS,312-rowW/2), BX1=UX0+rowW, BY1=BY0+178, chg=D.batt>0.05, dis=D.batt<-0.05, yP=BY0+12, yM=BY0+24;
     // DC from the ESS disconnect down to a + bus and a − bus; every battery unit hangs off both (in parallel)
     var bp='M 300 '+IY1+' L 300 '+yP, bm='M 328 '+yM+' L 328 '+IY1;
     svg.appendChild(el('path',{d:bp,stroke:'#e2473f','stroke-width':2.4,fill:'none'})); svg.appendChild(el('path',{d:bm,stroke:'#565e6e','stroke-width':2.4,fill:'none'}));
@@ -3264,6 +3327,7 @@ function drawDer(svg,DR,D,g){
     var eg2=el('g'); eg2.style.cursor='pointer'; eg2.addEventListener('click',function(e){e.stopPropagation();derInv('ess');}); eg2.appendChild(el('rect',{x:256+(gpS?14:0),y:IY1+7,width:112,height:20,rx:4,fill:essDiscOff?'#2a1620':COL.box,stroke:essDiscOff?COL.off:'#9fb0d6','stroke-width':1.1})); eg2.appendChild(txt(312+(gpS?14:0),IY1+21,essDiscOff?'ESS DISC · OFF':'ESS DISC 706.15',{anchor:'middle',size:9.5,w:700,fill:essDiscOff?'#ff8a8a':COL.txt2})); svg.appendChild(eg2);
     var xs=[]; for(var u=0;u<nBat;u++) xs.push(UX0+u*(UW+UG));
     var pbx0=Math.min(300,xs[0]+9), pbx1=Math.max(300,xs[nBat-1]+9), mbx0=Math.min(328,xs[0]+25), mbx1=Math.max(328,xs[nBat-1]+25);
+    if(DRB) DRB.bankA={yP:yP,yM:yM,pbx0:pbx0,pbx1:pbx1,mbx0:mbx0,mbx1:mbx1,ix0:IX0,iyIn:IY1-34,capX:232+gpS+shS,ref:svg};   // svg here = system A's group (may be shifted): converted in system B's drawing
     var dPB=hopH(pbx0,pbx1,yP,[328]), dMB='M '+mbx0+' '+yM+' L '+mbx1+' '+yM;
     svg.appendChild(el('path',{d:dPB,stroke:'#e2473f','stroke-width':2.2,fill:'none'})); svg.appendChild(el('path',{d:dMB,stroke:'#565e6e','stroke-width':2.2,fill:'none'}));
     (function(){   // animate the bus bars too: out from the ESS drop to the batteries when charging (back when discharging), and along the tie to the other inverters
@@ -3300,9 +3364,13 @@ function drawDer(svg,DR,D,g){
       svg.appendChild(el('rect',{x:x+6,y:UY0+8,width:UW-12,height:UH-16,rx:3,fill:'none',stroke:'#4a5b80','stroke-width':1}));
       var hh=(UH-16)*derSoc/100, sb=el('rect',{x:x+6,y:UY0+UH-8-hh,width:UW-12,height:hh,rx:3,fill:derSocCol()}); sb.setAttribute('data-socbar','1'); sb.setAttribute('data-bot',UY0+UH-8); sb.setAttribute('data-h',UH-16); svg.appendChild(sb);
       svg.appendChild(txt(x+UW/2,UY0+UH+12,'#'+(u+1),{anchor:'middle',size:9,w:700,fill:COL.txt2})); });
-    var capS=nBat>1?('BATTERY × '+nBat+' · '+derKwh().toFixed(1)+' kWh'+(gpS&&D.part&&!PAR?'':' (in parallel)')):'BATTERY · '+batKwh()+' kWh', capX=Math.max(232+gpS,(UX0+BX1)/2-capS.length*3.3);   // left-aligned so it never runs under the MODE / GRID CHARGING controls
+    var capS=(bankShared&&bat2W())?('SHARED BANK × '+nBat+' · '+derKwh().toFixed(1)+' kWh · inverters A + B'):(nBat>1?('BATTERY × '+nBat+' · '+derKwh().toFixed(1)+' kWh'+(gpS&&D.part&&!PAR?'':' (in parallel)')):'BATTERY · '+batKwh()+' kWh'), capX=Math.max(232+gpS+shS,(UX0+BX1)/2-capS.length*3.3);   // left-aligned so it never runs under the MODE / GRID CHARGING controls
     svg.appendChild(txt(capX,UY0+UH+29,capS,{anchor:'start',size:11.5,w:700,fill:COL.txt}));
-    var lOk=batLimOk(), bl855=batKwh()+' kWh · '+batKW()+' kW each · '+(batLoc==='split'?locSplitTxt(derKwh(),'split',false)+' ':BAT_LOC[batLoc].n.toLowerCase()+(gpS&&D.part&&!PAR?' ≤ ':' limit ')+BAT_LOC[batLoc].lim+' kWh ')+(lOk?'✓':'✗ · NFPA 855 15.5.2'); svg.appendChild(txt(capX,UY0+UH+61,bl855,{anchor:'start',size:10,w:700,fill:lOk?'#8fd6a3':'#ff8a8a'}));
+    var shL=(bankShared&&bat2W())?(nBat>4?['⚠ '+nBat+' batteries > 4 with 2 inverters →','external FUSED + busbar / unfused − busbar (EG4 §8.2)']:['master battery (#1, ID 1) → inverter A','comm daisy-chained · ≤ 4 on the built-in busbars']):[];
+    var lOk=batLimOk(), bl855=batKwh()+' kWh · '+batKW()+' kW each · '+(batLoc==='split'?locSplitTxt(derKwh(),'split',false)+' ':BAT_LOC[batLoc].n.toLowerCase()+(gpS&&D.part&&!PAR?' ≤ ':' limit ')+BAT_LOC[batLoc].lim+' kWh ')+(lOk?'✓':'✗ · NFPA 855 15.5.2');
+    var b855=shL.length?(function(){ var i=bl855.indexOf(' each · '); return i>0?[bl855.slice(0,i+5),bl855.slice(i+8)]:[bl855]; })():[bl855];   // shared bank: keep the captions narrow, clear of system B's feed
+    b855.forEach(function(t,j){ svg.appendChild(txt(capX,UY0+UH+61+j*13,t,{anchor:'start',size:10,w:700,fill:lOk?'#8fd6a3':'#ff8a8a'})); });
+    shL.forEach(function(t,j){ halo(capX,UY0+UH+61+b855.length*13+6+j*11,t,{anchor:'start',size:8.5,w:700,fill:nBat>4?'#ffb35c':'#4fb3ff'}); });
     var stt=txt(capX,UY0+UH+45,Math.round(derSoc)+'% · '+derBattWhy(D),{anchor:'start',size:10.5,w:700,fill:chg?'#8fd6a3':(dis?'#ffd27a':COL.txt2)}); stt.id='derSocTxt'; svg.appendChild(stt);
     var tl2=txt(BX0-20,BY1+52,'',{anchor:'start',size:10.5,w:700,fill:'#5fd4ff'}); tl2.id='derSocLeft'; tl2.textContent=derLeftTxt(D); svg.appendChild(tl2);
     halo(BX0-20,BY1+68,(D.part?'⏱ 1 s here = 1.5 min real · ':'⏱ 20 s here = 30 min real (1 s = 1.5 min) · ')+derKwh().toFixed(1)+' kWh',{anchor:'start',size:10,fill:COL.txt2});
