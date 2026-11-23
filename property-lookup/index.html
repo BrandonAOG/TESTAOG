@@ -6019,7 +6019,10 @@ async function _runFinder(){
     const it = _finderPending.shift();
     let el = document.getElementById(it.id);
     if(!el){ it.tries=(it.tries||0)+1;
-      if(it.tries<40){ _finderPending.push(it); setTimeout(_runFinder,250); }
+      /* 240 × 250 ms = 60 s. It was 40 (10 s), and the card it lives in can take longer than that to mount when a
+         jurisdiction's own server is down (Naples EC layer, 23 Nov 2026: ~16 s) — the panel then mounted
+         and sat on "loading Naples code…" for good. */
+      if(it.tries<240){ _finderPending.push(it); setTimeout(_runFinder,250); }
       /* Gave up finding our own element. The zoning card is gone, but the FLOOD card's slot may
          still be on screen waiting on us — tell it, or it waits forever. See fillFloodLiveCode(). */
       else { window.__codeErr = 'the code panel never mounted'; setTimeout(fillFloodLiveCode, 0); }
@@ -20793,11 +20796,20 @@ async function queryEC(ecLayerUrl, lat, lng){
   try{
     // does the layer carry attachments? grab metadata
     let hasAtt=false, oidField='OBJECTID';
+    /* The metadata read gets its OWN short leash. The property card waits on this whole function, and
+       with one shared 15 s timer a server that doesn't answer at all (City of Naples, 23 Nov 2026) held
+       the card for ~16 s — long enough that the LIVE CODE panel gave up waiting for it to mount.
+       A host that can't even return its layer description won't answer the query either: stop here. */
     try{
-      const m=await (await fetch(root+'?f=json',{signal:ctrl.signal})).json();
+      const mc=new AbortController(), mt=setTimeout(()=>mc.abort(), ENRICH_TIMEOUT);
+      ctrl.signal.addEventListener('abort', ()=>mc.abort());
+      const m=await (await fetch(root+'?f=json',{signal:mc.signal})).json(); clearTimeout(mt);
       hasAtt=!!m.hasAttachments;
       if(m.objectIdField) oidField=m.objectIdField;
-    }catch(e){/* keep going; query may still work */}
+    }catch(e){
+      if(e && (e.name==='AbortError' || e instanceof TypeError)){ clearTimeout(t); return { err:'elevation-certificate layer not responding ('+_poolHostOf(root)+')' }; }
+      /* other errors (bad JSON etc.): keep going; the query may still work */
+    }
     // point-intersect query, return all fields + OBJECTID. EC layers are POINT features, so a bare
     // point-vs-point intersect would almost never coincide — use a small search radius (meters) so the
     // certificate point on the structure is found near the resolved parcel point.
