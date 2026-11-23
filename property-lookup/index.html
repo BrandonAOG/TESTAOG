@@ -8906,8 +8906,10 @@ const ZONING_LIVE_CITY = {
        700 Park Shore Dr sat on "confirming live district…". */
     "https://services1.arcgis.com/rXoq3MI8ZjnfUJwc/arcgis/rest/services/ZoningUpdated/FeatureServer/0/query"
   ],
-  // The city's own on-prem server — same Layer / Descript fields. It goes down from time to time, so it is the
-  // BACKUP: asked only when the ArcGIS Online copy above returns nothing or fails (see queryZoning).
+  // The city's own on-prem server — same Layer / Descript fields. It goes down from time to time. It is the
+  // BACKUP (asked only when the main layer returns nothing or fails — see queryZoning) UNLESS it was edited
+  // more recently than the ArcGIS Online copy: `freshest` swaps the two so the newer data is searched first.
+  freshest:true,
   backupUrls:[ "https://g.naplesgov.com/arcgis/rest/services/Planning/Zoning/FeatureServer/0/query" ]},
   // ✅ City of Fort Lauderdale zoning (Broward's largest city; the county BMSD layer doesn't cover it,
   // so its own layer is required). Source: the city's own ArcGIS Server (gis.fortlauderdale.gov),
@@ -9798,6 +9800,38 @@ async function pooledMap(items, fn, perHost){
 
 /* Point-query the resolved zoning layer(s). Returns {code,desc,layerName,lastEdit,url}
    or null when nothing is wired / no polygon covers the point. Never throws. */
+/* ── TWO COPIES OF ONE CITY'S ZONING → ASK THE NEWER ONE FIRST (Brandon, 23 Nov 2026) ──────────────────
+   Naples publishes its zoning twice: an ArcGIS Online copy and the city's own server (which goes down from
+   time to time). A registry entry with `freshest:true` and both `urls` and `backupUrls` gets its order
+   decided by each layer's last-edit date: the more recently edited copy is searched first, the other is the
+   backup. The check runs in the BACKGROUND (never delays a lookup), is remembered for 12 h, and is retried
+   every 30 min while either server can't give a date (down) — the last good decision stands until then.
+   Same date, or no decision yet → the order written in the registry. */
+const _ZORD_KEY = 'aog-zoning-order-v1', _ZORD_TTL = 12*3600e3, _zordBusy = {};
+function _zordAll(){ try{ return JSON.parse(localStorage.getItem(_ZORD_KEY)||'{}')||{}; }catch(e){ return {}; } }
+function _zoneOrder(reg){
+  const a=(reg.urls||[]).slice(), b=(reg.backupUrls||[]).slice();
+  if(!reg.freshest || !a.length || !b.length) return { main:a, backup:b, decided:null };
+  const c=_zordAll()[reg.label];
+  if(!c || Date.now()-(c.t||0) > _ZORD_TTL) _zoneOrderRefresh(reg);
+  return (c && c.backupNewer) ? { main:b, backup:a, decided:c } : { main:a, backup:b, decided:c||null };
+}
+async function _layerEdited(queryUrl){
+  const ctrl=new AbortController(), t=setTimeout(()=>ctrl.abort(), 8000);
+  try{ const m=await (await fetch(queryUrl.replace(/\/query$/i,'')+'?f=json',{signal:ctrl.signal})).json(); clearTimeout(t);
+       const e=m && m.editingInfo; return (e && (e.dataLastEditDate || e.lastEditDate)) || null; }
+  catch(e){ clearTimeout(t); return null; }
+}
+async function _zoneOrderRefresh(reg){
+  if(_zordBusy[reg.label]) return; _zordBusy[reg.label]=1;
+  try{
+    const [ea, eb] = await Promise.all([_layerEdited(reg.urls[0]), _layerEdited(reg.backupUrls[0])]);
+    const all=_zordAll(), prev=all[reg.label]||{};
+    if(ea && eb) all[reg.label] = { t:Date.now(), backupNewer: eb > ea, mainEdited:ea, backupEdited:eb };
+    else all[reg.label] = Object.assign({}, prev, { t: Date.now() - _ZORD_TTL + 30*60e3, missing: [ea?null:reg.urls[0], eb?null:reg.backupUrls[0]].filter(Boolean) });
+    try{ localStorage.setItem(_ZORD_KEY, JSON.stringify(all)); }catch(e){}
+  }finally{ _zordBusy[reg.label]=0; }
+}
 async function queryZoning(lat,lng, cityName, countyName, _backup){   // _backup: internal — a city's backupUrls, tried only after its main layer came back empty or down
   let cands = [], pin = null, isOverride=false;   // pin = explicit {codeField,descField} from a registry entry
   /* ── SENTINEL GUARD FOR THE POINT LOOKUP (`badCodes`) ─────────────────────────────────────────
@@ -9815,7 +9849,8 @@ async function queryZoning(lat,lng, cityName, countyName, _backup){   // _backup
   if(zoningSource.url){ cands = [zoningSource.url]; isOverride=true; }   // manual paste wins
   else {
     const _jc = jurCity(cityName);   // postal-only city must not select a municipal layer - see jurCity()
-    const cityReg = _jc ? ZONING_LIVE_CITY[norm(_jc)] : null;   // city is its own zoning authority
+    let cityReg = _jc ? ZONING_LIVE_CITY[norm(_jc)] : null;   // city is its own zoning authority
+    if(cityReg && cityReg.freshest){ const _o=_zoneOrder(cityReg); cityReg=Object.assign({}, cityReg, { urls:_o.main, backupUrls:_o.backup }); }   // newer copy first — see _zoneOrder
     let   cntyReg = countyName ? ZONING_LIVE[norm(countyName)] : null;
     // overlayOnly entries (e.g. Orange County — slow host that gates the site-card paint) are wired ONLY for
     // the map zoning OVERLAY, not the per-parcel point lookup. Drop it here so the site card doesn't call that
@@ -9981,8 +10016,9 @@ async function queryZoning(lat,lng, cityName, countyName, _backup){   // _backup
      than the other way round. */
   if(!_backup && !isOverride){
     const _jc2 = jurCity(cityName), _cr = _jc2 ? ZONING_LIVE_CITY[norm(_jc2)] : null;
-    if(_cr && Array.isArray(_cr.backupUrls) && _cr.backupUrls.length){
-      const b = await queryZoning(lat, lng, cityName, countyName, _cr.backupUrls).catch(()=>null);
+    const _bk = _cr ? _zoneOrder(_cr).backup : [];
+    if(_bk.length){
+      const b = await queryZoning(lat, lng, cityName, countyName, _bk).catch(()=>null);
       if(b && !b.__down){ b.__backup = true; return b; }
       if(b && b.__down && _dead.length) return { __down:true, hosts:[...new Set(_dead.map(x=>_poolHostOf(x.cu)).concat(b.hosts||[]))] };
     }
@@ -20056,7 +20092,10 @@ async function diagnoseLiveFeeds(){
   const _zCity = ctyName ? ZONING_LIVE_CITY[norm(ctyName)] : null;
   const _zCnty = cn ? ZONING_LIVE[norm(cn)] : null;
   const _zReg = _zCity || _zCnty;
-  if(_zReg){ (_zReg.urls||(_zReg.url?[_zReg.url]:[])).forEach(u=>targets.push({label:'zoning — '+_zReg.label,url:u,isZoning:true})); (_zReg.backupUrls||[]).forEach(u=>targets.push({label:'zoning (backup) — '+_zReg.label,url:u,isZoning:true})); }
+  if(_zReg){ const _o=_zoneOrder(_zReg), _d=_o.decided, _when=v=>v?new Date(v).toLocaleDateString():'?';
+    const _tag=(_zReg.freshest&&_d&&_d.mainEdited)?(' · searched first: newer copy ('+_when(_d.backupNewer?_d.backupEdited:_d.mainEdited)+' vs '+_when(_d.backupNewer?_d.mainEdited:_d.backupEdited)+')'):'';
+    (_o.main.length?_o.main:(_zReg.url?[_zReg.url]:[])).forEach(u=>targets.push({label:'zoning — '+_zReg.label+_tag,url:u,isZoning:true}));
+    _o.backup.forEach(u=>targets.push({label:'zoning (backup) — '+_zReg.label,url:u,isZoning:true})); }
   const manual=document.getElementById('liveUrl').value.trim();
   /* Elevation-certificate layers were missing from this list even though a lookup queries them on
      every search: the county-specific layer (where one exists) and the FDEM statewide set, which
@@ -26592,7 +26631,7 @@ function _fhSources(countyName, cityName){
   };
   if(!zoneRows(ZONING_LIVE[C], countyName+' zoning')) add('zoning', 'No county zoning layer wired', null);
   if(CITY) zoneRows(ZONING_LIVE_CITY[CITY], cityName+' zoning');
-  if(CITY && ZONING_LIVE_CITY[CITY] && Array.isArray(ZONING_LIVE_CITY[CITY].backupUrls)) ZONING_LIVE_CITY[CITY].backupUrls.forEach(u=>add('zoning', (ZONING_LIVE_CITY[CITY].label||cityName+' zoning')+' · backup (asked only if the main layer fails)', u, 'query'));
+  if(CITY && ZONING_LIVE_CITY[CITY] && Array.isArray(ZONING_LIVE_CITY[CITY].backupUrls)) ZONING_LIVE_CITY[CITY].backupUrls.forEach(u=>add('zoning', (ZONING_LIVE_CITY[CITY].label||cityName+' zoning')+' · second copy (the more recently edited copy is searched first, the other is the backup)', u, 'query'));
 
   const la = LOCAL_AERIAL[C];
   if(la && la.candidates && la.candidates.length)
