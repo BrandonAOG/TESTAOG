@@ -8902,12 +8902,13 @@ const ZONING_LIVE_CITY = {
        Naples Interactive Map (experience.arcgis.com/experience/91147e970654427cb923868e178f0f11) reads.
        Same fields as the old one (Layer = district, Descript = name, plus ORD_1 / PD_NAME and a
        Documentation link to the Municode district). CORS-OK, ~270 ms.
-       Replaces g.naplesgov.com/.../Planning/Zoning/FeatureServer/0: that on-prem server stopped
-       answering on 23 Nov 2026 (700 Park Shore Dr sat on "confirming live district…"). It is NOT kept
-       as a fallback — every candidate layer is awaited, so a dead host would still cost the full
-       ZONING_TIMEOUT on every Naples lookup. */
+       Main layer since 23 Nov 2026, when the city's on-prem server (below) stopped answering and
+       700 Park Shore Dr sat on "confirming live district…". */
     "https://services1.arcgis.com/rXoq3MI8ZjnfUJwc/arcgis/rest/services/ZoningUpdated/FeatureServer/0/query"
-  ]},
+  ],
+  // The city's own on-prem server — same Layer / Descript fields. It goes down from time to time, so it is the
+  // BACKUP: asked only when the ArcGIS Online copy above returns nothing or fails (see queryZoning).
+  backupUrls:[ "https://g.naplesgov.com/arcgis/rest/services/Planning/Zoning/FeatureServer/0/query" ]},
   // ✅ City of Fort Lauderdale zoning (Broward's largest city; the county BMSD layer doesn't cover it,
   // so its own layer is required). Source: the city's own ArcGIS Server (gis.fortlauderdale.gov),
   // "PropertyReporter/Interactive" MapServer sublayer 4 "Zoning Districts" — the same service the
@@ -9797,7 +9798,7 @@ async function pooledMap(items, fn, perHost){
 
 /* Point-query the resolved zoning layer(s). Returns {code,desc,layerName,lastEdit,url}
    or null when nothing is wired / no polygon covers the point. Never throws. */
-async function queryZoning(lat,lng, cityName, countyName){
+async function queryZoning(lat,lng, cityName, countyName, _backup){   // _backup: internal — a city's backupUrls, tried only after its main layer came back empty or down
   let cands = [], pin = null, isOverride=false;   // pin = explicit {codeField,descField} from a registry entry
   /* ── SENTINEL GUARD FOR THE POINT LOOKUP (`badCodes`) ─────────────────────────────────────────
      `reg.where` is applied ONLY to the map overlay (see refreshZoning) — arcQuery() sends no WHERE
@@ -9867,6 +9868,7 @@ async function queryZoning(lat,lng, cityName, countyName){
     // nothing — the setback renderer keys on the code, so any valid code keeps the chain alive. The
     // county fallback is resolved jurisdiction-aware too, so only the matching sublayer is appended.
     if(cityReg && cntyReg){ for(const u of lookupUrls(cntyReg)) if(!cands.includes(u)) cands.push(u); }
+    if(_backup) cands = _backup.slice();   // second pass: only the city's backup layer(s)
     // Map each candidate URL back to its entry's sentinel list (city and county entries can each
     // carry their own), so the results loop below knows which values to disbelieve per layer.
     for(const _r of [cityReg, cntyReg]){
@@ -9973,6 +9975,18 @@ async function queryZoning(lat,lng, cityName, countyName){
   // (Any failed layer counts: with the city layer dead, the county fallback still answers — but only with
   //  a "CITY OF …" placeholder that is filtered out — so "no polygon" would be the wrong story.)
   const _dead = _results.filter(x=>x.r && x.r.__err);
+  /* BACKUP LAYER — asked only now, never in parallel with the main one (every candidate is awaited, so a
+     dead backup in the first pass would cost the full ZONING_TIMEOUT on every lookup). Naples: the
+     city's on-prem server goes down from time to time, so it backs up the ArcGIS Online copy rather
+     than the other way round. */
+  if(!_backup && !isOverride){
+    const _jc2 = jurCity(cityName), _cr = _jc2 ? ZONING_LIVE_CITY[norm(_jc2)] : null;
+    if(_cr && Array.isArray(_cr.backupUrls) && _cr.backupUrls.length){
+      const b = await queryZoning(lat, lng, cityName, countyName, _cr.backupUrls).catch(()=>null);
+      if(b && !b.__down){ b.__backup = true; return b; }
+      if(b && b.__down && _dead.length) return { __down:true, hosts:[...new Set(_dead.map(x=>_poolHostOf(x.cu)).concat(b.hosts||[]))] };
+    }
+  }
   if(_dead.length) return { __down:true, hosts:[...new Set(_dead.map(x=>_poolHostOf(x.cu)))] };
   return null;
 }
@@ -20042,7 +20056,7 @@ async function diagnoseLiveFeeds(){
   const _zCity = ctyName ? ZONING_LIVE_CITY[norm(ctyName)] : null;
   const _zCnty = cn ? ZONING_LIVE[norm(cn)] : null;
   const _zReg = _zCity || _zCnty;
-  if(_zReg){ (_zReg.urls||(_zReg.url?[_zReg.url]:[])).forEach(u=>targets.push({label:'zoning — '+_zReg.label,url:u,isZoning:true})); }
+  if(_zReg){ (_zReg.urls||(_zReg.url?[_zReg.url]:[])).forEach(u=>targets.push({label:'zoning — '+_zReg.label,url:u,isZoning:true})); (_zReg.backupUrls||[]).forEach(u=>targets.push({label:'zoning (backup) — '+_zReg.label,url:u,isZoning:true})); }
   const manual=document.getElementById('liveUrl').value.trim();
   /* Elevation-certificate layers were missing from this list even though a lookup queries them on
      every search: the county-specific layer (where one exists) and the FDEM statewide set, which
@@ -26578,6 +26592,7 @@ function _fhSources(countyName, cityName){
   };
   if(!zoneRows(ZONING_LIVE[C], countyName+' zoning')) add('zoning', 'No county zoning layer wired', null);
   if(CITY) zoneRows(ZONING_LIVE_CITY[CITY], cityName+' zoning');
+  if(CITY && ZONING_LIVE_CITY[CITY] && Array.isArray(ZONING_LIVE_CITY[CITY].backupUrls)) ZONING_LIVE_CITY[CITY].backupUrls.forEach(u=>add('zoning', (ZONING_LIVE_CITY[CITY].label||cityName+' zoning')+' · backup (asked only if the main layer fails)', u, 'query'));
 
   const la = LOCAL_AERIAL[C];
   if(la && la.candidates && la.candidates.length)

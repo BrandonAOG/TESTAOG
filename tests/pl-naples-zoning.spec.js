@@ -9,7 +9,11 @@ const NAPLES = /services1\.arcgis\.com\/rXoq3MI8ZjnfUJwc\/arcgis\/rest\/services
 const json = (r, body) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) });
 
 async function mock(page, state) {
-  await page.route(/g\.naplesgov\.com/, r => r.abort('timedout'));               // the dead on-prem host must never be asked
+  await page.route(/g\.naplesgov\.com\/arcgis\/rest\/services\/Planning\/Zoning/, r => {   // the city's on-prem server — the BACKUP
+    if (state.backupDown) return r.abort('timedout');
+    if (/\/query/.test(r.request().url())) return json(r, { features: [{ attributes: { Layer: 'R1-10A', Descript: 'SINGLE FAMILY' } }] });
+    return json(r, { name: 'Zoning', fields: ['Layer', 'Descript'].map(name => ({ name })) });
+  });
   await page.route(/services2\.arcgis\.com\/.*Zoning_General/, r => json(r, /\/query/.test(r.request().url())
     ? { features: [{ attributes: { ZONING: 'CITY OF NAPLES', BASE: 'CITY OF NAPLES' } }] } : { name: 'Zoning_General', fields: [{ name: 'ZONING' }, { name: 'BASE' }] }));
   await page.route(NAPLES, r => {
@@ -19,24 +23,33 @@ async function mock(page, state) {
   });
 }
 
-test('a Naples parcel reads its district from the city\'s ArcGIS Online zoning layer', async ({ page }) => {
+test('a Naples parcel reads its district from the city\'s ArcGIS Online zoning layer (backup not asked)', async ({ page }) => {
   test.skip(test.info().project.name !== 'desktop', 'once');
-  const state = { down: false }; const asked = [];
+  const state = { down: false, backupDown: false }; const asked = [];
   page.on('request', q => { if (/naplesgov/.test(q.url())) asked.push(q.url()); });
   await mock(page, state);
   expect(await open(page, '/property-lookup/', { settle: 1200 })).toEqual([]);
   const z = await page.evaluate(() => queryZoning(26.19320, -81.80479, 'Naples', 'Collier'));
   expect(z).toMatchObject({ code: 'R1-10A', desc: 'SINGLE FAMILY' });
-  expect(asked.filter(u => /Zoning/i.test(u)), 'never queries the dead g.naplesgov.com zoning layer').toEqual([]);
+  expect(asked.filter(u => /Zoning/i.test(u)), 'the on-prem backup is only asked when the main layer fails').toEqual([]);
 });
 
-test('a zoning server that does not answer is reported as down, not as "no polygon"', async ({ page }) => {
+test('main layer down → the city\'s own server answers as the backup', async ({ page }) => {
   test.skip(test.info().project.name !== 'desktop', 'once');
-  const state = { down: true };
+  const state = { down: true, backupDown: false };
   await mock(page, state);
   expect(await open(page, '/property-lookup/', { settle: 1200 })).toEqual([]);
   const z = await page.evaluate(() => queryZoning(26.19320, -81.80479, 'Naples', 'Collier'));
-  expect(z).toMatchObject({ __down: true, hosts: ['services1.arcgis.com'] });
+  expect(z).toMatchObject({ code: 'R1-10A', __backup: true });
+});
+
+test('both down → reported as down, not as "no polygon"', async ({ page }) => {
+  test.skip(test.info().project.name !== 'desktop', 'once');
+  const state = { down: true, backupDown: true };
+  await mock(page, state);
+  expect(await open(page, '/property-lookup/', { settle: 1200 })).toEqual([]);
+  const z = await page.evaluate(() => queryZoning(26.19320, -81.80479, 'Naples', 'Collier'));
+  expect(z).toMatchObject({ __down: true, hosts: ['services1.arcgis.com', 'g.naplesgov.com'] });
   // the card's text for that state
   const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'property-lookup', 'index.html'), 'utf8');
   expect(src).toContain("zoning server isn't responding right now");
