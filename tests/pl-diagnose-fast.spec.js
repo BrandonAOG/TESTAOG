@@ -28,3 +28,18 @@ test('diagnose shows rows right away and does not wait on a dead host once per f
   expect(r.ms, 'the dead host is waited on once (in parallel), not once per feed').toBeLessThan(16000);
   expect(r.head).toMatch(/not responding: g\.naplesgov\.com/);
 });
+
+test('a long diagnose report scrolls inside its own box instead of running off the panel', async ({ page }) => {
+  test.skip(test.info().project.name !== 'desktop', 'once');
+  expect(await open(page, '/property-lookup/', { settle: 800 })).toEqual([]);
+  const r = await page.evaluate(() => {
+    document.getElementById('adv').open = true;
+    const out = document.getElementById('diagStatus');
+    lastLoc = { lat: 26.1932, lng: -81.80479 }; window.__lastCounty = 'Nowhere'; window.__lastCity = '';
+    diagnoseLiveFeeds();                                                       // sizes the box to the panel
+    out.innerHTML += Array.from({ length: 30 }, (_, i) => '<div style="margin-top:6px">row ' + i + '<br>https://example.com/feed/' + i + '<br>detail</div>').join('');
+    const cs = getComputedStyle(out), box = out.getBoundingClientRect(), panel = document.getElementById('panel').getBoundingClientRect();
+    return { oy: cs.overflowY, scrolls: out.scrollHeight > out.clientHeight, bottomInside: box.bottom <= panel.bottom + 1 };
+  });
+  expect(r).toEqual({ oy: 'auto', scrolls: true, bottomInside: true });
+});

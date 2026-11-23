@@ -999,6 +999,10 @@ for willful infringement under 17 U.S.C. § 504, plus attorney's fees.
   .adv button{background:var(--palink-bg);border:1px solid var(--palink-line);color:var(--blueprint);font-family:var(--disp);font-weight:600;font-size:11px;padding:0 11px;border-radius:6px;cursor:pointer}
   .adv button:hover{background:var(--palink-hover)}
   .adv .lstat{margin-top:6px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--dim)}
+  /* Diagnose / Test output can run to a dozen feeds. The side panel clips (overflow:hidden), so a long
+     report used to run off the bottom with no way to reach it — it scrolls inside its own box now. */
+  .adv .lstat{max-height:min(48vh,440px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-right:6px;scrollbar-width:thin;scrollbar-color:var(--scrollthumb) transparent}
+  .adv .lstat::-webkit-scrollbar{width:6px} .adv .lstat::-webkit-scrollbar-thumb{background:var(--scrollthumb);border-radius:3px}
   .adv .lhint{margin-top:6px;font-size:10px;color:var(--faint);line-height:1.5}
   .adv .lhint a{color:var(--blueprint);text-decoration:none}
   .badge.live{color:var(--live-ink);background:var(--good);border-color:var(--good)}
@@ -20120,6 +20124,8 @@ async function diagnoseLiveFeeds(){
   const _diagId = 'dg'+Date.now().toString(36);
   out.innerHTML = '<div style="font-size:11.5px;color:var(--signal)">probing '+targets.length+' endpoint'+(targets.length>1?'s':'')+' for '+(cn?esc(titleCase(cn))+' County':'this point')+' — rows fill in as each answers</div>'
     + targets.map((t,i)=>'<div id="'+_diagId+'_'+i+'" style="margin-top:6px;border-top:1px solid var(--dash);padding-top:6px"><span style="color:var(--faint);font-weight:600">… checking</span>'+(t.label?' · '+esc(t.label):'')+'<br><span style="color:var(--faint);word-break:break-all">'+esc(t.url)+'</span></div>').join('');
+  // Fit the scroll box to the room left in the side panel (the CSS max-height is only a fallback cap).
+  try{ const _pn=document.getElementById('panel'); if(_pn){ const room=Math.floor(_pn.getBoundingClientRect().bottom - out.getBoundingClientRect().top - 12); if(room>120) out.style.maxHeight=room+'px'; } }catch(e){}
   const _deadHost = new Set();
   const _row = (i, html) => { const el=document.getElementById(_diagId+'_'+i); if(el) el.outerHTML=html; };
   await pooledMap(targets.map((t,i)=>({t,i,url:t.url})), async ({t,i})=>{
