@@ -1286,6 +1286,15 @@ body.printing.mobile-printing #page2 table.mat-table { width: 100% !important; t
   #page1 .other-special-notes      { page-break-inside: avoid !important; break-inside: avoid !important; }
   #page1 input[type="checkbox"]    { width: 10px !important; height: 10px !important; min-width: 10px !important; }
 
+  /* OTHER / SPECIAL FILLS PAGE 1 — page 1 is exactly one printable sheet tall (11in − the 0.1in top and bottom
+     @page margins, less a hair so it can never tip onto a second sheet) and the Other / Special box takes all the
+     room left above the footer. Same idea as _svFillOtherSpecial() for the image exports. */
+  #page1                           { display: flex !important; flex-direction: column !important; height: 10.7in !important; overflow: hidden !important; }
+  #page1 > *                       { flex: 0 0 auto; }
+  #page1 > .os-fill                { flex: 1 1 auto !important; display: flex !important; flex-direction: column !important; min-height: 0 !important; }
+  #page1 > .os-fill .permit-row    { flex: 1 1 auto !important; display: flex !important; }
+  #page1 > .os-fill .other-special-notes { flex: 1 1 auto !important; height: auto !important; min-height: 60px !important; width: 100% !important; box-sizing: border-box !important; }
+
   /* PAGE 2 — match mobile table density */
   #page2 .grid-section { margin-bottom: 8px !important; }
   #page2 table.mat-table th,
@@ -2174,7 +2183,7 @@ body.mobile-printing #themed-confirm-overlay { display: none !important; }
       </div>
     </div>
 
-    <div class="permit-section">
+    <div class="permit-section os-fill">   <!-- printed: grows to the footer so there's room to draw (see _svFillOtherSpecial) -->
       <div class="permit-section-header">Other / Special</div>
       <div class="permit-row" style="flex-direction:column;align-items:flex-start;gap:4px;">
         <label>Please list any other or special notes about job:</label>
@@ -2965,7 +2974,7 @@ function generatePDF() {
         ostat(`Rendering page ${i + 1} of ${pages.length}…`);
         // Yield so the overlay paints before the heavy render.
         await new Promise(r => setTimeout(r, 30));
-        let canvas = await html2canvas(pages[i], {
+        let canvas = await _svH2C(pages[i], {
           scale: 2, useCORS: true, backgroundColor: '#fff',
           logging: false, width: 1050, windowWidth: 1050,
           ignoreElements: (el) => el.id === 'pdf-overlay' || el.classList.contains('action-bar') || el.classList.contains('tbl-clear-btn'),
@@ -3151,6 +3160,49 @@ function addSheetMargins(srcCanvas) {
 // Match the electrical-install page 2 capture: place the page in a full 8.5x11
 // letter sheet within a 0.15in margin. Keep aspect ratio if it fits (pad below);
 // compress vertically only if taller than a page. Draw the orange frame.
+/* OTHER / SPECIAL FILLS PAGE 1 (v3.1.6). Brandon: make the box run down to the footer so the guys have room to
+   draw when it's printed. Every image export (📸 capture, PDF, iPhone save, resumable PDF) puts a page on an
+   8.5x11 sheet inside 0.15in margins (fillSheet) — so in the render copy, page 1 is measured and the Other /
+   Special box gets every spare pixel, leaving page 1 exactly sheet-shaped (a few px under, never over).
+   Desktop printing does the same thing with CSS (see "OTHER / SPECIAL FILLS PAGE 1" in the print styles). */
+function _svFillOtherSpecial(doc) {
+  try {
+    // The footer text sits at the very bottom of each saved page: forceDesktopLayout() pads every page 24px all round,
+    // which left an empty strip under the footer. Trim the bottom (render copy only); on page 1 that room goes to the box.
+    doc.querySelectorAll('.form-page').forEach(function (pg) { pg.style.setProperty('padding-bottom', '6px', 'important'); pg.style.setProperty('padding-top', '14px', 'important'); });
+    doc.querySelectorAll('.form-page .aog-printfoot').forEach(function (f) { f.style.setProperty('margin-top', '4px', 'important'); });   // tighter gap above the footer line
+    var p = doc.getElementById('page1'); if (!p) return;
+    var box = p.querySelector('.os-fill .other-special-notes'); if (!box) return;
+    var r = p.getBoundingClientRect(), h = Math.max(r.height, p.scrollHeight);
+    var target = Math.floor(r.width * (11 - 0.3) / (8.5 - 0.3)) - 2;   // the sheet's printable shape at this width
+    var extra = target - Math.ceil(h);
+    if (extra > 4) {
+      var bh = box.getBoundingClientRect().height + extra;
+      box.style.setProperty('height', bh + 'px', 'important');
+      box.style.setProperty('min-height', bh + 'px', 'important');
+      box.style.setProperty('max-height', 'none', 'important');
+    }
+    // Page 2 (and any later page): no box to grow — the footer drops to the bottom of the sheet instead, so it sits the
+    // same distance from the page border as page 1's.
+    [].slice.call(doc.querySelectorAll('.form-page')).forEach(function (pg) {
+      if (pg.id === 'page1') return;
+      var f = pg.querySelector('.aog-printfoot'); if (!f) return;
+      var rr = pg.getBoundingClientRect(), hh = Math.max(rr.height, pg.scrollHeight);
+      var more = Math.floor(rr.width * (11 - 0.3) / (8.5 - 0.3)) - 2 - Math.ceil(hh);
+      if (more > 4) f.style.setProperty('margin-top', (4 + more) + 'px', 'important');
+    });
+  } catch (e) {}
+}
+// html2canvas with the page-1 fill applied last, after each caller's own onclone tweaks.
+function _svH2C(el, opts) {
+  var o = Object.assign({}, opts), inner = o.onclone;
+  o.onclone = function (d, cel) {
+    var r = inner ? inner(d, cel) : null;
+    if (r && typeof r.then === 'function') return r.then(function () { _svFillOtherSpecial(d); });
+    _svFillOtherSpecial(d);
+  };
+  return html2canvas(el, o);
+}
 function fillSheet(srcCanvas) {
   const SHEET_W = 8.5, SHEET_H = 11, MARGIN_IN = 0.15;
   const outW = srcCanvas.width;                       // image width = full sheet width
@@ -3556,7 +3608,7 @@ function saveForIPhone() {
     lbl.style.cssText = 'color:#ccc;font-size:11px;margin-bottom:8px;';
     lbl.textContent = `Page ${idx+1} of ${pages.length}`;
     const img = document.createElement('img');
-    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } }).then(rawCanvas => {
+    _svH2C(page, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false, width: 1050, windowWidth: 1050, ignoreElements: function(el){ return !!(el.classList && el.classList.contains('tbl-clear-btn')); } }).then(rawCanvas => {
       const canvas = fillSheet(rawCanvas)  /* every page = full 8.5x11 letter sheet w/ 0.15in margins */;
       img.src = canvas.toDataURL('image/jpeg', 0.85);
       img.style.cssText = 'max-width:100%;border:2px solid #555;border-radius:4px;display:block;margin:0 auto;';
@@ -3684,7 +3736,7 @@ async function pdfRenderPageCanvases() {
       setStatus('Rendering page ' + (i + 1) + ' of ' + pages.length + '…');
       _updateRenderOverlay('Page ' + (i + 1) + ' of ' + pages.length + '…');
       await new Promise(function (r) { setTimeout(r, 30); });
-      var canvas = await _withTimeout(html2canvas(pages[i], {
+      var canvas = await _withTimeout(_svH2C(pages[i], {
         scale: captureScale, useCORS: true, backgroundColor: '#fff',
         logging: false, width: 1050, windowWidth: 1050,
         ignoreElements: function (el) { return el.id === 'pdf-overlay' || el.classList.contains('action-bar') || el.classList.contains('tbl-clear-btn'); },

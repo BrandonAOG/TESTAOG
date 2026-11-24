@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v3.1.5';
+var CACHE_VERSION = 'v3.1.6';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -76,7 +76,7 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  '🏛 PROPERTY LOOKUP — City of Naples zoning now compares the city\'s own server with its online copy by the date of their latest edits, so the most up-to-date one is always searched first.',
+  '📋 SITE VISIT — the Other / Special box on page 1 now runs all the way down to the footer when printed or saved as a PDF, so there\'s room to draw.',
 ]
 //
 // ============================================================
