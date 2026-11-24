@@ -81,3 +81,16 @@ test('whichever Naples copy was edited more recently is searched first', async (
   expect(res.second).toContain('g.naplesgov.com');                                   // newer copy is now the first search
   expect(order.slice(-1)).toEqual(['city']);
 });
+
+test('a server with no editingInfo date is dated by its newest record (City of Naples on-prem)', async ({ page }) => {
+  test.skip(test.info().project.name !== 'desktop', 'once');
+  await page.route(/g\.naplesgov\.com\/arcgis\/rest\/services\/Planning\/Zoning/, r => { const u = r.request().url();
+    if (/outStatistics/.test(u)) return json(r, { features: [{ attributes: { mx: Date.UTC(2024, 11, 26) } }] });
+    return json(r, { name: 'Zoning', fields: [{ name: 'Layer' }], editFieldsInfo: { editDateField: 'last_edited_date' } }); });
+  await page.route(NAPLES, r => json(r, { name: 'Zoning', fields: [{ name: 'Layer' }], editingInfo: { lastEditDate: Date.UTC(2026, 3, 13) } }));
+  expect(await open(page, '/property-lookup/', { settle: 800 })).toEqual([]);
+  const d = await page.evaluate(async () => {
+    localStorage.removeItem('aog-zoning-order-v1');
+    await _zoneOrderRefresh(ZONING_LIVE_CITY.NAPLES); return _zordAll()['City of Naples Zoning']; });
+  expect(d).toMatchObject({ backupNewer: false, backupEdited: Date.UTC(2024, 11, 26), mainEdited: Date.UTC(2026, 3, 13) });
+});

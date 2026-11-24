@@ -21,7 +21,7 @@
 // 52-file re-download. A literal prefix could not fix it either: 'aog-forms-v'
 // is itself a prefix of 'aog-forms-vTEST2.5.0', so public would still eat test.
 // The scope is different by construction, so this cannot collide.
-var CACHE_VERSION = 'v3.1.4';
+var CACHE_VERSION = 'v3.1.5';
 var CACHE_PREFIX  = 'aog-forms::' + self.registration.scope + '::';
 var CACHE_NAME    = CACHE_PREFIX + CACHE_VERSION;
 
@@ -76,10 +76,7 @@ var cacheProgress = { percent: 0, label: '', done: false };
 //  Keep each line short — one change per item.
 // ============================================================
 var CHANGELOG = [
-  '🔋 ELECTRICAL THEORY — new PANEL · SHARED option (400 A): one battery bank feeding the inverters of both panels, paralleled per the EG4 18kPV manual. Every inverter is daisy-chained with paralleling cables and both systems drain the same bank.',
-  '🏛 PROPERTY LOOKUP — City of Naples zoning reads the city\'s ArcGIS Online layer (fast, and up when the city\'s own server is down). The city\'s server is the backup, and whichever copy was edited most recently is searched first.',
-  '📶 PROPERTY LOOKUP — when a city or county server is down, the card says so instead of "no polygon", no longer hangs on "confirming…", and the Live Code panel still loads.',
-  '🔧 PROPERTY LOOKUP — Diagnose live feeds shows every feed right away and fills each one in as it answers, instead of waiting on dead links.',
+  '🏛 PROPERTY LOOKUP — City of Naples zoning now compares the city\'s own server with its online copy by the date of their latest edits, so the most up-to-date one is always searched first.',
 ]
 //
 // ============================================================

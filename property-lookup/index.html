@@ -9824,9 +9824,16 @@ function _zoneOrder(reg){
   return (c && c.backupNewer) ? { main:b, backup:a, decided:c } : { main:a, backup:b, decided:c||null };
 }
 async function _layerEdited(queryUrl){
-  const ctrl=new AbortController(), t=setTimeout(()=>ctrl.abort(), 8000);
-  try{ const m=await (await fetch(queryUrl.replace(/\/query$/i,'')+'?f=json',{signal:ctrl.signal})).json(); clearTimeout(t);
-       const e=m && m.editingInfo; return (e && (e.dataLastEditDate || e.lastEditDate)) || null; }
+  const ctrl=new AbortController(), t=setTimeout(()=>ctrl.abort(), 8000), root=queryUrl.replace(/\/query$/i,'');
+  try{ const m=await (await fetch(root+'?f=json',{signal:ctrl.signal})).json();
+       const e=m && m.editingInfo; let d=(e && (e.dataLastEditDate || e.lastEditDate)) || null;
+       /* An on-prem ArcGIS Server layer often carries no editingInfo date (the City of Naples server doesn't), but
+          it does name its edit-date field. Then the newest record's edit date is the layer's date. */
+       const f=m && m.editFieldsInfo && m.editFieldsInfo.editDateField;
+       if(!d && f){ const st=encodeURIComponent(JSON.stringify([{statisticType:'max',onStatisticField:f,outStatisticFieldName:'mx'}]));
+         const j=await (await fetch(root+'/query?where=1%3D1&outStatistics='+st+'&f=json',{signal:ctrl.signal})).json();
+         const a=j && j.features && j.features[0] && j.features[0].attributes; if(a){ const v=a.mx!=null?a.mx:a.MX; if(v!=null && isFinite(+v)) d=+v; } }
+       clearTimeout(t); return d; }
   catch(e){ clearTimeout(t); return null; }
 }
 async function _zoneOrderRefresh(reg){
